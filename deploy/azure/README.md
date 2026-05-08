@@ -161,6 +161,13 @@ Required or recommended GitHub environment variables:
 - `STAGING_APP_NAME`
 - `APP_NAME_PREFIX`
 
+The Azure OIDC service principal used by `AZURE_CLIENT_ID` needs these roles on the deployment
+resource group:
+
+- `Contributor`, to build and deploy resources.
+- `User Access Administrator`, to create the managed-identity role assignments that let Container
+  Apps pull from ACR and write to Blob Storage.
+
 Set `SEARCH=true` only after `MEILI_HOST` and `MEILI_MASTER_KEY` are configured. Set
 `USE_REDIS=true` only after `REDIS_URI` is configured. The deployment script intentionally fails
 before deploying when required runtime values are missing.
