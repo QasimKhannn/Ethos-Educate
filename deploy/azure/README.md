@@ -115,3 +115,56 @@ After the first deployment:
 - Add a custom domain and update `DOMAIN_CLIENT` / `DOMAIN_SERVER`.
 - Restart or create a new revision after secret changes.
 - Keep `AZURE_STORAGE_CONNECTION_STRING` unset when using managed identity.
+
+## GitHub Actions CI/CD
+
+The `.github/workflows/azure-serverless.yml` workflow runs build and deployment checks on every
+push and pull request. Deployment only runs on push after all checks pass.
+
+Branch behavior:
+
+- Pushes to `STAGING_BRANCH` deploy to `STAGING_APP_NAME` and keep the stable staging URL.
+- Pushes to any other branch deploy an isolated preview Container App with a deterministic branch
+  name and its own Azure-generated URL.
+- Pull requests run checks only and do not deploy.
+- Deleting a preview branch removes Azure resources tagged for that preview app.
+
+Required GitHub environment secrets for deployment:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `MONGO_URI`
+- `CREDS_KEY`
+- `CREDS_IV`
+- `JWT_SECRET`
+- `JWT_REFRESH_SECRET`
+- `OPENID_CLIENT_ID`
+- `OPENID_CLIENT_SECRET`
+- `OPENID_SESSION_SECRET`
+- `MICROSOFT_CLIENT_SECRET`
+- `CANVA_CLIENT_SECRET`
+- `AZURE_API_KEY`
+- `GOOGLE_KEY`
+- `GEMINI_API_KEY`
+
+Required or recommended GitHub environment variables:
+
+- `AZURE_RESOURCE_GROUP`
+- `ACR_NAME`
+- `ACR_LOGIN_SERVER`
+- `MICROSOFT_TENANT_ID`
+- `MICROSOFT_CLIENT_ID`
+- `CANVA_CLIENT_ID`
+- `AZURE_IMAGE_BASE_URL`
+- `STAGING_BRANCH`
+- `STAGING_APP_NAME`
+- `APP_NAME_PREFIX`
+
+Set `SEARCH=true` only after `MEILI_HOST` and `MEILI_MASTER_KEY` are configured. Set
+`USE_REDIS=true` only after `REDIS_URI` is configured. The deployment script intentionally fails
+before deploying when required runtime values are missing.
+
+Preview branch URLs are random Azure Container Apps domains. OAuth providers that require exact
+redirect URI registration, including Okta, Microsoft, and Canva, must either have each preview
+callback URL registered or those OAuth flows will only work on the registered staging/custom domain.

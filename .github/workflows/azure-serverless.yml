@@ -1,0 +1,341 @@
+name: Azure Serverless CI/CD
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-serverless-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.19.0'
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-educhat-staging-serverless' }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus2' }}
+  ACR_NAME: ${{ vars.ACR_NAME || 'educhatstagingcicd' }}
+  ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER || 'educhatstagingcicd.azurecr.io' }}
+  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'educhat-librechat' }}
+  STAGING_BRANCH: ${{ vars.STAGING_BRANCH || 'codex/serverless-azure-deployment' }}
+  STAGING_APP_NAME: ${{ vars.STAGING_APP_NAME || 'educhat-staging' }}
+  APP_NAME_PREFIX: ${{ vars.APP_NAME_PREFIX || 'educhat' }}
+  MIN_REPLICAS: ${{ vars.MIN_REPLICAS || '1' }}
+  MAX_REPLICAS: ${{ vars.MAX_REPLICAS || '1' }}
+  CPU_CORES: ${{ vars.CPU_CORES || '1.0' }}
+  MEMORY_SIZE: ${{ vars.MEMORY_SIZE || '2Gi' }}
+
+jobs:
+  checks:
+    name: Build and Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name != 'delete'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --workspaces --include-workspace-root --no-audit --include=dev
+
+      - name: Validate deployment metadata scripts
+        run: |
+          node deploy/azure/scripts/branch-metadata.mjs
+          APP_NAME=educhat-ci \
+            APP_URL=https://educhat-ci.example.com \
+            AZURE_CONTAINER_IMAGE=educhatstagingcicd.azurecr.io/educhat-librechat:ci \
+            PARAMETERS_PATH=/tmp/azure.parameters.json \
+            node deploy/azure/scripts/create-parameters.mjs
+          node -e "JSON.parse(require('fs').readFileSync('/tmp/azure.parameters.json', 'utf8'))"
+
+      - name: Validate Bicep template
+        run: az bicep build --file deploy/azure/main.bicep --stdout > /tmp/main.json
+
+      - name: Build shared packages
+        run: |
+          npm run build:data-provider
+          npm run build:data-schemas
+          npm run build:api
+          npm run build:client-package
+
+      - name: Build frontend
+        run: cd client && npm run build
+
+      - name: Run focused backend tests
+        run: cd packages/api && npx jest src/cdn/azure.spec.ts --runInBand
+
+  deploy:
+    name: Deploy Branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: checks
+    if: github.event_name == 'push'
+    environment:
+      name: azure-serverless
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve branch deployment metadata
+        id: meta
+        run: node deploy/azure/scripts/branch-metadata.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Resolve current app URL
+        id: current-url
+        run: |
+          set +e
+          fqdn="$(az containerapp show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "${{ steps.meta.outputs.app_name }}" \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv 2>/dev/null)"
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ] && [ -n "$fqdn" ]; then
+            app_url="https://${fqdn}"
+          else
+            app_url="https://${{ steps.meta.outputs.app_name }}.pending.azurecontainerapps.io"
+          fi
+
+          echo "app_url=${app_url}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image in Azure Container Registry
+        id: image
+        run: |
+          image="${ACR_LOGIN_SERVER}/${IMAGE_REPOSITORY}:${{ steps.meta.outputs.image_tag }}"
+          az acr build \
+            --registry "$ACR_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${IMAGE_REPOSITORY}:${{ steps.meta.outputs.image_tag }}" \
+            .
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate deployment parameters
+        env:
+          APP_NAME: ${{ steps.meta.outputs.app_name }}
+          APP_URL: ${{ steps.current-url.outputs.app_url }}
+          AZURE_CONTAINER_IMAGE: ${{ steps.image.outputs.image }}
+          PARAMETERS_PATH: /tmp/azure.parameters.json
+          REQUIRE_RUNTIME_SECRETS: 'true'
+          AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
+          ACR_NAME: ${{ env.ACR_NAME }}
+          ACR_LOGIN_SERVER: ${{ env.ACR_LOGIN_SERVER }}
+          MIN_REPLICAS: ${{ env.MIN_REPLICAS }}
+          MAX_REPLICAS: ${{ env.MAX_REPLICAS }}
+          CPU_CORES: ${{ env.CPU_CORES }}
+          MEMORY_SIZE: ${{ env.MEMORY_SIZE }}
+          APP_TITLE: ${{ vars.APP_TITLE || 'CSUSA Staging' }}
+          CUSTOM_FOOTER: ${{ vars.CUSTOM_FOOTER || 'CSUSA Staging' }}
+          HELP_AND_FAQ_URL: ${{ vars.HELP_AND_FAQ_URL || 'https://helpdesk.charterschoolsusa.com/support/home' }}
+          NO_INDEX: ${{ vars.NO_INDEX || 'true' }}
+          DEBUG_LOGGING: ${{ vars.DEBUG_LOGGING || 'false' }}
+          DEBUG_CONSOLE: ${{ vars.DEBUG_CONSOLE || 'false' }}
+          SEARCH: ${{ vars.SEARCH || 'false' }}
+          MEILI_NO_ANALYTICS: ${{ vars.MEILI_NO_ANALYTICS || 'true' }}
+          MEILI_HOST: ${{ vars.MEILI_HOST }}
+          USE_REDIS: ${{ vars.USE_REDIS || 'false' }}
+          USE_REDIS_STREAMS: ${{ vars.USE_REDIS_STREAMS }}
+          REDIS_KEY_PREFIX: ${{ vars.REDIS_KEY_PREFIX }}
+          MCP_ENABLED: ${{ vars.MCP_ENABLED || 'true' }}
+          EXPERIMENTAL_AGENTS: ${{ vars.EXPERIMENTAL_AGENTS || 'true' }}
+          ALLOW_EMAIL_LOGIN: ${{ vars.ALLOW_EMAIL_LOGIN || 'true' }}
+          ALLOW_REGISTRATION: ${{ vars.ALLOW_REGISTRATION || 'true' }}
+          ALLOW_SOCIAL_LOGIN: ${{ vars.ALLOW_SOCIAL_LOGIN || 'false' }}
+          ALLOW_SOCIAL_REGISTRATION: ${{ vars.ALLOW_SOCIAL_REGISTRATION || 'false' }}
+          ALLOW_PASSWORD_RESET: ${{ vars.ALLOW_PASSWORD_RESET || 'false' }}
+          ALLOW_UNVERIFIED_EMAIL_LOGIN: ${{ vars.ALLOW_UNVERIFIED_EMAIL_LOGIN || 'true' }}
+          SESSION_EXPIRY: ${{ vars.SESSION_EXPIRY || '1000 * 60 * 15' }}
+          REFRESH_TOKEN_EXPIRY: ${{ vars.REFRESH_TOKEN_EXPIRY || '(1000 * 60 * 60 * 24) * 7' }}
+          LIMIT_CONCURRENT_MESSAGES: ${{ vars.LIMIT_CONCURRENT_MESSAGES || 'true' }}
+          CONCURRENT_MESSAGE_MAX: ${{ vars.CONCURRENT_MESSAGE_MAX || '2' }}
+          LIMIT_MESSAGE_IP: ${{ vars.LIMIT_MESSAGE_IP || 'true' }}
+          MESSAGE_IP_MAX: ${{ vars.MESSAGE_IP_MAX || '40' }}
+          MESSAGE_IP_WINDOW: ${{ vars.MESSAGE_IP_WINDOW || '1' }}
+          LIMIT_MESSAGE_USER: ${{ vars.LIMIT_MESSAGE_USER || 'false' }}
+          MESSAGE_USER_MAX: ${{ vars.MESSAGE_USER_MAX || '40' }}
+          MESSAGE_USER_WINDOW: ${{ vars.MESSAGE_USER_WINDOW || '1' }}
+          ALLOW_SHARED_LINKS: ${{ vars.ALLOW_SHARED_LINKS || 'true' }}
+          ALLOW_SHARED_LINKS_PUBLIC: ${{ vars.ALLOW_SHARED_LINKS_PUBLIC || 'false' }}
+          OPENID_ISSUER: ${{ vars.OPENID_ISSUER || 'https://identity-mgr.okta.com/oauth2/default' }}
+          OPENID_SCOPE: ${{ vars.OPENID_SCOPE || 'openid profile email' }}
+          OPENID_CALLBACK_URL: ${{ vars.OPENID_CALLBACK_URL || '/oauth/openid/callback' }}
+          GOOGLE_MODELS: ${{ vars.GOOGLE_MODELS || 'gemini-3-pro-preview,gemini-2.5-flash' }}
+          MICROSOFT_TENANT_ID: ${{ vars.MICROSOFT_TENANT_ID }}
+          MICROSOFT_CLIENT_ID: ${{ vars.MICROSOFT_CLIENT_ID }}
+          CANVA_CLIENT_ID: ${{ vars.CANVA_CLIENT_ID }}
+          AZURE_IMAGE_BASE_URL: ${{ vars.AZURE_IMAGE_BASE_URL }}
+          OUTLOOK_MCP_URL: ${{ vars.OUTLOOK_MCP_URL }}
+          TEAMS_MCP_URL: ${{ vars.TEAMS_MCP_URL }}
+          SHAREPOINT_MCP_URL: ${{ vars.SHAREPOINT_MCP_URL }}
+          ONEDRIVE_MCP_URL: ${{ vars.ONEDRIVE_MCP_URL }}
+          WEBSEARCH_MCP_URL: ${{ vars.WEBSEARCH_MCP_URL }}
+          LESSON_PLANNING_MCP_URL: ${{ vars.LESSON_PLANNING_MCP_URL }}
+          DOWNLOADABLE_FILES_MCP_URL: ${{ vars.DOWNLOADABLE_FILES_MCP_URL }}
+          CANVA_MCP_URL: ${{ vars.CANVA_MCP_URL }}
+          AZURE_STORAGE_CONTAINER: ${{ vars.AZURE_STORAGE_CONTAINER || 'filecreation' }}
+          ENABLE_SECURE_DOWNLOADS: ${{ vars.ENABLE_SECURE_DOWNLOADS || 'true' }}
+          FILE_EXPIRY_DAYS: ${{ vars.FILE_EXPIRY_DAYS || '1' }}
+          MAX_DOWNLOADS_PER_USER_PER_HOUR: ${{ vars.MAX_DOWNLOADS_PER_USER_PER_HOUR || '15' }}
+          ENABLE_AUDIT_LOG: ${{ vars.ENABLE_AUDIT_LOG || 'true' }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
+          VITE_FEEDBACK_FORM_URL: ${{ vars.VITE_FEEDBACK_FORM_URL }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          REDIS_URI: ${{ secrets.REDIS_URI }}
+          CREDS_KEY: ${{ secrets.CREDS_KEY }}
+          CREDS_IV: ${{ secrets.CREDS_IV }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          OPENID_CLIENT_ID: ${{ secrets.OPENID_CLIENT_ID }}
+          OPENID_CLIENT_SECRET: ${{ secrets.OPENID_CLIENT_SECRET }}
+          OPENID_SESSION_SECRET: ${{ secrets.OPENID_SESSION_SECRET }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          CANVA_CLIENT_SECRET: ${{ secrets.CANVA_CLIENT_SECRET }}
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_IMAGE_API_KEY: ${{ secrets.AZURE_IMAGE_API_KEY }}
+          GOOGLE_KEY: ${{ secrets.GOOGLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TTS_API_KEY: ${{ secrets.TTS_API_KEY }}
+          WEB_SEARCH_API_KEY: ${{ secrets.WEB_SEARCH_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          OKTA_CLIENT_ID: ${{ secrets.OKTA_CLIENT_ID }}
+          OKTA_CLIENT_SECRET: ${{ secrets.OKTA_CLIENT_SECRET }}
+          NETSUITE_1_CONSUMER_KEY: ${{ secrets.NETSUITE_1_CONSUMER_KEY }}
+          NETSUITE_1_CONSUMER_SECRET: ${{ secrets.NETSUITE_1_CONSUMER_SECRET }}
+          NETSUITE_1_OAUTH_CLIENT_ID: ${{ secrets.NETSUITE_1_OAUTH_CLIENT_ID }}
+          NETSUITE_1_OAUTH_CLIENT_SECRET: ${{ secrets.NETSUITE_1_OAUTH_CLIENT_SECRET }}
+          NETSUITE_2_CONSUMER_KEY: ${{ secrets.NETSUITE_2_CONSUMER_KEY }}
+          NETSUITE_2_CONSUMER_SECRET: ${{ secrets.NETSUITE_2_CONSUMER_SECRET }}
+          NETSUITE_2_OAUTH_CLIENT_ID: ${{ secrets.NETSUITE_2_OAUTH_CLIENT_ID }}
+          NETSUITE_2_OAUTH_CLIENT_SECRET: ${{ secrets.NETSUITE_2_OAUTH_CLIENT_SECRET }}
+          NETSUITE_3_CONSUMER_KEY: ${{ secrets.NETSUITE_3_CONSUMER_KEY }}
+          NETSUITE_3_CONSUMER_SECRET: ${{ secrets.NETSUITE_3_CONSUMER_SECRET }}
+          NETSUITE_3_OAUTH_CLIENT_ID: ${{ secrets.NETSUITE_3_OAUTH_CLIENT_ID }}
+          NETSUITE_3_OAUTH_CLIENT_SECRET: ${{ secrets.NETSUITE_3_OAUTH_CLIENT_SECRET }}
+          MEILI_MASTER_KEY: ${{ secrets.MEILI_MASTER_KEY }}
+          BINGAI_TOKEN: ${{ secrets.BINGAI_TOKEN }}
+          GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          TRAVERSAAL_API_KEY: ${{ secrets.TRAVERSAAL_API_KEY }}
+          WOLFRAM_APP_ID: ${{ secrets.WOLFRAM_APP_ID }}
+          ZAPIER_NLA_API_KEY: ${{ secrets.ZAPIER_NLA_API_KEY }}
+        run: node deploy/azure/scripts/create-parameters.mjs
+
+      - name: Deploy infrastructure and app
+        id: deploy
+        run: |
+          deployed_url="$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file deploy/azure/main.bicep \
+            --parameters @/tmp/azure.parameters.json \
+            --query properties.outputs.containerAppUrl.value \
+            --output tsv)"
+          echo "deployed_url=${deployed_url}" >> "$GITHUB_OUTPUT"
+
+      - name: Update runtime URLs after first deployment
+        if: steps.deploy.outputs.deployed_url != steps.current-url.outputs.app_url
+        run: |
+          url="${{ steps.deploy.outputs.deployed_url }}"
+          az containerapp update \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "${{ steps.meta.outputs.app_name }}" \
+            --set-env-vars \
+              DOMAIN_CLIENT="$url" \
+              DOMAIN_SERVER="$url" \
+              MIDDLEWARE_BASE_URL="$url" \
+              OUTLOOK_MCP_REDIRECT_URI="$url/api/mcp/outlook/oauth/callback" \
+              TEAMS_MCP_REDIRECT_URI="$url/api/mcp/teams/oauth/callback" \
+              SHAREPOINT_MCP_REDIRECT_URI="$url/api/mcp/sharepoint/oauth/callback" \
+              ONEDRIVE_MCP_REDIRECT_URI="$url/api/mcp/onedrive/oauth/callback" \
+              CANVA_MCP_REDIRECT_URI="$url/api/mcp/canva/oauth/callback"
+
+      - name: Smoke test deployment
+        run: |
+          url="${{ steps.deploy.outputs.deployed_url }}"
+          curl --fail --show-error --silent --max-time 60 "$url/api/config" > /tmp/librechat-config.json
+          curl --fail --show-error --silent --max-time 60 -o /tmp/librechat-index.html "$url/"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "### Azure deployment"
+            echo ""
+            echo "- Branch: \`${GITHUB_REF_NAME}\`"
+            echo "- App: \`${{ steps.meta.outputs.app_name }}\`"
+            echo "- Image: \`${{ steps.image.outputs.image }}\`"
+            echo "- URL: ${{ steps.deploy.outputs.deployed_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  cleanup:
+    name: Delete Branch Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch' && github.event.ref != (vars.STAGING_BRANCH || 'codex/serverless-azure-deployment')
+    environment:
+      name: azure-serverless
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve deleted branch metadata
+        id: meta
+        env:
+          GITHUB_REF_NAME: ${{ github.event.ref }}
+        run: node deploy/azure/scripts/branch-metadata.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Delete tagged Azure preview resources
+        run: |
+          mapfile -t resource_ids < <(az resource list \
+            --resource-group "$RESOURCE_GROUP" \
+            --tag educhatAppName="${{ steps.meta.outputs.app_name }}" \
+            --query "[].id" \
+            --output tsv)
+
+          if [ "${#resource_ids[@]}" -eq 0 ]; then
+            echo "No tagged resources found for ${{ steps.meta.outputs.app_name }}."
+            exit 0
+          fi
+
+          az resource delete --ids "${resource_ids[@]}"
+
+          {
+            echo "### Azure branch preview cleanup"
+            echo ""
+            echo "- Branch: \`${{ github.event.ref }}\`"
+            echo "- App: \`${{ steps.meta.outputs.app_name }}\`"
+            echo "- Deleted resources: ${#resource_ids[@]}"
+          } >> "$GITHUB_STEP_SUMMARY"

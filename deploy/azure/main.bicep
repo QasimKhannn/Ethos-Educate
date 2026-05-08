@@ -45,11 +45,22 @@ param plainEnv object = {}
 @description('Secret environment variables for the app container.')
 param secretEnv object = {}
 
+@description('Additional tags to apply to resources created by this deployment.')
+param resourceTags object = {}
+
 var storageNameBase = toLower(replace(replace(appName, '-', ''), '_', ''))
 var storageAccountName = take('${storageNameBase}${uniqueString(resourceGroup().id)}', 24)
 var logAnalyticsName = '${appName}-logs'
 var managedEnvironmentName = '${appName}-env'
 var identityName = '${appName}-identity'
+var tags = union(
+  {
+    workload: 'educhat'
+    educhatAppName: appName
+    managedBy: 'github-actions'
+  },
+  resourceTags
+)
 var storageBlobDataContributorRoleId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
@@ -100,6 +111,7 @@ var registries = empty(containerRegistryServer)
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logAnalyticsName
   location: location
+  tags: tags
   properties: {
     sku: {
       name: 'PerGB2018'
@@ -111,6 +123,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
   location: location
+  tags: tags
 }
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = if (!empty(containerRegistryName)) {
@@ -120,6 +133,7 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' e
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
+  tags: tags
   sku: {
     name: 'Standard_LRS'
   }
@@ -188,6 +202,7 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
 resource containerEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: managedEnvironmentName
   location: location
+  tags: tags
   properties: {
     appLogsConfiguration: {
       destination: 'log-analytics'
@@ -202,6 +217,7 @@ resource containerEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: appName
   location: location
+  tags: tags
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
