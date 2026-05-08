@@ -154,8 +154,9 @@ const getUserDelegationKey = async (
   startsOn: Date,
   expiresOn: Date,
 ): Promise<UserDelegationKey> => {
-  if (userDelegationKeyCache?.expiresOn.getTime() > Date.now() + 60 * 1000) {
-    return userDelegationKeyCache.key;
+  const cachedKey = userDelegationKeyCache;
+  if (cachedKey && cachedKey.expiresOn.getTime() > Date.now() + 60 * 1000) {
+    return cachedKey.key;
   }
 
   try {

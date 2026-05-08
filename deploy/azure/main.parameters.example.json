@@ -8,6 +8,12 @@
     "image": {
       "value": "<registry>/csusa-librechat:latest"
     },
+    "containerRegistryName": {
+      "value": "<registry-name>"
+    },
+    "containerRegistryServer": {
+      "value": "<registry-name>.azurecr.io"
+    },
     "additionalStorageContainerNames": {
       "value": ["filecreation"]
     },
@@ -43,13 +49,18 @@
         "CANVA_CLIENT_ID": "<canva-client-id>",
         "AZURE_IMAGE_BASE_URL": "https://<azure-openai-or-ai-service-host>/openai/deployments",
         "OUTLOOK_MCP_URL": "https://outlook-mcp-1081644116068.us-central1.run.app/mcp",
+        "OUTLOOK_MCP_REDIRECT_URI": "https://<app-host>/api/mcp/outlook/oauth/callback",
         "TEAMS_MCP_URL": "https://teams-chat-mcp-1081644116068.us-central1.run.app/mcp",
+        "TEAMS_MCP_REDIRECT_URI": "https://<app-host>/api/mcp/teams/oauth/callback",
         "SHAREPOINT_MCP_URL": "https://sharepoint-mcp-1081644116068.us-central1.run.app/mcp",
+        "SHAREPOINT_MCP_REDIRECT_URI": "https://<app-host>/api/mcp/sharepoint/oauth/callback",
         "ONEDRIVE_MCP_URL": "https://onedrive-mcp-1081644116068.us-central1.run.app/mcp",
+        "ONEDRIVE_MCP_REDIRECT_URI": "https://<app-host>/api/mcp/onedrive/oauth/callback",
         "WEBSEARCH_MCP_URL": "https://web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp",
         "LESSON_PLANNING_MCP_URL": "https://lesson-planning-mcp-3fixl7mkma-uc.a.run.app/mcp",
         "DOWNLOADABLE_FILES_MCP_URL": "https://csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp",
         "CANVA_MCP_URL": "https://<canva-mcp-host>/mcp",
+        "CANVA_MCP_REDIRECT_URI": "https://<app-host>/api/mcp/canva/oauth/callback",
         "AZURE_STORAGE_CONTAINER": "filecreation",
         "ENABLE_SECURE_DOWNLOADS": "true",
         "MIDDLEWARE_BASE_URL": "https://<app-host>",

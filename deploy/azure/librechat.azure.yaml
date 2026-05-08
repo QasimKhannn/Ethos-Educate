@@ -82,7 +82,7 @@ mcpServers:
       token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
       client_id: "${MICROSOFT_CLIENT_ID}"
       client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: "${DOMAIN_SERVER}/api/mcp/outlook/oauth/callback"
+      redirect_uri: ${OUTLOOK_MCP_REDIRECT_URI}
       scope: "openid profile User.Read"
 
   teams:
@@ -95,7 +95,7 @@ mcpServers:
       token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
       client_id: "${MICROSOFT_CLIENT_ID}"
       client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: "${DOMAIN_SERVER}/api/mcp/teams/oauth/callback"
+      redirect_uri: ${TEAMS_MCP_REDIRECT_URI}
       scope: "openid profile User.Read"
 
   monday:
@@ -135,7 +135,7 @@ mcpServers:
       token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
       client_id: "${MICROSOFT_CLIENT_ID}"
       client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: "${DOMAIN_SERVER}/api/mcp/sharepoint/oauth/callback"
+      redirect_uri: ${SHAREPOINT_MCP_REDIRECT_URI}
       scope: "openid profile User.Read"
 
   websearch:
@@ -156,7 +156,7 @@ mcpServers:
       token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
       client_id: "${MICROSOFT_CLIENT_ID}"
       client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: "${DOMAIN_SERVER}/api/mcp/onedrive/oauth/callback"
+      redirect_uri: ${ONEDRIVE_MCP_REDIRECT_URI}
       scope: "openid profile User.Read"
 
   canva:
@@ -169,7 +169,7 @@ mcpServers:
       token_url: "https://api.canva.com/rest/v1/oauth/token"
       client_id: "${CANVA_CLIENT_ID}"
       client_secret: "${CANVA_CLIENT_SECRET}"
-      redirect_uri: "${DOMAIN_SERVER}/api/mcp/canva/oauth/callback"
+      redirect_uri: ${CANVA_MCP_REDIRECT_URI}
       scope: "design:meta:read asset:read"
     timeout: 60000
     initTimeout: 30000

@@ -4,6 +4,7 @@
 **/.git
 **/.DS_Store
 **/.vscode
+node_modules
 **/node_modules
 
 # Specific patterns to ignore

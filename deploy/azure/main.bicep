@@ -9,6 +9,12 @@ param location string = resourceGroup().location
 @description('Container image to run, for example myregistry.azurecr.io/csusa-librechat:latest.')
 param image string
 
+@description('Existing Azure Container Registry name used to pull the app image.')
+param containerRegistryName string = ''
+
+@description('Existing Azure Container Registry login server, for example myregistry.azurecr.io.')
+param containerRegistryServer string = ''
+
 @description('Container port exposed by the Node server.')
 param containerPort int = 3080
 
@@ -48,6 +54,10 @@ var storageBlobDataContributorRoleId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 )
+var acrPullRoleId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+)
 var baseEnv = {
   NODE_ENV: 'production'
   HOST: '0.0.0.0'
@@ -78,6 +88,14 @@ var secretEnvVars = [
     secretRef: replace(toLower(secret.key), '_', '-')
   }
 ]
+var registries = empty(containerRegistryServer)
+  ? []
+  : [
+      {
+        server: containerRegistryServer
+        identity: managedIdentity.id
+      }
+    ]
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logAnalyticsName
@@ -93,6 +111,10 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
   location: location
+}
+
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = if (!empty(containerRegistryName)) {
+  name: containerRegistryName
 }
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -153,6 +175,16 @@ resource storageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(containerRegistryName)) {
+  name: guid(containerRegistry.id, managedIdentity.id, acrPullRoleId)
+  scope: containerRegistry
+  properties: {
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: acrPullRoleId
+  }
+}
+
 resource containerEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: managedEnvironmentName
   location: location
@@ -185,9 +217,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: containerPort
         transport: 'http'
         allowInsecure: false
-      }
-      secrets: containerSecrets
-    }
+          }
+          secrets: containerSecrets
+          registries: registries
+        }
     template: {
       scale: {
         minReplicas: minReplicas
@@ -219,6 +252,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     blobContainer
     storageRoleAssignment
+    acrPullRoleAssignment
   ]
 }
 

@@ -94,9 +94,15 @@ Container-local values from Docker Compose must be replaced before deployment:
 
 ## Deploy
 
-Build and push the application image to your registry, then deploy the Bicep template:
+Create or reuse an Azure Container Registry, build and push the application image, then deploy the
+Bicep template:
 
 ```bash
+az acr build \
+  --registry <registry-name> \
+  --image csusa-librechat:latest \
+  .
+
 az deployment group create \
   --resource-group <resource-group> \
   --template-file deploy/azure/main.bicep \

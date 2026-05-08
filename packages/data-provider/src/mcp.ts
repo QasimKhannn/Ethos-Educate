@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { TokenExchangeMethodEnum } from './types/agents';
 import { extractEnvVariable } from './utils';
 
+const EnvUrlSchema = z.string().transform(extractEnvVariable).pipe(z.string().url());
+
 const BaseOptionsSchema = z.object({
   /** Display name for the MCP server - only letters, numbers, and spaces allowed */
   title: z
@@ -44,9 +46,9 @@ const BaseOptionsSchema = z.object({
   oauth: z
     .object({
       /** OAuth authorization endpoint (optional - can be auto-discovered) */
-      authorization_url: z.string().url().optional(),
+      authorization_url: EnvUrlSchema.optional(),
       /** OAuth token endpoint (optional - can be auto-discovered) */
-      token_url: z.string().url().optional(),
+      token_url: EnvUrlSchema.optional(),
       /** OAuth client ID (optional - can use dynamic registration) */
       client_id: z.string().optional(),
       /** OAuth client secret (optional - can use dynamic registration) */
@@ -54,7 +56,7 @@ const BaseOptionsSchema = z.object({
       /** OAuth scopes to request */
       scope: z.string().optional(),
       /** OAuth redirect URI (defaults to /api/mcp/{serverName}/oauth/callback) */
-      redirect_uri: z.string().url().optional(),
+      redirect_uri: EnvUrlSchema.optional(),
       /** Token exchange method */
       token_exchange_method: z.nativeEnum(TokenExchangeMethodEnum).optional(),
       /** Supported grant types (defaults to ['authorization_code', 'refresh_token']) */
@@ -68,7 +70,7 @@ const BaseOptionsSchema = z.object({
       /** Skip code challenge validation and force S256 (useful for providers like AWS Cognito that support S256 but don't advertise it) */
       skip_code_challenge_check: z.boolean().optional(),
       /** OAuth revocation endpoint (optional - can be auto-discovered) */
-      revocation_endpoint: z.string().url().optional(),
+      revocation_endpoint: EnvUrlSchema.optional(),
       /** OAuth revocation endpoint authentication methods supported (optional - can be auto-discovered) */
       revocation_endpoint_auth_methods_supported: z.array(z.string()).optional(),
     })
