@@ -74,6 +74,8 @@ jobs:
           npm run build:client-package
 
       - name: Build frontend
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: cd client && npm run build
 
       - name: Run focused backend tests
