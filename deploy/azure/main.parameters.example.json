@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "value": "csusa-librechat"
+    },
+    "image": {
+      "value": "<registry>/csusa-librechat:latest"
+    },
+    "additionalStorageContainerNames": {
+      "value": ["filecreation"]
+    },
+    "plainEnv": {
+      "value": {
+        "CONFIG_PATH": "/app/deploy/azure/librechat.azure.yaml",
+        "DOMAIN_CLIENT": "https://<app-host>",
+        "DOMAIN_SERVER": "https://<app-host>",
+        "APP_TITLE": "CSUSA Staging",
+        "CUSTOM_FOOTER": "CSUSA Staging",
+        "HELP_AND_FAQ_URL": "https://helpdesk.charterschoolsusa.com/support/home",
+        "NO_INDEX": "true",
+        "DEBUG_LOGGING": "false",
+        "DEBUG_CONSOLE": "false",
+        "SEARCH": "false",
+        "USE_REDIS": "true",
+        "USE_REDIS_STREAMS": "true",
+        "REDIS_KEY_PREFIX": "csusa-librechat",
+        "MCP_ENABLED": "true",
+        "EXPERIMENTAL_AGENTS": "true",
+        "ALLOW_EMAIL_LOGIN": "true",
+        "ALLOW_REGISTRATION": "true",
+        "ALLOW_SOCIAL_LOGIN": "false",
+        "ALLOW_SOCIAL_REGISTRATION": "false",
+        "ALLOW_PASSWORD_RESET": "false",
+        "ALLOW_UNVERIFIED_EMAIL_LOGIN": "true",
+        "OPENID_ISSUER": "https://identity-mgr.okta.com/oauth2/default",
+        "OPENID_SCOPE": "openid profile email",
+        "OPENID_CALLBACK_URL": "/oauth/openid/callback",
+        "GOOGLE_MODELS": "gemini-3-pro-preview,gemini-2.5-flash",
+        "MICROSOFT_TENANT_ID": "<tenant-id>",
+        "MICROSOFT_CLIENT_ID": "<microsoft-client-id>",
+        "CANVA_CLIENT_ID": "<canva-client-id>",
+        "AZURE_IMAGE_BASE_URL": "https://<azure-openai-or-ai-service-host>/openai/deployments",
+        "OUTLOOK_MCP_URL": "https://outlook-mcp-1081644116068.us-central1.run.app/mcp",
+        "TEAMS_MCP_URL": "https://teams-chat-mcp-1081644116068.us-central1.run.app/mcp",
+        "SHAREPOINT_MCP_URL": "https://sharepoint-mcp-1081644116068.us-central1.run.app/mcp",
+        "ONEDRIVE_MCP_URL": "https://onedrive-mcp-1081644116068.us-central1.run.app/mcp",
+        "WEBSEARCH_MCP_URL": "https://web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp",
+        "LESSON_PLANNING_MCP_URL": "https://lesson-planning-mcp-3fixl7mkma-uc.a.run.app/mcp",
+        "DOWNLOADABLE_FILES_MCP_URL": "https://csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp",
+        "CANVA_MCP_URL": "https://<canva-mcp-host>/mcp",
+        "AZURE_STORAGE_CONTAINER": "filecreation",
+        "ENABLE_SECURE_DOWNLOADS": "true",
+        "MIDDLEWARE_BASE_URL": "https://<app-host>",
+        "FILE_EXPIRY_DAYS": "1",
+        "MAX_DOWNLOADS_PER_USER_PER_HOUR": "15",
+        "ENABLE_AUDIT_LOG": "true",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "secretEnv": {
+      "value": {
+        "MONGO_URI": "<mongodb-uri>",
+        "REDIS_URI": "<redis-uri>",
+        "JWT_SECRET": "<jwt-secret>",
+        "JWT_REFRESH_SECRET": "<jwt-refresh-secret>",
+        "CREDS_KEY": "<32-byte-hex-or-base64-key>",
+        "CREDS_IV": "<16-byte-hex-or-base64-iv>",
+        "OPENID_CLIENT_ID": "<okta-client-id>",
+        "OPENID_CLIENT_SECRET": "<okta-client-secret>",
+        "OPENID_SESSION_SECRET": "<openid-session-secret>",
+        "MICROSOFT_CLIENT_SECRET": "<microsoft-client-secret>",
+        "CANVA_CLIENT_SECRET": "<canva-client-secret>",
+        "AZURE_API_KEY": "<azure-openai-api-key>",
+        "AZURE_IMAGE_API_KEY": "<azure-image-api-key>",
+        "GOOGLE_KEY": "<google-api-key>",
+        "GEMINI_API_KEY": "<gemini-api-key>",
+        "TTS_API_KEY": "<tts-api-key>",
+        "MEILI_MASTER_KEY": "<meilisearch-master-key>"
+      }
+    }
+  }
+}

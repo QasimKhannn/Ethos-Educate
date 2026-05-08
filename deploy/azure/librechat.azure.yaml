@@ -1,0 +1,421 @@
+version: 1.3.6
+cache: true
+fileStrategy: azure_blob
+secureImageLinks: true
+
+registration:
+  socialLogins: ["openid"]
+
+interface:
+  sidePanel: true
+  webSearch: false
+  runCode: true
+  fileSearch: true
+  mcpServers:
+    placeholder: "AI Tools"
+    global: true
+
+fileConfig:
+  serverFileSizeLimit: 20
+
+mcpSettings:
+  allowedDomains:
+    - "ms365-mcp-1081644116068.us-central1.run.app"
+    - "sharepoint-mcp-1081644116068.us-central1.run.app"
+    - "onedrive-mcp-1081644116068.us-central1.run.app"
+    - "outlook-mcp-1081644116068.us-central1.run.app"
+    - "teams-chat-mcp-1081644116068.us-central1.run.app"
+    - "lesson-planning-mcp-3fixl7mkma-uc.a.run.app"
+    - "csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
+    - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
+    - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
+    - "mcp.monday.com"
+    - "mcp.canva.com"
+    - "api.canva.com"
+    - "www.canva.com"
+    - "canva.com"
+    - "canva.ai"
+
+mcpServers:
+  Image_Generation:
+    description: "Generate AI images"
+    command: npx
+    args:
+      - -y
+      - "@malikmalikayesha/azure-image-generation-mcp"
+    env:
+      AZURE_IMAGE_API_KEY: ${AZURE_IMAGE_API_KEY}
+      AZURE_IMAGE_BASE_URL: ${AZURE_IMAGE_BASE_URL}
+    timeout: 180000
+    initTimeout: 60000
+    chatMenu: true
+    startup: false
+    serverInstructions: |
+      🎨 **AI Image Generation Tool**
+      Create stunning images using advanced AI models:
+      **🖼️ What you can create:**
+      • Realistic images and portraits
+      • Artistic illustrations and concept art
+      • Logo designs and brand graphics
+      • Character portraits and scenes
+      • Abstract art and creative compositions
+      • Social media content and presentations
+      **💡 How to use:**
+      Simply describe what you want to see! The system uses FLUX by default for all image generation.
+      **🤖 Model Selection:**
+      • **FLUX** (default): Used for all requests unless you specifically ask for DALL-E
+      • **DALL-E 3**: Only used when you explicitly mention "DALL-E" in your prompt
+      **⚡ Features:**
+      • High-quality AI image generation
+      • Multiple sizes: Square (1024x1024), Wide (1792x1024), Tall (1024x1792)
+      • Fast generation (typically 30-60 seconds)
+      • Professional-grade results
+      **After generating an image, ask:** "Would you like me to generate any other images for you?" nothing else, just ask the user if they would like to generate any other images for them.
+
+  outlook:
+    description: "Read Outlook emails"
+    type: streamable-http
+    url: ${OUTLOOK_MCP_URL}
+    requiresOAuth: true
+    oauth:
+      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
+      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
+      client_id: "${MICROSOFT_CLIENT_ID}"
+      client_secret: "${MICROSOFT_CLIENT_SECRET}"
+      redirect_uri: "${DOMAIN_SERVER}/api/mcp/outlook/oauth/callback"
+      scope: "openid profile User.Read"
+
+  teams:
+    description: "Read Teams messages"
+    type: streamable-http
+    url: ${TEAMS_MCP_URL}
+    requiresOAuth: true
+    oauth:
+      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
+      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
+      client_id: "${MICROSOFT_CLIENT_ID}"
+      client_secret: "${MICROSOFT_CLIENT_SECRET}"
+      redirect_uri: "${DOMAIN_SERVER}/api/mcp/teams/oauth/callback"
+      scope: "openid profile User.Read"
+
+  monday:
+    description: "Manage monday.com work"
+    type: streamable-http
+    url: "https://mcp.monday.com/mcp"
+    timeout: 120000
+    initTimeout: 30000
+    chatMenu: true
+    startup: false
+    requiresOAuth: true
+    serverInstructions: |
+      **monday.com Workspace Assistant**
+
+      Use monday.com to read and update work across boards, items, docs, dashboards, and related workflows.
+
+      **Good uses:**
+      - Find boards, items, docs, and workspace content
+      - Summarize project status, blockers, and recent changes
+      - Create or update items, owners, dates, and statuses
+      - Build reports and answer questions about board data
+
+      **Authentication:**
+      Users will be prompted to connect their monday.com account with OAuth when they first use this connector.
+      The connector can only access what the signed-in monday.com user is already allowed to access.
+
+      **Note:**
+      The monday MCP app must be installed in the monday.com account before first use.
+
+  sharepoint:
+    description: "Access SharePoint files"
+    type: streamable-http
+    url: ${SHAREPOINT_MCP_URL}
+    requiresOAuth: true
+    oauth:
+      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
+      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
+      client_id: "${MICROSOFT_CLIENT_ID}"
+      client_secret: "${MICROSOFT_CLIENT_SECRET}"
+      redirect_uri: "${DOMAIN_SERVER}/api/mcp/sharepoint/oauth/callback"
+      scope: "openid profile User.Read"
+
+  websearch:
+    description: "Search web results"
+    type: streamable-http
+    url: ${WEBSEARCH_MCP_URL}
+    timeout: 60000
+    initTimeout: 15000
+    serverInstructions: true
+
+  onedrive:
+    description: "Access OneDrive files"
+    type: streamable-http
+    url: ${ONEDRIVE_MCP_URL}
+    requiresOAuth: true
+    oauth:
+      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
+      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
+      client_id: "${MICROSOFT_CLIENT_ID}"
+      client_secret: "${MICROSOFT_CLIENT_SECRET}"
+      redirect_uri: "${DOMAIN_SERVER}/api/mcp/onedrive/oauth/callback"
+      scope: "openid profile User.Read"
+
+  canva:
+    description: "Create, edit, search, and export Canva designs"
+    type: streamable-http
+    url: ${CANVA_MCP_URL}
+    requiresOAuth: true
+    oauth:
+      authorization_url: "https://www.canva.com/api/oauth/authorize"
+      token_url: "https://api.canva.com/rest/v1/oauth/token"
+      client_id: "${CANVA_CLIENT_ID}"
+      client_secret: "${CANVA_CLIENT_SECRET}"
+      redirect_uri: "${DOMAIN_SERVER}/api/mcp/canva/oauth/callback"
+      scope: "design:meta:read asset:read"
+    timeout: 60000
+    initTimeout: 30000
+    chatMenu: true
+    startup: false
+    serverInstructions: |
+      🎨 **Canva Design Tool**
+      Create, manage, and export professional designs with Canva.
+
+      **What you can do:**
+      • Create new designs (posters, presentations, social media, documents)
+      • Manage your existing designs (list, get details, update, delete)
+      • Search for design assets, templates, and trending designs
+      • Export designs in multiple formats (PDF, PNG, JPG, MP4, PPTX)
+
+      **How to use:**
+      Simply describe what design you want to create or what action you want to take with Canva designs!
+
+      **Features:**
+      • Automatic design creation from descriptions
+      • Asset and template search
+      • Multi-format export with quality options
+      • Design management (CRUD operations)
+      • Trending template discovery
+
+      **Example requests:**
+      • "Create a social media post for our summer sale"
+      • "Search for professional business card templates"
+      • "Export my latest design as a PDF"
+      • "List all my recent designs"
+      • "Find trending poster templates for marketing"
+
+  lesson-planning:
+    type: streamable-http
+    title: "Lesson Planning"
+    description: "Lesson planning workflow with DOCX generation."
+    url: ${LESSON_PLANNING_MCP_URL}
+    timeout: 120000
+    initTimeout: 15000
+    global: false
+    serverInstructions: |
+      Use this MCP server for the complete lesson-planning workflow.
+      Keep the conversation context-efficient.
+      Ask for one decision step at a time.
+      Do not repeat full prior option lists after the user has already chosen.
+      Summarize the current selections briefly before moving to the next tool call.
+      Keep only the values needed for the next step: state, frameworks, subject, grade, unit_document_id, selected benchmark titles, selected engagement strategies, and teacher notes.
+      If the user selects AVID/WICOR as one combined option, pass both frameworks (AVID and WICOR) to lesson_generate.
+      For now, do not ask lesson scope options; always use lesson_scope = five_day.
+      Follow this exact order:
+      1. Call lesson_get_states and lesson_get_frameworks first.
+      2. Ask the user to choose a state and one or more frameworks.
+      3. Call lesson_get_subjects with the selected state.
+      4. Ask the user to choose a subject.
+      5. Call lesson_get_grades with the selected state and subject.
+      6. Ask the user to choose a grade.
+      7. Call lesson_get_units with state, subject, and grade_level.
+      8. If units are returned, ask the user to choose one and use its value as unit_document_id.
+      9. Never auto-select a unit, never assume the first unit, and never continue to suggestions until the user explicitly chooses a unit.
+      10. If no units are returned for Specials or Electives, skip unit selection and call lesson_generate_suggestions with state, subject, and grade_level.
+      11. Otherwise call lesson_generate_suggestions with unit_document_id.
+      12. Ask the user to select benchmarks and engagement strategies.
+      13. Pass selected_benchmarks as benchmark titles only.
+      14. Pass selected_engagement_strategies exactly as 'Title: Description' strings.
+      15. If the user selects AVID, treat it as both AVID and WICOR Overview in downstream payloads, but do not show WICOR Overview as a separate option.
+      16. Call lesson_generate only after collecting all required selections.
+      17. When generation succeeds, always show the direct download link using absolute_download_url.
+      18. Use ONLY lesson-planning MCP tools for this workflow; do not call tools from any other MCP server.
+      19. Do not invent lesson content from model knowledge. If tool data is unavailable, report that the lesson-planning MCP/backend is unavailable.
+
+  Downloadable-Files-Creation:
+    description: "Create Microsoft Office documents"
+    type: streamable-http
+    url: ${DOWNLOADABLE_FILES_MCP_URL}
+    timeout: 180000
+    initTimeout: 60000
+    startup: true
+    chatMenu: true
+    headers:
+      x-user-id: "{{LIBRECHAT_USER_ID}}"
+      x-user-email: "{{LIBRECHAT_USER_EMAIL}}"
+      x-user-role: "{{LIBRECHAT_USER_ROLE}}"
+    serverInstructions: |
+      📄 **Microsoft Office Document Creation Tool**
+
+
+      Create professional documents directly from conversations:
+
+
+      **📊 PowerPoint Presentations** - Create professional slideshows with title slides, section dividers, and content slides featuring bullet points and proper formatting
+
+
+      **📄 Word Documents** - Generate formatted documents from markdown including headers, tables, lists, and styling - perfect for reports, contracts, and documentation  
+
+
+      **📧 Email Drafts** - Compose professional email drafts in EML format with proper HTML formatting and styling
+
+
+      **📈 Excel Spreadsheets** - Build data-rich spreadsheets from markdown tables with formula support and cross-table references
+
+
+      **⚙️ Dynamic Email Templates** - Use pre-configured email templates with custom variables for specialized communications
+
+
+      Simply describe what document you need and the tool will create it for you. Generated files are securely stored and accessible through download links.
+
+
+      **IMPORTANT - Download Link Format:**
+      - When presenting download links to users, ALWAYS display them as a clickable filename (e.g., "AI in 2050.docx")
+      - NEVER show the raw URL or include verbose descriptions with the link
+      - The link should appear as: [filename.extension](url) in markdown format
+      - Example: If the tool returns a link, present it simply as "Here's your document: [AI in 2050.docx](https://...)" or just "[AI in 2050.docx](https://...)"
+      - Do NOT say "Here's the download link" or "Here's the link" - just show the clickable filename directly
+
+modelSpecs:
+  enforce: false
+  prioritize: false
+  list:
+    - name: "gpt-5.2-chat"
+      label: "CSUSA-Pro (gpt-5-latest)"
+      showIconInMenu: true
+      showIconInHeader: true
+      default: true
+      preset:
+        endpoint: "azureOpenAI"
+        model: "gpt-5.2-chat"
+        append_current_datetime: true
+        modelLabel: "gpt-5.2-chat"
+        promptPrefix: &csusa_prompt |-
+          Identity & Purpose
+          You are the CSUSA Assistant, a knowledgeable, action-oriented partner built by Charter Schools USA's Research, Development, and Innovation (RDI) team. You help educators, leaders, and staff strengthen teaching, learning, and operations via our proprietary MVP (Mission Values Promise) Framework—always reflecting CSUSA's mission of Relentless Commitment to Student Greatness in School and in Life and the Promise of Strong Minds, Good Hearts (SMGH) rooted in our values Purpose, Passion, Integrity, and Grit (PPIG).
+
+          Scope of Assistance
+          You ONLY respond to queries directly related to educators' professional responsibilities within CSUSA, including: Teaching, curriculum, and instructional strategies; Student learning, assessment, and academic support; Classroom management and school operations; Professional development and educational leadership; Parent communication and family engagement related to education; School culture, policies, and CSUSA-specific practices; Educational technology and tools for teaching.
+
+          You politely decline requests that fall outside your educational scope, such as: Personal matters unrelated to professional education work; General life advice, entertainment, or casual conversation; Non-educational topics (politics, sports, shopping, etc.); Tasks not connected to teaching, school operations, or student success; Controversial or political topics including discussions about gender identity, politics, religion, or other sensitive social issues.
+
+          When declining, briefly acknowledge the request and redirect: I'm here as your assistant to help you with your teaching and school-related responsibilities. I don't have comments on this topic. How can I help you with your work today—whether that's lesson planning, classroom management, student support, or other professional tasks?
+
+          Core Focus
+          Teaching & Learning
+          Provide practical, evidence-based strategies for lesson planning, assessment, and differentiation that align with CSUSA's curriculum, COGNIA standards, and readiness for college, career, and life.
+          Operations
+          Simplify workflows—scheduling, reporting, communication, events—anticipating common challenges and tying solutions to student success.
+          Data & Growth
+          Guide data-driven decisions for MTSS/RTI, academic progress, and accountability. Briefly explain the reasoning behind recommendations.
+          Culture & Leadership
+          Model the 5Cs: Champion the Mission, Collaborate for Greatness, Cultivate Positivity, Commit to Growth, and Celebrate Achievement. Reinforce daily MVP moments and recognitions that build culture.
+          Family & Community
+          Support clear, inspiring parent communication and engagement that reflect CSUSA's values and build trust.
+          Innovation & Technology
+          Recommend tools and AI applications that save time, enhance learning, and meet CSUSA standards for rigor and equity.
+
+          Tone & Behavior
+          Be proactive, clear, and mission-aligned. Use a professional yet approachable tone. Communicate in structured, actionable formats (steps, bullets, examples). Focus every response on advancing student greatness and CSUSA's cultural commitments. Keep educators focused on their professional work and gently redirect any off-topic, controversial, or political conversations back to teaching, learning, and operational excellence.
+
+    - name: "gpt-5-nano"
+      label: "CSUSA-Nano (gpt-5-latest)"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "azureOpenAI"
+        model: "gpt-5-nano"
+        modelLabel: "gpt-5-nano"
+        promptPrefix: *csusa_prompt
+
+    - name: "gemini-3-pro-preview"
+      label: "gemini-3-pro-preview"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "google"
+        model: "gemini-3-pro-preview"
+        modelLabel: "gemini-3-pro-preview"
+        promptPrefix: *csusa_prompt
+        append_current_datetime: true
+
+    - name: "gemini-2.5-flash"
+      label: "gemini-2.5-flash"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "google"
+        model: "gemini-2.5-flash"
+        modelLabel: "gemini-2.5-flash"
+        promptPrefix: *csusa_prompt
+        append_current_datetime: true
+
+    - name: "Agents"
+      label: "Agents"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "agents"
+
+endpoints:
+  azureOpenAI:
+    titleConvo: true
+    plugins: true
+    groups:
+      - group: "default"
+        apiKey: "${AZURE_API_KEY}"
+        instanceName: "arij-me35gkee-eastus2"
+        version: "2025-04-01-preview"
+        models:
+          gpt-5.2-chat:
+            deploymentName: "gpt-5.2-chat"
+          gpt-5-nano:
+            deploymentName: "gpt-5-nano"
+          gpt-5-mini:
+            deploymentName: "gpt-5-mini"
+
+  assistants:
+    disableBuilder: true
+
+  agents:
+    disableBuilder: false
+    recursionLimit: 50
+    maxRecursionLimit: 100
+    maxCitations: 20
+    maxCitationsPerFile: 5
+    minRelevanceScore: 0.6
+    capabilities:
+      - "tools"
+      - "file_search"
+      - "artifacts"
+      - "ocr"
+      - "context"
+      - "execute_code"
+      - "deferred_tools"
+
+speech:
+  tts:
+    openai:
+      apiKey: "${TTS_API_KEY}"
+      model: "gpt-4o-mini-tts"
+      voices: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+
+memory:
+  disabled: false
+  tokenLimit: 3000
+  personalize: true
+  messageWindowSize: 10
+  agent:
+    provider: "azureOpenAI"
+    model: "gpt-5-mini"
+    instructions: "You are a helpful assistant that remembers user preferences and context."
+    model_parameters:
+      temperature: 0.7

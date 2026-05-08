@@ -1,0 +1,161 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.multi
+      target: api-build
+    container_name: LibreChat-API
+    ports:
+      - 3080:3080
+    depends_on:
+      mongodb:
+        condition: service_started
+      rag_api:
+        condition: service_started
+      # mcp-office-docs:
+      #   condition: service_healthy  # Wait for MCP to be healthy!
+    restart: always
+    networks:
+      - librechat-network  # Explicit network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - MONGO_URI=${MONGO_URI}
+      - MEILI_HOST=http://meilisearch:7700
+      - RAG_PORT=${RAG_PORT:-8000}
+      - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
+      - MCP_ENABLED=true
+    volumes:
+      - type: bind
+        source: ./librechat.yaml
+        target: /app/librechat.yaml
+      - ./images:/app/client/public/images
+      - ./uploads:/app/uploads
+      - ./logs:/app/api/logs
+
+  client:
+    image: nginx:1.27.0-alpine
+    container_name: LibreChat-NGINX
+    ports:
+      - 80:80
+      - 443:443
+    depends_on:
+      - api
+    restart: always
+    networks:
+      - librechat-network
+    volumes:
+      - ./client/nginx.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt/live/sandbox.ajaia.ai:/etc/letsencrypt/live/sandbox.ajaia.ai
+      - /etc/letsencrypt/archive/sandbox.ajaia.ai:/etc/letsencrypt/archive/sandbox.ajaia.ai
+      - /etc/letsencrypt/options-ssl-nginx.conf:/etc/letsencrypt/options-ssl-nginx.conf
+      - /etc/letsencrypt/ssl-dhparams.pem:/etc/letsencrypt/ssl-dhparams.pem
+
+  mongodb:
+    container_name: chat-mongodb
+    image: mongo
+    restart: always
+    networks:
+      - librechat-network
+    volumes:
+      - ./data-node:/data/db
+    command: mongod --noauth
+
+  meilisearch:
+    container_name: chat-meilisearch
+    image: getmeili/meilisearch:v1.12.3
+    restart: always
+    networks:
+      - librechat-network
+    env_file:
+      - .env
+    environment:
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - ./meili_data_v1.12:/meili_data
+
+  vectordb:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    restart: always
+    networks:
+      - librechat-network
+    volumes:
+      - pgdata2:/var/lib/postgresql/data
+
+  rag_api:
+    build:
+      context: ./rag-api  # ✅ Build from local folder
+      dockerfile: Dockerfile
+    container_name: welbe-rag-api
+    environment:
+      - DB_HOST=vectordb
+      - DB_PORT=5432
+      - POSTGRES_DB=mydatabase
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+      - RAG_PORT=${RAG_PORT:-8000}
+    ports:
+      - "${RAG_PORT:-8000}:8000"
+    volumes:
+      - ./rag-api/uploads:/app/uploads
+    restart: always
+    networks:
+      - librechat-network
+    depends_on:
+      - vectordb
+    env_file:
+      - .env
+
+  # mcp-office-docs:
+  #   build:
+  #     context: ./mcp-ms-office-documents
+  #     dockerfile: Dockerfile
+  #   container_name: mcp-office-docs
+  #   ports:
+  #     - "8958:8958"
+  #   restart: always
+  #   networks:
+  #     - librechat-network  # Same network as API!
+  #   depends_on:
+  #     - mongodb
+  #   environment:
+  #     - UPLOAD_STRATEGY=${UPLOAD_STRATEGY:-AZURE}
+  #     - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+  #     - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-filecreation}
+  #     - ENABLE_SECURE_DOWNLOADS=${ENABLE_SECURE_DOWNLOADS:-true}
+  #     - MONGO_URI=${MONGO_URI}
+  #     - MONGO_DATABASE=mcp_office_docs
+  #     - MIDDLEWARE_BASE_URL=${MIDDLEWARE_BASE_URL:-https://sandbox.ajaia.ai}
+  #     - FILE_EXPIRY_DAYS=${FILE_EXPIRY_DAYS:-1}
+  #     - MAX_DOWNLOADS_PER_USER_PER_HOUR=${MAX_DOWNLOADS_PER_USER_PER_HOUR:-15}
+  #     - ENABLE_AUDIT_LOG=${ENABLE_AUDIT_LOG:-true}
+  #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
+  #     - JWT_SECRET=${JWT_SECRET}
+  #     - CLIENT_DOMAIN=${DOMAIN_CLIENT:-https://sandbox.ajaia.ai}
+  #   volumes:
+  #     - ./mcp-ms-office-documents/output:/app/output
+  #     - ./mcp-ms-office-documents/templates:/app/templates
+  #     - ./mcp-ms-office-documents/config:/app/config
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8958/health', timeout=5)\" || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 60s
+
+networks:
+  librechat-network:
+    driver: bridge
+
+volumes:
+  pgdata2:
