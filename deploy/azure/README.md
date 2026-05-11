@@ -161,12 +161,12 @@ Required or recommended GitHub environment variables:
 - `STAGING_APP_NAME`
 - `APP_NAME_PREFIX`
 
-The Azure OIDC service principal used by `AZURE_CLIENT_ID` needs these roles on the deployment
-resource group:
+The Azure OIDC service principal used by `AZURE_CLIENT_ID` needs `Contributor` on the deployment
+resource group. By default, the workflow avoids `roleAssignments/write` by using ACR credentials for
+image pulls and an injected Azure Storage connection string for Blob access.
 
-- `Contributor`, to build and deploy resources.
-- `User Access Administrator`, to create the managed-identity role assignments that let Container
-  Apps pull from ACR and write to Blob Storage.
+Only set `CREATE_ROLE_ASSIGNMENTS=true` if the deployment identity also has `User Access
+Administrator` and you intentionally want managed-identity RBAC assignments for ACR and Blob Storage.
 
 Set `SEARCH=true` only after `MEILI_HOST` and `MEILI_MASTER_KEY` are configured. Set
 `USE_REDIS=true` only after `REDIS_URI` is configured. The deployment script intentionally fails

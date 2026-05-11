@@ -223,6 +223,14 @@ const params = {
     containerRegistryServer: {
       value: envValue('ACR_LOGIN_SERVER', 'educhatstagingcicd.azurecr.io'),
     },
+    containerRegistryUsername: { value: envValue('ACR_USERNAME') },
+    containerRegistryPassword: { value: envValue('ACR_PASSWORD') },
+    createRoleAssignments: { value: isEnabled('CREATE_ROLE_ASSIGNMENTS') },
+    useStorageConnectionString: {
+      value: !['0', 'false', 'no'].includes(
+        envValue('USE_STORAGE_CONNECTION_STRING', 'true').toLowerCase(),
+      ),
+    },
     minReplicas: { value: numberEnv('MIN_REPLICAS', '1') },
     maxReplicas: { value: numberEnv('MAX_REPLICAS', '1') },
     cpuCores: { value: envValue('CPU_CORES', '1.0') },

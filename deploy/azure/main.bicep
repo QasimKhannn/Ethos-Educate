@@ -15,6 +15,13 @@ param containerRegistryName string = ''
 @description('Existing Azure Container Registry login server, for example myregistry.azurecr.io.')
 param containerRegistryServer string = ''
 
+@description('Container registry username. When supplied with a password, Container Apps uses credentials instead of managed identity for image pulls.')
+param containerRegistryUsername string = ''
+
+@secure()
+@description('Container registry password.')
+param containerRegistryPassword string = ''
+
 @description('Container port exposed by the Node server.')
 param containerPort int = 3080
 
@@ -48,11 +55,18 @@ param secretEnv object = {}
 @description('Additional tags to apply to resources created by this deployment.')
 param resourceTags object = {}
 
+@description('Create Azure RBAC role assignments for the Container App managed identity. Disable this when the deployment identity cannot write role assignments.')
+param createRoleAssignments bool = false
+
+@description('Inject an Azure Storage connection string secret generated from the created storage account.')
+param useStorageConnectionString bool = true
+
 var storageNameBase = toLower(replace(replace(appName, '-', ''), '_', ''))
 var storageAccountName = take('${storageNameBase}${uniqueString(resourceGroup().id)}', 24)
 var logAnalyticsName = '${appName}-logs'
 var managedEnvironmentName = '${appName}-env'
 var identityName = '${appName}-identity'
+var acrPasswordSecretName = 'acr-password'
 var tags = union(
   {
     workload: 'educhat'
@@ -80,11 +94,44 @@ var baseEnv = {
   AZURE_CONTAINER_NAME: storageContainerName
   AZURE_STORAGE_PUBLIC_ACCESS: 'false'
 }
+var storageConnectionStringSecretName = 'AZURE_STORAGE_CONNECTION_STRING'
+var storageConnectionStringSecretRef = replace(toLower(storageConnectionStringSecretName), '_', '-')
+var storageConnectionStringSecret = useStorageConnectionString
+  ? [
+      {
+        name: storageConnectionStringSecretRef
+        value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+      }
+    ]
+  : []
+var storageConnectionStringEnvVar = useStorageConnectionString
+  ? [
+      {
+        name: storageConnectionStringSecretName
+        secretRef: storageConnectionStringSecretRef
+      }
+    ]
+  : []
 var containerSecrets = [
   for secret in items(secretEnv): {
     name: replace(toLower(secret.key), '_', '-')
     #disable-next-line use-secure-value-for-secure-inputs
     value: string(secret.value)
+  }
+]
+var registrySecrets = !empty(containerRegistryServer) && !empty(containerRegistryUsername) && !empty(containerRegistryPassword)
+  ? [
+      {
+        name: acrPasswordSecretName
+        #disable-next-line use-secure-value-for-secure-inputs
+        value: containerRegistryPassword
+      }
+    ]
+  : []
+var secretEnvVars = [
+  for secret in items(secretEnv): {
+    name: secret.key
+    secretRef: replace(toLower(secret.key), '_', '-')
   }
 ]
 var plainEnvVars = [
@@ -93,21 +140,22 @@ var plainEnvVars = [
     value: string(envVar.value)
   }
 ]
-var secretEnvVars = [
-  for secret in items(secretEnv): {
-    name: secret.key
-    secretRef: replace(toLower(secret.key), '_', '-')
-  }
-]
 var registries = empty(containerRegistryServer)
   ? []
-  : [
-      {
-        server: containerRegistryServer
-        identity: managedIdentity.id
-      }
-    ]
-
+  : !empty(containerRegistryUsername) && !empty(containerRegistryPassword)
+      ? [
+          {
+            server: containerRegistryServer
+            username: containerRegistryUsername
+            passwordSecretRef: acrPasswordSecretName
+          }
+        ]
+      : [
+          {
+            server: containerRegistryServer
+            identity: managedIdentity.id
+          }
+        ]
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logAnalyticsName
   location: location
@@ -179,7 +227,7 @@ resource additionalBlobContainers 'Microsoft.Storage/storageAccounts/blobService
   }
 ]
 
-resource storageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource storageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (createRoleAssignments) {
   name: guid(storage.id, managedIdentity.id, storageBlobDataContributorRoleId)
   scope: storage
   properties: {
@@ -189,7 +237,7 @@ resource storageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
-resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(containerRegistryName)) {
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (createRoleAssignments && !empty(containerRegistryName)) {
   name: guid(containerRegistry.id, managedIdentity.id, acrPullRoleId)
   scope: containerRegistry
   properties: {
@@ -234,7 +282,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'http'
         allowInsecure: false
           }
-          secrets: containerSecrets
+          secrets: concat(containerSecrets, storageConnectionStringSecret, registrySecrets)
           registries: registries
         }
     template: {
@@ -260,7 +308,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpuCores)
             memory: memorySize
           }
-          env: concat(plainEnvVars, secretEnvVars)
+          env: concat(plainEnvVars, secretEnvVars, storageConnectionStringEnvVar)
         }
       ]
     }

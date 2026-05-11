@@ -136,6 +136,19 @@ jobs:
             .
           echo "image=${image}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve ACR deployment credentials
+        id: acr
+        run: |
+          az acr update \
+            --name "$ACR_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --admin-enabled true
+          username="$(az acr credential show --name "$ACR_NAME" --query username --output tsv)"
+          password="$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' --output tsv)"
+          echo "::add-mask::$password"
+          echo "username=${username}" >> "$GITHUB_OUTPUT"
+          echo "password=${password}" >> "$GITHUB_OUTPUT"
+
       - name: Generate deployment parameters
         env:
           APP_NAME: ${{ steps.meta.outputs.app_name }}
@@ -146,6 +159,10 @@ jobs:
           AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
           ACR_NAME: ${{ env.ACR_NAME }}
           ACR_LOGIN_SERVER: ${{ env.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ steps.acr.outputs.username }}
+          ACR_PASSWORD: ${{ steps.acr.outputs.password }}
+          CREATE_ROLE_ASSIGNMENTS: 'false'
+          USE_STORAGE_CONNECTION_STRING: 'true'
           MIN_REPLICAS: ${{ env.MIN_REPLICAS }}
           MAX_REPLICAS: ${{ env.MAX_REPLICAS }}
           CPU_CORES: ${{ env.CPU_CORES }}
