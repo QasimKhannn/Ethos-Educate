@@ -43,6 +43,13 @@ client/public/images/
 client/public/main.js
 client/public/main.js.map
 client/public/main.js.LICENSE.txt
+client/public/assets/apple-touch-icon-180x180.png
+client/public/assets/favicon.png
+client/public/assets/favicon.ico
+client/public/assets/favicon-16x16.png
+client/public/assets/favicon-32x32.png
+client/public/assets/icon-192x192.png
+client/public/assets/maskable-icon.png
 
 # Azure Blob Storage Emulator (Azurite)
 __azurite**

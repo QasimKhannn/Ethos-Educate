@@ -1,9 +1,10 @@
 import React from 'react';
 import * as Ariakit from '@ariakit/react';
 import { ChevronRight } from 'lucide-react';
-import { MCPIcon, PinIcon } from '@librechat/client';
+import { PinIcon } from '@librechat/client';
 import MCPServerMenuItem from '~/components/MCP/MCPServerMenuItem';
 import MCPConfigDialog from '~/components/MCP/MCPConfigDialog';
+import StackedMCPIcons from '~/components/MCP/StackedMCPIcons';
 import { useBadgeRowContext } from '~/Providers';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
@@ -41,6 +42,9 @@ const MCPSubMenu = React.forwardRef<HTMLDivElement, MCPSubMenuProps>(
     }
 
     const configDialogProps = getConfigDialogProps();
+    const selectedServers = selectableServers.filter((server) =>
+      mcpValues?.includes(server.serverName),
+    );
 
     return (
       <div ref={ref}>
@@ -59,7 +63,12 @@ const MCPSubMenu = React.forwardRef<HTMLDivElement, MCPSubMenuProps>(
             }
           >
             <div className="flex items-center gap-2">
-              <MCPIcon className="h-5 w-5 flex-shrink-0 text-text-primary" aria-hidden="true" />
+              <StackedMCPIcons
+                selectedServers={selectedServers}
+                maxIcons={2}
+                iconSize="sm"
+                variant="submenu"
+              />
               <span>{placeholder || placeholderText}</span>
               <ChevronRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
             </div>

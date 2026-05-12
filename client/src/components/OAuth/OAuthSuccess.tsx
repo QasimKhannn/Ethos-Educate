@@ -1,20 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { getKnownMCPServerDisplayName } from '~/components/MCP/knownMCPServers';
 import { useLocalize } from '~/hooks';
 import { getOAuthReturnUrl, notifyOAuthOpener } from '~/utils/mcpOAuth';
 
-const DISPLAY_NAME_MAP: Readonly<Record<string, string>> = {
-  imagegen: 'Image Generation',
-  outlook: 'Outlook',
-  teams: 'Teams',
-  monday: 'monday.com',
-  sharepoint: 'SharePoint',
-  onedrive: 'OneDrive',
-};
-
 const getDisplayName = (serverName: string): string => {
-  const normalizedServerName = serverName.trim().toLowerCase();
-  const mappedDisplayName = DISPLAY_NAME_MAP[normalizedServerName];
+  const mappedDisplayName = getKnownMCPServerDisplayName(serverName);
 
   if (mappedDisplayName) {
     return mappedDisplayName;

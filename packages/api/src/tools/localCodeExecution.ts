@@ -697,13 +697,13 @@ const buildJavaScriptWrapper = ({
 }) => {
   const packageJsonPath = path.join(projectRoot, 'package.json');
 
-  return `const { createRequire } = require('module');
-const require = createRequire(${JSON.stringify(packageJsonPath)});
+  return `const { createRequire: __librechatCreateRequire } = module.require('module');
+const __librechatRequire = __librechatCreateRequire(${JSON.stringify(packageJsonPath)});
 process.chdir(${JSON.stringify(sandboxPath)});
 
-(async () => {
+(async (require) => {
 ${code}
-})().catch((error) => {
+})(__librechatRequire).catch((error) => {
   console.error(error?.stack ?? String(error));
   process.exitCode = 1;
 });

@@ -79,7 +79,23 @@ jobs:
         run: cd client && npm run build
 
       - name: Run focused backend tests
-        run: cd packages/api && npx jest src/cdn/azure.spec.ts --runInBand
+        run: |
+          cd packages/api
+          npx jest \
+            src/cdn/azure.spec.ts \
+            src/tools/localCodeExecution.spec.ts \
+            src/tools/localProgrammaticToolCalling.spec.ts \
+            src/tools/classification.spec.ts \
+            --runInBand
+
+      - name: Run focused frontend tests
+        run: |
+          cd client
+          npx jest \
+            src/components/Chat/Input/__tests__/lessonPlanningUtils.spec.ts \
+            src/components/Chat/Messages/Content/__tests__/LessonPlanningUnitChoices.test.tsx \
+            src/components/MCP/knownMCPServers.spec.ts \
+            --runInBand
 
   deploy:
     name: Deploy Branch
@@ -181,6 +197,11 @@ jobs:
           REDIS_KEY_PREFIX: ${{ vars.REDIS_KEY_PREFIX }}
           MCP_ENABLED: ${{ vars.MCP_ENABLED || 'true' }}
           EXPERIMENTAL_AGENTS: ${{ vars.EXPERIMENTAL_AGENTS || 'true' }}
+          CODE_EXECUTION_RUNTIME: ${{ vars.CODE_EXECUTION_RUNTIME || 'local' }}
+          CODE_EXECUTION_ALLOW_PIP_INSTALLS: ${{ vars.CODE_EXECUTION_ALLOW_PIP_INSTALLS || 'true' }}
+          CODE_EXECUTION_MAX_PIP_INSTALLS: ${{ vars.CODE_EXECUTION_MAX_PIP_INSTALLS || '3' }}
+          CODE_EXECUTION_PIP_INSTALL_TIMEOUT_MS: ${{ vars.CODE_EXECUTION_PIP_INSTALL_TIMEOUT_MS || '120000' }}
+          CODE_EXECUTION_PIP_CACHE_DIR: ${{ vars.CODE_EXECUTION_PIP_CACHE_DIR || '/tmp/librechat-pip-cache' }}
           ALLOW_EMAIL_LOGIN: ${{ vars.ALLOW_EMAIL_LOGIN || 'true' }}
           ALLOW_REGISTRATION: ${{ vars.ALLOW_REGISTRATION || 'true' }}
           ALLOW_SOCIAL_LOGIN: ${{ vars.ALLOW_SOCIAL_LOGIN || 'false' }}

@@ -90,13 +90,18 @@ describe('localCodeExecution', () => {
       });
 
       const rawResult = await executeCodeTool.invoke({
-        code: `
+        args: {
+          code: `
 const fs = require('fs');
 const input = fs.readFileSync('./mnt/data/input.txt', 'utf8');
 fs.writeFileSync('output.txt', input.toUpperCase());
 console.log('processed');
 `,
-        lang: 'javascript',
+          lang: 'js',
+        },
+        id: 'local-code-test',
+        name: 'execute_code',
+        type: 'tool_call',
       });
       const result = rawResult as {
         artifact?: { files?: Array<{ name: string }> };

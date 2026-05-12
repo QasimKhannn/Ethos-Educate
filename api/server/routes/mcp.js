@@ -77,11 +77,22 @@ function escapeHtml(value = '') {
 function formatServerDisplayName(serverName = '') {
   const normalizedServerName = String(serverName).trim().toLowerCase();
   const mappedNames = {
+    canva: 'Canva',
+    figma: 'Figma',
+    github: 'GitHub',
+    gmail: 'Gmail',
+    'google-calendar': 'Google Calendar',
+    'google-drive': 'Google Drive',
     imagegen: 'Image Generation',
+    linear: 'Linear',
     outlook: 'Outlook',
+    'outlook-calendar': 'Outlook Calendar',
+    'outlook-email': 'Outlook Email',
     teams: 'Teams',
     monday: 'monday.com',
+    notion: 'Notion',
     sharepoint: 'SharePoint',
+    slack: 'Slack',
     onedrive: 'OneDrive',
   };
 

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { MCPIcon } from '@librechat/client';
 import { PermissionBits, hasPermissions } from 'librechat-data-provider';
+import MCPServerAvatar from '~/components/MCP/MCPServerAvatar';
 import type { MCPServerStatusIconProps } from '~/components/MCP/MCPServerStatusIcon';
 import type { MCPServerDefinition } from '~/hooks';
 import MCPServerDialog from './MCPServerDialog';
@@ -97,18 +97,15 @@ export default function MCPServerCard({
       >
         {/* Server Icon with Status Dot */}
         <div className="relative flex-shrink-0">
-          {server.config?.iconPath ? (
-            <img
-              src={server.config.iconPath}
-              className="size-8 rounded-lg object-cover"
-              alt=""
-              aria-hidden="true"
-            />
-          ) : (
-            <div className="flex size-8 items-center justify-center rounded-lg bg-surface-tertiary">
-              <MCPIcon className="size-5 text-text-secondary" aria-hidden="true" />
-            </div>
-          )}
+          <MCPServerAvatar
+            decorative={true}
+            serverName={server.serverName}
+            displayName={displayName}
+            iconPath={server.config?.iconPath}
+            containerClassName="size-8"
+            imageClassName="size-8"
+            iconClassName="size-5"
+          />
           {/* Status dot - color indicates connection state */}
           <div
             className={cn(

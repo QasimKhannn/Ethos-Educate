@@ -14,6 +14,7 @@ import MemoryArtifacts from './MemoryArtifacts';
 import Sources from '~/components/Web/Sources';
 import Container from './Container';
 import Part from './Part';
+import LessonPlanningUnitChoices from './LessonPlanningUnitChoices';
 
 type PartWithContextProps = {
   part: TMessageContentParts;
@@ -227,6 +228,11 @@ const ContentParts = memo(function ContentParts({
         </Container>
       )}
       {sequentialParts.map(({ part, idx }) => renderPart(part, idx, idx === lastContentIdx))}
+      {!isCreatedByUser && isLatestMessage && (
+        <Container>
+          <LessonPlanningUnitChoices content={content} isSubmitting={effectiveIsSubmitting} />
+        </Container>
+      )}
     </SearchContext.Provider>
   );
 });

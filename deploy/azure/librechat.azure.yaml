@@ -21,6 +21,10 @@ fileConfig:
 mcpSettings:
   allowedDomains:
     - "ms365-mcp-1081644116068.us-central1.run.app"
+    - "localhost:8080"
+    - "localhost:8081"
+    - "localhost:8090"
+    - "localhost:8091"
     - "sharepoint-mcp-1081644116068.us-central1.run.app"
     - "onedrive-mcp-1081644116068.us-central1.run.app"
     - "outlook-mcp-1081644116068.us-central1.run.app"
@@ -29,6 +33,7 @@ mcpSettings:
     - "csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
+    - "20ad-103-189-68-222.ngrok-free.app"
     - "mcp.monday.com"
     - "mcp.canva.com"
     - "api.canva.com"

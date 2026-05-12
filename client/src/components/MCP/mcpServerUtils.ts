@@ -1,6 +1,7 @@
 import type { MCPServerStatus } from 'librechat-data-provider';
 import type { MCPServerDefinition } from '~/hooks/MCP/useMCPServerManager';
 import type { MCPServerStatusIconProps } from './MCPServerStatusIcon';
+import { getKnownMCPServerDisplayName } from './knownMCPServers';
 
 export type { MCPServerStatus };
 
@@ -13,23 +14,13 @@ export interface SelectedIconInfo {
 
 export type ConnectionStatusMap = Record<string, MCPServerStatus>;
 
-const MCP_SERVER_DISPLAY_NAME_MAP: Readonly<Record<string, string>> = {
-  imagegen: 'Image Generation',
-  outlook: 'Outlook',
-  teams: 'Teams',
-  monday: 'monday.com',
-  sharepoint: 'SharePoint',
-  onedrive: 'OneDrive',
-};
-
 export function getMCPServerDisplayName(serverName: string, title?: string | null): string {
   const trimmedTitle = title?.trim();
   if (trimmedTitle) {
     return trimmedTitle;
   }
 
-  const normalizedServerName = serverName.trim().toLowerCase();
-  const mappedDisplayName = MCP_SERVER_DISPLAY_NAME_MAP[normalizedServerName];
+  const mappedDisplayName = getKnownMCPServerDisplayName(serverName);
   if (mappedDisplayName) {
     return mappedDisplayName;
   }
@@ -44,50 +35,23 @@ export function getMCPServerDisplayName(serverName: string, title?: string | nul
 
 /**
  * Generates a list of icons to display for selected MCP servers.
- * - Custom icons are shown individually
- * - Multiple default icons are consolidated into one
- * - Limited to maxIcons with overflow count
+ * Each server keeps its own visual identity so known MCPs can show
+ * dedicated fallback icons even when no custom iconPath is configured.
  */
 export function getSelectedServerIcons(
   selectedServers: MCPServerDefinition[],
   maxIcons: number = 3,
-): { icons: SelectedIconInfo[]; overflowCount: number; defaultServerNames: string[] } {
-  const customIcons: SelectedIconInfo[] = [];
-  const defaultServerNames: string[] = [];
-
-  for (const server of selectedServers) {
-    const displayName = getMCPServerDisplayName(server.serverName, server.config?.title);
-    if (server.config?.iconPath) {
-      customIcons.push({
-        key: server.serverName,
-        serverName: server.serverName,
-        iconPath: server.config.iconPath,
-        displayName,
-      });
-    } else {
-      defaultServerNames.push(server.serverName);
-    }
-  }
-
-  // Add one default icon entry if any server uses default icon
-  // Custom icons are prioritized first, default icon comes last
-  const allIcons: SelectedIconInfo[] =
-    defaultServerNames.length > 0
-      ? [
-          ...customIcons,
-          {
-            key: '_default_',
-            serverName: defaultServerNames[0],
-            iconPath: null,
-            displayName: 'MCP',
-          },
-        ]
-      : customIcons;
-
+): { icons: SelectedIconInfo[]; overflowCount: number } {
+  const allIcons: SelectedIconInfo[] = selectedServers.map((server) => ({
+    key: server.serverName,
+    serverName: server.serverName,
+    iconPath: server.config?.iconPath ?? null,
+    displayName: getMCPServerDisplayName(server.serverName, server.config?.title),
+  }));
   const visibleIcons = allIcons.slice(0, maxIcons);
   const overflowCount = Math.max(0, allIcons.length - maxIcons);
 
-  return { icons: visibleIcons, overflowCount, defaultServerNames };
+  return { icons: visibleIcons, overflowCount };
 }
 
 /**

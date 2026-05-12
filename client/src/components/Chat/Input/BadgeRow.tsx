@@ -19,6 +19,7 @@ import { useChatBadges } from '~/hooks';
 import ToolDialogs from './ToolDialogs';
 import FileSearch from './FileSearch';
 import Artifacts from './Artifacts';
+import LessonPlanningLauncher from './LessonPlanningLauncher';
 import MCPSelect from './MCPSelect';
 import WebSearch from './WebSearch';
 import store from '~/store';
@@ -28,6 +29,8 @@ interface BadgeRowProps {
   onChange: (badges: Pick<BadgeItem, 'id'>[]) => void;
   onToggle?: (badgeId: string, currentActive: boolean) => void;
   conversationId?: string | null;
+  agentId?: string | null;
+  isAgentConversation?: boolean;
   specName?: string | null;
   isSubmitting?: boolean;
   isInChat: boolean;
@@ -143,6 +146,8 @@ const dragReducer = (state: DragState, action: DragAction): DragState => {
 function BadgeRow({
   showEphemeralBadges,
   conversationId,
+  agentId,
+  isAgentConversation,
   specName,
   isSubmitting,
   onChange,
@@ -377,6 +382,10 @@ function BadgeRow({
             <MCPSelect />
           </>
         )}
+        <LessonPlanningLauncher
+          agentId={agentId}
+          isAgentConversation={isAgentConversation === true}
+        />
         {ghostBadge && (
           <div
             className="ghost-badge h-full"

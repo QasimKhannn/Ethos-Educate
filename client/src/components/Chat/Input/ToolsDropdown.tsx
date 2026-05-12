@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import * as Ariakit from '@ariakit/react';
-import { Globe, Settings, Settings2, TerminalSquareIcon } from 'lucide-react';
-import { TooltipAnchor, DropdownPopup, PinIcon, VectorIcon } from '@librechat/client';
+import { Settings, Settings2, TerminalSquareIcon } from 'lucide-react';
+import { TooltipAnchor, DropdownPopup, PinIcon } from '@librechat/client';
 import type { MenuItemProps } from '~/common';
 import {
   AuthType,
@@ -13,6 +13,7 @@ import {
 import { useLocalize, useHasAccess, useAgentCapabilities } from '~/hooks';
 import ArtifactsSubMenu from '~/components/Chat/Input/ArtifactsSubMenu';
 import MCPSubMenu from '~/components/Chat/Input/MCPSubMenu';
+import ToolFeatureIcon from '~/components/Chat/Input/ToolFeatureIcon';
 import { useGetStartupConfig } from '~/data-provider';
 import { useBadgeRowContext } from '~/Providers';
 import { cn } from '~/utils';
@@ -141,7 +142,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
       render: (props) => (
         <div {...props}>
           <div className="flex items-center gap-2">
-            <VectorIcon className="icon-md" />
+            <ToolFeatureIcon icon="downloadfiles" className="icon-md" />
             <span>{localize('com_assistants_file_search')}</span>
           </div>
           <button
@@ -173,7 +174,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
       render: (props) => (
         <div {...props}>
           <div className="flex items-center gap-2">
-            <Globe className="icon-md" aria-hidden="true" />
+            <ToolFeatureIcon icon="websearch" className="icon-md" />
             <span>{localize('com_ui_web_search')}</span>
           </div>
           <div className="flex items-center gap-1">

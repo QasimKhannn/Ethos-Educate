@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { MCPIcon } from '@librechat/client';
 import type { MCPServerDefinition } from '~/hooks/MCP/useMCPServerManager';
+import MCPServerAvatar from './MCPServerAvatar';
 import { getSelectedServerIcons } from './mcpServerUtils';
 import { cn } from '~/utils';
 
@@ -41,6 +41,8 @@ export default function StackedMCPIcons({
   iconSize = 'md',
   variant = 'default',
 }: StackedMCPIconsProps) {
+  const sizes = sizeConfig[iconSize];
+  const colors = variantConfig[variant];
   const { icons, overflowCount } = useMemo(
     () => getSelectedServerIcons(selectedServers, maxIcons),
     [selectedServers, maxIcons],
@@ -48,15 +50,16 @@ export default function StackedMCPIcons({
 
   if (icons.length === 0) {
     return (
-      <MCPIcon
-        aria-hidden="true"
-        className={cn('flex-shrink-0 text-text-primary', sizeConfig.md.icon)}
+      <MCPServerAvatar
+        decorative={true}
+        serverName="mcp"
+        displayName="MCP"
+        shape="circle"
+        containerClassName={cn('flex-shrink-0', sizes.container)}
+        iconClassName={cn('text-text-primary', sizes.icon)}
       />
     );
   }
-
-  const sizes = sizeConfig[iconSize];
-  const colors = variantConfig[variant];
 
   return (
     <div className="flex items-center" aria-hidden="true">
@@ -73,15 +76,17 @@ export default function StackedMCPIcons({
           )}
           style={{ zIndex: icons.length - index }}
         >
-          {icon.iconPath ? (
-            <img
-              src={icon.iconPath}
-              alt={icon.displayName}
-              className={cn('rounded-full object-cover', sizes.icon)}
-            />
-          ) : (
-            <MCPIcon className={cn('text-text-primary', sizes.icon)} />
-          )}
+          <MCPServerAvatar
+            decorative={true}
+            title={icon.displayName}
+            shape="circle"
+            serverName={icon.serverName}
+            displayName={icon.displayName}
+            iconPath={icon.iconPath}
+            containerClassName={sizes.container}
+            imageClassName={sizes.icon}
+            iconClassName={sizes.icon}
+          />
         </div>
       ))}
       {overflowCount > 0 && (

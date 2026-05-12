@@ -41,35 +41,36 @@ describe('localProgrammaticToolCalling', () => {
       );
 
       const ptcTool = createLocalProgrammaticToolCallingTool({});
-      const rawResult = await ptcTool.invoke(
-        {
+      const programmaticToolCall = {
+        args: {
           code: `
 result = await double_value(value=21)
 print(result)
 `,
         },
-        {
-          toolCall: {
-            toolDefs: [
-              {
-                allowed_callers: ['code_execution'],
-                description: 'Doubles a value',
-                name: 'double-value',
-                parameters: {
-                  properties: {
-                    value: {
-                      type: 'number',
-                    },
-                  },
-                  required: ['value'],
-                  type: 'object',
+        id: 'local-ptc-test',
+        name: 'programmatic_tool_calling',
+        toolDefs: [
+          {
+            allowed_callers: ['code_execution'],
+            description: 'Doubles a value',
+            name: 'double-value',
+            parameters: {
+              properties: {
+                value: {
+                  type: 'number',
                 },
               },
-            ],
-            toolMap: new Map([['double-value', localTool]]),
+              required: ['value'],
+              type: 'object',
+            },
           },
-        },
-      );
+        ],
+        toolMap: new Map([['double-value', localTool]]),
+        type: 'tool_call',
+      } as unknown as Parameters<typeof ptcTool.invoke>[0];
+
+      const rawResult = await ptcTool.invoke(programmaticToolCall);
       const result = rawResult as {
         artifact?: { files?: Array<{ name: string }> };
         content: string;

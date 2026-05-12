@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Label, OGDialog, TrashIcon, OGDialogTrigger, OGDialogTemplate } from '@librechat/client';
 import type { MCPServerInfo } from '~/common';
 import { useLocalize, useMCPServerManager, useRemoveMCPTool } from '~/hooks';
+import MCPServerAvatar from '~/components/MCP/MCPServerAvatar';
 import MCPServerStatusIcon from '~/components/MCP/MCPServerStatusIcon';
 import MCPConfigDialog from '~/components/MCP/MCPConfigDialog';
 import { cn } from '~/utils';
@@ -77,17 +78,16 @@ export default function UninitializedMCPTool({ serverInfo }: { serverInfo?: MCPS
             </div>
           )}
 
-          {serverInfo.metadata.icon && (
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full">
-              <div
-                className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-center bg-no-repeat dark:bg-white/20"
-                style={{
-                  backgroundImage: `url(${serverInfo.metadata.icon})`,
-                  backgroundSize: 'cover',
-                }}
-              />
-            </div>
-          )}
+          <MCPServerAvatar
+            decorative={true}
+            shape="circle"
+            serverName={serverName}
+            displayName={String(serverInfo.metadata.name || serverName)}
+            iconPath={serverInfo.metadata.icon}
+            containerClassName="h-6 w-6"
+            imageClassName="h-6 w-6"
+            iconClassName="h-4 w-4"
+          />
           <div
             className="grow px-2 py-1.5"
             style={{ textOverflow: 'ellipsis', wordBreak: 'break-all', overflow: 'hidden' }}
