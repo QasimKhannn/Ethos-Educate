@@ -4,7 +4,13 @@ import type { Assistant, Agent } from 'librechat-data-provider';
 import type { TMessageIcon } from '~/common';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
 import { useGetEndpointsQuery } from '~/data-provider';
-import { getIconEndpoint, logger } from '~/utils';
+import {
+  getAgentAvatarUrl,
+  getIconEndpoint,
+  isAgentAvatarImageUrl,
+  logger,
+  normalizeAgentAvatarUrl,
+} from '~/utils';
 import Icon from '~/components/Endpoints/Icon';
 
 const MessageIcon = memo(
@@ -21,9 +27,16 @@ const MessageIcon = memo(
     const { data: endpointsConfig } = useGetEndpointsQuery();
 
     const agentName = useMemo(() => agent?.name ?? '', [agent]);
-    const agentAvatar = useMemo(() => agent?.avatar?.filepath ?? '', [agent]);
+    const agentAvatar = useMemo(
+      () => normalizeAgentAvatarUrl(getAgentAvatarUrl(agent)) ?? '',
+      [agent],
+    );
     const assistantName = useMemo(() => assistant?.name ?? '', [assistant]);
-    const assistantAvatar = useMemo(() => assistant?.metadata?.avatar ?? '', [assistant]);
+    const assistantAvatar = useMemo(
+      () =>
+        normalizeAgentAvatarUrl((assistant?.metadata?.avatar as string | undefined) ?? null) ?? '',
+      [assistant],
+    );
 
     const avatarURL = useMemo(() => {
       let result = '';
@@ -35,7 +48,10 @@ const MessageIcon = memo(
       return result;
     }, [assistant, agent, assistantAvatar, agentAvatar]);
 
-    const iconURL = iconData?.iconURL;
+    const iconURL = useMemo(
+      () => normalizeAgentAvatarUrl(iconData?.iconURL ?? null) ?? iconData?.iconURL,
+      [iconData?.iconURL],
+    );
     const endpoint = useMemo(
       () => getIconEndpoint({ endpointsConfig, iconURL, endpoint: iconData?.endpoint }),
       [endpointsConfig, iconURL, iconData?.endpoint],
@@ -46,7 +62,7 @@ const MessageIcon = memo(
       [endpointsConfig, endpoint],
     );
 
-    if (iconData?.isCreatedByUser !== true && iconURL != null && iconURL.includes('http')) {
+    if (iconData?.isCreatedByUser !== true && isAgentAvatarImageUrl(iconURL)) {
       return (
         <ConvoIconURL
           iconURL={iconURL}

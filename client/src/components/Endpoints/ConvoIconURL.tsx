@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import type { IconMapProps } from '~/common';
 import { URLIcon } from '~/components/Endpoints/URLIcon';
 import { icons } from '~/hooks/Endpoint/Icons';
+import { isAgentAvatarImageUrl, normalizeAgentAvatarUrl } from '~/utils';
 
 interface ConvoIconURLProps {
   iconURL?: string;
@@ -39,15 +40,17 @@ const ConvoIconURL: React.FC<ConvoIconURLProps> = ({
   agentName,
   context,
 }) => {
-  const Icon = useMemo(() => icons[iconURL] ?? icons.unknown, [iconURL]);
-  const isURL = useMemo(
-    () => !!(iconURL && (iconURL.includes('http') || iconURL.startsWith('/images/'))),
-    [iconURL],
+  const normalizedIconURL = useMemo(() => normalizeAgentAvatarUrl(iconURL) ?? iconURL, [iconURL]);
+  const Icon = useMemo(
+    () => icons[iconURL] ?? icons[normalizedIconURL] ?? icons.unknown,
+    [iconURL, normalizedIconURL],
   );
+  const isURL = useMemo(() => isAgentAvatarImageUrl(iconURL), [iconURL]);
+
   if (isURL) {
     return (
       <URLIcon
-        iconURL={iconURL}
+        iconURL={normalizedIconURL}
         altName={modelLabel}
         className={classMap[context ?? 'default'] ?? classMap.default}
         containerStyle={styleMap[context ?? 'default'] ?? styleMap.default}

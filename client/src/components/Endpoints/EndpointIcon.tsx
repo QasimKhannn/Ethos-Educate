@@ -7,7 +7,7 @@ import type {
 } from 'librechat-data-provider';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
 import MinimalIcon from '~/components/Endpoints/MinimalIcon';
-import { getIconEndpoint } from '~/utils';
+import { getIconEndpoint, isAgentAvatarImageUrl, normalizeAgentAvatarUrl } from '~/utils';
 
 export default function EndpointIcon({
   conversation,
@@ -24,9 +24,10 @@ export default function EndpointIcon({
   className?: string;
   size?: number;
 }) {
-  const convoIconURL = conversation?.iconURL ?? '';
+  const rawConvoIconURL = conversation?.iconURL ?? '';
+  const convoIconURL = normalizeAgentAvatarUrl(rawConvoIconURL) ?? '';
   let endpoint = conversation?.endpoint;
-  endpoint = getIconEndpoint({ endpointsConfig, iconURL: convoIconURL, endpoint });
+  endpoint = getIconEndpoint({ endpointsConfig, iconURL: rawConvoIconURL, endpoint });
 
   const endpointType = getEndpointField(endpointsConfig, endpoint, 'type');
   const endpointIconURL = getEndpointField(endpointsConfig, endpoint, 'iconURL');
@@ -34,12 +35,13 @@ export default function EndpointIcon({
   const assistant = isAssistantsEndpoint(endpoint)
     ? assistantMap?.[endpoint]?.[conversation?.assistant_id ?? '']
     : null;
-  const assistantAvatar = (assistant && (assistant.metadata?.avatar as string)) || '';
+  const assistantAvatar =
+    normalizeAgentAvatarUrl((assistant && (assistant.metadata?.avatar as string)) || null) ?? '';
   const assistantName = assistant && (assistant.name ?? '');
 
   const iconURL = assistantAvatar || convoIconURL;
 
-  if (iconURL && (iconURL.includes('http') || iconURL.startsWith('/images/'))) {
+  if (isAgentAvatarImageUrl(iconURL)) {
     return (
       <ConvoIconURL
         iconURL={iconURL}

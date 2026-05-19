@@ -4,7 +4,13 @@ import type { TMessage, Assistant, Agent } from 'librechat-data-provider';
 import type { TMessageProps } from '~/common';
 import MessageEndpointIcon from '../Endpoints/MessageEndpointIcon';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
-import { getIconEndpoint, logger } from '~/utils';
+import {
+  getAgentAvatarUrl,
+  getIconEndpoint,
+  isAgentAvatarImageUrl,
+  logger,
+  normalizeAgentAvatarUrl,
+} from '~/utils';
 
 export default function MessageIcon(
   props: Pick<TMessageProps, 'message' | 'conversation'> & {
@@ -25,13 +31,16 @@ export default function MessageIcon(
     [conversation, message],
   );
 
-  const iconURL = messageSettings.iconURL ?? '';
+  const rawIconURL = messageSettings.iconURL ?? '';
+  const iconURL = normalizeAgentAvatarUrl(rawIconURL) ?? rawIconURL;
   let endpoint = messageSettings.endpoint;
-  endpoint = getIconEndpoint({ endpointsConfig: undefined, iconURL, endpoint });
+  endpoint = getIconEndpoint({ endpointsConfig: undefined, iconURL: rawIconURL, endpoint });
   const assistantName = (assistant ? assistant.name : '') ?? '';
-  const assistantAvatar = (assistant ? assistant.metadata?.avatar : '') ?? '';
+  const assistantAvatar =
+    normalizeAgentAvatarUrl((assistant ? (assistant.metadata?.avatar as string) : null) ?? null) ??
+    '';
   const agentName = (agent ? agent.name : '') ?? '';
-  const agentAvatar = (agent ? agent?.avatar?.filepath : '') ?? '';
+  const agentAvatar = normalizeAgentAvatarUrl(agent ? getAgentAvatarUrl(agent) : null) ?? '';
   const avatarURL = useMemo(() => {
     let result = '';
     if (assistant) {
@@ -49,7 +58,7 @@ export default function MessageIcon(
     agentName,
     agentAvatar,
   });
-  if (message?.isCreatedByUser !== true && iconURL && iconURL.includes('http')) {
+  if (message?.isCreatedByUser !== true && isAgentAvatarImageUrl(iconURL)) {
     return (
       <ConvoIconURL
         iconURL={iconURL}

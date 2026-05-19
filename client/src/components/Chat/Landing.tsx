@@ -10,7 +10,7 @@ import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { motionSpring, softRevealVariants } from '~/utils/motion';
-import { getIconEndpoint, getEntity } from '~/utils';
+import { getIconEndpoint, getEntity, normalizeAgentAvatarUrl } from '~/utils';
 
 const containerClassName = 'chat-landing-mark-shell';
 const selectedToolGuideKey = 'eduToolkitSelectedToolGuide';
@@ -148,6 +148,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const [textHasMultipleLines, setTextHasMultipleLines] = useState(false);
   const [lineCount, setLineCount] = useState(1);
   const [contentHeight, setContentHeight] = useState(0);
+  const [selectedToolGuideAvatarFailed, setSelectedToolGuideAvatarFailed] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const endpointType = useMemo(() => {
@@ -239,8 +240,11 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     }));
   }, []);
   const headingName = name || selectedToolGuide?.name || '';
-  const selectedToolGuideAvatarUrl =
-    selectedToolGuide?.avatarUrl ?? conversation?.iconURL ?? null;
+  const selectedToolGuideAvatarUrl = normalizeAgentAvatarUrl(
+    selectedToolGuide?.avatarUrl ?? conversation?.iconURL ?? null,
+  );
+  const shouldShowSelectedToolGuideAvatar =
+    selectedToolGuideAvatarUrl != null && !selectedToolGuideAvatarFailed;
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
@@ -294,6 +298,10 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     setSelectedToolGuideValues({});
   }, [selectedToolGuide?.agentId]);
 
+  useEffect(() => {
+    setSelectedToolGuideAvatarFailed(false);
+  }, [selectedToolGuideAvatarUrl]);
+
   const getDynamicMargin = useMemo(() => {
     let margin = 'mb-0';
 
@@ -339,14 +347,16 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             transition={shouldReduceMotion ? { duration: 0 } : motionSpring}
             className="chat-landing-mark"
           >
-            {selectedToolGuideAvatarUrl ? (
+            {shouldShowSelectedToolGuideAvatar ? (
               <div className={containerClassName}>
                 <img
                   src={selectedToolGuideAvatarUrl}
                   alt=""
                   aria-hidden="true"
                   className="chat-landing-agent-avatar"
-                  loading="lazy"
+                  loading="eager"
+                  decoding="async"
+                  onError={() => setSelectedToolGuideAvatarFailed(true)}
                 />
               </div>
             ) : (

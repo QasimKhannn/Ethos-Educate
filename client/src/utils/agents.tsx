@@ -22,7 +22,7 @@ const getAppBasePath = () => {
 
 const getStaticAgentIconUrl = (assetPath: string) => `${getAppBasePath()}${assetPath}`;
 
-const isStaticAgentIconUrl = (url: string) => {
+export const isStaticAgentIconUrl = (url: string) => {
   const pathWithoutParams = url.split(/[?#]/)[0]?.toLowerCase() ?? '';
   return (
     pathWithoutParams.includes(`/${staticAgentIconPath}`) && pathWithoutParams.endsWith('.svg')
@@ -62,6 +62,19 @@ export const normalizeAgentAvatarUrl = (url: string | null): string | null => {
 
   const staticIconPath = trimmedUrl.slice(staticIconIndex).replace(/^\/+/, '');
   return getStaticAgentIconUrl(staticIconPath);
+};
+
+export const isAgentAvatarImageUrl = (url: string | null | undefined): boolean => {
+  const normalizedUrl = normalizeAgentAvatarUrl(url ?? null);
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  return (
+    /^(https?:|data:)/i.test(normalizedUrl) ||
+    normalizedUrl.startsWith('/images/') ||
+    isStaticAgentIconUrl(normalizedUrl)
+  );
 };
 
 const LazyAgentAvatar = ({

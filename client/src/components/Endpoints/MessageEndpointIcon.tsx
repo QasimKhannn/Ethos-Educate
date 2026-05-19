@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Feather } from 'lucide-react';
 import { EModelEndpoint, isAssistantsEndpoint, alternateName } from 'librechat-data-provider';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@librechat/client';
 import UnknownIcon from '~/hooks/Endpoint/UnknownIcon';
 import { IconProps } from '~/common';
-import { cn } from '~/utils';
+import { cn, normalizeAgentAvatarUrl } from '~/utils';
 
 type EndpointIcon = {
   icon: React.ReactNode | React.JSX.Element;
@@ -58,9 +58,17 @@ function getGoogleModelName(model: string | null | undefined) {
 
 const MessageEndpointIcon: React.FC<IconProps> = (props) => {
   const { error, iconURL = '', endpoint, size = 30, model = '', assistantName, agentName } = props;
+  const normalizedIconURL = useMemo(() => normalizeAgentAvatarUrl(iconURL) ?? '', [iconURL]);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [normalizedIconURL]);
+
+  const hasIconImage = Boolean(normalizedIconURL && !imageError);
 
   const assistantsIcon = {
-    icon: iconURL ? (
+    icon: hasIconImage ? (
       <div className="relative flex h-6 w-6 items-center justify-center">
         <div
           title={assistantName}
@@ -72,9 +80,12 @@ const MessageEndpointIcon: React.FC<IconProps> = (props) => {
         >
           <img
             className="shadow-stroke h-full w-full object-cover"
-            src={iconURL}
-            alt={assistantName}
-            style={{ height: '80', width: '80' }}
+            src={normalizedIconURL}
+            alt={assistantName ?? ''}
+            style={{ height: '100%', width: '100%' }}
+            onError={() => setImageError(true)}
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </div>
@@ -89,7 +100,7 @@ const MessageEndpointIcon: React.FC<IconProps> = (props) => {
   };
 
   const agentsIcon = {
-    icon: iconURL ? (
+    icon: hasIconImage ? (
       <div className="relative flex h-6 w-6 items-center justify-center">
         <div
           title={agentName}
@@ -101,9 +112,12 @@ const MessageEndpointIcon: React.FC<IconProps> = (props) => {
         >
           <img
             className="shadow-stroke h-full w-full object-cover"
-            src={iconURL}
-            alt={agentName}
-            style={{ height: '80', width: '80' }}
+            src={normalizedIconURL}
+            alt={agentName ?? ''}
+            style={{ height: '100%', width: '100%' }}
+            onError={() => setImageError(true)}
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </div>

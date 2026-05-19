@@ -5,6 +5,7 @@ import {
   getAgentAvatarUrl,
   renderAgentAvatar,
   getContactDisplayName,
+  isAgentAvatarImageUrl,
   normalizeAgentAvatarUrl,
 } from '../agents';
 import type t from 'librechat-data-provider';
@@ -91,6 +92,22 @@ describe('Agent Utilities', () => {
       expect(normalizeAgentAvatarUrl('https://example.com/avatar.png')).toBe(
         'https://example.com/avatar.png',
       );
+    });
+  });
+
+  describe('isAgentAvatarImageUrl', () => {
+    it('should treat static agent icons as image URLs after base path normalization', () => {
+      const baseElement = document.createElement('base');
+      baseElement.setAttribute('href', '/preview/');
+      baseElement.setAttribute('data-testid', 'test-base');
+      document.head.appendChild(baseElement);
+
+      expect(isAgentAvatarImageUrl('assets/agent-icons/default-agent.svg')).toBe(true);
+      expect(isAgentAvatarImageUrl('/preview/assets/agent-icons/default-agent.svg')).toBe(true);
+    });
+
+    it('should reject endpoint icon keys', () => {
+      expect(isAgentAvatarImageUrl('openAI')).toBe(false);
     });
   });
 
