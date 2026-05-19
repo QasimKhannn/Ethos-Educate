@@ -8,7 +8,6 @@ import type { TranslationKeys } from '~/hooks';
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
-import { getMockMarketplaceAgentAvatar } from '~/data-provider/Agents/mockMarketplaceAgents';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { motionSpring, softRevealVariants } from '~/utils/motion';
 import { getIconEndpoint, getEntity } from '~/utils';
@@ -241,10 +240,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   }, []);
   const headingName = name || selectedToolGuide?.name || '';
   const selectedToolGuideAvatarUrl =
-    selectedToolGuide?.avatarUrl ??
-    getMockMarketplaceAgentAvatar(selectedToolGuide?.name ?? headingName) ??
-    conversation?.iconURL ??
-    null;
+    selectedToolGuide?.avatarUrl ?? conversation?.iconURL ?? null;
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {

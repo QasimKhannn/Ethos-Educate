@@ -7,10 +7,6 @@ import type {
 } from '@tanstack/react-query';
 import type t from 'librechat-data-provider';
 
-import {
-  getMockMarketplaceCategories,
-  getMockMarketplaceAgentsResponse,
-} from './mockMarketplaceAgents';
 import { isEphemeralAgent } from '~/common';
 
 /**
@@ -127,12 +123,8 @@ export const useGetAgentCategoriesQuery = (
   return useQuery<t.TMarketplaceCategory[]>(
     [QueryKeys.agentCategories],
     async () => {
-      try {
-        const categories = await dataService.getAgentCategories();
-        return Array.isArray(categories) ? categories : getMockMarketplaceCategories();
-      } catch {
-        return getMockMarketplaceCategories();
-      }
+      const categories = await dataService.getAgentCategories();
+      return Array.isArray(categories) ? categories : [];
     },
     {
       refetchOnWindowFocus: false,
@@ -166,16 +158,7 @@ export const useMarketplaceAgentsInfiniteQuery = (
         queryParams.cursor = pageParam.toString();
       }
 
-      try {
-        const response = await dataService.getMarketplaceAgents(queryParams);
-        if ((response.data?.length ?? 0) > 0) {
-          return response;
-        }
-      } catch {
-        return getMockMarketplaceAgentsResponse(queryParams);
-      }
-
-      return getMockMarketplaceAgentsResponse(queryParams);
+      return dataService.getMarketplaceAgents(queryParams);
     },
     getNextPageParam: (lastPage) => lastPage?.after ?? undefined,
     enabled: !!params.requiredPermission,

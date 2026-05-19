@@ -8346,6 +8346,8 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   position: relative;
   z-index: 1;
   min-width: 0;
+  width: 100%;
+  flex: 1 1 auto;
 }
 
 .agents-marketplace-canvas {

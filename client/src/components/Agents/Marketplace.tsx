@@ -542,7 +542,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       >
         <main
           ref={scrollContainerRef}
-          className="agents-marketplace-main scrollbar-gutter-stable flex h-full min-w-0 flex-col overflow-y-auto overflow-x-hidden"
+          className="agents-marketplace-main scrollbar-gutter-stable flex h-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
           role="main"
         >
           <div className={canvasClassName}>
