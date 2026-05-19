@@ -6,6 +6,44 @@ import type t from 'librechat-data-provider';
 const loadedAgentAvatarUrls = new Set<string>();
 const staticAgentIconPath = 'assets/agent-icons/';
 const defaultAgentIconPath = `${staticAgentIconPath}default-agent.svg`;
+const defaultAgentIconUrl = () => getStaticAgentIconUrl(defaultAgentIconPath);
+
+const staticAgentIconFilesBySlug = new Map<string, string>([
+  ['504-plan-generator', '504-plan-generator.svg'],
+  ['announcement-writer', 'announcement-writer.svg'],
+  ['assessment-and-quiz-builder', 'assessment-quiz-builder.svg'],
+  ['class-newsletter-creator', 'class-newsletter-creator.svg'],
+  ['coloring-page-creator', 'coloring-page-creator.svg'],
+  ['conceptual-diagram-creator', 'conceptual-diagram-creator.svg'],
+  ['differentiation-adapter', 'differentiation-adapter.svg'],
+  ['downloadable-word-doc-or-pdf', 'word-doc-and-pdf-generator.svg'],
+  ['educhat-support-assistant', 'default-agent.svg'],
+  ['educational-grants-and-funding-finder', 'educational-grants-funding-finder.svg'],
+  ['email-drafter', 'email-drafter.svg'],
+  ['ethos-support-assistant', 'default-agent.svg'],
+  ['lesson-plan-builder', 'lesson-plan-builder.svg'],
+  ['letter-and-memo-generator', 'letter-memo-generator.svg'],
+  ['meeting-agenda-builder', 'meeting-agenda-builder.svg'],
+  ['meeting-notes-summarizer', 'meeting-notes-summarizer.svg'],
+  ['parent-conference-prep-sheet', 'parent-conference-prep-sheet.svg'],
+  ['policy-and-document-summarizer', 'policy-document-summarizer.svg'],
+  ['poster-design', 'school-poster-designer.svg'],
+  ['powerpoint-presentation-creator', 'powerpoint-presentation-creator.svg'],
+  ['professional-development-plan-creator', 'professional-development-plan-creator.svg'],
+  ['real-world-examples-generator', 'real-world-examples-generator.svg'],
+  ['report-card-comment-writer', 'report-card-comment-writer.svg'],
+  ['rubric-creator', 'rubric-creator.svg'],
+  ['social-media-post-generator', 'social-media-post-generator.svg'],
+  ['spreadsheet-excel-creator', 'spreadsheet-excel-creator.svg'],
+  ['standards-translator', 'standard-translator.svg'],
+  ['student-certificate-creator', 'student-certificate-creator.svg'],
+  ['survey-builder', 'survey-builder.svg'],
+  ['translation-assistant', 'translation-assistant.svg'],
+  ['vocabulary-and-spelling-list-builder', 'vocabulary-spelling-list-builder.svg'],
+  ['word-doc-and-pdf-generator', 'word-doc-and-pdf-generator.svg'],
+  ['worksheet-generator', 'worksheet-generator.svg'],
+  ['youtube-video-finder', 'youtube-video-finder.svg'],
+]);
 
 const getAppBasePath = () => {
   if (typeof document === 'undefined') {
@@ -21,6 +59,38 @@ const getAppBasePath = () => {
 };
 
 const getStaticAgentIconUrl = (assetPath: string) => `${getAppBasePath()}${assetPath}`;
+
+const getAgentNameSlug = (name: string | null | undefined): string | null => {
+  const slug = name
+    ?.trim()
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/\(([^)]*)\)/g, ' $1 ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || null;
+};
+
+export const getAgentDisplayName = (agent: t.Agent | null | undefined): string => {
+  return agent?.name?.replace(/\bEduChat\b/g, 'Ethos') ?? '';
+};
+
+export const getStaticAgentIconUrlForName = (name: string | null | undefined): string | null => {
+  const slug = getAgentNameSlug(name);
+  if (!slug) {
+    return null;
+  }
+
+  const iconFileName = staticAgentIconFilesBySlug.get(slug);
+  return iconFileName ? getStaticAgentIconUrl(`${staticAgentIconPath}${iconFileName}`) : null;
+};
+
+export const getAgentAvatarImageUrl = (agent: t.Agent | null | undefined): string | null => {
+  return (
+    getStaticAgentIconUrlForName(agent?.name) ?? normalizeAgentAvatarUrl(getAgentAvatarUrl(agent))
+  );
+};
 
 export const isStaticAgentIconUrl = (url: string) => {
   const pathWithoutParams = url.split(/[?#]/)[0]?.toLowerCase() ?? '';
@@ -83,23 +153,27 @@ const LazyAgentAvatar = ({
   imgClass,
   skeletonClass,
   fallback,
+  fallbackUrl,
 }: {
   url: string;
   alt: string;
   imgClass: string;
   skeletonClass: string;
   fallback: React.ReactElement;
+  fallbackUrl?: string | null;
 }) => {
-  const isStaticSvgAvatar = isStaticAgentIconUrl(url);
+  const [currentUrl, setCurrentUrl] = useState(url);
+  const isStaticSvgAvatar = isStaticAgentIconUrl(currentUrl);
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(
-    () => isStaticSvgAvatar || loadedAgentAvatarUrls.has(url),
+    () => isStaticSvgAvatar || loadedAgentAvatarUrls.has(currentUrl),
   );
 
   useEffect(() => {
+    setCurrentUrl(url);
     setHasError(false);
-    setIsLoaded(isStaticSvgAvatar || loadedAgentAvatarUrls.has(url));
-  }, [isStaticSvgAvatar, url]);
+    setIsLoaded(isStaticAgentIconUrl(url) || loadedAgentAvatarUrls.has(url));
+  }, [url]);
 
   if (hasError) {
     return fallback;
@@ -108,16 +182,23 @@ const LazyAgentAvatar = ({
   return (
     <>
       <img
-        src={url}
+        src={currentUrl}
         alt={alt}
         className={imgClass}
         loading={isStaticSvgAvatar ? 'eager' : 'lazy'}
         onLoad={() => {
-          loadedAgentAvatarUrls.add(url);
+          loadedAgentAvatarUrls.add(currentUrl);
           setIsLoaded(true);
         }}
         onError={() => {
-          loadedAgentAvatarUrls.delete(url);
+          loadedAgentAvatarUrls.delete(currentUrl);
+          if (fallbackUrl && currentUrl !== fallbackUrl) {
+            setCurrentUrl(fallbackUrl);
+            setIsLoaded(
+              isStaticAgentIconUrl(fallbackUrl) || loadedAgentAvatarUrls.has(fallbackUrl),
+            );
+            return;
+          }
           setHasError(true);
           setIsLoaded(false);
         }}
@@ -155,9 +236,10 @@ export const renderAgentAvatar = (
     visualScale = 'default',
   } = options;
 
-  const avatarUrl = normalizeAgentAvatarUrl(getAgentAvatarUrl(agent));
+  const avatarUrl = getAgentAvatarImageUrl(agent);
   const normalizedAvatarUrl = avatarUrl?.split(/[?#]/)[0]?.toLowerCase() ?? '';
   const isVectorAvatar = avatarUrl == null || normalizedAvatarUrl.endsWith('.svg');
+  const agentName = getAgentDisplayName(agent) || agent?.name || 'Agent';
 
   // Size mappings for responsive design
   const sizeClasses = {
@@ -220,7 +302,8 @@ export const renderAgentAvatar = (
   const skeletonClass = `absolute inset-0 ${placeholderSizeClasses[size]} ${imageShapeClasses}`;
 
   if (avatarUrl || size !== 'icon') {
-    const resolvedAvatarUrl = avatarUrl ?? getStaticAgentIconUrl(defaultAgentIconPath);
+    const fallbackAvatarUrl = defaultAgentIconUrl();
+    const resolvedAvatarUrl = avatarUrl ?? fallbackAvatarUrl;
 
     return (
       <div
@@ -228,10 +311,11 @@ export const renderAgentAvatar = (
       >
         <LazyAgentAvatar
           url={resolvedAvatarUrl}
-          alt={`${agent?.name || 'Agent'} avatar`}
+          alt={`${agentName} avatar`}
           imgClass={`${imageSizeClasses} ${imageShapeClasses} ${imageFitClasses} ${imageShadowClasses} ${borderClasses}`}
           skeletonClass={skeletonClass}
           fallback={fallbackIcon}
+          fallbackUrl={resolvedAvatarUrl !== fallbackAvatarUrl ? fallbackAvatarUrl : null}
         />
       </div>
     );

@@ -7,6 +7,8 @@ import {
   getContactDisplayName,
   isAgentAvatarImageUrl,
   normalizeAgentAvatarUrl,
+  getAgentAvatarImageUrl,
+  getAgentDisplayName,
 } from '../agents';
 import type t from 'librechat-data-provider';
 
@@ -95,6 +97,38 @@ describe('Agent Utilities', () => {
     });
   });
 
+  describe('getAgentAvatarImageUrl', () => {
+    it('should prefer bundled static icons for known Ethos tools', () => {
+      const agent = {
+        id: '1',
+        name: 'YouTube Video Finder',
+        avatar: {
+          filepath: '/images/user/missing-uploaded-avatar.png',
+          source: 'local',
+        },
+      } as t.Agent;
+
+      expect(getAgentAvatarImageUrl(agent)).toBe('/assets/agent-icons/youtube-video-finder.svg');
+    });
+
+    it('should use uploaded avatars for unknown agents', () => {
+      const agent = {
+        id: '1',
+        name: 'Custom Agent',
+        avatar: '/custom-avatar.png',
+      } as unknown as t.Agent;
+
+      expect(getAgentAvatarImageUrl(agent)).toBe('/custom-avatar.png');
+    });
+  });
+
+  describe('getAgentDisplayName', () => {
+    it('should replace EduChat branding in agent names', () => {
+      const agent = { id: '1', name: 'EduChat Support Assistant' } as t.Agent;
+      expect(getAgentDisplayName(agent)).toBe('Ethos Support Assistant');
+    });
+  });
+
   describe('isAgentAvatarImageUrl', () => {
     it('should treat static agent icons as image URLs after base path normalization', () => {
       const baseElement = document.createElement('base');
@@ -140,7 +174,7 @@ describe('Agent Utilities', () => {
       expect(img).toHaveAttribute('src', '/assets/agent-icons/default-agent.svg');
     });
 
-    it('should render Feather icon fallback when an avatar fails to load', () => {
+    it('should fall back to the default static avatar when an uploaded avatar fails to load', () => {
       const agent = {
         id: '1',
         name: 'Test Agent',
@@ -148,6 +182,21 @@ describe('Agent Utilities', () => {
       } as unknown as t.Agent;
 
       render(<div>{renderAgentAvatar(agent)}</div>);
+      fireEvent.error(screen.getByAltText('Test Agent avatar'));
+
+      const img = screen.getByAltText('Test Agent avatar');
+      expect(img).toHaveAttribute('src', '/assets/agent-icons/default-agent.svg');
+    });
+
+    it('should render Feather icon fallback when the default static avatar fails to load', () => {
+      const agent = {
+        id: '1',
+        name: 'Test Agent',
+        avatar: '/missing-avatar.png',
+      } as unknown as t.Agent;
+
+      render(<div>{renderAgentAvatar(agent)}</div>);
+      fireEvent.error(screen.getByAltText('Test Agent avatar'));
       fireEvent.error(screen.getByAltText('Test Agent avatar'));
 
       const featherIcon = screen.getByTestId('feather-icon');

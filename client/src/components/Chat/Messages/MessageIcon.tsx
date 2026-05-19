@@ -5,7 +5,8 @@ import type { TMessageIcon } from '~/common';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
 import { useGetEndpointsQuery } from '~/data-provider';
 import {
-  getAgentAvatarUrl,
+  getAgentAvatarImageUrl,
+  getAgentDisplayName,
   getIconEndpoint,
   isAgentAvatarImageUrl,
   logger,
@@ -26,11 +27,8 @@ const MessageIcon = memo(
     logger.log('icon_data', iconData, assistant, agent);
     const { data: endpointsConfig } = useGetEndpointsQuery();
 
-    const agentName = useMemo(() => agent?.name ?? '', [agent]);
-    const agentAvatar = useMemo(
-      () => normalizeAgentAvatarUrl(getAgentAvatarUrl(agent)) ?? '',
-      [agent],
-    );
+    const agentName = useMemo(() => getAgentDisplayName(agent), [agent]);
+    const agentAvatar = useMemo(() => getAgentAvatarImageUrl(agent) ?? '', [agent]);
     const assistantName = useMemo(() => assistant?.name ?? '', [assistant]);
     const assistantAvatar = useMemo(
       () =>
@@ -62,10 +60,11 @@ const MessageIcon = memo(
       [endpointsConfig, endpoint],
     );
 
-    if (iconData?.isCreatedByUser !== true && isAgentAvatarImageUrl(iconURL)) {
+    const displayIconURL = agentAvatar || iconURL;
+    if (iconData?.isCreatedByUser !== true && isAgentAvatarImageUrl(displayIconURL)) {
       return (
         <ConvoIconURL
-          iconURL={iconURL}
+          iconURL={displayIconURL}
           modelLabel={iconData?.modelLabel}
           context="message"
           assistantAvatar={assistantAvatar}

@@ -183,8 +183,8 @@ jobs:
           MAX_REPLICAS: ${{ env.MAX_REPLICAS }}
           CPU_CORES: ${{ env.CPU_CORES }}
           MEMORY_SIZE: ${{ env.MEMORY_SIZE }}
-          APP_TITLE: ${{ vars.APP_TITLE || 'CSUSA Staging' }}
-          CUSTOM_FOOTER: ${{ vars.CUSTOM_FOOTER || 'CSUSA Staging' }}
+          APP_TITLE: ${{ vars.APP_TITLE || 'Ethos' }}
+          CUSTOM_FOOTER: ${{ vars.CUSTOM_FOOTER || 'Ethos' }}
           HELP_AND_FAQ_URL: ${{ vars.HELP_AND_FAQ_URL || 'https://helpdesk.charterschoolsusa.com/support/home' }}
           NO_INDEX: ${{ vars.NO_INDEX || 'true' }}
           DEBUG_LOGGING: ${{ vars.DEBUG_LOGGING || 'false' }}

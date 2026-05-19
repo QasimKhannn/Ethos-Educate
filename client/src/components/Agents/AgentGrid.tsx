@@ -14,7 +14,7 @@ import {
   marketplaceSurfaceRevealVariants,
   softRevealVariants,
 } from '~/utils/motion';
-import { renderAgentAvatar } from '~/utils';
+import { renderAgentAvatar, getAgentDisplayName } from '~/utils';
 import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
 import AgentDetail from './AgentDetail';
@@ -518,6 +518,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                 ? getCategoryDisplayName(agent.category)
                 : localize('com_agents_all');
               const toneKey = getCategoryToneKey(agent.category);
+              const agentDisplayName = getAgentDisplayName(agent);
 
               return (
                 <motion.div
@@ -535,7 +536,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                     className="agents-marketplace-storefront-row"
                     data-view-mode={viewMode}
                     aria-label={localize('com_agents_agent_card_label', {
-                      name: agent.name,
+                      name: agentDisplayName,
                       description: agent.description ?? '',
                     })}
                     onClick={() => handleOpenAgent(agent)}
@@ -557,7 +558,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                       </div>
                     </div>
                     <div className="agents-marketplace-storefront-copy">
-                      <h3 className="agents-marketplace-storefront-title">{agent.name}</h3>
+                      <h3 className="agents-marketplace-storefront-title">{agentDisplayName}</h3>
                       <p className="agents-marketplace-storefront-meta">
                         {storefrontCategoryLabel}
                       </p>

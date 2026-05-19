@@ -13,7 +13,12 @@ import {
 import type t from 'librechat-data-provider';
 import { useLocalize, useFavorites, useDefaultConvo } from '~/hooks';
 import { useChatContext } from '~/Providers';
-import { renderAgentAvatar, clearMessagesCache, getAgentAvatarUrl } from '~/utils';
+import {
+  renderAgentAvatar,
+  clearMessagesCache,
+  getAgentAvatarImageUrl,
+  getAgentDisplayName,
+} from '~/utils';
 
 interface SupportContact {
   name?: string;
@@ -41,6 +46,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const { conversation, newConversation } = useChatContext();
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const isFavorite = isFavoriteAgent(agent?.id);
+  const agentDisplayName = getAgentDisplayName(agent);
 
   const handleFavoriteClick = () => {
     if (agent) {
@@ -50,7 +56,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
 
   const handleStartChat = () => {
     if (agent) {
-      const agentAvatarUrl = getAgentAvatarUrl(agent);
+      const agentAvatarUrl = getAgentAvatarImageUrl(agent);
       const keys = [QueryKeys.agents, { requiredPermission: PermissionBits.EDIT }];
       const listResp = queryClient.getQueryData<AgentListResponse>(keys);
 
@@ -64,7 +70,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
         'eduToolkitSelectedToolGuide',
         JSON.stringify({
           agentId: agent.id,
-          name: agent.name,
+          name: agentDisplayName,
           category: agent.category,
           description: agent.description,
           avatarUrl: agentAvatarUrl,
@@ -80,7 +86,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
         agent_id: agent.id,
         ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
         title: localize('com_agents_chat_with', {
-          name: agent.name || localize('com_ui_agent'),
+          name: agentDisplayName || localize('com_ui_agent'),
         }),
       };
 
@@ -158,7 +164,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
       <div className="mt-3 text-center">
         <div className="agent-detail-title-row justify-center">
           <h2 className="text-2xl font-bold text-text-primary">
-            {agent?.name || localize('com_agents_loading')}
+            {agentDisplayName || localize('com_agents_loading')}
           </h2>
           {agent && (
             <p className="agent-detail-title-byline">

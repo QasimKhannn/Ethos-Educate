@@ -5,7 +5,7 @@ import { Label, OGDialog, OGDialogTrigger } from '@librechat/client';
 import type t from 'librechat-data-provider';
 
 import { useLocalize, TranslationKeys, useAgentCategories } from '~/hooks';
-import { cn, renderAgentAvatar, getContactDisplayName } from '~/utils';
+import { cn, renderAgentAvatar, getContactDisplayName, getAgentDisplayName } from '~/utils';
 import AgentDetailContent from './AgentDetailContent';
 
 interface AgentCardProps {
@@ -47,6 +47,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   }, [agent.category, categories, localize]);
 
   const displayName = getContactDisplayName(agent);
+  const agentDisplayName = getAgentDisplayName(agent);
   const panelId = `agent-${agent.id}-panel`;
   const triggerId = `agent-${agent.id}-trigger`;
   const hasLongDescription = (agent.description?.trim().length ?? 0) > 110;
@@ -104,7 +105,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           tabIndex={0}
           className={cn('agent-card-trigger w-full text-left', className)}
           aria-label={localize('com_agents_agent_card_label', {
-            name: agent.name,
+            name: agentDisplayName,
             description: agent.description ?? '',
           })}
           aria-describedby={headerDescriptionId}
@@ -126,7 +127,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           <div className="agent-card-copy min-w-0">
             <div className="agent-card-title-row">
               <Label className="agent-card-title line-clamp-3 text-base font-semibold text-text-primary md:line-clamp-2 md:text-lg">
-                {agent.name}
+                {agentDisplayName}
               </Label>
             </div>
             <div className="agent-card-meta-row">

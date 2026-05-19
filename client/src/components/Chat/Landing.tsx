@@ -10,7 +10,12 @@ import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { motionSpring, softRevealVariants } from '~/utils/motion';
-import { getIconEndpoint, getEntity, normalizeAgentAvatarUrl } from '~/utils';
+import {
+  getIconEndpoint,
+  getEntity,
+  normalizeAgentAvatarUrl,
+  getStaticAgentIconUrlForName,
+} from '~/utils';
 
 const containerClassName = 'chat-landing-mark-shell';
 const selectedToolGuideKey = 'eduToolkitSelectedToolGuide';
@@ -23,6 +28,9 @@ const titleRevealAnimationTo = {
   opacity: 1,
   transform: 'translate3d(0,0,0)',
 };
+
+const normalizeEthosBrandText = (value: string | null | undefined) =>
+  value?.replace(/\bEduChat\b/g, 'Ethos') ?? '';
 
 interface SelectedToolGuide {
   agentId: string;
@@ -239,9 +247,13 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       [key]: value,
     }));
   }, []);
-  const headingName = name || selectedToolGuide?.name || '';
+  const selectedToolGuideName = normalizeEthosBrandText(selectedToolGuide?.name);
+  const headingName = normalizeEthosBrandText(name) || selectedToolGuideName;
   const selectedToolGuideAvatarUrl = normalizeAgentAvatarUrl(
-    selectedToolGuide?.avatarUrl ?? conversation?.iconURL ?? null,
+    getStaticAgentIconUrlForName(selectedToolGuideName || name) ??
+      selectedToolGuide?.avatarUrl ??
+      conversation?.iconURL ??
+      null,
   );
   const shouldShowSelectedToolGuideAvatar =
     selectedToolGuideAvatarUrl != null && !selectedToolGuideAvatarFailed;
@@ -466,7 +478,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             }
             className="chat-selected-tool-guide"
             role="region"
-            aria-label={`${selectedToolGuide.name} ${localize('com_agents_guide_setup_details')}`}
+            aria-label={`${selectedToolGuideName} ${localize('com_agents_guide_setup_details')}`}
           >
             <div className="chat-selected-tool-guide-body">
               <div className="chat-selected-tool-guide-heading-row">

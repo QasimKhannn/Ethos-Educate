@@ -17,7 +17,8 @@ import { useChatContext } from '~/Providers';
 import {
   renderAgentAvatar,
   clearMessagesCache,
-  getAgentAvatarUrl,
+  getAgentAvatarImageUrl,
+  getAgentDisplayName,
 } from '~/utils';
 
 interface SupportContact {
@@ -48,6 +49,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const { categories } = useAgentCategories();
   const isFavorite = isFavoriteAgent(agent?.id);
+  const agentDisplayName = getAgentDisplayName(agent);
   const categoryData = categories.find((category) => category.value === agent?.category);
   const byLabel = localize('com_ui_by_author', { 0: '' }).trim();
 
@@ -86,7 +88,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
 
   const handleStartChat = () => {
     if (agent) {
-      const agentAvatarUrl = getAgentAvatarUrl(agent);
+      const agentAvatarUrl = getAgentAvatarImageUrl(agent);
       const keys = [QueryKeys.agents, { requiredPermission: PermissionBits.EDIT }];
       const listResp = queryClient.getQueryData<AgentListResponse>(keys);
 
@@ -100,7 +102,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
         'eduToolkitSelectedToolGuide',
         JSON.stringify({
           agentId: agent.id,
-          name: agent.name,
+          name: agentDisplayName,
           category: agent.category,
           description: agent.description,
           avatarUrl: agentAvatarUrl,
@@ -116,7 +118,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
         agent_id: agent.id,
         ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
         title: localize('com_agents_chat_with', {
-          name: agent.name || localize('com_ui_agent'),
+          name: agentDisplayName || localize('com_ui_agent'),
         }),
       };
 
@@ -205,7 +207,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
               </div>
               <div className="agent-detail-title-row">
                 <h2 className="agent-detail-title">
-                  {agent?.name || localize('com_agents_loading')}
+                  {agentDisplayName || localize('com_agents_loading')}
                 </h2>
                 {agent ? (
                   <p className="agent-detail-title-byline">

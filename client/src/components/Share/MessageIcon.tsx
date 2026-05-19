@@ -5,7 +5,8 @@ import type { TMessageProps } from '~/common';
 import MessageEndpointIcon from '../Endpoints/MessageEndpointIcon';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
 import {
-  getAgentAvatarUrl,
+  getAgentAvatarImageUrl,
+  getAgentDisplayName,
   getIconEndpoint,
   isAgentAvatarImageUrl,
   logger,
@@ -39,8 +40,8 @@ export default function MessageIcon(
   const assistantAvatar =
     normalizeAgentAvatarUrl((assistant ? (assistant.metadata?.avatar as string) : null) ?? null) ??
     '';
-  const agentName = (agent ? agent.name : '') ?? '';
-  const agentAvatar = normalizeAgentAvatarUrl(agent ? getAgentAvatarUrl(agent) : null) ?? '';
+  const agentName = agent ? getAgentDisplayName(agent) : '';
+  const agentAvatar = getAgentAvatarImageUrl(agent || null) ?? '';
   const avatarURL = useMemo(() => {
     let result = '';
     if (assistant) {
@@ -58,10 +59,11 @@ export default function MessageIcon(
     agentName,
     agentAvatar,
   });
-  if (message?.isCreatedByUser !== true && isAgentAvatarImageUrl(iconURL)) {
+  const displayIconURL = agentAvatar || iconURL;
+  if (message?.isCreatedByUser !== true && isAgentAvatarImageUrl(displayIconURL)) {
     return (
       <ConvoIconURL
-        iconURL={iconURL}
+        iconURL={displayIconURL}
         modelLabel={messageSettings.chatGptLabel ?? messageSettings.modelLabel ?? ''}
         context="message"
         assistantAvatar={assistantAvatar}
