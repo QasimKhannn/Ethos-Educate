@@ -159,6 +159,23 @@ describe('Conversation Operations', () => {
       });
       expect(savedConvo.someField).toBeUndefined();
     });
+
+    it('should ignore unsetFields that are saved in the same update', async () => {
+      const metadata = {
+        unsetFields: { endpoint: 1, staleField: 1 },
+      };
+
+      const result = await saveConvo(mockReq, mockConversationData, metadata);
+
+      expect(result.message).not.toBe('Error saving conversation');
+      expect(result.endpoint).toBe(EModelEndpoint.openAI);
+
+      const savedConvo = await Conversation.findOne({
+        conversationId: mockConversationData.conversationId,
+      });
+      expect(savedConvo.endpoint).toBe(EModelEndpoint.openAI);
+      expect(savedConvo.staleField).toBeUndefined();
+    });
   });
 
   describe('isTemporary conversation handling', () => {
