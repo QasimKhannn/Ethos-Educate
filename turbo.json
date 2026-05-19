@@ -23,11 +23,14 @@
       ],
       "outputs": ["dist/**"]
     },
-    "@librechat/data-schemas#build": {
-      "dependsOn": ["^build", "librechat-data-provider#build"]
+    "@EnterpriseChat/data-schemas#build": {
+      "dependsOn": ["^build", "@EnterpriseChat/data-provider#build"]
+    },
+    "@EnterpriseChat/frontend#build": {
+      "dependsOn": ["^build", "@EnterpriseChat/client#build", "@EnterpriseChat/data-provider#build"]
     },
     "@librechat/api#build": {
-      "dependsOn": ["^build", "librechat-data-provider#build", "@librechat/data-schemas#build"]
+      "dependsOn": ["^build", "@EnterpriseChat/data-provider#build", "@EnterpriseChat/data-schemas#build"]
     }
   }
 }

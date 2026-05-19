@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TranslationKeys } from '~/hooks';
 import { cn } from '~/utils';
 
 interface ConvoLinkProps {
@@ -7,7 +8,7 @@ interface ConvoLinkProps {
   title: string | null;
   onRename: () => void;
   isSmallScreen: boolean;
-  localize: (key: any, options?: any) => string;
+  localize: (key: TranslationKeys, options?: Record<string, boolean | number | string>) => string;
   children: React.ReactNode;
 }
 
@@ -23,16 +24,18 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
   return (
     <div
       className={cn(
-        'flex grow items-center gap-2 overflow-hidden rounded-lg px-2',
-        isActiveConvo || isPopoverActive ? 'bg-surface-active-alt' : '',
+        'sidebar-convo-link flex grow items-center gap-3 overflow-hidden rounded-xl px-3',
+        isActiveConvo || isPopoverActive ? 'sidebar-convo-link-active' : '',
       )}
       title={title ?? undefined}
       aria-current={isActiveConvo ? 'page' : undefined}
       style={{ width: '100%' }}
     >
-      {children}
+      <div className="sidebar-convo-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl">
+        {children}
+      </div>
       <div
-        className="relative flex-1 grow overflow-hidden whitespace-nowrap"
+        className="sidebar-convo-title relative flex-1 grow overflow-hidden whitespace-nowrap"
         style={{ textOverflow: 'clip' }}
         onDoubleClick={(e) => {
           if (isSmallScreen) {
@@ -46,15 +49,6 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
       >
         {title || localize('com_ui_untitled')}
       </div>
-      <div
-        className={cn(
-          'pointer-events-none absolute bottom-0.5 right-0.5 top-0.5 w-20 rounded-r-md bg-gradient-to-l',
-          isActiveConvo || isPopoverActive
-            ? 'from-surface-active-alt'
-            : 'from-surface-primary-alt from-0% to-transparent group-hover:from-surface-active-alt group-hover:from-40%',
-        )}
-        aria-hidden="true"
-      />
     </div>
   );
 };

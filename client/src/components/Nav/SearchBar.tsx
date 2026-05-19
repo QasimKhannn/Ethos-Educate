@@ -1,153 +1,335 @@
 import React, { forwardRef, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { isToday, subDays, startOfDay, isWithinInterval } from 'date-fns';
 import debounce from 'lodash/debounce';
-import { useRecoilState } from 'recoil';
-import { Search, X } from 'lucide-react';
-import { QueryKeys } from 'librechat-data-provider';
-import { useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { MessageCircle, PenSquare, Search, X } from 'lucide-react';
+import { Button, Dialog, DialogContent, Spinner, TooltipAnchor } from '@librechat/client';
+import { useNavigate } from 'react-router-dom';
+import type { ConversationListResponse } from 'librechat-data-provider';
+import { useConversationsInfiniteQuery } from '~/data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
-import { cn } from '~/utils';
-import store from '~/store';
 
 type SearchBarProps = {
   isSmallScreen?: boolean;
 };
 
-const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivElement>) => {
-  const localize = useLocalize();
-  const location = useLocation();
-  const queryClient = useQueryClient();
+type SearchConversation = ConversationListResponse['conversations'][number];
+
+const SEARCH_GROUP_ORDER = [
+  'com_ui_date_today',
+  'com_ui_date_yesterday',
+  'com_ui_date_previous_30_days',
+] as const;
+
+const getGroupLabel = (updatedAt?: string) => {
+  const now = new Date(Date.now());
+  const date = updatedAt != null ? new Date(updatedAt) : now;
+
+  if (isToday(date)) {
+    return 'com_ui_date_today' as const;
+  }
+
+  if (isWithinInterval(date, { start: startOfDay(subDays(now, 1)), end: now })) {
+    return 'com_ui_date_yesterday' as const;
+  }
+
+  return 'com_ui_date_previous_30_days' as const;
+};
+
+const groupSearchConversations = (conversations: SearchConversation[]) => {
+  const groups = new Map<(typeof SEARCH_GROUP_ORDER)[number], SearchConversation[]>();
+  const orderedConversations = [...conversations].sort(
+    (left, right) =>
+      new Date(right.updatedAt ?? 0).getTime() - new Date(left.updatedAt ?? 0).getTime(),
+  );
+
+  orderedConversations.forEach((conversation) => {
+    const label = getGroupLabel(conversation.updatedAt);
+    const existingGroup = groups.get(label) ?? [];
+    existingGroup.push(conversation);
+    groups.set(label, existingGroup);
+  });
+
+  return SEARCH_GROUP_ORDER.filter((label) => groups.has(label)).map((label) => ({
+    label,
+    conversations: groups.get(label) ?? [],
+  }));
+};
+
+const ChatSearchModal = ({
+  open,
+  onOpenChange,
+  isSmallScreen = false,
+  isTourPreview = false,
+}: {
+  open: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  isSmallScreen?: boolean;
+  isTourPreview?: boolean;
+}) => {
   const navigate = useNavigate();
-  const { isSmallScreen } = props;
-
-  const [text, setText] = useState('');
+  const localize = useLocalize();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [text, setText] = useState('');
+  const [debouncedText, setDebouncedText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [showClearIcon, setShowClearIcon] = useState(false);
+  const { newConversation } = useNewConvo();
 
-  const { newConversation: newConvo } = useNewConvo();
-  const [search, setSearchState] = useRecoilState(store.search);
-
-  const clearSearch = useCallback(
-    (pathname?: string) => {
-      if (pathname?.includes('/search') || pathname === '/c/new') {
-        queryClient.removeQueries([QueryKeys.messages]);
-        newConvo({ disableFocus: true });
-        navigate('/c/new');
-      }
-    },
-    [newConvo, navigate, queryClient],
-  );
-
-  const clearText = useCallback(
-    (pathname?: string) => {
-      setShowClearIcon(false);
-      setText('');
-      setSearchState((prev) => ({
-        ...prev,
-        query: '',
-        debouncedQuery: '',
-        isTyping: false,
-      }));
-      clearSearch(pathname);
-      inputRef.current?.focus();
-    },
-    [setSearchState, clearSearch],
-  );
-
-  const handleKeyUp = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      const { value } = e.target as HTMLInputElement;
-      if (e.key === 'Backspace' && value === '') {
-        clearText(location.pathname);
-      }
-    },
-    [clearText, location.pathname],
-  );
-
-  const sendRequest = useCallback(
-    (value: string) => {
-      if (!value) {
-        return;
-      }
-      queryClient.invalidateQueries([QueryKeys.messages]);
-    },
-    [queryClient],
-  );
-
-  const debouncedSetDebouncedQuery = useMemo(
+  const debouncedSetQuery = useMemo(
     () =>
       debounce((value: string) => {
-        setSearchState((prev) => ({ ...prev, debouncedQuery: value, isTyping: false }));
-        sendRequest(value);
-      }, 500),
-    [setSearchState, sendRequest],
+        setDebouncedText(value);
+        setIsTyping(false);
+      }, 250),
+    [],
   );
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setShowClearIcon(value.length > 0);
-    setText(value);
-    setSearchState((prev) => ({
-      ...prev,
-      query: value,
-      isTyping: true,
-    }));
-    debouncedSetDebouncedQuery(value);
-    if (value.length > 0 && location.pathname !== '/search') {
-      navigate('/search', { replace: true });
+  const resetSearch = useCallback(() => {
+    debouncedSetQuery.cancel();
+    setText('');
+    setDebouncedText('');
+    setIsTyping(false);
+    setShowClearIcon(false);
+  }, [debouncedSetQuery]);
+
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (!isOpen) {
+        resetSearch();
+      }
+      onOpenChange(isOpen);
+    },
+    [onOpenChange, resetSearch],
+  );
+
+  const onChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setText(value);
+      setShowClearIcon(value.length > 0);
+      setIsTyping(true);
+      debouncedSetQuery(value.trim());
+    },
+    [debouncedSetQuery],
+  );
+
+  const { data, isLoading, isFetching } = useConversationsInfiniteQuery(
+    {
+      search: debouncedText || undefined,
+    },
+    {
+      enabled: open,
+      staleTime: 30000,
+      cacheTime: 300000,
+    },
+  );
+
+  const conversations = useMemo(
+    () => (data != null ? data.pages.flatMap((page) => page.conversations) : []),
+    [data],
+  );
+
+  const groupedConversations = useMemo(
+    () => groupSearchConversations(conversations),
+    [conversations],
+  );
+  const showLoadingState =
+    ((isLoading || isFetching) && conversations.length === 0) ||
+    (isTyping && conversations.length === 0);
+
+  const handleClear = useCallback(() => {
+    resetSearch();
+    inputRef.current?.focus();
+  }, [resetSearch]);
+
+  const handleNewChat = useCallback(() => {
+    handleOpenChange(false);
+    newConversation({ disableFocus: true });
+    navigate('/c/new', { state: { focusChat: true } });
+  }, [handleOpenChange, navigate, newConversation]);
+
+  const handleSelectConversation = useCallback(
+    (conversationId: string) => {
+      handleOpenChange(false);
+      navigate(`/c/${conversationId}`, { state: { focusChat: true } });
+    },
+    [handleOpenChange, navigate],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      return;
     }
+
+    const animationFrame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(animationFrame);
+  }, [open]);
+
+  useEffect(() => () => debouncedSetQuery.cancel(), [debouncedSetQuery]);
+
+  const renderSearchResults = () => {
+    if (showLoadingState) {
+      return (
+        <div className="sidebar-search-dialog-empty">
+          <Spinner className="sidebar-search-dialog-spinner" />
+        </div>
+      );
+    }
+
+    if (conversations.length === 0) {
+      return (
+        <div className="sidebar-search-dialog-empty">{localize('com_ui_no_results_found')}</div>
+      );
+    }
+
+    return groupedConversations.map((group) => (
+      <section key={group.label} className="sidebar-search-dialog-group">
+        <p className="sidebar-search-dialog-group-label">{localize(group.label)}</p>
+        <div className="sidebar-search-dialog-group-list">
+          {group.conversations.map((conversation) => {
+            const conversationId = conversation.conversationId;
+
+            if (!conversationId) {
+              return null;
+            }
+
+            return (
+              <button
+                key={conversationId}
+                type="button"
+                className="sidebar-search-dialog-row"
+                onClick={() => handleSelectConversation(conversationId)}
+              >
+                <MessageCircle className="sidebar-search-dialog-row-icon" aria-hidden="true" />
+                <span className="sidebar-search-dialog-row-title">
+                  {conversation.title || localize('com_ui_untitled')}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    ));
   };
 
-  // Automatically set isTyping to false when loading is done and debouncedQuery matches query
-  // (prevents stuck loading state if input is still focused)
-  useEffect(() => {
-    if (search.isTyping && !search.isSearching && search.debouncedQuery === search.query) {
-      setSearchState((prev) => ({ ...prev, isTyping: false }));
-    }
-  }, [search.isTyping, search.isSearching, search.debouncedQuery, search.query, setSearchState]);
-
   return (
-    <div
-      ref={ref}
-      className="group relative my-1 flex h-10 cursor-pointer items-center gap-3 rounded-lg border-2 border-transparent px-3 py-2 text-text-primary focus-within:border-ring-primary focus-within:bg-surface-active-alt hover:bg-surface-active-alt"
-    >
-      <Search
-        aria-hidden="true"
-        className="absolute left-3 h-4 w-4 text-text-secondary group-focus-within:text-text-primary group-hover:text-text-primary"
-      />
-      <input
-        type="text"
-        ref={inputRef}
-        className="m-0 mr-0 w-full border-none bg-transparent p-0 pl-7 text-sm leading-tight placeholder-text-secondary placeholder-opacity-100 focus-visible:outline-none group-focus-within:placeholder-text-primary group-hover:placeholder-text-primary"
-        value={text}
-        onChange={onChange}
-        onKeyDown={(e) => {
-          e.code === 'Space' ? e.stopPropagation() : null;
-        }}
-        aria-label={localize('com_nav_search_placeholder')}
-        placeholder={localize('com_nav_search_placeholder')}
-        onKeyUp={handleKeyUp}
-        onFocus={() => setSearchState((prev) => ({ ...prev, isSearching: true }))}
-        onBlur={() => setSearchState((prev) => ({ ...prev, isSearching: false }))}
-        autoComplete="off"
-        dir="auto"
-      />
-      <button
-        type="button"
-        aria-label={localize('com_ui_clear_search')}
-        className={cn(
-          'absolute right-[7px] flex h-5 w-5 items-center justify-center rounded-full border-none bg-transparent p-0 transition-opacity duration-200',
-          showClearIcon ? 'opacity-100' : 'opacity-0',
-          isSmallScreen === true ? 'right-[16px]' : '',
-        )}
-        onClick={() => clearText(location.pathname)}
-        tabIndex={showClearIcon ? 0 : -1}
-        disabled={!showClearIcon}
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={!isTourPreview}>
+      <DialogContent
+        showCloseButton={false}
+        data-tour-id="nav-search-dialog"
+        data-tour-padding="-4"
+        data-tour-radius="22"
+        className={
+          isSmallScreen
+            ? 'sidebar-search-dialog h-[min(36rem,calc(100vh-1.5rem))] w-[calc(100vw-1rem)] max-w-none gap-0 overflow-hidden p-0'
+            : 'sidebar-search-dialog w-[min(42rem,calc(100vw-4rem))] max-w-none gap-0 overflow-hidden p-0'
+        }
       >
-        <X className="h-5 w-5 cursor-pointer" aria-hidden="true" />
-      </button>
-    </div>
+        <div className="sidebar-search-dialog-header">
+          <div className="sidebar-search-dialog-input-shell">
+            <Search className="sidebar-search-dialog-input-icon" aria-hidden="true" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={text}
+              onChange={onChange}
+              aria-label={localize('com_nav_search_chats_placeholder')}
+              placeholder={localize('com_nav_search_chats_placeholder')}
+              autoComplete="off"
+              dir="auto"
+              className="sidebar-search-dialog-input"
+            />
+            {showClearIcon && (
+              <button
+                type="button"
+                aria-label={localize('com_ui_clear_search')}
+                className="sidebar-search-dialog-clear"
+                onClick={handleClear}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={localize('com_ui_close')}
+            className="sidebar-search-dialog-close"
+            onClick={() => handleOpenChange(false)}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="sidebar-search-dialog-body">
+          <button type="button" className="sidebar-search-dialog-action" onClick={handleNewChat}>
+            <PenSquare className="h-4 w-4" aria-hidden="true" />
+            <span>{localize('com_ui_new_chat')}</span>
+          </button>
+          <div className="sidebar-search-dialog-results">{renderSearchResults()}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
-});
+};
+
+const SearchBar = forwardRef(
+  ({ isSmallScreen = false }: SearchBarProps, ref: React.Ref<HTMLDivElement>) => {
+    const localize = useLocalize();
+    const [open, setOpen] = useState(false);
+    const [isTourPreview, setIsTourPreview] = useState(false);
+
+    useEffect(() => {
+      const handleTourOpen = () => {
+        setIsTourPreview(true);
+        setOpen(true);
+      };
+      const handleTourClose = () => {
+        setIsTourPreview(false);
+        setOpen(false);
+      };
+
+      window.addEventListener('nav-search-tour-open', handleTourOpen);
+      window.addEventListener('nav-search-tour-close', handleTourClose);
+
+      return () => {
+        window.removeEventListener('nav-search-tour-open', handleTourOpen);
+        window.removeEventListener('nav-search-tour-close', handleTourClose);
+      };
+    }, []);
+
+    return (
+      <div ref={ref}>
+        <TooltipAnchor
+          description={localize('com_nav_search_placeholder')}
+          render={
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={localize('com_nav_search_chats_placeholder')}
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              data-tour-id="nav-search"
+              data-tour-clip="sidebar"
+              data-tour-padding="-3"
+              data-tour-offset-x="1"
+              data-tour-offset-y="-1"
+              data-tour-radius="18"
+              className="sidebar-toolbar-button"
+              onClick={() => setOpen(true)}
+            >
+              <Search aria-hidden="true" className="sidebar-toolbar-symbol" />
+            </Button>
+          }
+        />
+        <ChatSearchModal
+          open={open}
+          onOpenChange={setOpen}
+          isSmallScreen={isSmallScreen}
+          isTourPreview={isTourPreview}
+        />
+      </div>
+    );
+  },
+);
 
 export default SearchBar;

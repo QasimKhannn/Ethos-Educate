@@ -11,8 +11,8 @@ module.exports = {
   darkMode: ['class'],
   theme: {
     fontFamily: {
-      sans: ['Inter', 'sans-serif'],
-      mono: ['Roboto Mono', 'monospace'],
+      sans: ['"Poppins"', 'sans-serif'],
+      mono: ['"IBM Plex Mono"', 'monospace'],
     },
     // fontFamily: {
     //   sans: ['Söhne', 'sans-serif'],
@@ -59,18 +59,19 @@ module.exports = {
       },
       colors: {
         gray: {
-          20: '#ececf1',
-          50: '#f7f7f8',
-          100: '#ececec',
-          200: '#e3e3e3',
-          300: '#cdcdcd',
-          400: '#999696',
-          500: '#595959',
-          600: '#424242',
-          700: '#2f2f2f',
-          800: '#212121',
-          850: '#171717',
-          900: '#0d0d0d',
+          20: '#f8fafc',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e8eef9',
+          300: '#e2e8f0',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          850: '#1a2943',
+          900: '#0f172a',
+          950: '#020617',
         },
         green: {
           50: '#f1f9f7',

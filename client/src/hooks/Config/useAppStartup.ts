@@ -16,12 +16,19 @@ export default function useAppStartup({
   user?: TUser;
 }) {
   const [defaultPreset, setDefaultPreset] = useRecoilState(store.defaultPreset);
+  const backendQueriesEnabled = !!user;
 
-  useSpeechSettingsInit(!!user);
-  const { data: loadedServers, isLoading: serversLoading } = useMCPServersQuery();
+  useSpeechSettingsInit(backendQueriesEnabled);
+  const { data: loadedServers, isLoading: serversLoading } = useMCPServersQuery({
+    enabled: backendQueriesEnabled,
+  });
 
   useMCPToolsQuery({
-    enabled: !serversLoading && !!loadedServers && Object.keys(loadedServers).length > 0 && !!user,
+    enabled:
+      backendQueriesEnabled &&
+      !serversLoading &&
+      !!loadedServers &&
+      Object.keys(loadedServers).length > 0,
   });
 
   /** Clean up old localStorage entries on startup */

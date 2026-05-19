@@ -2,7 +2,7 @@ import React, { useRef, useCallback, useMemo, useEffect } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Skeleton } from '@librechat/client';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { useRecoilValue } from 'recoil';
 import { QueryKeys, dataService } from 'librechat-data-provider';
@@ -126,6 +126,7 @@ export default function FavoritesList({
   onHeightChange?: () => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const localize = useLocalize();
   const search = useRecoilValue(store.search);
   const getConversation = useGetConversation(0);
@@ -148,6 +149,7 @@ export default function FavoritesList({
 
   const marketplaceRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const isMarketplaceActive = location.pathname.startsWith('/agents');
 
   const handleAgentMarketplace = useCallback(() => {
     navigate('/agents');
@@ -155,7 +157,6 @@ export default function FavoritesList({
       toggleNav();
     }
   }, [navigate, isSmallScreen, toggleNav]);
-
   const handleRemoveFocus = useCallback(() => {
     if (marketplaceRef.current) {
       marketplaceRef.current.focus();
@@ -295,14 +296,16 @@ export default function FavoritesList({
           </>
         ) : (
           <>
-            {/* Edu Toolkit button */}
+            {/* Ethos Tools button */}
             {showAgentMarketplace && (
               <div
                 ref={marketplaceRef}
                 role="button"
                 tabIndex={0}
                 aria-label={localize('com_agents_marketplace')}
-                className="group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
+                className={`sidebar-marketplace-item sidebar-utility-item group relative flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white ${
+                  isMarketplaceActive ? 'sidebar-utility-item-active' : ''
+                }`}
                 onClick={handleAgentMarketplace}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -310,13 +313,20 @@ export default function FavoritesList({
                     handleAgentMarketplace();
                   }
                 }}
+                data-tour-id="nav-marketplace"
+                data-tour-clip="sidebar"
+                data-tour-padding="-6"
+                data-tour-radius="16"
+                data-tour-offset-x="-2"
                 data-testid="nav-agents-marketplace-button"
               >
-                <div className="flex flex-1 items-center truncate pr-6">
-                  <div className="mr-2 h-5 w-5">
-                    <LayoutGrid className="h-5 w-5 text-text-primary" />
+                <div className="flex flex-1 items-center gap-3 truncate pr-6">
+                  <div className="sidebar-marketplace-icon sidebar-utility-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl">
+                    <LayoutGrid className="h-[18px] w-[18px]" />
                   </div>
-                  <span className="truncate">{localize('com_agents_marketplace')}</span>
+                  <span className="sidebar-marketplace-label truncate text-[0.95rem] font-medium tracking-[-0.014em]">
+                    {localize('com_agents_marketplace')}
+                  </span>
                 </div>
               </div>
             )}

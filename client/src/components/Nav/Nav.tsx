@@ -29,6 +29,12 @@ import { ProjectsNav } from '~/components/Projects';
 import FavoritesList from './Favorites/FavoritesList';
 import SearchBar from './SearchBar';
 import NewChat from './NewChat';
+import {
+  SIDEBAR_ANIMATION_MS,
+  SIDEBAR_ANIMATION_SECONDS,
+  SIDEBAR_EASE_CSS,
+  SIDEBAR_MOTION_EASE,
+} from './sidebarMotion';
 import { cn } from '~/utils';
 import store from '~/store';
 
@@ -40,28 +46,28 @@ export const NAV_WIDTH = {
   DESKTOP: 260,
 } as const;
 
-const SearchBarSkeleton = memo(() => (
-  <div className={cn('flex h-10 items-center py-2')}>
-    <Skeleton className="h-10 w-full rounded-lg" />
-  </div>
-));
-
-SearchBarSkeleton.displayName = 'SearchBarSkeleton';
-
 const NavMask = memo(
-  ({ navVisible, toggleNavVisible }: { navVisible: boolean; toggleNavVisible: () => void }) => (
-    <div
+  ({
+    ariaLabel,
+    navVisible,
+    toggleNavVisible,
+  }: {
+    ariaLabel: string;
+    navVisible: boolean;
+    toggleNavVisible: () => void;
+  }) => (
+    <button
+      type="button"
       id="mobile-nav-mask-toggle"
-      role="button"
-      tabIndex={0}
-      className={`nav-mask transition-opacity duration-200 ease-in-out ${navVisible ? 'active opacity-100' : 'opacity-0'}`}
+      className={cn(
+        'nav-mask transition-opacity duration-200 ease-in-out',
+        navVisible ? 'active opacity-100' : 'opacity-0',
+      )}
       onClick={toggleNavVisible}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          toggleNavVisible();
-        }
-      }}
-      aria-label="Toggle navigation"
+      aria-label={ariaLabel}
+      aria-hidden={!navVisible}
+      disabled={!navVisible}
+      tabIndex={navVisible ? 0 : -1}
     />
   ),
 );
@@ -164,6 +170,42 @@ const Nav = memo(
     }, [isSmallScreen, toggleNavVisible]);
 
     useEffect(() => {
+      const handleTourOpen = () => {
+        startTransition(() => {
+          setNavVisible((previous) => {
+            if (previous) {
+              return previous;
+            }
+
+            localStorage.setItem('navVisible', JSON.stringify(true));
+            return true;
+          });
+        });
+      };
+
+      const handleTourClose = () => {
+        startTransition(() => {
+          setNavVisible((previous) => {
+            if (!previous) {
+              return previous;
+            }
+
+            localStorage.setItem('navVisible', JSON.stringify(false));
+            return false;
+          });
+        });
+      };
+
+      window.addEventListener('nav-tour-open', handleTourOpen as EventListener);
+      window.addEventListener('nav-tour-close', handleTourClose as EventListener);
+
+      return () => {
+        window.removeEventListener('nav-tour-open', handleTourOpen as EventListener);
+        window.removeEventListener('nav-tour-close', handleTourClose as EventListener);
+      };
+    }, [setNavVisible]);
+
+    useEffect(() => {
       refetch();
     }, [tags, refetch]);
 
@@ -175,30 +217,18 @@ const Nav = memo(
       fetchNextPage();
     }, [isFetchingNextPage, computedHasNextPage, fetchNextPage]);
 
-    const subHeaders = useMemo(
-      () => (
-        <>
-          {search.enabled === null && <SearchBarSkeleton />}
-          {search.enabled === true && <SearchBar isSmallScreen={isSmallScreen} />}
-        </>
-      ),
-      [search.enabled, isSmallScreen],
-    );
-
     const headerButtons = useMemo(
       () => (
         <>
+          {search.enabled !== null ? <SearchBar isSmallScreen={isSmallScreen} /> : null}
           {hasAccessToBookmarks && (
-            <>
-              <div className="mt-1.5" />
-              <Suspense fallback={null}>
-                <BookmarkNav tags={tags} setTags={setTags} />
-              </Suspense>
-            </>
+            <Suspense fallback={null}>
+              <BookmarkNav tags={tags} setTags={setTags} />
+            </Suspense>
           )}
         </>
       ),
-      [hasAccessToBookmarks, tags],
+      [hasAccessToBookmarks, isSmallScreen, search.enabled, tags],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
@@ -225,13 +255,13 @@ const Nav = memo(
         <nav
           id="chat-history-nav"
           aria-label={localize('com_ui_chat_history')}
+          data-tour-clip-root="sidebar"
           className="flex h-full flex-col px-2 pb-3.5"
           aria-hidden={!navVisible}
           {...{ inert: !navVisible ? '' : undefined }}
         >
           <div className="flex flex-1 flex-col overflow-hidden" ref={outerContainerRef}>
             <MemoNewChat
-              subHeaders={subHeaders}
               toggleNav={toggleNavVisible}
               headerButtons={headerButtons}
               isSmallScreen={isSmallScreen}
@@ -268,18 +298,23 @@ const Nav = memo(
           <div
             data-testid="nav"
             className={cn(
-              'nav fixed left-0 top-0 z-[110] h-full bg-surface-primary-alt',
+              'nav sidebar-rail sidebar-shell-divider fixed left-0 top-0 z-[110] h-full bg-surface-primary-alt',
               navVisible && 'active',
             )}
             style={{
               width: sidebarWidth,
               transform: navVisible ? 'translateX(0)' : `translateX(-${sidebarWidth}px)`,
-              transition: 'transform 0.2s ease-out',
+              transition: `transform ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
+              willChange: 'transform',
             }}
           >
             {sidebarContent}
           </div>
-          <NavMask navVisible={navVisible} toggleNavVisible={toggleNavVisible} />
+          <NavMask
+            ariaLabel={localize('com_nav_close_sidebar')}
+            navVisible={navVisible}
+            toggleNavVisible={toggleNavVisible}
+          />
         </>
       );
     }
@@ -288,17 +323,24 @@ const Nav = memo(
     return (
       <div
         className="flex-shrink-0 overflow-hidden"
-        style={{ width: navVisible ? sidebarWidth : 0, transition: 'width 0.2s ease-out' }}
+        style={{
+          width: navVisible ? sidebarWidth : 0,
+          transition: `width ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
+          willChange: 'width',
+        }}
       >
         <motion.div
           data-testid="nav"
-          className={cn('nav h-full bg-surface-primary-alt', navVisible && 'active')}
+          className={cn(
+            'nav sidebar-rail sidebar-shell-divider h-full bg-surface-primary-alt',
+            navVisible && 'active',
+          )}
           style={{ width: sidebarWidth }}
           initial={false}
           animate={{
             x: navVisible ? 0 : -sidebarWidth,
           }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          transition={{ duration: SIDEBAR_ANIMATION_SECONDS, ease: SIDEBAR_MOTION_EASE }}
         >
           {sidebarContent}
         </motion.div>

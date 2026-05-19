@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { gsap } from 'gsap';
+import { useReducedMotion } from 'framer-motion';
 import { useMediaQuery } from '@librechat/client';
 import type t from 'librechat-data-provider';
-import { useLocalize, TranslationKeys } from '~/hooks';
+import type { TranslationKeys } from '~/hooks';
+import { useLocalize } from '~/hooks';
 import { SmartLoader } from './SmartLoader';
 import { cn } from '~/utils';
 
@@ -34,7 +37,110 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
   onChange,
 }) => {
   const localize = useLocalize();
-  const isSmallScreen = useMediaQuery('(max-width: 768px)');
+  const isSmallScreen = useMediaQuery('(max-width: 767px)');
+  const shouldReduceMotion = useReducedMotion();
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const activeIndicatorRef = useRef<HTMLSpanElement>(null);
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+  const animationFrameRef = useRef<number | null>(null);
+
+  const setTabRef = useCallback(
+    (value: string) => (node: HTMLButtonElement | null) => {
+      if (node) {
+        tabRefs.current.set(value, node);
+        return;
+      }
+
+      tabRefs.current.delete(value);
+    },
+    [],
+  );
+
+  const syncActiveIndicator = useCallback(() => {
+    const tabList = tabListRef.current;
+    const indicator = activeIndicatorRef.current;
+    const activeTabElement = tabRefs.current.get(activeTab);
+
+    if (!tabList || !indicator || !activeTabElement) {
+      return;
+    }
+
+    if (typeof activeTabElement.scrollIntoView === 'function') {
+      activeTabElement.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+        behavior: shouldReduceMotion ? 'auto' : 'smooth',
+      });
+    }
+
+    const nextPosition = {
+      height: activeTabElement.offsetHeight,
+      width: activeTabElement.offsetWidth,
+      x: activeTabElement.offsetLeft,
+      y: activeTabElement.offsetTop,
+    };
+
+    if (shouldReduceMotion) {
+      gsap.set(indicator, { ...nextPosition, autoAlpha: 1 });
+      return;
+    }
+
+    gsap.to(indicator, {
+      ...nextPosition,
+      autoAlpha: 1,
+      duration: 0.24,
+      ease: 'power2.out',
+      overwrite: true,
+    });
+  }, [activeTab, shouldReduceMotion]);
+
+  const queueIndicatorSync = useCallback(() => {
+    if (animationFrameRef.current != null) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+      syncActiveIndicator();
+    });
+  }, [syncActiveIndicator]);
+
+  useEffect(() => {
+    queueIndicatorSync();
+
+    return () => {
+      if (animationFrameRef.current == null) {
+        return;
+      }
+
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    };
+  }, [categories, isSmallScreen, queueIndicatorSync]);
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const tabList = tabListRef.current;
+    const activeTabElement = tabRefs.current.get(activeTab);
+
+    if (!tabList || !activeTabElement) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      queueIndicatorSync();
+    });
+
+    resizeObserver.observe(tabList);
+    resizeObserver.observe(activeTabElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activeTab, categories, queueIndicatorSync]);
 
   /** Helper function to get category display name from database data */
   const getCategoryDisplayName = (category: t.TCategory) => {
@@ -53,13 +159,15 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
   };
 
   const loadingSkeleton = (
-    <div className="w-full pb-2">
-      <div className="flex flex-wrap justify-center gap-1.5 px-4">
+    <div
+      className="w-full"
+      data-tour-id="marketplace-categories"
+      data-tour-padding="0"
+      data-tour-radius="20"
+    >
+      <div className="flex flex-wrap gap-2" aria-hidden="true">
         {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="h-[36px] min-w-[80px] animate-pulse rounded-lg bg-surface-tertiary"
-          />
+          <div key={i} className="agents-marketplace-category-skeleton" />
         ))}
       </div>
     </div>
@@ -123,13 +231,19 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
 
   // Main tabs content
   const tabsContent = (
-    <div className="w-full pb-2">
+    <div
+      className="w-full"
+      data-tour-id="marketplace-categories"
+      data-tour-padding="0"
+      data-tour-radius="20"
+    >
       <div
+        ref={tabListRef}
         className={cn(
-          'px-4',
+          'agents-marketplace-category-tablist relative w-full',
           isSmallScreen
-            ? 'scrollbar-hide flex gap-2 overflow-x-auto scroll-smooth'
-            : 'flex flex-wrap justify-center gap-1.5',
+            ? 'scrollbar-hide flex snap-x snap-mandatory scroll-px-1 gap-2 overflow-x-auto scroll-smooth pb-1'
+            : 'flex w-full flex-wrap items-start justify-start gap-1.5 overflow-visible pb-1',
         )}
         role="tablist"
         aria-label={localize('com_agents_category_tabs_label')}
@@ -141,42 +255,57 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
                 msOverflowStyle: 'none',
                 WebkitOverflowScrolling: 'touch',
               }
-            : undefined
+            : {
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }
         }
       >
-        {categories.map((category, index) => (
-          <button
-            key={category.value}
-            id={`category-tab-${category.value}`}
-            onClick={() => onChange(category.value)}
-            onKeyDown={(e) => handleKeyDown(e, category.value)}
-            className={cn(
-              'relative cursor-pointer select-none whitespace-nowrap px-3 py-2 transition-all duration-200',
-              isSmallScreen ? 'min-w-fit flex-shrink-0' : '',
-              activeTab === category.value
-                ? 'rounded-t-lg bg-surface-hover text-text-primary'
-                : 'rounded-lg bg-surface-secondary text-text-secondary hover:bg-surface-hover hover:text-text-primary active:scale-95',
-            )}
-            role="tab"
-            aria-selected={activeTab === category.value}
-            aria-controls={`tabpanel-${category.value}`}
-            tabIndex={activeTab === category.value ? 0 : -1}
-            aria-label={localize('com_agents_category_tab_label', {
-              category: getCategoryDisplayName(category),
-              position: index + 1,
-              total: categories.length,
-            })}
-          >
-            {getCategoryDisplayName(category)}
-            {/* Underline for active tab */}
-            {activeTab === category.value && (
-              <div
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-text-primary"
-                aria-hidden="true"
-              />
-            )}
-          </button>
-        ))}
+        <span
+          ref={activeIndicatorRef}
+          className="agents-marketplace-category-active-glide"
+          aria-hidden="true"
+        />
+        {categories.map((category, index) => {
+          const categoryLabel = getCategoryDisplayName(category);
+          const shouldShowCount = category.count > 0;
+
+          return (
+            <button
+              ref={setTabRef(category.value)}
+              key={category.value}
+              id={`category-tab-${category.value}`}
+              onClick={() => onChange(category.value)}
+              onKeyDown={(e) => handleKeyDown(e, category.value)}
+              className={cn(
+                'agents-marketplace-category-tab flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-sm font-medium transition-[background-color,border-color,color] duration-150',
+                isSmallScreen
+                  ? 'min-w-fit shrink-0 snap-start whitespace-nowrap'
+                  : 'shrink-0 whitespace-nowrap',
+                activeTab === category.value
+                  ? 'agents-marketplace-category-tab-active border-transparent bg-transparent text-text-primary'
+                  : 'border-transparent bg-transparent text-text-secondary hover:border-transparent hover:bg-surface-hover hover:text-text-primary',
+              )}
+              role="tab"
+              aria-selected={activeTab === category.value}
+              aria-controls={`tabpanel-${category.value}`}
+              tabIndex={activeTab === category.value ? 0 : -1}
+              aria-label={localize('com_agents_category_tab_label', {
+                category: categoryLabel,
+                count: category.count,
+                position: index + 1,
+                total: categories.length,
+              })}
+            >
+              <span className="agents-marketplace-category-label">{categoryLabel}</span>
+              {shouldShowCount ? (
+                <span className="agents-marketplace-category-count" aria-hidden="true">
+                  {category.count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

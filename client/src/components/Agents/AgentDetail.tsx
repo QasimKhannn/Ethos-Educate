@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
-import { Link, Pin, PinOff } from 'lucide-react';
+import React, { useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link, Pin, PinOff } from 'lucide-react';
 import { OGDialog, OGDialogContent, Button, useToastContext } from '@librechat/client';
 import {
   QueryKeys,
@@ -11,9 +11,14 @@ import {
   AgentListResponse,
 } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
-import { useLocalize, useDefaultConvo, useFavorites } from '~/hooks';
-import { renderAgentAvatar, clearMessagesCache } from '~/utils';
+import type { TranslationKeys } from '~/hooks';
+import { useLocalize, useFavorites, useAgentCategories, useDefaultConvo } from '~/hooks';
 import { useChatContext } from '~/Providers';
+import {
+  renderAgentAvatar,
+  clearMessagesCache,
+  getAgentAvatarUrl,
+} from '~/utils';
 
 interface SupportContact {
   name?: string;
@@ -27,20 +32,51 @@ interface AgentDetailProps {
   agent: AgentWithSupport; // The agent data to display
   isOpen: boolean; // Whether the detail dialog is open
   onClose: () => void; // Callback when dialog is closed
+  isTourPreview?: boolean;
 }
 
 /**
  * Dialog for displaying agent details
  */
-const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose }) => {
+const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTourPreview }) => {
   const localize = useLocalize();
   const queryClient = useQueryClient();
-  const { showToast } = useToastContext();
-  const dialogRef = useRef<HTMLDivElement>(null);
   const getDefaultConversation = useDefaultConvo();
   const { conversation, newConversation } = useChatContext();
+  const { showToast } = useToastContext();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
+  const { categories } = useAgentCategories();
   const isFavorite = isFavoriteAgent(agent?.id);
+  const categoryData = categories.find((category) => category.value === agent?.category);
+  const byLabel = localize('com_ui_by_author', { 0: '' }).trim();
+
+  const categoryLabel = useMemo(() => {
+    if (categoryData?.label != null) {
+      return categoryData.label.startsWith('com_')
+        ? localize(categoryData.label as TranslationKeys)
+        : categoryData.label;
+    }
+
+    return agent?.category
+      ?.split(/[_-]/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }, [agent?.category, categoryData?.label, localize]);
+
+  const categoryDescription = useMemo(() => {
+    const description =
+      categoryData && 'description' in categoryData && typeof categoryData.description === 'string'
+        ? categoryData.description
+        : undefined;
+
+    if (description == null) {
+      return '';
+    }
+
+    return description.startsWith('com_') ? localize(description as TranslationKeys) : description;
+  }, [categoryData, localize]);
 
   const handleFavoriteClick = () => {
     if (agent) {
@@ -48,31 +84,40 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose }) => 
     }
   };
 
-  /**
-   * Navigate to chat with the selected agent
-   */
   const handleStartChat = () => {
     if (agent) {
+      const agentAvatarUrl = getAgentAvatarUrl(agent);
       const keys = [QueryKeys.agents, { requiredPermission: PermissionBits.EDIT }];
       const listResp = queryClient.getQueryData<AgentListResponse>(keys);
-      if (listResp != null) {
-        if (!listResp.data.some((a) => a.id === agent.id)) {
-          const currentAgents = [agent, ...JSON.parse(JSON.stringify(listResp.data))];
-          queryClient.setQueryData<AgentListResponse>(keys, { ...listResp, data: currentAgents });
-        }
+
+      if (listResp != null && !listResp.data.some((candidate) => candidate.id === agent.id)) {
+        const currentAgents = [agent, ...JSON.parse(JSON.stringify(listResp.data))];
+        queryClient.setQueryData<AgentListResponse>(keys, { ...listResp, data: currentAgents });
       }
 
       localStorage.setItem(`${LocalStorageKeys.AGENT_ID_PREFIX}0`, agent.id);
+      localStorage.setItem(
+        'eduToolkitSelectedToolGuide',
+        JSON.stringify({
+          agentId: agent.id,
+          name: agent.name,
+          category: agent.category,
+          description: agent.description,
+          avatarUrl: agentAvatarUrl,
+        }),
+      );
 
       clearMessagesCache(queryClient, conversation?.conversationId);
       queryClient.invalidateQueries([QueryKeys.messages]);
 
-      /** Template with agent configuration */
       const template = {
         conversationId: Constants.NEW_CONVO as string,
         endpoint: EModelEndpoint.agents,
         agent_id: agent.id,
-        title: localize('com_agents_chat_with', { name: agent.name || localize('com_ui_agent') }),
+        ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
+        title: localize('com_agents_chat_with', {
+          name: agent.name || localize('com_ui_agent'),
+        }),
       };
 
       const currentConvo = getDefaultConversation({
@@ -137,55 +182,88 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose }) => 
 
     return null;
   };
+  const contactNode = formatContact();
+  const authorName = agent?.authorName ?? 'Ethos Intelligence';
 
   return (
-    <OGDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <OGDialogContent ref={dialogRef} className="max-h-[90vh] w-11/12 max-w-lg overflow-y-auto">
-        {/* Agent avatar */}
-        <div className="mt-6 flex justify-center">{renderAgentAvatar(agent, { size: 'xl' })}</div>
-
-        {/* Agent name */}
-        <div className="mt-3 text-center">
-          <h2 className="text-2xl font-bold text-text-primary">
-            {agent?.name || localize('com_agents_loading')}
-          </h2>
-        </div>
-
-        {/* Contact info */}
-        {agent?.support_contact && formatContact() && (
-          <div className="mt-1 text-center text-sm text-text-secondary">
-            {localize('com_agents_contact')}: {formatContact()}
+    <OGDialog open={isOpen} onOpenChange={(open) => !open && onClose()} modal={!isTourPreview}>
+      <OGDialogContent
+        ref={dialogRef}
+        data-tour-id="marketplace-agent-detail"
+        data-tour-padding="-6"
+        data-tour-radius="24"
+        className="agent-detail-dialog max-h-[90vh] w-[min(92vw,42rem)] overflow-y-auto p-0"
+      >
+        <div className="agent-detail-sheet">
+          <div className="agent-detail-header">
+            <div className="agent-detail-avatar">{renderAgentAvatar(agent, { size: 'xl' })}</div>
+            <div className="agent-detail-heading">
+              <div className="agent-detail-meta-row">
+                {categoryLabel ? (
+                  <span className="agent-detail-category-badge">{categoryLabel}</span>
+                ) : null}
+              </div>
+              <div className="agent-detail-title-row">
+                <h2 className="agent-detail-title">
+                  {agent?.name || localize('com_agents_loading')}
+                </h2>
+                {agent ? (
+                  <p className="agent-detail-title-byline">
+                    <span>{byLabel}</span>
+                    {contactNode ?? <span>{authorName}</span>}
+                  </p>
+                ) : null}
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Agent description */}
-        <div className="mt-4 whitespace-pre-wrap px-6 text-center text-base text-text-primary">
-          {agent?.description}
-        </div>
+          <div className="agent-detail-body">
+            <section className="agent-detail-section agent-detail-section--overview">
+              <h3 className="agent-detail-section-title">
+                {localize('com_agents_modal_overview')}
+              </h3>
+              <div className="agent-detail-description whitespace-pre-wrap">
+                {agent?.description}
+              </div>
+            </section>
 
-        {/* Action button */}
-        <div className="mb-4 mt-6 flex justify-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleFavoriteClick}
-            title={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-            aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-          >
-            {isFavorite ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleCopyLink}
-            title={localize('com_agents_copy_link')}
-            aria-label={localize('com_agents_copy_link')}
-          >
-            <Link className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          <Button className="w-full max-w-xs" onClick={handleStartChat} disabled={!agent}>
-            {localize('com_agents_start_chat')}
-          </Button>
+            {categoryDescription ? (
+              <section className="agent-detail-section agent-detail-section--supporting">
+                <h3 className="agent-detail-section-title">
+                  {localize('com_agents_modal_best_for')}
+                </h3>
+                <p className="agent-detail-supporting-note">{categoryDescription}</p>
+              </section>
+            ) : null}
+          </div>
+
+          <div className="agent-detail-actions">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleFavoriteClick}
+              title={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
+              aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
+            >
+              {isFavorite ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleCopyLink}
+              title={localize('com_agents_copy_link')}
+              aria-label={localize('com_agents_copy_link')}
+            >
+              <Link className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
+              onClick={handleStartChat}
+              disabled={!agent}
+            >
+              {localize('com_agents_start_chat')}
+            </Button>
+          </div>
         </div>
       </OGDialogContent>
     </OGDialog>

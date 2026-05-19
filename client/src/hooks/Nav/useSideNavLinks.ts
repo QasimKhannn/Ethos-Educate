@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
 import { Blocks, MCPIcon, AttachmentIcon } from '@librechat/client';
-import { Database, Bookmark, Settings2, ArrowRightToLine, MessageSquareQuote } from 'lucide-react';
+import {
+  Database,
+  Bookmark,
+  Settings2,
+  ArrowLeftFromLine,
+  ArrowRightToLine,
+  MessageSquareQuote,
+} from 'lucide-react';
 import {
   Permissions,
   EModelEndpoint,
@@ -23,13 +30,21 @@ import { useHasAccess, useMCPServerManager } from '~/hooks';
 
 export default function useSideNavLinks({
   hidePanel,
+  collapsePanel,
+  expandPanel,
+  isCollapsed = false,
+  isSmallScreen = false,
   keyProvided,
   endpoint,
   endpointType,
   interfaceConfig,
   endpointsConfig,
 }: {
-  hidePanel: () => void;
+  hidePanel?: () => void;
+  collapsePanel?: () => void;
+  expandPanel?: () => void;
+  isCollapsed?: boolean;
+  isSmallScreen?: boolean;
   keyProvided: boolean;
   endpoint?: EModelEndpoint | null;
   endpointType?: EModelEndpoint | null;
@@ -72,6 +87,8 @@ export default function useSideNavLinks({
 
   const Links = useMemo(() => {
     const links: NavLink[] = [];
+    const collapseHandler = collapsePanel ?? hidePanel;
+    const expandHandler = expandPanel ?? (() => undefined);
     if (
       isAssistantsEndpoint(endpoint) &&
       ((endpoint === EModelEndpoint.assistants &&
@@ -172,13 +189,15 @@ export default function useSideNavLinks({
       });
     }
 
-    links.push({
-      title: 'com_sidepanel_hide_panel',
-      label: '',
-      icon: ArrowRightToLine,
-      onClick: hidePanel,
-      id: 'hide-panel',
-    });
+    if (!isSmallScreen && collapseHandler) {
+      links.push({
+        title: isCollapsed ? 'com_ui_expand' : 'com_ui_collapse',
+        label: '',
+        icon: isCollapsed ? ArrowLeftFromLine : ArrowRightToLine,
+        onClick: isCollapsed ? expandHandler : collapseHandler,
+        id: 'hide-panel',
+      });
+    }
 
     return links;
   }, [
@@ -196,6 +215,10 @@ export default function useSideNavLinks({
     availableMCPServers,
     hasAccessToUseMCPSettings,
     hasAccessToCreateMCP,
+    isCollapsed,
+    isSmallScreen,
+    collapsePanel,
+    expandPanel,
     hidePanel,
   ]);
 

@@ -3,13 +3,13 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import { useHasAccess, AuthContext } from '~/hooks';
 
 /**
- * Hook to determine if the Edu Toolkit should be shown.
+ * Hook to determine if Ethos Tools should be shown.
  * Consolidates the logic for checking:
  * - Auth readiness (avoid race conditions)
  * - Access to Agents permission
  * - Access to Marketplace permission
  *
- * @returns Whether the Edu Toolkit should be displayed
+ * @returns Whether Ethos Tools should be displayed
  */
 export default function useShowMarketplace(): boolean {
   const authContext = useContext(AuthContext);
@@ -32,6 +32,6 @@ export default function useShowMarketplace(): boolean {
     [authContext?.isAuthenticated, authContext?.user],
   );
 
-  // Show Edu Toolkit when marketplace permission is enabled, auth is ready, and user has access to agents
+  // Show Ethos Tools when marketplace permission is enabled, auth is ready, and user has access to agents
   return authReady && hasAccessToAgents && hasAccessToMarketplace;
 }

@@ -1,5 +1,6 @@
 import { startTransition } from 'react';
 import { TooltipAnchor, Button, Sidebar } from '@librechat/client';
+import { SIDEBAR_FOCUS_DELAY_MS } from '~/components/Nav/sidebarMotion';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
@@ -26,10 +27,9 @@ export default function OpenSidebar({
         return !prev;
       });
     });
-    // Delay focus until after the sidebar animation completes (200ms)
     setTimeout(() => {
       document.getElementById(CLOSE_SIDEBAR_ID)?.focus();
-    }, 250);
+    }, SIDEBAR_FOCUS_DELAY_MS);
   };
 
   return (
@@ -50,7 +50,7 @@ export default function OpenSidebar({
           )}
           onClick={handleClick}
         >
-          <Sidebar aria-hidden="true" />
+          <Sidebar aria-hidden="true" className="sidebar-nav-toggle-icon" />
         </Button>
       }
     />

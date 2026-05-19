@@ -75,7 +75,7 @@ export default function Presentation({ children }: { children: React.ReactNode }
   }, [artifactsVisibility, artifacts]);
 
   return (
-    <DragDropWrapper className="relative flex w-full grow overflow-hidden bg-presentation">
+    <DragDropWrapper className="chat-presentation-shell relative flex w-full grow overflow-hidden bg-presentation">
       <SidePanelProvider>
         <SidePanelGroup
           defaultLayout={defaultLayout}
@@ -83,7 +83,7 @@ export default function Presentation({ children }: { children: React.ReactNode }
           defaultCollapsed={defaultCollapsed}
           artifacts={artifactsElement}
         >
-          <main className="flex h-full flex-col overflow-y-auto" role="main">
+          <main className="chat-main-layer flex h-full flex-col overflow-y-auto" role="main">
             {children}
           </main>
         </SidePanelGroup>

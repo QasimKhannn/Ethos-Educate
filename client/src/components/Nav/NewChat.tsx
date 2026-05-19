@@ -1,9 +1,11 @@
 import React, { useCallback } from 'react';
+import { PanelLeftClose, SquarePen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { QueryKeys } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
-import { TooltipAnchor, NewChatIcon, MobileSidebar, Sidebar, Button } from '@librechat/client';
+import { TooltipAnchor, Button } from '@librechat/client';
 import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
+import { SIDEBAR_FOCUS_DELAY_MS } from '~/components/Nav/sidebarMotion';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
@@ -29,10 +31,9 @@ export default function NewChat({
 
   const handleToggleNav = useCallback(() => {
     toggleNav();
-    // Delay focus until after the sidebar animation completes (200ms)
     setTimeout(() => {
       document.getElementById(OPEN_SIDEBAR_ID)?.focus();
-    }, 250);
+    }, SIDEBAR_FOCUS_DELAY_MS);
   }, [toggleNav]);
 
   const clickHandler: React.MouseEventHandler<HTMLAnchorElement> = useCallback(
@@ -54,45 +55,46 @@ export default function NewChat({
   );
 
   return (
-    <>
-      <div className="flex items-center justify-between px-0.5 py-[2px] md:py-2">
+    <div className="chat-sidebar-top">
+      <div className="sidebar-toolbar flex items-center justify-between px-0.5 py-1 md:py-0.5">
         <TooltipAnchor
           description={localize('com_nav_close_sidebar')}
           render={
             <Button
               id={CLOSE_SIDEBAR_ID}
               size="icon"
-              variant="outline"
+              variant="ghost"
               data-testid="close-sidebar-button"
               aria-label={localize('com_nav_close_sidebar')}
               aria-expanded={true}
-              className="rounded-full border-none bg-transparent duration-0 hover:bg-surface-active-alt focus-visible:ring-inset focus-visible:ring-black focus-visible:ring-offset-0 dark:focus-visible:ring-white md:rounded-xl"
+              className="sidebar-toolbar-button"
               onClick={handleToggleNav}
             >
-              <Sidebar aria-hidden="true" className="max-md:hidden" />
-              <MobileSidebar
-                aria-hidden="true"
-                className="icon-lg m-1 inline-flex items-center justify-center md:hidden"
-              />
+              <PanelLeftClose aria-hidden="true" className="sidebar-nav-toggle-icon" />
             </Button>
           }
         />
-        <div className="flex gap-0.5">
+        <div className="sidebar-toolbar-actions flex gap-1">
           {headerButtons}
-
           <TooltipAnchor
             description={localize('com_ui_new_chat')}
             render={
               <Button
                 asChild
                 size="icon"
-                variant="outline"
+                variant="ghost"
                 data-testid="nav-new-chat-button"
+                data-tour-id="nav-new-chat"
+                data-tour-clip="sidebar"
+                data-tour-padding="-4"
+                data-tour-offset-x="0"
+                data-tour-offset-y="-1"
+                data-tour-radius="18"
                 aria-label={localize('com_ui_new_chat')}
-                className="rounded-full border-none bg-transparent duration-0 hover:bg-surface-active-alt focus-visible:ring-inset focus-visible:ring-black focus-visible:ring-offset-0 dark:focus-visible:ring-white md:rounded-xl"
+                className="sidebar-toolbar-button"
               >
                 <Link to="/c/new" state={{ focusChat: true }} onClick={clickHandler}>
-                  <NewChatIcon className="icon-lg text-text-primary" />
+                  <SquarePen aria-hidden="true" className="sidebar-toolbar-symbol" />
                 </Link>
               </Button>
             }
@@ -100,6 +102,6 @@ export default function NewChat({
         </div>
       </div>
       {subHeaders != null ? subHeaders : null}
-    </>
+    </div>
   );
 }

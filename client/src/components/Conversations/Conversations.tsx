@@ -83,10 +83,11 @@ const ChatsHeader: FC<ChatsHeaderProps> = memo(({ isExpanded, onToggle }) => {
   return (
     <button
       onClick={onToggle}
-      className="group flex w-full items-center justify-between rounded-lg px-1 py-2 text-xs font-bold text-text-secondary outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
+      className="sidebar-section-toggle group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
       type="button"
+      aria-expanded={isExpanded}
     >
-      <span className="select-none">{localize('com_ui_chats')}</span>
+      <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
       <ChevronDown
         className={cn('h-3 w-3 transition-transform duration-200', isExpanded ? 'rotate-180' : '')}
       />
@@ -100,8 +101,10 @@ const DateLabel: FC<{ groupName: string; isFirst?: boolean }> = memo(({ groupNam
   const localize = useLocalize();
   return (
     <h2
-      className={cn('pl-1 pt-1 text-text-secondary', isFirst === true ? 'mt-0' : 'mt-2')}
-      style={{ fontSize: '0.7rem' }}
+      className={cn(
+        'sidebar-date-label px-3 pt-2 text-text-secondary',
+        isFirst === true ? 'mt-0' : 'mt-2',
+      )}
     >
       {localize(groupName as TranslationKeys) || groupName}
     </h2>
@@ -363,14 +366,14 @@ const Conversations: FC<ConversationsProps> = ({
   );
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col pb-2 text-sm text-text-primary">
+    <div className="chat-sidebar-list relative flex h-full min-h-0 flex-col pb-2 text-sm text-text-primary">
       {isSearchLoading ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner className="text-text-primary" />
           <span className="ml-2 text-text-primary">{localize('com_ui_loading')}</span>
         </div>
       ) : (
-        <div className="flex-1">
+        <div className="chat-sidebar-scroll flex-1">
           <AutoSizer>
             {({ width, height }) => (
               <List
@@ -384,7 +387,7 @@ const Conversations: FC<ConversationsProps> = ({
                 overscanRowCount={10}
                 aria-readonly={false}
                 className="outline-none"
-                aria-label="Conversations"
+                aria-label={localize('com_ui_chat_history')}
                 onRowsRendered={handleRowsRendered}
                 tabIndex={-1}
                 style={{ outline: 'none', scrollbarGutter: 'stable' }}

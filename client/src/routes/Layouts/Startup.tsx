@@ -44,7 +44,7 @@ export default function StartupLayout({ isAuthenticated }: { isAuthenticated?: b
   }, [isAuthenticated, navigate, data]);
 
   useEffect(() => {
-    document.title = startupConfig?.appTitle || 'Enterprise Chat';
+    document.title = startupConfig?.appTitle || 'Ethos';
   }, [startupConfig?.appTitle]);
 
   useEffect(() => {

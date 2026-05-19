@@ -88,8 +88,8 @@ export default defineConfig(({ command }) => ({
       },
       includeAssets: [],
       manifest: {
-        name: 'Enterprise Chat',
-        short_name: 'Enterprise Chat',
+        name: 'Ethos',
+        short_name: 'Ethos',
         display: 'standalone',
         background_color: '#000000',
         theme_color: '#009688',

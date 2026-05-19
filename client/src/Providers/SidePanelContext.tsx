@@ -4,19 +4,32 @@ import { useChatContext } from './ChatContext';
 
 interface SidePanelContextValue {
   endpoint?: EModelEndpoint | null;
+  endpointType?: EModelEndpoint | null;
 }
 
 const SidePanelContext = createContext<SidePanelContextValue | undefined>(undefined);
 
-export function SidePanelProvider({ children }: { children: React.ReactNode }) {
-  const { conversation } = useChatContext();
+interface SidePanelProviderProps {
+  children: React.ReactNode;
+  endpoint?: EModelEndpoint | null;
+  endpointType?: EModelEndpoint | null;
+}
 
-  /** Context value only created when endpoint changes */
+export function SidePanelProvider({
+  children,
+  endpoint: endpointOverride,
+  endpointType: endpointTypeOverride,
+}: SidePanelProviderProps) {
+  const { conversation } = useChatContext();
+  const endpoint = endpointOverride ?? conversation?.endpoint;
+  const endpointType = endpointTypeOverride ?? conversation?.endpointType;
+
   const contextValue = useMemo<SidePanelContextValue>(
     () => ({
-      endpoint: conversation?.endpoint,
+      endpoint,
+      endpointType,
     }),
-    [conversation?.endpoint],
+    [endpoint, endpointType],
   );
 
   return <SidePanelContext.Provider value={contextValue}>{children}</SidePanelContext.Provider>;

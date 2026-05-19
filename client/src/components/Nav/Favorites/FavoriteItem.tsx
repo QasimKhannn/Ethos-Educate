@@ -73,11 +73,15 @@ export default function FavoriteItem({
 
   const renderIcon = () => {
     if (type === 'agent') {
-      return renderAgentAvatar(item as t.Agent, { size: 'icon', className: 'mr-2' });
+      return (
+        <div className="sidebar-utility-icon flex h-8 w-8 items-center justify-center rounded-xl">
+          {renderAgentAvatar(item as t.Agent, { size: 'icon' })}
+        </div>
+      );
     }
     const model = item as FavoriteModel;
     return (
-      <div className="mr-2 h-5 w-5">
+      <div className="sidebar-utility-icon flex h-8 w-8 items-center justify-center rounded-xl">
         <MinimalIcon endpoint={model.endpoint} size={20} isCreatedByUser={false} />
       </div>
     );
@@ -110,16 +114,16 @@ export default function FavoriteItem({
       tabIndex={0}
       aria-label={ariaLabel}
       className={cn(
-        'group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white',
-        isPopoverActive ? 'bg-surface-active-alt' : '',
+        'sidebar-utility-item group relative flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white',
+        isPopoverActive ? 'sidebar-utility-item-active' : '',
       )}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       data-testid="favorite-item"
     >
-      <div className="flex flex-1 items-center truncate pr-6">
+      <div className="flex flex-1 items-center gap-3 truncate pr-6">
         {renderIcon()}
-        <span className="truncate">{name}</span>
+        <span className="truncate font-medium">{name}</span>
       </div>
 
       <div
@@ -140,7 +144,7 @@ export default function FavoriteItem({
           trigger={
             <Menu.MenuButton
               className={cn(
-                'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium ring-ring-primary transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+                'sidebar-item-menu-button inline-flex h-7 w-7 items-center justify-center rounded-lg border-none p-0 text-sm font-medium ring-ring-primary transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
                 isPopoverActive
                   ? 'opacity-100'
                   : 'opacity-0 focus:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 data-[open]:opacity-100',

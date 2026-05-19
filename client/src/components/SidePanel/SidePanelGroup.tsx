@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
+import { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import throttle from 'lodash/throttle';
 import { useRecoilValue } from 'recoil';
 import { getConfigDefaults } from 'librechat-data-provider';
 import { ResizablePanel, ResizablePanelGroup, useMediaQuery } from '@librechat/client';
-import type { ImperativePanelHandle } from 'react-resizable-panels';
+import { useLocalize } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
 import ArtifactsPanel from './ArtifactsPanel';
 import { normalizeLayout, cn } from '~/utils';
@@ -11,6 +11,7 @@ import SidePanel from './SidePanel';
 import store from '~/store';
 
 interface SidePanelProps {
+  className?: string;
   defaultLayout?: number[] | undefined;
   defaultCollapsed?: boolean;
   navCollapsedSize?: number;
@@ -24,6 +25,7 @@ const defaultInterface = getConfigDefaults().interface;
 
 const SidePanelGroup = memo(
   ({
+    className,
     defaultLayout = [97, 3],
     defaultCollapsed = false,
     fullPanelCollapse = false,
@@ -31,13 +33,13 @@ const SidePanelGroup = memo(
     artifacts,
     children,
   }: SidePanelProps) => {
+    const localize = useLocalize();
     const { data: startupConfig } = useGetStartupConfig();
     const interfaceConfig = useMemo(
       () => startupConfig?.interface ?? defaultInterface,
       [startupConfig],
     );
 
-    const panelRef = useRef<ImperativePanelHandle>(null);
     const [minSize, setMinSize] = useState(defaultMinSize);
     const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
     const [fullCollapse, setFullCollapse] = useState(fullPanelCollapse);
@@ -49,15 +51,17 @@ const SidePanelGroup = memo(
 
     const calculateLayout = useCallback(() => {
       if (artifacts == null) {
-        const navSize = defaultLayout.length === 2 ? defaultLayout[1] : defaultLayout[2];
-        return [100 - navSize, navSize];
-      } else {
-        const navSize = 0;
-        const remainingSpace = 100 - navSize;
-        const newMainSize = Math.floor(remainingSpace / 2);
-        const artifactsSize = remainingSpace - newMainSize;
-        return [newMainSize, artifactsSize, navSize];
+        return [100];
       }
+
+      if (defaultLayout.length >= 2) {
+        const navSize = defaultLayout.length === 3 ? defaultLayout[2] : 0;
+        const mainSize = defaultLayout[0] + navSize;
+        const artifactsSize = 100 - mainSize;
+        return [mainSize, artifactsSize];
+      }
+
+      return [50, 50];
     }, [artifacts, defaultLayout]);
 
     const currentLayout = useMemo(() => normalizeLayout(calculateLayout()), [calculateLayout]);
@@ -78,16 +82,25 @@ const SidePanelGroup = memo(
         setMinSize(defaultMinSize);
         setFullCollapse(true);
         localStorage.setItem('fullPanelCollapse', 'true');
-        panelRef.current?.collapse();
         return;
-      } else {
-        setIsCollapsed(defaultCollapsed);
-        setCollapsedSize(navCollapsedSize);
-        setMinSize(defaultMinSize);
       }
+
+      setFullCollapse(fullPanelCollapse);
+
+      if (fullPanelCollapse) {
+        setIsCollapsed(true);
+        setCollapsedSize(0);
+        setMinSize(0);
+        return;
+      }
+
+      setIsCollapsed(defaultCollapsed);
+      setCollapsedSize(navCollapsedSize);
+      setMinSize(defaultMinSize);
     }, [isSmallScreen, defaultCollapsed, navCollapsedSize, fullPanelCollapse]);
 
     const minSizeMain = useMemo(() => (artifacts != null ? 15 : 30), [artifacts]);
+    const isSidePanelMaskActive = !isCollapsed && fullCollapse !== true;
 
     /** Memoized close button handler to prevent re-creating it */
     const handleClosePanel = useCallback(() => {
@@ -96,9 +109,8 @@ const SidePanelGroup = memo(
         setFullCollapse(true);
         setCollapsedSize(0);
         setMinSize(0);
-        return false;
+        return true;
       });
-      panelRef.current?.collapse();
     }, []);
 
     return (
@@ -106,7 +118,7 @@ const SidePanelGroup = memo(
         <ResizablePanelGroup
           direction="horizontal"
           onLayout={(sizes) => throttledSaveLayout(sizes)}
-          className="relative h-full w-full flex-1 overflow-auto bg-presentation"
+          className={cn('relative h-full w-full flex-1 overflow-auto bg-presentation', className)}
         >
           <ResizablePanel
             defaultSize={currentLayout[0]}
@@ -126,32 +138,28 @@ const SidePanelGroup = memo(
               onRenderChange={setShouldRenderArtifacts}
             />
           )}
-
-          {!hideSidePanel && interfaceConfig.sidePanel === true && (
-            <SidePanel
-              panelRef={panelRef}
-              minSize={minSize}
-              setMinSize={setMinSize}
-              isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
-              collapsedSize={collapsedSize}
-              setCollapsedSize={setCollapsedSize}
-              fullCollapse={fullCollapse}
-              setFullCollapse={setFullCollapse}
-              interfaceConfig={interfaceConfig}
-              hasArtifacts={shouldRenderArtifacts}
-              defaultSize={currentLayout[currentLayout.length - 1]}
-            />
-          )}
         </ResizablePanelGroup>
+        {!hideSidePanel && interfaceConfig.sidePanel === true && (
+          <SidePanel
+            minSize={minSize}
+            setMinSize={setMinSize}
+            isCollapsed={isCollapsed}
+            setIsCollapsed={setIsCollapsed}
+            collapsedSize={collapsedSize}
+            setCollapsedSize={setCollapsedSize}
+            fullCollapse={fullCollapse}
+            setFullCollapse={setFullCollapse}
+            interfaceConfig={interfaceConfig}
+          />
+        )}
         {artifacts != null && isSmallScreen && (
           <div className="fixed inset-0 z-[100]">{artifacts}</div>
         )}
         {!hideSidePanel && interfaceConfig.sidePanel === true && (
           <button
             onClick={handleClosePanel}
-            aria-label="Close right side panel"
-            className={cn('sidenav-mask', !isCollapsed ? 'active' : '')}
+            aria-label={localize('com_ui_close_var', { 0: localize('com_nav_control_panel') })}
+            className={cn('sidenav-mask', isSidePanelMaskActive ? 'active' : '')}
           />
         )}
       </>

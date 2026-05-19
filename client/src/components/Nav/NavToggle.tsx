@@ -24,7 +24,7 @@ export default function NavToggle({
     transition: 'transform 0.3s ease, opacity 0.2s ease',
   };
 
-  const rotationDegree = 15;
+  const rotationDegree = 18;
   const rotation = isHovering || !navVisible ? `${rotationDegree}deg` : '0deg';
   const topBarRotation = side === 'right' ? `-${rotation}` : rotation;
   const bottomBarRotation = side === 'right' ? rotation : `-${rotation}`;
@@ -59,25 +59,26 @@ export default function NavToggle({
     >
       <TooltipAnchor
         side={side === 'right' ? 'left' : 'right'}
-        aria-label={ariaDescription}
-        aria-expanded={navVisible}
-        aria-controls={side === 'left' ? 'chat-history-nav' : 'controls-nav'}
-        id={`toggle-${side}-nav`}
-        onClick={onToggle}
-        role="button"
         description={ariaDescription}
-        className="flex items-center justify-center"
-        tabIndex={0}
-      >
-        <span className="" data-state="closed">
-          <div
-            className="flex h-[72px] w-8 items-center justify-center"
-            style={{ ...transition, opacity: isHovering ? 1 : 0.25 }}
+        render={
+          <button
+            type="button"
+            aria-label={ariaDescription}
+            aria-expanded={navVisible}
+            aria-controls={side === 'left' ? 'chat-history-nav' : 'controls-nav'}
+            id={`toggle-${side}-nav`}
+            onClick={onToggle}
+            className="sidepanel-toggle-anchor sidepanel-toggle-control flex h-9 w-5 items-center justify-center"
+            onFocus={() => setIsHovering(true)}
+            onBlur={() => setIsHovering(false)}
           >
-            <div className="flex h-6 w-6 flex-col items-center">
+            <div
+              className="flex h-5 w-3.5 flex-col items-center justify-center gap-[2px]"
+              style={{ ...transition, opacity: isHovering ? 1 : 0.72 }}
+            >
               {/* Top bar */}
               <div
-                className="h-3 w-1 rounded-full bg-black dark:bg-white"
+                className="sidepanel-toggle-bar h-2.5 w-[2px] rounded-full"
                 style={{
                   ...transition,
                   transform: `translateY(0.15rem) rotate(${topBarRotation}) translateZ(0px)`,
@@ -85,16 +86,16 @@ export default function NavToggle({
               />
               {/* Bottom bar */}
               <div
-                className="h-3 w-1 rounded-full bg-black dark:bg-white"
+                className="sidepanel-toggle-bar h-2.5 w-[2px] rounded-full"
                 style={{
                   ...transition,
                   transform: `translateY(-0.15rem) rotate(${bottomBarRotation}) translateZ(0px)`,
                 }}
               />
             </div>
-          </div>
-        </span>
-      </TooltipAnchor>
+          </button>
+        }
+      />
     </div>
   );
 }

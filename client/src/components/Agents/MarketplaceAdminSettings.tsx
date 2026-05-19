@@ -5,12 +5,21 @@ import { AdminSettingsDialog } from '~/components/ui';
 import { useUpdateMarketplacePermissionsMutation } from '~/data-provider';
 import { useLocalize } from '~/hooks';
 import type { PermissionConfig } from '~/components/ui';
+import { cn } from '~/utils';
 
 const permissions: PermissionConfig[] = [
   { permission: Permissions.USE, labelKey: 'com_ui_marketplace_allow_use' },
 ];
 
-const MarketplaceAdminSettings = () => {
+interface MarketplaceAdminSettingsProps {
+  triggerClassName?: string;
+  tourId?: string;
+}
+
+const MarketplaceAdminSettings = ({
+  triggerClassName = '',
+  tourId,
+}: MarketplaceAdminSettingsProps) => {
   const localize = useLocalize();
   const { showToast } = useToastContext();
 
@@ -26,10 +35,14 @@ const MarketplaceAdminSettings = () => {
   const trigger = (
     <Button
       variant="outline"
-      className="relative h-12 rounded-xl border-border-medium font-medium"
+      className={cn(
+        'relative h-12 rounded-xl border-border-light bg-surface-primary px-3.5 font-medium text-text-secondary shadow-none hover:bg-surface-hover hover:text-text-primary',
+        triggerClassName,
+      )}
       aria-label={localize('com_ui_admin_settings')}
+      data-control-panel-tour-id={tourId}
     >
-      <ShieldEllipsis className="cursor-pointer" aria-hidden="true" />
+      <ShieldEllipsis className="h-[18px] w-[18px] cursor-pointer" aria-hidden="true" />
     </Button>
   );
 

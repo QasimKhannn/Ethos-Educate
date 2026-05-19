@@ -1,5 +1,6 @@
 import React from 'react';
 import { useRecoilValue } from 'recoil';
+import { useLocation } from 'react-router-dom';
 import { QueryKeys } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Dispatch, SetStateAction } from 'react';
@@ -15,13 +16,18 @@ export default function MobileNav({
   setNavVisible: Dispatch<SetStateAction<boolean>>;
 }) {
   const localize = useLocalize();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { newConversation } = useNewConvo();
   const conversation = useRecoilValue(store.conversationByIndex(0));
-  const { title = 'New Chat' } = conversation || {};
+  const { title } = conversation || {};
+  const isMarketplaceRoute = location.pathname.startsWith('/agents');
+  const mobileTitle = isMarketplaceRoute
+    ? localize('com_agents_marketplace')
+    : (title ?? localize('com_ui_new_chat'));
 
   return (
-    <div className="bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-center bg-presentation pl-1 dark:text-white md:hidden">
+    <div className="mobile-header-shell bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-center bg-presentation pl-1 dark:text-white md:hidden">
       <button
         type="button"
         data-testid="mobile-header-new-chat-button"
@@ -56,9 +62,13 @@ export default function MobileNav({
           />
         </svg>
       </button>
-      <h1 className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center text-sm font-normal">
-        {title ?? localize('com_ui_new_chat')}
-      </h1>
+      <div
+        className="mobile-header-title flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center text-sm font-normal"
+        data-marketplace={isMarketplaceRoute ? 'true' : 'false'}
+        aria-live="polite"
+      >
+        {mobileTitle}
+      </div>
       <button
         type="button"
         aria-label={localize('com_ui_new_chat')}

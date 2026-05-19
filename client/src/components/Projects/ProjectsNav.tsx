@@ -47,19 +47,61 @@ const ProjectRow = memo(
       [conversationsQuery.data],
     );
 
+    const renderConversationList = () => {
+      if (conversationsQuery.isLoading) {
+        return (
+          <div className="px-2 py-1.5 text-xs text-text-secondary">
+            {localize('com_ui_loading')}
+          </div>
+        );
+      }
+
+      if (conversations.length === 0) {
+        return (
+          <div className="px-2 py-1.5 text-xs text-text-secondary">
+            {localize('com_projects_no_chats')}
+          </div>
+        );
+      }
+
+      return conversations.map((conversation) => {
+        const conversationId = conversation.conversationId;
+        if (!conversationId) {
+          return null;
+        }
+        const isActive = activeConversationId === conversationId;
+        return (
+          <button
+            key={conversationId}
+            type="button"
+            className={cn(
+              'sidebar-convo-row flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-sm outline-none transition-colors',
+              isActive
+                ? 'sidebar-convo-row-active text-text-primary'
+                : 'sidebar-convo-row-idle text-text-secondary hover:text-text-primary',
+            )}
+            onClick={() => onConversationClick(conversationId)}
+          >
+            <MessageSquare className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{conversation.title || localize('com_projects_chat')}</span>
+          </button>
+        );
+      });
+    };
+
     return (
       <div className="space-y-1">
         <div
           className={cn(
-            'group flex h-9 w-full items-center gap-1 rounded-lg text-sm outline-none transition-colors',
+            'sidebar-project-row sidebar-utility-item group flex min-h-10 w-full items-center gap-1 rounded-xl text-sm outline-none transition-colors',
             active
-              ? 'bg-surface-active-alt text-text-primary'
+              ? 'sidebar-utility-item-active text-text-primary'
               : 'text-text-primary hover:bg-surface-hover',
           )}
         >
           <button
             type="button"
-            className="flex h-9 w-7 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary"
+            className="flex h-9 w-8 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary"
             aria-label={localize('com_projects_toggle_chats', { name: project.name })}
             aria-expanded={expanded}
             onClick={onToggle}
@@ -68,50 +110,16 @@ const ProjectRow = memo(
           </button>
           <button
             type="button"
-            className="flex min-w-0 flex-1 items-center gap-2 self-stretch pr-2 text-left"
+            className="flex min-w-0 flex-1 items-center gap-3 self-stretch pr-2 text-left"
             onClick={onProjectClick}
           >
-            <Folder className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{project.name}</span>
+            <Folder className="sidebar-utility-icon h-4 w-4 flex-shrink-0" />
+            <span className="truncate font-medium">{project.name}</span>
           </button>
         </div>
         {expanded ? (
           <div className="ml-5 space-y-1 border-l border-border-light pl-2">
-            {conversationsQuery.isLoading ? (
-              <div className="px-2 py-1.5 text-xs text-text-secondary">
-                {localize('com_ui_loading')}
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="px-2 py-1.5 text-xs text-text-secondary">
-                {localize('com_projects_no_chats')}
-              </div>
-            ) : (
-              conversations.map((conversation) => {
-                const conversationId = conversation.conversationId;
-                if (!conversationId) {
-                  return null;
-                }
-                const isActive = activeConversationId === conversationId;
-                return (
-                  <button
-                    key={conversationId}
-                    type="button"
-                    className={cn(
-                      'flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-sm outline-none transition-colors',
-                      isActive
-                        ? 'bg-surface-active-alt text-text-primary'
-                        : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
-                    )}
-                    onClick={() => onConversationClick(conversationId)}
-                  >
-                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">
-                      {conversation.title || localize('com_projects_chat')}
-                    </span>
-                  </button>
-                );
-              })
-            )}
+            {renderConversationList()}
           </div>
         ) : null}
       </div>
@@ -179,17 +187,17 @@ function ProjectsNav({ toggleNav }: ProjectsNavProps) {
   };
 
   return (
-    <div className="mt-2 border-b border-border-light pb-2">
-      <div className="px-1 pb-1 text-xs font-bold text-text-secondary">
+    <div className="sidebar-utility-section mt-2 pt-2">
+      <div className="sidebar-section-heading px-3 pb-1 text-xs">
         {localize('com_projects_projects')}
       </div>
       <button
         type="button"
-        className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-sm text-text-primary outline-none hover:bg-surface-hover"
+        className="sidebar-project-create-button sidebar-utility-item flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-text-primary outline-none hover:bg-surface-hover"
         onClick={() => setDialogOpen(true)}
       >
-        <FolderPlus className="h-4 w-4 flex-shrink-0" />
-        <span>{localize('com_projects_new_project')}</span>
+        <FolderPlus className="sidebar-utility-icon h-4 w-4 flex-shrink-0" />
+        <span className="font-medium">{localize('com_projects_new_project')}</span>
       </button>
       {projects.map((project) => (
         <ProjectRow

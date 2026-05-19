@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useMediaQuery } from '@librechat/client';
 import type { ContextType } from '~/common';
@@ -18,9 +18,11 @@ import {
 } from '~/Providers';
 import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
 import { Nav, MobileNav, NAV_WIDTH } from '~/components/Nav';
+import FirstLoginTour from '~/components/Onboarding/FirstLoginTour';
 import { TermsAndConditionsModal } from '~/components/ui';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
+import { SIDEBAR_ANIMATION_MS, SIDEBAR_EASE_CSS } from '~/components/Nav/sidebarMotion';
 
 export default function Root() {
   const [showTerms, setShowTerms] = useState(false);
@@ -30,22 +32,32 @@ export default function Root() {
     return savedNavVisible !== null ? JSON.parse(savedNavVisible) : true;
   });
 
-  const { isAuthenticated, logout } = useAuthContext();
+  const { user, isAuthenticated, logout } = useAuthContext();
+  const backendQueriesEnabled = isAuthenticated;
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
+  const onboardingStorageKey = useMemo(() => {
+    const identifier = user?.id ?? user?.email ?? user?.username;
+
+    if (!identifier) {
+      return null;
+    }
+
+    return `first-login-tour:v1:${identifier}`;
+  }, [user?.email, user?.id, user?.username]);
 
   // Global health check - runs once per authenticated session
-  useHealthCheck(isAuthenticated);
+  useHealthCheck(backendQueriesEnabled);
 
-  const assistantsMap = useAssistantsMap({ isAuthenticated });
-  const agentsMap = useAgentsMap({ isAuthenticated });
-  const fileMap = useFileMap({ isAuthenticated });
+  const assistantsMap = useAssistantsMap({ isAuthenticated: backendQueriesEnabled });
+  const agentsMap = useAgentsMap({ isAuthenticated: backendQueriesEnabled });
+  const fileMap = useFileMap({ isAuthenticated: backendQueriesEnabled });
 
   const { data: config } = useGetStartupConfig();
   const { data: termsData } = useUserTermsQuery({
-    enabled: isAuthenticated && config?.interface?.termsOfService?.modalAcceptance === true,
+    enabled: backendQueriesEnabled && config?.interface?.termsOfService?.modalAcceptance === true,
   });
 
-  useSearchEnabled(isAuthenticated);
+  useSearchEnabled(backendQueriesEnabled);
 
   useEffect(() => {
     if (termsData) {
@@ -84,7 +96,8 @@ export default function Root() {
                             transform: navVisible
                               ? `translateX(${NAV_WIDTH.MOBILE}px)`
                               : 'translateX(0)',
-                            transition: 'transform 0.2s ease-out',
+                            transition: `transform ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
+                            willChange: 'transform',
                           }
                         : undefined
                     }
@@ -94,6 +107,9 @@ export default function Root() {
                     <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                   </div>
                 </div>
+                {onboardingStorageKey != null && (
+                  <FirstLoginTour disabled={showTerms} storageKey={onboardingStorageKey} />
+                )}
               </div>
             </PromptGroupsProvider>
           </AgentsMapContext.Provider>

@@ -19,54 +19,100 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
   return (
     <div
       data-collapsed={isCollapsed}
-      className="bg-token-sidebar-surface-primary hide-scrollbar group flex-shrink-0 overflow-x-hidden"
+      className="sidepanel-nav hide-scrollbar group flex-1 overflow-x-hidden"
     >
-      <div className="h-full">
-        <div className="flex h-full min-h-0 flex-col">
-          <div className="flex h-full min-h-0 flex-col opacity-100 transition-opacity">
-            <div className="scrollbar-trigger relative h-full w-full flex-1 items-start border-white/20">
-              <div className="flex h-full w-full flex-col gap-1 px-3 py-2.5 group-[[data-collapsed=true]]:items-center group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-2">
-                {links.map((link, index) => {
-                  const variant = getVariant(link);
-                  return isCollapsed ? (
-                    <TooltipAnchor
-                      description={localize(link.title)}
-                      side="left"
-                      key={`nav-link-${index}`}
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            if (link.onClick) {
-                              link.onClick(e);
-                              setActive('');
-                              return;
-                            }
-                            setActive(link.id);
-                            resize && resize(25);
-                          }}
-                        >
-                          <link.icon className="h-4 w-4 text-text-secondary" />
-                          <span className="sr-only">{localize(link.title)}</span>
-                        </Button>
-                      }
-                    />
+      <div className="scrollbar-trigger relative w-full border-white/20">
+        <div className="sidepanel-nav-list flex w-full flex-col px-3 py-3 group-[[data-collapsed=true]]:items-center group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-2">
+          <div
+            data-tour-id={!isCollapsed ? 'sidepanel-sections' : undefined}
+            data-tour-clip={!isCollapsed ? 'sidepanel' : undefined}
+            data-tour-padding={!isCollapsed ? '-2' : undefined}
+            data-tour-radius={!isCollapsed ? '24' : undefined}
+            data-tour-target-selector={!isCollapsed ? '[data-tour-item="sidepanel"]' : undefined}
+            className={cn(
+              'sidepanel-nav-tour-target relative w-full shrink-0 self-stretch overflow-hidden rounded-[1.25rem]',
+              'flex flex-col',
+              isCollapsed ? 'items-center gap-2' : 'gap-1.5',
+            )}
+          >
+            {links.map((link, index) => {
+              const variant = getVariant(link);
+              const isUtilityLink = link.id === 'hide-panel';
+              const controlPanelTourId = !isCollapsed && !isUtilityLink ? link.id : undefined;
+              return isCollapsed ? (
+                <TooltipAnchor
+                  description={localize(link.title)}
+                  side="left"
+                  key={`nav-link-${index}`}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        'sidepanel-nav-icon-button sidepanel-nav-animated-item',
+                        variant === 'default' && 'sidepanel-nav-icon-button-active',
+                        isUtilityLink && 'sidepanel-nav-item-utility',
+                      )}
+                      data-control-panel-tour-id={controlPanelTourId}
+                      style={{ animationDelay: `${index * 36}ms` }}
+                      onClick={(e) => {
+                        if (link.onClick) {
+                          link.onClick(e);
+                          if (!isUtilityLink) {
+                            setActive('');
+                          }
+                          return;
+                        }
+                        setActive(link.id);
+                        resize && resize(25);
+                      }}
+                    >
+                      <span className="sidepanel-nav-icon" aria-hidden="true">
+                        <link.icon className="h-4 w-4" />
+                      </span>
+                      <span className="sr-only">{localize(link.title)}</span>
+                    </Button>
+                  }
+                />
+              ) : (
+                <div key={index} data-tour-item="sidepanel" className="w-full">
+                  {isUtilityLink ? (
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'sidepanel-nav-item sidepanel-nav-item-expanded sidepanel-nav-animated-item w-full px-3 py-3',
+                        'sidepanel-nav-item-utility',
+                      )}
+                      data-control-panel-tour-id={controlPanelTourId}
+                      style={{ animationDelay: `${index * 36}ms` }}
+                      onClick={(e) => link.onClick?.(e)}
+                    >
+                      <span className="sidepanel-nav-item-label truncate">
+                        {localize(link.title)}
+                      </span>
+                      <span
+                        className="sidepanel-nav-icon sidepanel-nav-item-icon"
+                        aria-hidden="true"
+                      >
+                        <link.icon className="h-4 w-4" />
+                      </span>
+                    </Button>
                   ) : (
                     <Accordion
-                      key={index}
                       type="single"
                       value={active}
                       onValueChange={setActive}
                       collapsible
+                      className="sidepanel-nav-animated-item w-full"
+                      style={{ animationDelay: `${index * 36}ms` }}
                     >
                       <AccordionItem value={link.id} className="w-full border-none">
                         <AccordionPrimitive.Header asChild>
                           <AccordionPrimitive.Trigger asChild>
                             <Button
                               variant="outline"
-                              size="sm"
-                              className="w-full justify-start bg-transparent text-text-secondary data-[state=open]:bg-surface-secondary data-[state=open]:text-text-primary"
+                              className="sidepanel-nav-item sidepanel-nav-item-expanded w-full px-3 py-3 data-[state=open]:text-text-primary"
+                              data-control-panel-tour-id={controlPanelTourId}
                               onClick={(e) => {
                                 if (link.onClick) {
                                   link.onClick(e);
@@ -74,12 +120,19 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                                 }
                               }}
                             >
-                              <link.icon className="mr-2 h-4 w-4" aria-hidden="true" />
-                              {localize(link.title)}
+                              <span className="sidepanel-nav-item-label truncate">
+                                {localize(link.title)}
+                              </span>
+                              <span
+                                className="sidepanel-nav-icon sidepanel-nav-item-icon"
+                                aria-hidden="true"
+                              >
+                                <link.icon className="h-4 w-4" />
+                              </span>
                               {link.label != null && link.label && (
                                 <span
                                   className={cn(
-                                    'ml-auto opacity-100 transition-all duration-300 ease-in-out',
+                                    'sidepanel-nav-item-meta opacity-100 transition-all duration-300 ease-in-out',
                                     variant === 'default' ? 'text-text-primary' : '',
                                   )}
                                 >
@@ -90,15 +143,15 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                           </AccordionPrimitive.Trigger>
                         </AccordionPrimitive.Header>
 
-                        <AccordionContent className="bg-token-sidebar-surface-primary w-full text-text-primary">
+                        <AccordionContent className="sidepanel-nav-content w-full text-text-primary">
                           {link.Component && <link.Component />}
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -48,7 +48,7 @@ describe('MarketplaceProvider', () => {
       conversation: {
         endpoint: EModelEndpoint.agents,
         conversationId: 'marketplace',
-        title: 'Edu Toolkit',
+        title: 'Ethos Tools',
       },
     });
   });
@@ -58,7 +58,7 @@ describe('MarketplaceProvider', () => {
       conversation: {
         endpoint: EModelEndpoint.agents,
         conversationId: 'marketplace',
-        title: 'Edu Toolkit',
+        title: 'Ethos Tools',
       },
     };
 
@@ -72,7 +72,7 @@ describe('MarketplaceProvider', () => {
 
     expect(screen.getByTestId('endpoint')).toHaveTextContent(EModelEndpoint.agents);
     expect(screen.getByTestId('conversation-id')).toHaveTextContent('marketplace');
-    expect(screen.getByTestId('title')).toHaveTextContent('Edu Toolkit');
+    expect(screen.getByTestId('title')).toHaveTextContent('Ethos Tools');
   });
 
   it('creates ChatContext.Provider with correct structure', () => {
@@ -89,7 +89,7 @@ describe('MarketplaceProvider', () => {
     expect(valueData.conversation).toEqual({
       endpoint: EModelEndpoint.agents,
       conversationId: 'marketplace',
-      title: 'Edu Toolkit',
+      title: 'Ethos Tools',
     });
   });
 
@@ -144,7 +144,7 @@ describe('MarketplaceProvider', () => {
     expect(valueData.conversation).toEqual({
       endpoint: EModelEndpoint.agents,
       conversationId: 'marketplace',
-      title: 'Edu Toolkit',
+      title: 'Ethos Tools',
     });
   });
 });

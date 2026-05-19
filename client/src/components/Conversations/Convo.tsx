@@ -184,10 +184,8 @@ export default function Conversation({
     <div
       ref={containerRef}
       className={cn(
-        'group relative flex h-12 w-full items-center rounded-lg outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white md:h-9',
-        isActiveConvo || isPopoverActive
-          ? 'bg-surface-active-alt before:absolute before:bottom-1 before:left-0 before:top-1 before:w-0.5 before:rounded-full before:bg-black dark:before:bg-white'
-          : 'hover:bg-surface-active-alt',
+        'sidebar-convo-row group relative flex h-12 w-full items-center rounded-xl outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white md:h-10',
+        isActiveConvo || isPopoverActive ? 'sidebar-convo-row-active' : 'sidebar-convo-row-idle',
       )}
       role="button"
       tabIndex={renaming ? -1 : 0}
@@ -263,6 +261,7 @@ export default function Conversation({
             <EndpointIcon
               conversation={conversation}
               endpointsConfig={endpointsConfig}
+              className="sidebar-convo-endpoint-icon"
               size={20}
               context="menu-item"
             />
@@ -271,7 +270,7 @@ export default function Conversation({
       )}
       <div
         className={cn(
-          'mr-2 flex origin-left',
+          'sidebar-convo-options mr-2 flex origin-left',
           isPopoverActive || isActiveConvo
             ? 'pointer-events-auto scale-x-100 opacity-100'
             : 'pointer-events-none max-w-0 scale-x-0 opacity-0 group-focus-within:pointer-events-auto group-focus-within:max-w-[60px] group-focus-within:scale-x-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:max-w-[60px] group-hover:scale-x-100 group-hover:opacity-100',

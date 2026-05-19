@@ -26,7 +26,11 @@ import {
   useRefreshTokenMutation,
 } from '~/data-provider';
 import { TAuthConfig, TUserContext, TAuthContext, TResError } from '~/common';
-import { SESSION_KEY, isSafeRedirect, getPostLoginRedirect } from '~/utils';
+import {
+  SESSION_KEY,
+  isSafeRedirect,
+  getPostLoginRedirect,
+} from '~/utils';
 import useTimeout from './useTimeout';
 import store from '~/store';
 
@@ -267,7 +271,7 @@ const AuthContextProvider = ({
       isAuthenticated,
     }),
 
-    [user, error, isAuthenticated, token, userRole, adminRole],
+    [user, error, isAuthenticated, token, userRole, adminRole, logout],
   );
 
   return <AuthContext.Provider value={memoedValue}>{children}</AuthContext.Provider>;

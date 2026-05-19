@@ -27,9 +27,9 @@ function Footer({ className }: { className?: string }) {
   const mainContentParts = (
     typeof config?.customFooter === 'string'
       ? config.customFooter
-      : '[Enterprise Chat ' +
+      : 'Ethos ' +
         Constants.VERSION +
-        '](https://educhat.ai) - ' +
+        ' - ' +
         localize('com_ui_latest_footer')
   ).split('|');
 

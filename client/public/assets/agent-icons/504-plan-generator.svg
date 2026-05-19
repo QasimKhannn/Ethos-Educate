@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <rect x="274" y="214" width="504" height="596" rx="64" stroke="#14499D" stroke-width="38"/>
+  <path d="M382 214V810" stroke="#14499D" stroke-width="38" stroke-linecap="round"/>
+  <path d="M500 362H662" stroke="#14499D" stroke-width="34" stroke-linecap="round"/>
+  <path d="M500 664H662" stroke="#14499D" stroke-width="34" stroke-linecap="round"/>
+  <path d="M304 330H246" stroke="#14499D" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 430H246" stroke="#14499D" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 530H246" stroke="#14499D" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 630H246" stroke="#14499D" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 730H246" stroke="#14499D" stroke-width="36" stroke-linecap="round"/>
+  <text
+    x="582"
+    y="566"
+    fill="#14499D"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="126"
+    font-weight="700"
+    text-anchor="middle"
+  >504</text>
+</svg>

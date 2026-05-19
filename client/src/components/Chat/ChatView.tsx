@@ -1,4 +1,5 @@
 import { memo, useCallback } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
@@ -13,9 +14,11 @@ import { useGetMessagesByConvoId } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
 import ChatForm from './Input/ChatForm';
+import ChatBackgroundLights from './ChatBackgroundLights';
 import Landing from './Landing';
 import Header from './Header';
 import Footer from './Footer';
+import { pageRevealVariants, sectionStaggerVariants, softRevealVariants } from '~/utils/motion';
 import { cn } from '~/utils';
 import store from '~/store';
 
@@ -33,6 +36,7 @@ function ChatView({ index = 0 }: { index?: number }) {
   const { conversationId } = useParams();
   const rootSubmission = useRecoilValue(store.submissionByIndex(index));
   const centerFormOnLanding = useRecoilValue(store.centerFormOnLanding);
+  const shouldReduceMotion = useReducedMotion();
 
   const fileMap = useFileMapContext();
 
@@ -81,27 +85,51 @@ function ChatView({ index = 0 }: { index?: number }) {
       <ChatContext.Provider value={chatHelpers}>
         <AddedChatContext.Provider value={addedChatHelpers}>
           <Presentation>
-            <div className="relative flex h-full w-full flex-col">
+            <div className="chat-view-shell relative flex h-full w-full flex-col">
+              <ChatBackgroundLights />
               {!isLoading && <Header />}
               <>
                 <div
                   className={cn(
                     'flex flex-col',
                     isLandingPage
-                      ? 'flex-1 items-center justify-end sm:justify-center'
+                      ? 'flex-1 items-center justify-end gap-8 sm:justify-center md:gap-10'
                       : 'h-full overflow-y-auto',
                   )}
                 >
-                  {content}
-                  <div
-                    className={cn(
-                      'w-full',
-                      isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
-                    )}
-                  >
-                    <ChatForm index={index} />
-                    {isLandingPage ? <ConversationStarters /> : <Footer />}
-                  </div>
+                  {isLandingPage ? (
+                    <motion.div
+                      variants={sectionStaggerVariants}
+                      initial={shouldReduceMotion ? false : 'hidden'}
+                      animate="visible"
+                      className="chat-landing-page flex w-full flex-col items-center"
+                    >
+                      <motion.div
+                        variants={pageRevealVariants}
+                        className="chat-landing-page-body w-full"
+                      >
+                        {content}
+                      </motion.div>
+                      <motion.div
+                        variants={softRevealVariants}
+                        className={cn(
+                          'chat-landing-page-composer w-full',
+                          isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
+                        )}
+                      >
+                        <ChatForm index={index} />
+                        <ConversationStarters />
+                      </motion.div>
+                    </motion.div>
+                  ) : (
+                    <>
+                      {content}
+                      <div className="w-full">
+                        <ChatForm index={index} />
+                        <Footer />
+                      </div>
+                    </>
+                  )}
                 </div>
                 {isLandingPage && <Footer />}
               </>

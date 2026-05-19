@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@librechat/client';
 import { useDebounce, useLocalize } from '~/hooks';
+import { cn } from '~/utils';
 
 /**
  * Props for the SearchBar component
@@ -11,6 +12,8 @@ interface SearchBarProps {
   value: string;
   /** Callback fired when the search query changes */
   onSearch: (query: string) => void;
+  /** Callback fired when the search surface gains or loses focus */
+  onFocusChange?: (isFocused: boolean) => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -22,7 +25,12 @@ interface SearchBarProps {
  * Includes proper ARIA attributes for accessibility and visual indicators.
  * Uses 300ms debounce delay to prevent excessive API calls during typing.
  */
-const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }) => {
+const SearchBar: React.FC<SearchBarProps> = ({
+  value,
+  onSearch,
+  onFocusChange,
+  className = '',
+}) => {
   const localize = useLocalize();
   const [searchTerm, setSearchTerm] = useState(value);
 
@@ -62,8 +70,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }
     setSearchTerm('');
   }, [onSearch]);
 
+  const handleFocus = useCallback(() => {
+    onFocusChange?.(true);
+  }, [onFocusChange]);
+
+  const handleBlur = useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        return;
+      }
+
+      onFocusChange?.(false);
+    },
+    [onFocusChange],
+  );
+
   return (
-    <div className={`relative w-full max-w-4xl ${className}`} role="search">
+    <div
+      className={cn('agents-marketplace-search-wrap relative w-full', className)}
+      role="search"
+      data-tour-id="marketplace-search"
+      data-tour-padding="0"
+      data-tour-radius="20"
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+    >
       <label htmlFor="agent-search" className="sr-only">
         {localize('com_agents_search_instructions')}
       </label>
@@ -73,7 +104,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }
         value={searchTerm}
         onChange={handleChange}
         placeholder={localize('com_agents_search_placeholder')}
-        className="h-12 rounded-xl border-border-medium bg-transparent pl-12 pr-12 text-lg text-text-primary shadow-md transition-[border-color,box-shadow] duration-200 placeholder:text-text-secondary focus:border-border-heavy focus:shadow-lg focus:ring-0"
+        className="agents-marketplace-search-input h-12 rounded-xl border border-border-light bg-surface-primary pl-11 pr-11 text-[0.98rem] font-medium text-text-primary transition-[background-color,border-color,box-shadow] duration-150 placeholder:text-text-secondary focus:border-primary focus:ring-0"
         aria-label={localize('com_agents_search_aria')}
         aria-describedby="search-instructions search-results-count"
         autoComplete="off"
@@ -81,7 +112,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }
       />
 
       <div className="absolute inset-y-0 left-0 flex items-center pl-4" aria-hidden="true">
-        <Search className="size-5 text-text-secondary" />
+        <Search className="size-4 text-text-tertiary" />
       </div>
       {/* Hidden instructions for screen readers */}
       <div id="search-instructions" className="sr-only">
@@ -92,15 +123,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }
         <button
           type="button"
           onClick={handleClear}
-          className="group absolute right-4 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="absolute right-2.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-text-tertiary transition-[background-color,color] duration-150 hover:bg-surface-hover hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           aria-label={localize('com_agents_clear_search')}
           title={localize('com_agents_clear_search')}
         >
-          <X
-            className="size-5 text-text-secondary transition-colors duration-200 group-hover:text-text-primary"
-            strokeWidth={2.5}
-            aria-hidden="true"
-          />
+          <X className="size-4" strokeWidth={2.2} aria-hidden="true" />
         </button>
       )}
     </div>
