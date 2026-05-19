@@ -26,6 +26,7 @@ const titleRevealAnimationTo = {
   opacity: 1,
   transform: 'translate3d(0,0,0)',
 };
+const compactDescriptionMaxLength = 112;
 
 interface SelectedToolGuide {
   agentId: string;
@@ -50,6 +51,29 @@ function getTextSizeClass(text: string | undefined | null) {
 
   return 'text-lg sm:text-md';
 }
+
+const getCompactDescription = (value: string | null | undefined) => {
+  const normalizedDescription = value?.replace(/\s+/g, ' ').trim() ?? '';
+  if (!normalizedDescription) {
+    return '';
+  }
+
+  const [beforeDash] = normalizedDescription.split(/\s[-\u2013\u2014]\s/);
+  const candidate =
+    beforeDash && beforeDash.length >= 42 && beforeDash.length <= compactDescriptionMaxLength
+      ? beforeDash
+      : normalizedDescription;
+
+  if (candidate.length <= compactDescriptionMaxLength) {
+    return candidate.replace(/[,:;.\s]+$/, '');
+  }
+
+  const clippedDescription = candidate.slice(0, compactDescriptionMaxLength).trimEnd();
+  const lastWordBreak = clippedDescription.lastIndexOf(' ');
+  const trimIndex = lastWordBreak > 72 ? lastWordBreak : compactDescriptionMaxLength;
+
+  return `${clippedDescription.slice(0, trimIndex).replace(/[,:;.\s]+$/, '')}...`;
+};
 
 export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: boolean }) {
   const { conversation } = useChatContext();
@@ -91,6 +115,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
 
   const name = entity?.name ?? '';
   const description = (entity?.description || conversation?.greeting) ?? '';
+  const compactDescription = useMemo(() => getCompactDescription(description), [description]);
   const selectedToolGuide = useMemo<SelectedToolGuide | null>(() => {
     if (conversation?.endpoint !== EModelEndpoint.agents || !conversation.agent_id) {
       return null;
@@ -175,7 +200,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     if (contentRef.current) {
       setContentHeight(contentRef.current.offsetHeight);
     }
-  }, [lineCount, description]);
+  }, [lineCount, compactDescription]);
 
   useEffect(() => {
     setSelectedToolGuideAvatarFailed(false);
@@ -184,12 +209,12 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const getDynamicMargin = useMemo(() => {
     let margin = 'mb-0';
 
-    if (lineCount > 2 || (description && description.length > 100)) {
-      margin = 'mb-8';
-    } else if (lineCount > 1 || (description && description.length > 0)) {
+    if (lineCount > 2 || (compactDescription && compactDescription.length > 90)) {
       margin = 'mb-6';
-    } else if (textHasMultipleLines) {
+    } else if (lineCount > 1 || compactDescription) {
       margin = 'mb-4';
+    } else if (textHasMultipleLines) {
+      margin = 'mb-3';
     }
 
     if (contentHeight > 200) {
@@ -199,7 +224,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     }
 
     return margin;
-  }, [lineCount, description, textHasMultipleLines, contentHeight]);
+  }, [lineCount, compactDescription, textHasMultipleLines, contentHeight]);
 
   const shouldShowMobileUserName = isSmallScreen && !isCustomWelcome && !!user?.name;
   const greetingText =
@@ -300,7 +325,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
                           delay: 0.08,
                         }
                   }
-                  className="mt-2 max-w-[15rem] text-balance text-center text-xl font-medium leading-tight tracking-[-0.025em] text-text-primary"
+                  className="mt-2 max-w-[15rem] text-balance text-center text-xl font-medium leading-tight text-text-primary"
                 >
                   {user?.name}
                 </motion.p>
@@ -308,7 +333,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             </div>
           )}
         </div>
-        {description && (
+        {compactDescription && (
           <motion.div
             variants={softRevealVariants}
             initial={shouldReduceMotion ? false : 'hidden'}
@@ -323,7 +348,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             }
             className="chat-landing-description animate-fadeIn mt-4 text-center"
           >
-            {description}
+            {compactDescription}
           </motion.div>
         )}
       </div>

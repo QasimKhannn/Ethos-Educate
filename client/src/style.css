@@ -3628,6 +3628,7 @@ samp,
 
 .chat-landing-shell {
   position: relative;
+  padding-bottom: clamp(1.75rem, 4.6vh, 3.5rem);
 }
 
 .chat-landing-shell-selected-tool {
@@ -3639,13 +3640,14 @@ samp,
 }
 
 .chat-landing-content {
-  width: min(100%, 64rem);
-  max-width: min(100%, 64rem);
+  width: min(100%, 48rem);
+  max-width: min(100%, 48rem);
   min-width: 0;
 }
 
 .chat-landing-page {
   width: 100%;
+  gap: clamp(1rem, 2.8vh, 1.9rem);
 }
 
 .chat-landing-page:has(.chat-selected-tool-guide) {
@@ -3705,11 +3707,11 @@ samp,
 .chat-landing-mark {
   position: relative;
   display: flex;
-  height: 3.9rem;
-  width: 3.9rem;
+  height: clamp(3.15rem, 4.4vw, 3.7rem);
+  width: clamp(3.15rem, 4.4vw, 3.7rem);
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.875rem;
+  margin-bottom: clamp(0.58rem, 1.2vh, 0.78rem);
 }
 
 .chat-landing-mark-shell {
@@ -3743,7 +3745,7 @@ samp,
 
 .split-parent.chat-landing-title {
   display: inline-block;
-  max-width: min(100%, 46rem);
+  max-width: min(100%, 40rem);
   padding-bottom: 0.14em;
   line-height: 1.12;
   letter-spacing: 0;
@@ -3757,13 +3759,18 @@ samp,
 }
 
 .chat-landing-description {
-  max-width: min(100%, 40rem);
+  display: -webkit-box;
+  max-width: min(100%, 35rem);
+  margin-top: clamp(0.56rem, 1.3vh, 0.82rem) !important;
+  overflow: hidden;
   color: color-mix(in srgb, var(--text-secondary) 88%, var(--text-primary));
-  font-size: clamp(0.94rem, 0.18vw + 0.9rem, 1.02rem);
+  font-size: clamp(0.88rem, 0.16vw + 0.84rem, 0.96rem);
   font-weight: 500;
   letter-spacing: 0;
-  line-height: 1.72;
+  line-height: 1.5;
   text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .chat-selected-tool-guide {
@@ -4790,35 +4797,35 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   }
 
   .chat-landing-page {
-    gap: clamp(1.25rem, 2.8vh, 2rem);
+    gap: clamp(0.95rem, 2.4vh, 1.55rem);
   }
 
   .chat-landing-shell {
-    padding-bottom: clamp(2.5rem, 6vh, 4.5rem);
+    padding-bottom: clamp(1.5rem, 4.8vh, 3rem);
   }
 
   .chat-landing-content {
-    max-width: min(100%, 44rem);
+    max-width: min(100%, 38rem);
   }
 
   .chat-landing-mark {
-    height: 3.55rem;
-    width: 3.55rem;
-    margin-bottom: 0.7rem;
+    height: 3.25rem;
+    width: 3.25rem;
+    margin-bottom: 0.58rem;
   }
 
   .split-parent.chat-landing-title {
-    max-width: min(100%, 38rem);
+    max-width: min(100%, 34rem);
     font-size: clamp(2rem, 4.2vw, 2.75rem);
     line-height: 1.1;
-    letter-spacing: -0.042em;
+    letter-spacing: 0;
   }
 
   .chat-landing-description {
-    max-width: 30rem;
-    margin-top: 0.75rem;
-    font-size: 0.95rem;
-    line-height: 1.55;
+    max-width: 28rem;
+    margin-top: 0.55rem !important;
+    font-size: 0.9rem;
+    line-height: 1.45;
   }
 
   .chat-landing-page-composer {
@@ -4884,8 +4891,9 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   }
 
   .chat-landing-description {
-    margin-top: 0.6rem;
-    line-height: 1.48;
+    margin-top: 0.5rem !important;
+    line-height: 1.42;
+    -webkit-line-clamp: 1;
   }
 
   .chat-selected-tool-guide-body {
@@ -4929,6 +4937,16 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   .chat-selected-tool-guide-field input {
     min-height: 2.48rem;
     padding-block: 0.48rem;
+  }
+}
+
+@media (max-height: 680px) {
+  .chat-landing-page {
+    gap: 0.75rem;
+  }
+
+  .chat-landing-description {
+    display: none;
   }
 }
 
@@ -5112,13 +5130,11 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
     max-width: min(100%, 22rem);
     font-size: clamp(1.75rem, 7.2vw, 2.35rem);
     line-height: 1.08;
-    letter-spacing: -0.05em;
+    letter-spacing: 0;
   }
 
   .chat-landing-description {
-    max-width: 18rem;
-    font-size: 0.97rem;
-    line-height: 1.55;
+    display: none;
   }
 
   .chat-selected-tool-guide {
@@ -5207,6 +5223,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
 
   .split-parent.chat-landing-title {
     font-size: clamp(1.55rem, 7vw, 2rem);
+    letter-spacing: 0;
   }
 
   .chat-selected-tool-guide-body {
