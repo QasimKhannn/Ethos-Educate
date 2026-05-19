@@ -18,6 +18,7 @@ import {
   clearMessagesCache,
   getAgentAvatarImageUrl,
   getAgentDisplayName,
+  normalizeAgentBrandText,
 } from '~/utils';
 
 interface SupportContact {
@@ -129,11 +130,12 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
     if (!agent?.support_contact) return null;
 
     const { name, email } = agent.support_contact;
+    const displayName = normalizeAgentBrandText(name);
 
     if (name && email) {
       return (
         <a href={`mailto:${email}`} className="text-primary hover:underline">
-          {name}
+          {displayName}
         </a>
       );
     }
@@ -147,13 +149,13 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
     }
 
     if (name) {
-      return <span>{name}</span>;
+      return <span>{displayName}</span>;
     }
 
     return null;
   };
   const contactNode = formatContact();
-  const authorName = agent?.authorName ?? 'Ethos Intelligence';
+  const authorName = normalizeAgentBrandText(agent?.authorName) || 'Ethos Intelligence';
 
   return (
     <OGDialogContent className="max-h-[90vh] w-11/12 max-w-lg overflow-y-auto">

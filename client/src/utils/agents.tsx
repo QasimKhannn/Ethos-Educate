@@ -3,6 +3,16 @@ import { Feather } from 'lucide-react';
 import { Skeleton } from '@librechat/client';
 import type t from 'librechat-data-provider';
 
+type AgentSupportContact = {
+  name?: string | null;
+  email?: string | null;
+};
+
+type AgentContactFields = t.Agent & {
+  support_contact?: AgentSupportContact | null;
+  authorName?: string | null;
+};
+
 const loadedAgentAvatarUrls = new Set<string>();
 const staticAgentIconPath = 'assets/agent-icons/';
 const defaultAgentIconPath = `${staticAgentIconPath}default-agent.svg`;
@@ -72,8 +82,12 @@ const getAgentNameSlug = (name: string | null | undefined): string | null => {
   return slug || null;
 };
 
+export const normalizeAgentBrandText = (value: string | null | undefined): string => {
+  return value?.replace(/\bEduChat\b/gi, 'Ethos') ?? '';
+};
+
 export const getAgentDisplayName = (agent: t.Agent | null | undefined): string => {
-  return agent?.name?.replace(/\bEduChat\b/g, 'Ethos') ?? '';
+  return normalizeAgentBrandText(agent?.name);
 };
 
 export const getStaticAgentIconUrlForName = (name: string | null | undefined): string | null => {
@@ -336,11 +350,10 @@ export const renderAgentAvatar = (
 export const getContactDisplayName = (agent: t.Agent | null | undefined): string | null => {
   if (!agent) return null;
 
-  const supportName = (agent as any).support_contact?.name;
-  const supportEmail = (agent as any).support_contact?.email;
-  const authorName = (agent as any).authorName;
+  const { support_contact: supportContact, authorName } = agent as AgentContactFields;
+  const displayName = supportContact?.name || authorName || supportContact?.email || null;
 
-  return supportName || authorName || supportEmail || null;
+  return displayName ? normalizeAgentBrandText(displayName) : null;
 };
 
 // All hardcoded category constants removed - now using database-driven categories

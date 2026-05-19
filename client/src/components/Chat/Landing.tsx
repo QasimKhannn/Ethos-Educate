@@ -15,6 +15,7 @@ import {
   getEntity,
   normalizeAgentAvatarUrl,
   getStaticAgentIconUrlForName,
+  normalizeAgentBrandText,
 } from '~/utils';
 
 const containerClassName = 'chat-landing-mark-shell';
@@ -28,9 +29,6 @@ const titleRevealAnimationTo = {
   opacity: 1,
   transform: 'translate3d(0,0,0)',
 };
-
-const normalizeEthosBrandText = (value: string | null | undefined) =>
-  value?.replace(/\bEduChat\b/g, 'Ethos') ?? '';
 
 interface SelectedToolGuide {
   agentId: string;
@@ -247,8 +245,8 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       [key]: value,
     }));
   }, []);
-  const selectedToolGuideName = normalizeEthosBrandText(selectedToolGuide?.name);
-  const headingName = normalizeEthosBrandText(name) || selectedToolGuideName;
+  const selectedToolGuideName = normalizeAgentBrandText(selectedToolGuide?.name);
+  const headingName = normalizeAgentBrandText(name) || selectedToolGuideName;
   const selectedToolGuideAvatarUrl = normalizeAgentAvatarUrl(
     getStaticAgentIconUrlForName(selectedToolGuideName || name) ??
       selectedToolGuide?.avatarUrl ??

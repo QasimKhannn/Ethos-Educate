@@ -9,8 +9,17 @@ import {
   normalizeAgentAvatarUrl,
   getAgentAvatarImageUrl,
   getAgentDisplayName,
+  normalizeAgentBrandText,
 } from '../agents';
 import type t from 'librechat-data-provider';
+
+type TestAgentWithContact = t.Agent & {
+  support_contact?: {
+    name?: string;
+    email?: string;
+  };
+  authorName?: string;
+};
 
 // Mock the Feather icon from lucide-react
 jest.mock('lucide-react', () => ({
@@ -122,8 +131,15 @@ describe('Agent Utilities', () => {
     });
   });
 
+  describe('normalizeAgentBrandText', () => {
+    it('should replace EduChat branding regardless of capitalization', () => {
+      expect(normalizeAgentBrandText('EduChat Support Assistant')).toBe('Ethos Support Assistant');
+      expect(normalizeAgentBrandText('by educhat')).toBe('by Ethos');
+    });
+  });
+
   describe('getAgentDisplayName', () => {
-    it('should replace EduChat branding in agent names', () => {
+    it('should replace legacy branding in agent names', () => {
       const agent = { id: '1', name: 'EduChat Support Assistant' } as t.Agent;
       expect(getAgentDisplayName(agent)).toBe('Ethos Support Assistant');
     });
@@ -263,7 +279,7 @@ describe('Agent Utilities', () => {
         id: '1',
         support_contact: { name: 'Support Team', email: 'support@example.com' },
         authorName: 'John Doe',
-      } as any;
+      } as TestAgentWithContact;
       expect(getContactDisplayName(agent)).toBe('Support Team');
     });
 
@@ -272,15 +288,30 @@ describe('Agent Utilities', () => {
         id: '1',
         support_contact: { email: 'support@example.com' },
         authorName: 'John Doe',
-      } as any;
+      } as TestAgentWithContact;
       expect(getContactDisplayName(agent)).toBe('John Doe');
+    });
+
+    it('should replace legacy branding in author and support names', () => {
+      const supportAgent = {
+        id: '1',
+        support_contact: { name: 'EduChat', email: 'support@example.com' },
+        authorName: 'John Doe',
+      } as TestAgentWithContact;
+      expect(getContactDisplayName(supportAgent)).toBe('Ethos');
+
+      const authorAgent = {
+        id: '1',
+        authorName: 'EduChat',
+      } as TestAgentWithContact;
+      expect(getContactDisplayName(authorAgent)).toBe('Ethos');
     });
 
     it('should use support_contact email when both name and authorName are missing', () => {
       const agent = {
         id: '1',
         support_contact: { email: 'support@example.com' },
-      } as any;
+      } as TestAgentWithContact;
       expect(getContactDisplayName(agent)).toBe('support@example.com');
     });
 
@@ -288,7 +319,7 @@ describe('Agent Utilities', () => {
       const agent = {
         id: '1',
         name: 'Test Agent',
-      } as any;
+      } as TestAgentWithContact;
       expect(getContactDisplayName(agent)).toBeNull();
     });
   });
