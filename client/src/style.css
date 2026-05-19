@@ -3745,8 +3745,8 @@ samp,
   display: inline-block;
   max-width: min(100%, 46rem);
   padding-bottom: 0.14em;
-  line-height: 1.16;
-  letter-spacing: -0.045em;
+  line-height: 1.12;
+  letter-spacing: 0;
   overflow-wrap: break-word;
   text-wrap: balance;
 }
@@ -3757,9 +3757,13 @@ samp,
 }
 
 .chat-landing-description {
-  max-width: 34rem;
-  line-height: 1.65;
-  color: var(--text-secondary);
+  max-width: min(100%, 40rem);
+  color: color-mix(in srgb, var(--text-secondary) 88%, var(--text-primary));
+  font-size: clamp(0.94rem, 0.18vw + 0.9rem, 1.02rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.72;
+  text-wrap: pretty;
 }
 
 .chat-selected-tool-guide {
@@ -4439,7 +4443,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
 }
 
 .dark .chat-landing-description {
-  color: var(--text-secondary);
+  color: rgba(219, 231, 250, 0.76);
 }
 
 .dark .split-parent.chat-landing-title {
