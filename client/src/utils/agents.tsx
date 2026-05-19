@@ -4,6 +4,30 @@ import { Skeleton } from '@librechat/client';
 import type t from 'librechat-data-provider';
 
 const loadedAgentAvatarUrls = new Set<string>();
+const staticAgentIconPath = 'assets/agent-icons/';
+const defaultAgentIconPath = `${staticAgentIconPath}default-agent.svg`;
+
+const getAppBasePath = () => {
+  if (typeof document === 'undefined') {
+    return '/';
+  }
+
+  const baseHref = document.querySelector('base')?.getAttribute('href') ?? '/';
+  if (!baseHref) {
+    return '/';
+  }
+
+  return baseHref.endsWith('/') ? baseHref : `${baseHref}/`;
+};
+
+const getStaticAgentIconUrl = (assetPath: string) => `${getAppBasePath()}${assetPath}`;
+
+const isStaticAgentIconUrl = (url: string) => {
+  const pathWithoutParams = url.split(/[?#]/)[0]?.toLowerCase() ?? '';
+  return (
+    pathWithoutParams.includes(`/${staticAgentIconPath}`) && pathWithoutParams.endsWith('.svg')
+  );
+};
 
 /**
  * Extracts the avatar URL from an agent's avatar property
@@ -25,25 +49,48 @@ export const getAgentAvatarUrl = (agent: t.Agent | null | undefined): string | n
   return null;
 };
 
+export const normalizeAgentAvatarUrl = (url: string | null): string | null => {
+  const trimmedUrl = url?.trim();
+  if (!trimmedUrl) {
+    return null;
+  }
+
+  const staticIconIndex = trimmedUrl.toLowerCase().indexOf(staticAgentIconPath);
+  if (staticIconIndex === -1) {
+    return trimmedUrl;
+  }
+
+  const staticIconPath = trimmedUrl.slice(staticIconIndex).replace(/^\/+/, '');
+  return getStaticAgentIconUrl(staticIconPath);
+};
+
 const LazyAgentAvatar = ({
   url,
   alt,
   imgClass,
   skeletonClass,
+  fallback,
 }: {
   url: string;
   alt: string;
   imgClass: string;
   skeletonClass: string;
+  fallback: React.ReactElement;
 }) => {
-  const isStaticSvgAvatar = url.startsWith('/assets/agent-icons/') && url.endsWith('.svg');
+  const isStaticSvgAvatar = isStaticAgentIconUrl(url);
+  const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(
     () => isStaticSvgAvatar || loadedAgentAvatarUrls.has(url),
   );
 
   useEffect(() => {
+    setHasError(false);
     setIsLoaded(isStaticSvgAvatar || loadedAgentAvatarUrls.has(url));
   }, [isStaticSvgAvatar, url]);
+
+  if (hasError) {
+    return fallback;
+  }
 
   return (
     <>
@@ -58,6 +105,7 @@ const LazyAgentAvatar = ({
         }}
         onError={() => {
           loadedAgentAvatarUrls.delete(url);
+          setHasError(true);
           setIsLoaded(false);
         }}
         style={{
@@ -94,9 +142,9 @@ export const renderAgentAvatar = (
     visualScale = 'default',
   } = options;
 
-  const avatarUrl = getAgentAvatarUrl(agent);
-  const normalizedAvatarUrl = avatarUrl?.split('?')[0]?.toLowerCase() ?? '';
-  const isVectorAvatar = normalizedAvatarUrl.endsWith('.svg');
+  const avatarUrl = normalizeAgentAvatarUrl(getAgentAvatarUrl(agent));
+  const normalizedAvatarUrl = avatarUrl?.split(/[?#]/)[0]?.toLowerCase() ?? '';
+  const isVectorAvatar = avatarUrl == null || normalizedAvatarUrl.endsWith('.svg');
 
   // Size mappings for responsive design
   const sizeClasses = {
@@ -126,6 +174,9 @@ export const renderAgentAvatar = (
     fill: 'h-full w-full',
   };
 
+  const fallbackIcon = (
+    <Feather className={`text-text-primary ${iconSizeClasses[size]}`} strokeWidth={1.5} />
+  );
   const borderClasses = showBorder ? 'border-1 border-border-medium' : '';
   let resolvedFit = fit;
   if (resolvedFit === 'auto') {
@@ -155,16 +206,19 @@ export const renderAgentAvatar = (
 
   const skeletonClass = `absolute inset-0 ${placeholderSizeClasses[size]} ${imageShapeClasses}`;
 
-  if (avatarUrl) {
+  if (avatarUrl || size !== 'icon') {
+    const resolvedAvatarUrl = avatarUrl ?? getStaticAgentIconUrl(defaultAgentIconPath);
+
     return (
       <div
         className={`relative flex items-center justify-center overflow-hidden ${imageShapeClasses} ${sizeClasses[size]} ${className}`}
       >
         <LazyAgentAvatar
-          url={avatarUrl}
+          url={resolvedAvatarUrl}
           alt={`${agent?.name || 'Agent'} avatar`}
           imgClass={`${imageSizeClasses} ${imageShapeClasses} ${imageFitClasses} ${imageShadowClasses} ${borderClasses}`}
           skeletonClass={skeletonClass}
+          fallback={fallbackIcon}
         />
       </div>
     );
@@ -174,7 +228,7 @@ export const renderAgentAvatar = (
     <div
       className={`relative flex items-center justify-center overflow-hidden ${imageShapeClasses} ${sizeClasses[size]} ${className}`}
     >
-      <Feather className={`text-text-primary ${iconSizeClasses[size]}`} strokeWidth={1.5} />
+      {fallbackIcon}
     </div>
   );
 };

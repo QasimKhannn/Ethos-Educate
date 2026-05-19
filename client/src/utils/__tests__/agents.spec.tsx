@@ -1,7 +1,12 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { getAgentAvatarUrl, renderAgentAvatar, getContactDisplayName } from '../agents';
+import {
+  getAgentAvatarUrl,
+  renderAgentAvatar,
+  getContactDisplayName,
+  normalizeAgentAvatarUrl,
+} from '../agents';
 import type t from 'librechat-data-provider';
 
 // Mock the Feather icon from lucide-react
@@ -19,6 +24,12 @@ jest.mock('lucide-react', () => ({
 }));
 
 describe('Agent Utilities', () => {
+  afterEach(() => {
+    document.querySelectorAll('base[data-testid="test-base"]').forEach((baseElement) => {
+      baseElement.remove();
+    });
+  });
+
   describe('getAgentAvatarUrl', () => {
     it('should return null for null agent', () => {
       expect(getAgentAvatarUrl(null)).toBeNull();
@@ -61,6 +72,28 @@ describe('Agent Utilities', () => {
     });
   });
 
+  describe('normalizeAgentAvatarUrl', () => {
+    it('should normalize static icon URLs against the app base path', () => {
+      const baseElement = document.createElement('base');
+      baseElement.setAttribute('href', '/chat/');
+      baseElement.setAttribute('data-testid', 'test-base');
+      document.head.appendChild(baseElement);
+
+      expect(normalizeAgentAvatarUrl('assets/agent-icons/survey-builder.svg')).toBe(
+        '/chat/assets/agent-icons/survey-builder.svg',
+      );
+      expect(normalizeAgentAvatarUrl('/assets/agent-icons/survey-builder.svg?version=1')).toBe(
+        '/chat/assets/agent-icons/survey-builder.svg?version=1',
+      );
+    });
+
+    it('should leave non-static avatar URLs unchanged', () => {
+      expect(normalizeAgentAvatarUrl('https://example.com/avatar.png')).toBe(
+        'https://example.com/avatar.png',
+      );
+    });
+  });
+
   describe('renderAgentAvatar', () => {
     it('should render image when avatar URL exists', () => {
       const agent = {
@@ -77,13 +110,28 @@ describe('Agent Utilities', () => {
       expect(img).toHaveClass('rounded-full', 'object-cover', 'shadow-lg');
     });
 
-    it('should render Feather icon fallback when no avatar', () => {
+    it('should render default static avatar when no avatar', () => {
       const agent = {
         id: '1',
         name: 'Test Agent',
       } as t.Agent;
 
       render(<div>{renderAgentAvatar(agent)}</div>);
+
+      const img = screen.getByAltText('Test Agent avatar');
+      expect(img).toBeInTheDocument();
+      expect(img).toHaveAttribute('src', '/assets/agent-icons/default-agent.svg');
+    });
+
+    it('should render Feather icon fallback when an avatar fails to load', () => {
+      const agent = {
+        id: '1',
+        name: 'Test Agent',
+        avatar: '/missing-avatar.png',
+      } as unknown as t.Agent;
+
+      render(<div>{renderAgentAvatar(agent)}</div>);
+      fireEvent.error(screen.getByAltText('Test Agent avatar'));
 
       const featherIcon = screen.getByTestId('feather-icon');
       expect(featherIcon).toBeInTheDocument();
