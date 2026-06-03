@@ -3,8 +3,8 @@ import { gsap } from 'gsap';
 import { useReducedMotion } from 'framer-motion';
 import { useMediaQuery } from '@librechat/client';
 import type t from 'librechat-data-provider';
-import type { TranslationKeys } from '~/hooks';
 import { useLocalize } from '~/hooks';
+import { getFriendlyAgentCategoryLabel } from '~/hooks/Agents/useAgentCategories';
 import { SmartLoader } from './SmartLoader';
 import { cn } from '~/utils';
 
@@ -144,18 +144,11 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
 
   /** Helper function to get category display name from database data */
   const getCategoryDisplayName = (category: t.TCategory) => {
-    // Special cases for system categories
-    if (category.value === 'promoted') {
-      return localize('com_agents_top_picks');
-    }
-    if (category.value === 'all') {
-      return localize('com_agents_all_category');
-    }
-    if (category.label && category.label.startsWith('com_')) {
-      return localize(category.label as TranslationKeys);
-    }
-    // Use database label or fallback to capitalized value
-    return category.label || category.value.charAt(0).toUpperCase() + category.value.slice(1);
+    return getFriendlyAgentCategoryLabel({
+      value: category.value,
+      label: category.label,
+      localize,
+    });
   };
 
   const loadingSkeleton = (

@@ -45,6 +45,10 @@ export default function ModelPanel({
     () => (provider ? (modelsData[provider] ?? []) : []),
     [modelsData, provider],
   );
+  const selectedModelDisplay = useMemo(
+    () => (model ? (alternateName[model] as string | undefined) ?? model : ''),
+    [model],
+  );
 
   useEffect(() => {
     const _model = model ?? '';
@@ -188,6 +192,7 @@ export default function ModelPanel({
                 <>
                   <ControlCombobox
                     selectedValue={field.value || ''}
+                    displayValue={selectedModelDisplay}
                     selectPlaceholder={
                       provider
                         ? localize('com_ui_select_model')
@@ -196,7 +201,7 @@ export default function ModelPanel({
                     searchPlaceholder={localize('com_ui_select_model')}
                     setValue={field.onChange}
                     items={models.map((model) => ({
-                      label: model,
+                      label: (alternateName[model] as string | undefined) ?? model,
                       value: model,
                     }))}
                     disabled={!provider}

@@ -51,7 +51,11 @@ export const resolveProviderUploadFileType = ({
     isDocumentSupportedProvider(currentProvider) ||
     isAzureWithResponsesApi
   ) {
-    if (currentProvider === Providers.GOOGLE || currentProvider === Providers.OPENROUTER) {
+    if (
+      currentProvider === Providers.GOOGLE ||
+      currentProvider === Providers.OPENROUTER ||
+      isAzureWithResponsesApi
+    ) {
       return 'image_document_video_audio';
     }
 

@@ -40,6 +40,7 @@ import { cn, clearMessagesCache, getDefaultEndpoint } from '~/utils';
 import CategoryTabs from './CategoryTabs';
 import SearchBar from './SearchBar';
 import AgentGrid from './AgentGrid';
+import { getFriendlyAgentCategoryLabel } from '~/hooks/Agents/useAgentCategories';
 
 interface AgentMarketplaceProps {
   className?: string;
@@ -405,9 +406,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     const categoryData = categories.find((cat) => cat.value === value);
     if (categoryData) {
       return {
-        name: categoryData.label?.startsWith('com_')
-          ? localize(categoryData.label as TranslationKeys)
-          : categoryData.label,
+        name: getFriendlyAgentCategoryLabel({
+          value: categoryData.value,
+          label: categoryData.label,
+          localize,
+        }),
         description: categoryData.description?.startsWith('com_')
           ? localize(categoryData.description as TranslationKeys)
           : categoryData.description || '',
