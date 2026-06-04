@@ -532,6 +532,8 @@ export const getMarketplaceAgents = (params: {
   limit?: number;
   cursor?: string;
   promoted?: 0 | 1;
+  sortBy?: 'createdAt';
+  sortDirection?: 'asc' | 'desc';
 }): Promise<a.AgentListResponse> => {
   return request.get(
     endpoints.agents({

@@ -55,6 +55,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const [isTourDetailOpen, setIsTourDetailOpen] = useState(false);
   const storefrontScrollRef = useRef<HTMLDivElement>(null);
   const { categories } = useAgentCategories();
+  const shouldUseBackendDateSort = sortOption === 'newest' || sortOption === 'oldest';
 
   const queryParams = useMemo(() => {
     const params: {
@@ -63,6 +64,8 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       search?: string;
       limit: number;
       promoted?: 0 | 1;
+      sortBy?: 'createdAt';
+      sortDirection?: 'asc' | 'desc';
     } = {
       requiredPermission: PermissionBits.VIEW,
       limit: pageSize,
@@ -79,8 +82,13 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       params.category = category;
     }
 
+    if (shouldUseBackendDateSort) {
+      params.sortBy = 'createdAt';
+      params.sortDirection = sortOption === 'newest' ? 'desc' : 'asc';
+    }
+
     return params;
-  }, [category, pageSize, searchQuery]);
+  }, [category, pageSize, searchQuery, shouldUseBackendDateSort, sortOption]);
 
   const {
     data,
@@ -101,15 +109,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       return agents;
     }
 
+    if (shouldUseBackendDateSort) {
+      return agents;
+    }
+
     return [...agents].sort((firstAgent, secondAgent) => {
-      if (sortOption === 'newest') {
-        return secondAgent.created_at - firstAgent.created_at;
-      }
-
-      if (sortOption === 'oldest') {
-        return firstAgent.created_at - secondAgent.created_at;
-      }
-
       if (sortOption === 'category') {
         const categoryOrder = (firstAgent.category ?? '').localeCompare(
           secondAgent.category ?? '',
@@ -132,7 +136,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         sensitivity: 'base',
       });
     });
-  }, [data?.pages, sortOption]);
+  }, [data?.pages, shouldUseBackendDateSort, sortOption]);
   const hasData = useHasData(data?.pages?.[0]);
 
   const animateStorefrontCard = useCallback(

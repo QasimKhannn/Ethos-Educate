@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useDeletePrompt } from '~/data-provider';
 import { Button, OGDialog, OGDialogTrigger, Label, OGDialogTemplate } from '@librechat/client';
 import { useLocalize } from '~/hooks';
@@ -69,7 +70,12 @@ interface DeletePromptProps {
 
 const DeletePrompt = React.memo(
   ({ promptId, groupId, promptName, disabled }: DeletePromptProps) => {
-    const deletePromptMutation = useDeletePrompt();
+    const navigate = useNavigate();
+    const deletePromptMutation = useDeletePrompt({
+      onSuccess: () => {
+        navigate(0);
+      },
+    });
 
     const handleDelete = useCallback(() => {
       if (!promptId) {

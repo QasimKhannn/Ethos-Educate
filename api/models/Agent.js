@@ -662,7 +662,9 @@ const deleteUserAgents = async (userId) => {
  * @param {Array} [params.accessibleIds] - Array of agent ObjectIds the user has ACL access to.
  * @param {Object} [params.otherParams] - Additional query parameters (including author filter).
  * @param {number} [params.limit] - Number of agents to return (max 100). If not provided, returns all agents.
- * @param {string} [params.after] - Cursor for pagination - get agents after this cursor. // base64 encoded JSON string with updatedAt and _id.
+ * @param {string} [params.after] - Cursor for pagination - get agents after this cursor.
+ * @param {'createdAt'} [params.sortBy] - Optional explicit sort field for marketplace date sorting.
+ * @param {'asc'|'desc'} [params.sortDirection] - Optional sort direction for the explicit sort field.
  * @returns {Promise<Object>} A promise that resolves to an object containing the agents data and pagination info.
  */
 const getListAgentsByAccess = async ({
@@ -670,9 +672,14 @@ const getListAgentsByAccess = async ({
   otherParams = {},
   limit = null,
   after = null,
+  sortBy,
+  sortDirection,
 }) => {
   const isPaginated = limit !== null && limit !== undefined;
   const normalizedLimit = isPaginated ? Math.min(Math.max(1, parseInt(limit) || 20), 100) : null;
+  const sortField = sortBy === 'createdAt' ? 'createdAt' : 'updatedAt';
+  const sortValueDirection = sortField === 'createdAt' && sortDirection === 'asc' ? 1 : -1;
+  const idTieBreakerDirection = 1;
 
   // Build base query combining ACL accessible agents with other filters
   const baseQuery = { ...otherParams, _id: { $in: accessibleIds } };
@@ -681,12 +688,20 @@ const getListAgentsByAccess = async ({
   if (after) {
     try {
       const cursor = JSON.parse(Buffer.from(after, 'base64').toString('utf8'));
-      const { updatedAt, _id } = cursor;
+      const { _id } = cursor;
+      const cursorValue = cursor.value ?? cursor[sortField] ?? cursor.updatedAt;
+      const cursorDate = new Date(cursorValue);
+
+      if (!_id || Number.isNaN(cursorDate.getTime())) {
+        throw new Error('Cursor is missing a valid sort value or _id');
+      }
 
       const cursorCondition = {
         $or: [
-          { updatedAt: { $lt: new Date(updatedAt) } },
-          { updatedAt: new Date(updatedAt), _id: { $gt: new mongoose.Types.ObjectId(_id) } },
+          sortValueDirection === -1
+            ? { [sortField]: { $lt: cursorDate } }
+            : { [sortField]: { $gt: cursorDate } },
+          { [sortField]: cursorDate, _id: { $gt: new mongoose.Types.ObjectId(_id) } },
         ],
       };
 
@@ -713,11 +728,12 @@ const getListAgentsByAccess = async ({
     author: 1,
     projectIds: 1,
     description: 1,
+    createdAt: 1,
     updatedAt: 1,
     category: 1,
     support_contact: 1,
     is_promoted: 1,
-  }).sort({ updatedAt: -1, _id: 1 });
+  }).sort({ [sortField]: sortValueDirection, _id: idTieBreakerDirection });
 
   // Only apply limit if pagination is requested
   if (isPaginated) {
@@ -740,7 +756,9 @@ const getListAgentsByAccess = async ({
     const lastAgent = agents[normalizedLimit - 1];
     nextCursor = Buffer.from(
       JSON.stringify({
-        updatedAt: lastAgent.updatedAt.toISOString(),
+        field: sortField,
+        direction: sortValueDirection,
+        value: lastAgent[sortField].toISOString(),
         _id: lastAgent._id.toString(),
       }),
     ).toString('base64');

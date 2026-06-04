@@ -14,13 +14,13 @@ export interface ProcessedAgentCategory {
 }
 
 const categoryDisplayOverrides: Record<string, string> = {
-  general: 'General Support',
-  hr: 'People & Culture',
+  general: 'General',
+  hr: 'Human Resources',
   rd: 'Research & Development',
-  finance: 'Finance & Budgeting',
-  it: 'Information & Technology',
-  sales: 'Sales & Outreach',
-  aftersales: 'Customer Support',
+  finance: 'Finance',
+  it: 'IT',
+  sales: 'Sales',
+  aftersales: 'After Sales',
 };
 
 export const getFriendlyAgentCategoryLabel = ({
