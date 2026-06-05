@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef, useState } from 'react';
+import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { useWatch, useForm, FormProvider } from 'react-hook-form';
@@ -297,6 +297,7 @@ export default function AgentPanel() {
   );
   const agent_id = useWatch({ control, name: 'id' });
   const previousVersionRef = useRef<number | undefined>();
+  const initializedColdCreateRef = useRef(false);
 
   const allowedProviders = useMemo(
     () => new Set(agentsConfig?.allowedProviders),
@@ -315,6 +316,23 @@ export default function AgentPanel() {
         .map((provider) => createProviderOption(provider)),
     [endpointsConfig, allowedProviders],
   );
+
+  useEffect(() => {
+    const hasCurrentAgent = current_agent_id != null && current_agent_id !== '';
+    const isCreateMode = activePanel === Panel.builder && !hasCurrentAgent;
+
+    if (!isCreateMode) {
+      initializedColdCreateRef.current = false;
+      return;
+    }
+
+    if (initializedColdCreateRef.current) {
+      return;
+    }
+
+    reset(getDefaultAgentFormValues());
+    initializedColdCreateRef.current = true;
+  }, [activePanel, current_agent_id, reset]);
 
   /* Mutations */
   const update = useUpdateAgentMutation({

@@ -407,6 +407,12 @@ endpoints:
       - "deferred_tools"
 
 speech:
+  stt:
+    azureOpenAI:
+      apiKey: "${AZURE_API_KEY}"
+      instanceName: "arij-me35gkee-eastus2"
+      deploymentName: "UPDATE_STT_DEPLOYMENT_NAME"
+      apiVersion: "2025-04-01-preview"
   tts:
     openai:
       apiKey: "${TTS_API_KEY}"

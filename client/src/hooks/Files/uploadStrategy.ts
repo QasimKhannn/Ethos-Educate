@@ -85,7 +85,10 @@ export const resolveChatUploadToolResource = ({
     return EToolResources.file_search;
   }
 
-  if (providerUploadFileType === 'image' && contextEnabled) {
+  if (
+    contextEnabled &&
+    (providerUploadFileType === 'image' || providerUploadFileType === 'image_document_video_audio')
+  ) {
     return EToolResources.context;
   }
 
