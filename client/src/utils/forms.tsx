@@ -1,7 +1,6 @@
 import { EarthIcon } from 'lucide-react';
 import {
   FileSources,
-  alternateName,
   EModelEndpoint,
   EToolResources,
   LocalStorageKeys,
@@ -36,11 +35,139 @@ export const createDropdownSetter = (setValue: (value: string) => void): Dropdow
   };
 };
 
+const agentBuilderProviderAliases: Record<string, string> = {
+  [EModelEndpoint.openAI]: 'Ethos Open',
+  [EModelEndpoint.azureOpenAI]: 'Ethos Core',
+  [EModelEndpoint.google]: 'Ethos Vision',
+  [EModelEndpoint.anthropic]: 'Ethos Reason',
+  [EModelEndpoint.assistants]: 'Ethos Assistants',
+  [EModelEndpoint.azureAssistants]: 'Ethos Assistant Core',
+  [EModelEndpoint.bedrock]: 'Ethos Cloud',
+};
+
+const agentBuilderModelAliases: Record<string, string> = {
+  'gpt-5.2-chat': 'Ethos-1',
+  'gpt-5-mini': 'Ethos-2',
+  'gpt-5-nano': 'Ethos-3',
+  'gemini-3-pro-preview': 'Ethos Vision Pro',
+  'gemini-2.5-flash': 'Ethos Vision Fast',
+  'claude-sonnet-4-6': 'Ethos Reason Pro',
+  'claude-opus-4-6': 'Ethos Reason Elite',
+  'claude-sonnet-4-5': 'Ethos Reason Plus',
+  'claude-haiku-4-5': 'Ethos Reason Lite',
+};
+
+const providerPrefixesToHide = new Set([
+  'gpt',
+  'chatgpt',
+  'gemini',
+  'claude',
+  'anthropic',
+  'cohere',
+  'meta',
+  'mistral',
+  'amazon',
+  'ai21',
+]);
+
+const modelTokenAliases: Record<string, string> = {
+  mini: 'Lite',
+  nano: 'Nano',
+  pro: 'Pro',
+  preview: 'Preview',
+  latest: 'Latest',
+  thinking: 'Reasoning',
+  codex: 'Build',
+  flash: 'Fast',
+  opus: 'Elite',
+  sonnet: 'Pro',
+  haiku: 'Lite',
+  command: 'Command',
+  plus: 'Plus',
+  instruct: 'Instruct',
+};
+
+const toTitleCase = (value: string) =>
+  value.replace(/\b\w/g, (char) => char.toUpperCase()).replace(/\bV(\d+)/g, 'v$1');
+
+const humanizeModelSuffix = (rawModel: string) => {
+  const cleaned = rawModel
+    .replace(/^[^.]+\./, '')
+    .replace(/:[0-9]+$/g, '')
+    .replace(/-v\d+(?::\d+)?$/gi, '')
+    .replace(/_/g, '-');
+
+  const parts = cleaned.split(/[-.:]+/).filter(Boolean);
+  const formattedParts = parts
+    .filter((part) => !providerPrefixesToHide.has(part.toLowerCase()))
+    .map((part) => {
+      const lower = part.toLowerCase();
+      if (modelTokenAliases[lower] != null) {
+        return modelTokenAliases[lower];
+      }
+      if (/^\d+[a-z]$/i.test(part)) {
+        return part.toUpperCase();
+      }
+      if (/^\d+x\d+[a-z]?$/i.test(part)) {
+        return part.toUpperCase();
+      }
+      if (/^\d{6,8}$/.test(part)) {
+        return '';
+      }
+      return toTitleCase(part);
+    })
+    .filter(Boolean);
+
+  return formattedParts.join(' ').trim();
+};
+
+const getModelFamilyPrefix = (rawModel: string) => {
+  if (/^(gpt|chatgpt)/i.test(rawModel)) {
+    return 'Ethos Open';
+  }
+  if (/^gemini/i.test(rawModel)) {
+    return 'Ethos Vision';
+  }
+  if (/^claude/i.test(rawModel)) {
+    return 'Ethos Reason';
+  }
+  if (/^[a-z0-9-]+\./i.test(rawModel)) {
+    return 'Ethos Cloud';
+  }
+  return '';
+};
+
+export const getAgentBuilderProviderLabel = (provider: string | null | undefined) => {
+  if (!provider) {
+    return '';
+  }
+  return agentBuilderProviderAliases[provider] ?? toTitleCase(provider.replace(/([A-Z])/g, ' $1'));
+};
+
+export const getAgentBuilderModelLabel = (model: string | null | undefined) => {
+  if (!model) {
+    return '';
+  }
+
+  if (agentBuilderModelAliases[model] != null) {
+    return agentBuilderModelAliases[model];
+  }
+
+  const prefix = getModelFamilyPrefix(model);
+  const suffix = humanizeModelSuffix(model);
+
+  if (!prefix) {
+    return suffix || model;
+  }
+
+  return suffix ? `${prefix} ${suffix}` : prefix;
+};
+
 /**
  * Creates an Option object for a provider dropdown.
  **/
 export const createProviderOption = (provider: string) => ({
-  label: (alternateName[provider] as string | undefined) ?? provider,
+  label: getAgentBuilderProviderLabel(provider),
   value: provider,
 });
 

@@ -8,6 +8,8 @@ import {
   processAgentOption,
   defaultTextProps,
   validateEmail,
+  getAgentBuilderModelLabel,
+  getAgentBuilderProviderLabel,
   getIconKey,
   cn,
 } from '~/utils';
@@ -159,6 +161,8 @@ export default function AgentConfig() {
   }, [agent_id, setActivePanel, showToast, localize]);
 
   const providerValue = typeof provider === 'string' ? provider : provider?.value;
+  const providerLabel = getAgentBuilderProviderLabel(providerValue ?? '');
+  const modelLabel = getAgentBuilderModelLabel(model);
   let Icon: IconComponentTypes | null | undefined;
   let endpointType: EModelEndpoint | undefined;
   let endpointIconURL: string | undefined;
@@ -280,7 +284,13 @@ export default function AgentConfig() {
                   />
                 </div>
               )}
-              <span>{model != null && model ? model : localize('com_ui_select_model')}</span>
+              <span>
+                {modelLabel
+                  ? providerLabel
+                    ? `${providerLabel} - ${modelLabel}`
+                    : modelLabel
+                  : localize('com_ui_select_model')}
+              </span>
             </div>
           </button>
         </div>

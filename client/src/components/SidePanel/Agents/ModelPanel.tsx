@@ -5,7 +5,6 @@ import { ChevronLeft, RotateCcw } from 'lucide-react';
 import { useFormContext, useWatch, Controller } from 'react-hook-form';
 import { componentMapping } from '~/components/SidePanel/Parameters/components';
 import {
-  alternateName,
   getSettingsKeys,
   getEndpointField,
   LocalStorageKeys,
@@ -18,7 +17,7 @@ import { useGetEndpointsQuery } from '~/data-provider';
 import { useLiveAnnouncer } from '~/Providers';
 import { useLocalize } from '~/hooks';
 import { Panel } from '~/common';
-import { cn } from '~/utils';
+import { cn, getAgentBuilderModelLabel, getAgentBuilderProviderLabel } from '~/utils';
 
 export default function ModelPanel({
   providers,
@@ -46,7 +45,7 @@ export default function ModelPanel({
     [modelsData, provider],
   );
   const selectedModelDisplay = useMemo(
-    () => (model ? (alternateName[model] as string | undefined) ?? model : ''),
+    () => getAgentBuilderModelLabel(model),
     [model],
   );
 
@@ -139,21 +138,21 @@ export default function ModelPanel({
                 typeof field.value === 'string'
                   ? field.value
                   : ((field.value as StringOption)?.value ?? '');
-              const display =
-                typeof field.value === 'string'
-                  ? field.value
-                  : ((field.value as StringOption)?.label ?? '');
+              const display = getAgentBuilderProviderLabel(value);
 
               return (
                 <>
                   <ControlCombobox
                     selectedValue={value}
-                    displayValue={alternateName[display] ?? display}
+                    displayValue={display}
                     selectPlaceholder={localize('com_ui_select_provider')}
                     searchPlaceholder={localize('com_ui_select_search_provider')}
                     setValue={field.onChange}
                     items={providers.map((provider) => ({
-                      label: typeof provider === 'string' ? provider : provider.label,
+                      label:
+                        typeof provider === 'string'
+                          ? getAgentBuilderProviderLabel(provider)
+                          : getAgentBuilderProviderLabel((provider.value as string) ?? ''),
                       value: typeof provider === 'string' ? provider : provider.value,
                     }))}
                     className={cn(error ? 'border-2 border-red-500' : '')}
@@ -201,7 +200,7 @@ export default function ModelPanel({
                     searchPlaceholder={localize('com_ui_select_model')}
                     setValue={field.onChange}
                     items={models.map((model) => ({
-                      label: (alternateName[model] as string | undefined) ?? model,
+                      label: getAgentBuilderModelLabel(model),
                       value: model,
                     }))}
                     disabled={!provider}

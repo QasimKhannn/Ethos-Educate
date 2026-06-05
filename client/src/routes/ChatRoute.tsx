@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRecoilCallback, useRecoilValue } from 'recoil';
 import { Spinner, useToastContext } from '@librechat/client';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -33,6 +33,7 @@ import temporaryStore from '~/store/temporary';
 import store from '~/store';
 
 export default function ChatRoute() {
+  const bootstrappedProjectIdRef = useRef<string | undefined>(undefined);
   const { data: startupConfig } = useGetStartupConfig();
   const { isAuthenticated, user, roles } = useAuthRedirect();
 
@@ -101,20 +102,15 @@ export default function ChatRoute() {
     const projectReady =
       !isNewConvo || !projectId || projectQuery.data != null || projectQuery.isError;
     const projectFileIds = projectQuery.data?.fileIds ?? [];
-    const conversationFileIds = conversation?.file_ids ?? [];
-    const projectFileIdsMatch =
-      projectFileIds.length === conversationFileIds.length &&
-      projectFileIds.every((fileId, index) => conversationFileIds[index] === fileId);
     const projectInstructions = projectQuery.data?.instructions ?? '';
-    const conversationInstructions = conversation?.promptPrefix ?? '';
-    const projectInstructionsMatch = projectInstructions === conversationInstructions;
+    const hasBootstrappedCurrentProject = bootstrappedProjectIdRef.current === projectId;
     const newRouteNeedsFreshConversation =
       isNewConvo &&
       (conversation?.conversationId !== Constants.NEW_CONVO ||
-        (conversation?.projectId || undefined) !== projectId ||
-        (!!projectId &&
-          projectQuery.data != null &&
-          (!projectFileIdsMatch || !projectInstructionsMatch)));
+        (projectId == null
+          ? (conversation?.projectId || undefined) !== undefined
+          : (!hasBootstrappedCurrentProject &&
+              (conversation?.projectId || undefined) !== projectId)));
     const shouldSetConvo =
       (startupConfig &&
         rolesLoaded &&
@@ -161,6 +157,7 @@ export default function ChatRoute() {
       const preset = getNewConvoPreset();
 
       logger.log('conversation', 'ChatRoute, new convo effect', conversation);
+      bootstrappedProjectIdRef.current = projectId;
       newConversation({
         modelsData: modelsQuery.data,
         template: getProjectTemplate(),
