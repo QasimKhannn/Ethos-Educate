@@ -16,6 +16,8 @@ interface SidePanelProps {
   defaultCollapsed?: boolean;
   navCollapsedSize?: number;
   fullPanelCollapse?: boolean;
+  clickAwayCollapseMode?: 'hidden' | 'rail';
+  onPanelOpenChange?: (isOpen: boolean) => void;
   artifacts?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -30,6 +32,8 @@ const SidePanelGroup = memo(
     defaultCollapsed = false,
     fullPanelCollapse = false,
     navCollapsedSize = 3,
+    clickAwayCollapseMode = 'hidden',
+    onPanelOpenChange,
     artifacts,
     children,
   }: SidePanelProps) => {
@@ -102,16 +106,28 @@ const SidePanelGroup = memo(
     const minSizeMain = useMemo(() => (artifacts != null ? 15 : 30), [artifacts]);
     const isSidePanelMaskActive = !isCollapsed && fullCollapse !== true;
 
+    useEffect(() => {
+      onPanelOpenChange?.(isSidePanelMaskActive);
+    }, [isSidePanelMaskActive, onPanelOpenChange]);
+
     /** Memoized close button handler to prevent re-creating it */
     const handleClosePanel = useCallback(() => {
       setIsCollapsed(() => {
+        if (clickAwayCollapseMode === 'rail') {
+          localStorage.setItem('fullPanelCollapse', 'false');
+          setFullCollapse(false);
+          setCollapsedSize(navCollapsedSize);
+          setMinSize(defaultMinSize);
+          return true;
+        }
+
         localStorage.setItem('fullPanelCollapse', 'true');
         setFullCollapse(true);
         setCollapsedSize(0);
         setMinSize(0);
         return true;
       });
-    }, []);
+    }, [clickAwayCollapseMode, navCollapsedSize]);
 
     const handleClickAwayClose = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {

@@ -206,6 +206,13 @@ const SidePanel = ({
           onMouseLeave={() => setIsHovering(false)}
           className={cn('sidepanel-shell sidepanel-overlay hide-scrollbar', sidePanelOverlayClass)}
         >
+          {!isSmallScreen && !isCollapsed && (
+            <div className="border-b border-white/10 px-4 pb-3 pt-4">
+              <h2 className="truncate text-xl font-semibold tracking-[-0.02em] text-text-primary">
+                {localize('com_nav_control_panel')}
+              </h2>
+            </div>
+          )}
           {isSmallScreen && (
             <div className="sidepanel-mobile-header">
               <div className="sidepanel-mobile-header-copy">

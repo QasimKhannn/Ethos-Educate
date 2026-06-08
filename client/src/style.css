@@ -9538,6 +9538,28 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
     filter 120ms ease-out;
 }
 
+.agents-marketplace-page--panel-open .agents-marketplace-main {
+  pointer-events: none;
+}
+
+.agents-marketplace-page--panel-open .agents-marketplace-hero,
+.agents-marketplace-page--panel-open .agents-marketplace-filter-stack,
+.agents-marketplace-page--panel-open .agents-marketplace-results-heading,
+.agents-marketplace-page--panel-open .agents-marketplace-grid-shell {
+  opacity: 0.34;
+  filter: blur(10px) saturate(0.82);
+}
+
+.agents-marketplace-page--panel-open .agents-marketplace-hero,
+.agents-marketplace-page--panel-open .agents-marketplace-results-heading,
+.agents-marketplace-page--panel-open .agents-marketplace-grid-shell {
+  transform: scale(0.992);
+  transition:
+    opacity 180ms ease-out,
+    filter 180ms ease-out,
+    transform 180ms ease-out;
+}
+
 .agents-marketplace-search-input::placeholder {
   color: var(--text-secondary);
 }
