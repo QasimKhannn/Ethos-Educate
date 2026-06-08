@@ -543,7 +543,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
         endpoint={marketplaceSidePanelContext.endpoint}
         endpointType={marketplaceSidePanelContext.endpointType}
       >
-        <SidePanelGroup>
+        <SidePanelGroup
+          className="bg-transparent"
+          defaultCollapsed={true}
+          fullPanelCollapse={true}
+        >
           <main
             ref={scrollContainerRef}
             className="agents-marketplace-main scrollbar-gutter-stable flex h-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
