@@ -26,7 +26,6 @@ import {
   useLocalStorage,
 } from '~/hooks';
 import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
-import MarketplaceControlPanel from './MarketplaceControlPanel';
 import { SidePanelProvider, useChatContext } from '~/Providers';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import ChatBackgroundLights from '~/components/Chat/ChatBackgroundLights';
@@ -616,12 +615,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                         ))}
                       </motion.div>
                     </div>
-                    <motion.div
-                      className="agents-marketplace-header-actions agents-marketplace-header-actions--hero"
-                      variants={marketplaceHeroItemVariants}
-                    >
-                      <MarketplaceControlPanel className="agents-marketplace-panel-trigger--hero" />
-                    </motion.div>
                   </div>
                 </motion.div>
               </motion.header>

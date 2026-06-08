@@ -113,12 +113,29 @@ const SidePanelGroup = memo(
       });
     }, []);
 
+    const handleClickAwayClose = useCallback(
+      (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!isSidePanelMaskActive) {
+          return;
+        }
+
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('#controls-nav')) {
+          return;
+        }
+
+        handleClosePanel();
+      },
+      [handleClosePanel, isSidePanelMaskActive],
+    );
+
     return (
       <>
         <ResizablePanelGroup
           direction="horizontal"
           onLayout={(sizes) => throttledSaveLayout(sizes)}
           className={cn('relative h-full w-full flex-1 overflow-auto bg-presentation', className)}
+          onClickCapture={handleClickAwayClose}
         >
           <ResizablePanel
             defaultSize={currentLayout[0]}
