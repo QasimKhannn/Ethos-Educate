@@ -113,10 +113,6 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
 
-        if (nextOpen && !isTourMode) {
-          setIsControlPanelTourActive(true);
-        }
-
         if (!nextOpen) {
           setIsTourMode(false);
           setIsControlPanelTourActive(false);
