@@ -68,10 +68,6 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
     setIsControlPanelTourActive(false);
     setOpen(true);
   }, []);
-  const startControlPanelTour = useCallback(() => {
-    setIsTourMode(false);
-    setIsControlPanelTourActive(true);
-  }, []);
   const finishControlPanelTour = useCallback(() => {
     setIsControlPanelTourActive(false);
   }, []);
@@ -129,7 +125,6 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
           data-tour-id="sidepanel-controls"
           data-tour-padding="-2"
           data-tour-radius="18"
-          onClick={startControlPanelTour}
           className={cn('agents-marketplace-panel-trigger', className)}
         >
           <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
