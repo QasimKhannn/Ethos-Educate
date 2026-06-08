@@ -30,6 +30,7 @@ import MarketplaceControlPanel from './MarketplaceControlPanel';
 import { SidePanelProvider, useChatContext } from '~/Providers';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import ChatBackgroundLights from '~/components/Chat/ChatBackgroundLights';
+import { SidePanelGroup } from '~/components/SidePanel';
 import {
   marketplaceHeroItemVariants,
   marketplaceHeroShellVariants,
@@ -543,207 +544,166 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
         endpoint={marketplaceSidePanelContext.endpoint}
         endpointType={marketplaceSidePanelContext.endpointType}
       >
-        <main
-          ref={scrollContainerRef}
-          className="agents-marketplace-main scrollbar-gutter-stable flex h-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
-          role="main"
-        >
-          <div className={canvasClassName}>
-            {shouldShowMarketplaceTopbar && (
-              <div className="agents-marketplace-topbar sticky top-0 z-20">
-                <div className="agents-marketplace-topbar-inner flex h-14 items-center px-4 md:px-5">
-                  <div className="flex items-center gap-2">
-                    <div className="agents-marketplace-quick-actions">
-                      <OpenSidebar
-                        setNavVisible={setNavVisible}
-                        className="agents-marketplace-topbar-button"
-                      />
-                      <TooltipAnchor
-                        description={localize('com_ui_new_chat')}
-                        render={
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            data-testid="agents-new-chat-button"
-                            aria-label={localize('com_ui_new_chat')}
-                            className="agents-marketplace-topbar-button max-md:hidden"
-                            onClick={handleNewChat}
-                          >
-                            <NewChatIcon />
-                          </Button>
-                        }
-                      />
+        <SidePanelGroup>
+          <main
+            ref={scrollContainerRef}
+            className="agents-marketplace-main scrollbar-gutter-stable flex h-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+            role="main"
+          >
+            <div className={canvasClassName}>
+              {shouldShowMarketplaceTopbar && (
+                <div className="agents-marketplace-topbar sticky top-0 z-20">
+                  <div className="agents-marketplace-topbar-inner flex h-14 items-center px-4 md:px-5">
+                    <div className="flex items-center gap-2">
+                      <div className="agents-marketplace-quick-actions">
+                        <OpenSidebar
+                          setNavVisible={setNavVisible}
+                          className="agents-marketplace-topbar-button"
+                        />
+                        <TooltipAnchor
+                          description={localize('com_ui_new_chat')}
+                          render={
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              data-testid="agents-new-chat-button"
+                              aria-label={localize('com_ui_new_chat')}
+                              className="agents-marketplace-topbar-button max-md:hidden"
+                              onClick={handleNewChat}
+                            >
+                              <NewChatIcon />
+                            </Button>
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-            <motion.header
-              initial={shouldReduceMotion ? false : 'hidden'}
-              animate="visible"
-              className={cn(
-                'agents-marketplace-hero',
-                surfaceShellClassName,
-                isSmallScreen ? 'pt-4' : 'pt-5 md:pt-7',
               )}
-            >
-              <motion.div
-                className="agents-marketplace-hero-shell"
-                variants={marketplaceHeroShellVariants}
-              >
-                <div className="agents-marketplace-heading-row agents-marketplace-hero-top">
-                  <div className="agents-marketplace-hero-intro">
-                    <motion.div
-                      className="agents-marketplace-heading"
-                      variants={marketplaceHeroItemVariants}
-                    >
-                      <h1 className="agents-marketplace-page-title text-text-primary">
-                        {localize('com_agents_marketplace')}
-                      </h1>
-                      <p className="agents-marketplace-page-subtitle max-w-3xl text-text-secondary">
-                        {localize('com_agents_marketplace_subtitle')}
-                      </p>
-                    </motion.div>
-                    <motion.div
-                      className="agents-marketplace-page-signals agents-marketplace-page-signals--hero"
-                      aria-label={localize('com_agents_marketplace_signals_label')}
-                      variants={marketplaceHeroItemVariants}
-                    >
-                      {marketplaceSignals.map((signal) => (
-                        <span key={signal}>{signal}</span>
-                      ))}
-                    </motion.div>
-                  </div>
-                  <motion.div
-                    className="agents-marketplace-header-actions agents-marketplace-header-actions--hero"
-                    variants={marketplaceHeroItemVariants}
-                  >
-                    <MarketplaceControlPanel className="agents-marketplace-panel-trigger--hero" />
-                  </motion.div>
-                </div>
-              </motion.div>
-            </motion.header>
-            <div
-              className={cn(
-                'agents-marketplace-filter-stack sticky z-10 pb-4 pt-0 md:pb-5 md:pt-1',
-                shouldShowMarketplaceTopbar && 'agents-marketplace-filter-stack--nav-collapsed',
-                shouldShowMarketplaceTopbar ? 'top-14' : 'top-0',
-              )}
-            >
-              <div className={surfaceShellClassName}>
-                <motion.div
-                  variants={sectionStaggerVariants}
-                  initial={shouldReduceMotion ? false : 'hidden'}
-                  animate="visible"
-                  transition={
-                    shouldReduceMotion ? { duration: 0 } : { delay: 0.02, duration: 0.24 }
-                  }
-                  className="agents-marketplace-toolbar px-4 pb-4 pt-4 md:px-5 md:pb-4 md:pt-4"
-                >
-                  <motion.div
-                    className="agents-marketplace-toolbar-row items-start"
-                    variants={marketplaceSurfaceRevealVariants}
-                  >
-                    <SearchBar
-                      value={searchQuery}
-                      onSearch={handleSearch}
-                      onFocusChange={setIsSearchFocused}
-                      className="agents-marketplace-hero-search"
-                    />
-                  </motion.div>
-
-                  <motion.div
-                    className="agents-marketplace-hero-categories mt-4 md:mt-5"
-                    variants={marketplaceSurfaceRevealVariants}
-                  >
-                    <CategoryTabs
-                      categories={categories}
-                      activeTab={displayCategory}
-                      isLoading={categoriesQuery.isLoading}
-                      onChange={handleTabChange}
-                    />
-                  </motion.div>
-                </motion.div>
-              </div>
-            </div>
-            <div
-              className={cn(
-                surfaceShellClassName,
-                isSmallScreen ? 'pb-8' : 'pb-10',
-                shouldShowMarketplaceTopbar && 'agents-marketplace-results-shell--nav-collapsed',
-              )}
-            >
-              <motion.section
-                variants={sectionStaggerVariants}
+              <motion.header
                 initial={shouldReduceMotion ? false : 'hidden'}
                 animate="visible"
                 className={cn(
-                  'agents-marketplace-results relative overflow-hidden',
-                  shouldShowMarketplaceTopbar && 'agents-marketplace-results--nav-collapsed',
+                  'agents-marketplace-hero',
+                  surfaceShellClassName,
+                  isSmallScreen ? 'pt-4' : 'pt-5 md:pt-7',
                 )}
               >
                 <motion.div
-                  className={cn(
-                    isTransitioning &&
-                      (animationDirection === 'right'
-                        ? 'motion-safe:animate-slide-out-left'
-                        : 'motion-safe:animate-slide-out-right'),
-                  )}
-                  key={`pane-current-${displayCategory}`}
-                  variants={marketplaceSurfaceRevealVariants}
+                  className="agents-marketplace-hero-shell"
+                  variants={marketplaceHeroShellVariants}
                 >
-                  {!searchQuery && (
-                    <div className="agents-marketplace-results-heading">
-                      <div className="agents-marketplace-section-header">
-                        <div className="min-w-0 text-left">
-                          <h2 className="agents-marketplace-section-title text-text-primary">
-                            {currentCategoryMeta.name}
-                          </h2>
-                          {currentCategoryMeta.description && (
-                            <p className="agents-marketplace-section-subtitle mt-2 max-w-3xl text-text-secondary">
-                              {currentCategoryMeta.description}
-                            </p>
-                          )}
-                        </div>
-                        {renderResultsControls()}
-                      </div>
+                  <div className="agents-marketplace-heading-row agents-marketplace-hero-top">
+                    <div className="agents-marketplace-hero-intro">
+                      <motion.div
+                        className="agents-marketplace-heading"
+                        variants={marketplaceHeroItemVariants}
+                      >
+                        <h1 className="agents-marketplace-page-title text-text-primary">
+                          {localize('com_agents_marketplace')}
+                        </h1>
+                        <p className="agents-marketplace-page-subtitle max-w-3xl text-text-secondary">
+                          {localize('com_agents_marketplace_subtitle')}
+                        </p>
+                      </motion.div>
+                      <motion.div
+                        className="agents-marketplace-page-signals agents-marketplace-page-signals--hero"
+                        aria-label={localize('com_agents_marketplace_signals_label')}
+                        variants={marketplaceHeroItemVariants}
+                      >
+                        {marketplaceSignals.map((signal) => (
+                          <span key={signal}>{signal}</span>
+                        ))}
+                      </motion.div>
                     </div>
-                  )}
-
-                  <div className="agents-marketplace-grid-shell">
-                    <AgentGrid
-                      key={`grid-${displayCategory}`}
-                      category={displayCategory}
-                      searchQuery={searchQuery}
-                      sortOption={sortOption}
-                      viewMode={viewMode}
-                      onSelectAgent={handleAgentSelect}
-                      scrollElementRef={scrollContainerRef}
-                    />
+                    <motion.div
+                      className="agents-marketplace-header-actions agents-marketplace-header-actions--hero"
+                      variants={marketplaceHeroItemVariants}
+                    >
+                      <MarketplaceControlPanel className="agents-marketplace-panel-trigger--hero" />
+                    </motion.div>
                   </div>
                 </motion.div>
+              </motion.header>
+              <div
+                className={cn(
+                  'agents-marketplace-filter-stack sticky z-10 pb-4 pt-0 md:pb-5 md:pt-1',
+                  shouldShowMarketplaceTopbar && 'agents-marketplace-filter-stack--nav-collapsed',
+                  shouldShowMarketplaceTopbar ? 'top-14' : 'top-0',
+                )}
+              >
+                <div className={surfaceShellClassName}>
+                  <motion.div
+                    variants={sectionStaggerVariants}
+                    initial={shouldReduceMotion ? false : 'hidden'}
+                    animate="visible"
+                    transition={
+                      shouldReduceMotion ? { duration: 0 } : { delay: 0.02, duration: 0.24 }
+                    }
+                    className="agents-marketplace-toolbar px-4 pb-4 pt-4 md:px-5 md:pb-4 md:pt-4"
+                  >
+                    <motion.div
+                      className="agents-marketplace-toolbar-row items-start"
+                      variants={marketplaceSurfaceRevealVariants}
+                    >
+                      <SearchBar
+                        value={searchQuery}
+                        onSearch={handleSearch}
+                        onFocusChange={setIsSearchFocused}
+                        className="agents-marketplace-hero-search"
+                      />
+                    </motion.div>
 
-                {isTransitioning && nextCategory && (
+                    <motion.div
+                      className="agents-marketplace-hero-categories mt-4 md:mt-5"
+                      variants={marketplaceSurfaceRevealVariants}
+                    >
+                      <CategoryTabs
+                        categories={categories}
+                        activeTab={displayCategory}
+                        isLoading={categoriesQuery.isLoading}
+                        onChange={handleTabChange}
+                      />
+                    </motion.div>
+                  </motion.div>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  surfaceShellClassName,
+                  isSmallScreen ? 'pb-8' : 'pb-10',
+                  shouldShowMarketplaceTopbar && 'agents-marketplace-results-shell--nav-collapsed',
+                )}
+              >
+                <motion.section
+                  variants={sectionStaggerVariants}
+                  initial={shouldReduceMotion ? false : 'hidden'}
+                  animate="visible"
+                  className={cn(
+                    'agents-marketplace-results relative overflow-hidden',
+                    shouldShowMarketplaceTopbar && 'agents-marketplace-results--nav-collapsed',
+                  )}
+                >
                   <motion.div
                     className={cn(
-                      'absolute inset-0',
-                      animationDirection === 'right'
-                        ? 'motion-safe:animate-slide-in-right'
-                        : 'motion-safe:animate-slide-in-left',
+                      isTransitioning &&
+                        (animationDirection === 'right'
+                          ? 'motion-safe:animate-slide-out-left'
+                          : 'motion-safe:animate-slide-out-right'),
                     )}
-                    key={`pane-next-${nextCategory}-${animationDirection}`}
+                    key={`pane-current-${displayCategory}`}
                     variants={marketplaceSurfaceRevealVariants}
                   >
-                    {!searchQuery && nextCategoryMeta && (
+                    {!searchQuery && (
                       <div className="agents-marketplace-results-heading">
                         <div className="agents-marketplace-section-header">
                           <div className="min-w-0 text-left">
                             <h2 className="agents-marketplace-section-title text-text-primary">
-                              {nextCategoryMeta.name}
+                              {currentCategoryMeta.name}
                             </h2>
-                            {nextCategoryMeta.description && (
+                            {currentCategoryMeta.description && (
                               <p className="agents-marketplace-section-subtitle mt-2 max-w-3xl text-text-secondary">
-                                {nextCategoryMeta.description}
+                                {currentCategoryMeta.description}
                               </p>
                             )}
                           </div>
@@ -754,8 +714,8 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 
                     <div className="agents-marketplace-grid-shell">
                       <AgentGrid
-                        key={`grid-${nextCategory}`}
-                        category={nextCategory}
+                        key={`grid-${displayCategory}`}
+                        category={displayCategory}
                         searchQuery={searchQuery}
                         sortOption={sortOption}
                         viewMode={viewMode}
@@ -764,11 +724,54 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                       />
                     </div>
                   </motion.div>
-                )}
-              </motion.section>
+
+                  {isTransitioning && nextCategory && (
+                    <motion.div
+                      className={cn(
+                        'absolute inset-0',
+                        animationDirection === 'right'
+                          ? 'motion-safe:animate-slide-in-right'
+                          : 'motion-safe:animate-slide-in-left',
+                      )}
+                      key={`pane-next-${nextCategory}-${animationDirection}`}
+                      variants={marketplaceSurfaceRevealVariants}
+                    >
+                      {!searchQuery && nextCategoryMeta && (
+                        <div className="agents-marketplace-results-heading">
+                          <div className="agents-marketplace-section-header">
+                            <div className="min-w-0 text-left">
+                              <h2 className="agents-marketplace-section-title text-text-primary">
+                                {nextCategoryMeta.name}
+                              </h2>
+                              {nextCategoryMeta.description && (
+                                <p className="agents-marketplace-section-subtitle mt-2 max-w-3xl text-text-secondary">
+                                  {nextCategoryMeta.description}
+                                </p>
+                              )}
+                            </div>
+                            {renderResultsControls()}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="agents-marketplace-grid-shell">
+                        <AgentGrid
+                          key={`grid-${nextCategory}`}
+                          category={nextCategory}
+                          searchQuery={searchQuery}
+                          sortOption={sortOption}
+                          viewMode={viewMode}
+                          onSelectAgent={handleAgentSelect}
+                          scrollElementRef={scrollContainerRef}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.section>
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </SidePanelGroup>
       </SidePanelProvider>
     </div>
   );

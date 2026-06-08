@@ -165,7 +165,7 @@ const SidePanel = ({
     }
 
     const handleTourOpen = () => {
-      if (isSmallScreen || (!shouldHidePanel && !isCollapsed)) {
+      if (!shouldHidePanel && !isCollapsed) {
         return;
       }
 
@@ -173,7 +173,7 @@ const SidePanel = ({
     };
 
     const handleTourClose = () => {
-      if (isSmallScreen || shouldHidePanel || isCollapsed) {
+      if (shouldHidePanel || isCollapsed) {
         return;
       }
 
