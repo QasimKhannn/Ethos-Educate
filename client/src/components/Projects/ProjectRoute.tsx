@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Folder, Plus } from 'lucide-react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Spinner } from '@librechat/client';
+import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
+import { Spinner, useMediaQuery } from '@librechat/client';
 import type { FormEvent } from 'react';
+import type { ContextType } from '~/common';
+import { OpenSidebar } from '~/components/Chat/Menus';
 import { useProjectQuery, useConversationsInfiniteQuery } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { cn } from '~/utils';
@@ -30,9 +32,11 @@ const getConversationDate = (conversation: ProjectConversation) => {
 export default function ProjectRoute() {
   const localize = useLocalize();
   const navigate = useNavigate();
+  const { navVisible, setNavVisible } = useOutletContext<ContextType>();
   const { projectId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [prompt, setPrompt] = useState('');
+  const isSmallScreen = useMediaQuery('(max-width: 767px)');
   const activeTab = (searchParams.get('tab') as ProjectTab | null) ?? 'chats';
   const { isAuthenticated } = useAuthContext();
   const projectQuery = useProjectQuery(projectId, { enabled: isAuthenticated && !!projectId });
@@ -84,10 +88,16 @@ export default function ProjectRoute() {
   }
 
   const project = projectQuery.data;
+  const shouldShowOpenSidebar = !isSmallScreen && !navVisible;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-surface-primary text-text-primary">
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-12 md:px-12">
+        {shouldShowOpenSidebar && (
+          <div className="mb-6 flex items-center">
+            <OpenSidebar setNavVisible={setNavVisible} />
+          </div>
+        )}
         <div className="mb-12 flex items-center gap-4">
           <Folder className="h-10 w-10" />
           <h1 className="text-4xl font-semibold tracking-tight">{project.name}</h1>
