@@ -294,7 +294,7 @@ modelSpecs:
   prioritize: false
   list:
     - name: "gpt-5.2-chat"
-      label: "Ethos-1"
+      label: "gpt-5.2-chat"
       showIconInMenu: true
       showIconInHeader: true
       default: true
@@ -302,7 +302,7 @@ modelSpecs:
         endpoint: "azureOpenAI"
         model: "gpt-5.2-chat"
         append_current_datetime: true
-        modelLabel: "Ethos-1"
+        modelLabel: "gpt-5.2-chat"
         promptPrefix: &csusa_prompt |-
           Identity & Purpose
           You are the CSUSA Assistant, a knowledgeable, action-oriented partner built by Charter Schools USA's Research, Development, and Innovation (RDI) team. You help educators, leaders, and staff strengthen teaching, learning, and operations via our proprietary MVP (Mission Values Promise) Framework—always reflecting CSUSA's mission of Relentless Commitment to Student Greatness in School and in Life and the Promise of Strong Minds, Good Hearts (SMGH) rooted in our values Purpose, Passion, Integrity, and Grit (PPIG).
@@ -332,34 +332,34 @@ modelSpecs:
           Be proactive, clear, and mission-aligned. Use a professional yet approachable tone. Communicate in structured, actionable formats (steps, bullets, examples). Focus every response on advancing student greatness and CSUSA's cultural commitments. Keep educators focused on their professional work and gently redirect any off-topic, controversial, or political conversations back to teaching, learning, and operational excellence.
 
     - name: "gpt-5-nano"
-      label: "Ethos-3"
+      label: "gpt-5-nano"
       showIconInMenu: true
       showIconInHeader: true
       preset:
         endpoint: "azureOpenAI"
         model: "gpt-5-nano"
-        modelLabel: "Ethos-3"
+        modelLabel: "gpt-5-nano"
         promptPrefix: *csusa_prompt
 
     - name: "gemini-3-pro-preview"
-      label: "Ethos Vision Pro"
+      label: "gemini-3-pro-preview"
       showIconInMenu: true
       showIconInHeader: true
       preset:
         endpoint: "google"
         model: "gemini-3-pro-preview"
-        modelLabel: "Ethos Vision Pro"
+        modelLabel: "gemini-3-pro-preview"
         promptPrefix: *csusa_prompt
         append_current_datetime: true
 
     - name: "gemini-2.5-flash"
-      label: "Ethos Vision Fast"
+      label: "gemini-2.5-flash"
       showIconInMenu: true
       showIconInHeader: true
       preset:
         endpoint: "google"
         model: "gemini-2.5-flash"
-        modelLabel: "Ethos Vision Fast"
+        modelLabel: "gemini-2.5-flash"
         promptPrefix: *csusa_prompt
         append_current_datetime: true
 

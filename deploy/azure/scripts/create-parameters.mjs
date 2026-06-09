@@ -73,7 +73,7 @@ const plainEnv = compact({
   DOMAIN_CLIENT: appUrl,
   DOMAIN_SERVER: appUrl,
   APP_TITLE: envValue('APP_TITLE', 'Ethos Learning'),
-  CUSTOM_FOOTER: envValue('CUSTOM_FOOTER', 'Ethos Learning'),
+  CUSTOM_FOOTER: envValue('CUSTOM_FOOTER', 'Ethos Educate'),
   HELP_AND_FAQ_URL: envValue('HELP_AND_FAQ_URL', 'https://helpdesk.charterschoolsusa.com/support/home'),
   NO_INDEX: envValue('NO_INDEX', 'true'),
   DEBUG_LOGGING: envValue('DEBUG_LOGGING', 'false'),
