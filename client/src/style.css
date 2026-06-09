@@ -7947,7 +7947,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   color: rgba(175, 192, 228, 0.98);
 }
 
-.dark .agent-detail-avatar img {
+.dark .agent-detail-avatar img.agent-avatar-image--vector {
   filter: brightness(0) invert(1);
 }
 
@@ -11967,7 +11967,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   box-shadow: none;
 }
 
-.dark .agents-marketplace-storefront-avatar img {
+.dark .agents-marketplace-storefront-avatar img.agent-avatar-image--vector {
   filter: brightness(0) invert(1);
 }
 

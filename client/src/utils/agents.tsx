@@ -326,7 +326,9 @@ export const renderAgentAvatar = (
         <LazyAgentAvatar
           url={resolvedAvatarUrl}
           alt={`${agentName} avatar`}
-          imgClass={`${imageSizeClasses} ${imageShapeClasses} ${imageFitClasses} ${imageShadowClasses} ${borderClasses}`}
+          imgClass={`${imageSizeClasses} ${imageShapeClasses} ${imageFitClasses} ${imageShadowClasses} ${borderClasses} ${
+            isVectorAvatar ? 'agent-avatar-image--vector' : 'agent-avatar-image--photo'
+          }`}
           skeletonClass={skeletonClass}
           fallback={fallbackIcon}
           fallbackUrl={resolvedAvatarUrl !== fallbackAvatarUrl ? fallbackAvatarUrl : null}
