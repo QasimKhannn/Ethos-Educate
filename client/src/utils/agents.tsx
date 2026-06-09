@@ -9,7 +9,7 @@ type AgentSupportContact = {
 };
 
 type AgentContactFields = t.Agent & {
-  support_contact?: AgentSupportContact | null;
+  support_contact?: AgentSupportContact | null ;
   authorName?: string | null;
 };
 
@@ -102,7 +102,7 @@ export const getStaticAgentIconUrlForName = (name: string | null | undefined): s
 
 export const getAgentAvatarImageUrl = (agent: t.Agent | null | undefined): string | null => {
   return (
-    getStaticAgentIconUrlForName(agent?.name) ?? normalizeAgentAvatarUrl(getAgentAvatarUrl(agent))
+    normalizeAgentAvatarUrl(getAgentAvatarUrl(agent)) ?? getStaticAgentIconUrlForName(agent?.name)
   );
 };
 

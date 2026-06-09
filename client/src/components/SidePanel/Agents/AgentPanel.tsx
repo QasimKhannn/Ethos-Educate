@@ -319,9 +319,8 @@ export default function AgentPanel() {
 
   useEffect(() => {
     const hasCurrentAgent = current_agent_id != null && current_agent_id !== '';
-    const isCreateMode = activePanel === Panel.builder && !hasCurrentAgent;
 
-    if (!isCreateMode) {
+    if (hasCurrentAgent) {
       initializedColdCreateRef.current = false;
       return;
     }
@@ -332,7 +331,7 @@ export default function AgentPanel() {
 
     reset(getDefaultAgentFormValues());
     initializedColdCreateRef.current = true;
-  }, [activePanel, current_agent_id, reset]);
+  }, [current_agent_id, reset]);
 
   /* Mutations */
   const update = useUpdateAgentMutation({
