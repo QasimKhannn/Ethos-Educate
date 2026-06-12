@@ -1,5 +1,6 @@
 const express = require('express');
 const { requireJwtAuth, checkAdmin } = require('~/server/middleware');
+const { logAdminAction } = require('~/server/services/AdminAuditService');
 const {
   createAndSendInvite,
   listInvites,
@@ -35,6 +36,16 @@ router.post('/', async (req, res) => {
       forceEmail: true,
     });
 
+    await logAdminAction({
+      actorUserId: req.user?._id ?? null,
+      action: 'invite_sent',
+      targetType: 'invite',
+      targetLabel: email,
+      details: {
+        emailEnabled: result.emailEnabled,
+      },
+    });
+
     return res.status(201).json({
       message: result.emailEnabled
         ? 'Invitation sent successfully.'
@@ -55,6 +66,16 @@ router.post('/:inviteId/resend', async (req, res) => {
       forceEmail: true,
     });
 
+    await logAdminAction({
+      actorUserId: req.user?._id ?? null,
+      action: 'invite_resent',
+      targetType: 'invite',
+      targetId: req.params.inviteId,
+      details: {
+        emailEnabled: result.emailEnabled,
+      },
+    });
+
     return res.status(200).json({
       message: result.emailEnabled
         ? 'Invitation resent successfully.'
@@ -73,6 +94,14 @@ router.post('/:inviteId/revoke', async (req, res) => {
     if (!invite) {
       return res.status(404).json({ message: 'Invite not found' });
     }
+
+    await logAdminAction({
+      actorUserId: req.user?._id ?? null,
+      action: 'invite_revoked',
+      targetType: 'invite',
+      targetId: req.params.inviteId,
+      targetLabel: invite.email ?? null,
+    });
 
     return res.status(200).json(invite);
   } catch (error) {

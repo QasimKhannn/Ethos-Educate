@@ -4,5 +4,6 @@ const models = createModels(mongoose);
 const Invite = require('./inviteSchema');
 const UserMembership = require('./userMembershipSchema');
 const AdminConfig = require('./adminConfigSchema');
+const AdminAuditLog = require('./adminAuditLogSchema');
 
-module.exports = { ...models, Invite, UserMembership, AdminConfig };
+module.exports = { ...models, Invite, UserMembership, AdminConfig, AdminAuditLog };

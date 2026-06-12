@@ -65,6 +65,22 @@ export type InviteListItem = {
   acceptedUser?: { email?: string; name?: string; username?: string } | null;
 };
 
+export type AdminAuditLogItem = {
+  _id: string;
+  action: string;
+  targetType: string;
+  targetId?: string | null;
+  targetLabel?: string | null;
+  createdAt: string;
+  actor?: {
+    email?: string;
+    name?: string;
+    username?: string;
+    role?: SystemRoles;
+  } | null;
+  details?: Record<string, unknown> | null;
+};
+
 const adminBase = '/api/admin';
 const invitesBase = '/api/invites';
 
@@ -72,6 +88,7 @@ const adminKeys = {
   overview: [QueryKeys.user, 'admin-overview'] as const,
   users: [QueryKeys.user, 'admin-users'] as const,
   invites: [QueryKeys.user, 'admin-invites'] as const,
+  auditLogs: [QueryKeys.user, 'admin-audit-logs'] as const,
 };
 
 export const useAdminOverviewQuery = () =>
@@ -95,6 +112,13 @@ export const useAdminInvitesQuery = () =>
     refetchOnWindowFocus: false,
   });
 
+export const useAdminAuditLogsQuery = () =>
+  useQuery<AdminAuditLogItem[]>({
+    queryKey: adminKeys.auditLogs,
+    queryFn: () => request.get(`${adminBase}/audit-logs`),
+    refetchOnWindowFocus: false,
+  });
+
 export const useUpdateUserStatusMutation = () => {
   const queryClient = useQueryClient();
 
@@ -104,6 +128,7 @@ export const useUpdateUserStatusMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users });
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
     },
   });
 };
@@ -117,6 +142,7 @@ export const useUpdateUserRoleMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users });
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
     },
   });
 };
@@ -139,6 +165,7 @@ export const useUpdateRegistrationPolicyMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.startupConfig] });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
     },
   });
 };
@@ -151,6 +178,7 @@ export const useCreateInviteMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.invites });
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
     },
   });
 };
@@ -162,6 +190,7 @@ export const useResendInviteMutation = () => {
     mutationFn: (inviteId: string) => request.post(`${invitesBase}/${inviteId}/resend`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.invites });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
     },
   });
 };
@@ -174,8 +203,7 @@ export const useRevokeInviteMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.invites });
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
     },
   });
 };
-
-

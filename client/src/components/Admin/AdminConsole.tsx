@@ -3,6 +3,7 @@ import { Navigate, useOutletContext } from 'react-router-dom';
 import { Button, useMediaQuery, useToastContext } from '@librechat/client';
 import { SystemRoles } from 'librechat-data-provider';
 import {
+  useAdminAuditLogsQuery,
   useAdminOverviewQuery,
   useAdminUsersQuery,
   useAdminInvitesQuery,
@@ -12,6 +13,7 @@ import {
   useUpdateRegistrationPolicyMutation,
   useUpdateUserRoleMutation,
   useUpdateUserStatusMutation,
+  type AdminAuditLogItem,
   type AdminManagedUser,
   type InviteListItem,
 } from '~/data-provider';
@@ -25,12 +27,13 @@ import MCPAdminSettings from '~/components/SidePanel/MCPBuilder/MCPAdminSettings
 import MarketplaceAdminSettings from '~/components/Agents/MarketplaceAdminSettings';
 import PeoplePickerAdminSettings from '~/components/Sharing/PeoplePickerAdminSettings';
 
-type AdminTab = 'overview' | 'users' | 'invites' | 'roles';
+type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles';
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'users', label: 'Users' },
   { id: 'invites', label: 'Invites' },
+  { id: 'audit', label: 'Audit Log' },
   { id: 'roles', label: 'Roles & Permissions' },
 ];
 
@@ -49,6 +52,28 @@ const normalizeDomain = (value: string) =>
   value.trim().toLowerCase().replace(/^@+/, '').replace(/\s+/g, '');
 
 const getEmailDomain = (email: string) => email.trim().toLowerCase().split('@')[1] ?? '';
+
+const formatAuditAction = (value: string) =>
+  value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const formatAuditValue = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+
+  if (value != null && typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+
+  return String(value);
+};
 
 const PaginationControls = ({
   page,
@@ -205,6 +230,50 @@ const InviteCard = ({
   </div>
 );
 
+const AuditLogCard = ({ auditLog }: { auditLog: AdminAuditLogItem }) => {
+  const detailEntries = Object.entries(auditLog.details ?? {});
+  const actorLabel =
+    auditLog.actor?.email || auditLog.actor?.name || auditLog.actor?.username || 'Unknown admin';
+
+  return (
+    <div className="rounded-2xl border border-border-light bg-surface-primary p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-1">
+          <div className="truncate text-base font-semibold text-text-primary">
+            {formatAuditAction(auditLog.action)}
+          </div>
+          <div className="text-sm text-text-secondary">
+            By {actorLabel} on {formatDate(auditLog.createdAt)}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1 text-xs">
+            <span className="rounded-full bg-surface-tertiary px-2.5 py-1 text-text-primary">
+              {auditLog.targetType}
+            </span>
+            {auditLog.targetLabel ? (
+              <span className="rounded-full bg-surface-tertiary px-2.5 py-1 text-text-primary">
+                {auditLog.targetLabel}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {detailEntries.length > 0 && (
+        <div className="mt-4 grid gap-2 text-sm text-text-secondary sm:grid-cols-2">
+          {detailEntries.map(([key, value]) => (
+            <div key={key}>
+              <span className="font-medium capitalize text-text-primary">
+                {key.replace(/([A-Z])/g, ' $1').trim()}:
+              </span>{' '}
+              {formatAuditValue(value)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AdminConsole() {
   const { user } = useAuthContext();
   const { navVisible, setNavVisible } = useOutletContext<ContextType>();
@@ -216,10 +285,12 @@ export default function AdminConsole() {
   const [allowedDomainInput, setAllowedDomainInput] = useState('');
   const [userPage, setUserPage] = useState(1);
   const [invitePage, setInvitePage] = useState(1);
+  const [auditPage, setAuditPage] = useState(1);
 
   const overviewQuery = useAdminOverviewQuery();
   const usersQuery = useAdminUsersQuery();
   const invitesQuery = useAdminInvitesQuery();
+  const auditLogsQuery = useAdminAuditLogsQuery();
 
   const createInviteMutation = useCreateInviteMutation();
   const resendInviteMutation = useResendInviteMutation();
@@ -242,6 +313,10 @@ export default function AdminConsole() {
     setInvitePage(1);
   }, [invitesQuery.data?.length]);
 
+  useEffect(() => {
+    setAuditPage(1);
+  }, [auditLogsQuery.data?.length]);
+
   const anyPending =
     createInviteMutation.isLoading ||
     resendInviteMutation.isLoading ||
@@ -252,8 +327,10 @@ export default function AdminConsole() {
 
   const users = usersQuery.data ?? [];
   const invites = invitesQuery.data ?? [];
+  const auditLogs = auditLogsQuery.data ?? [];
   const totalUserPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
   const totalInvitePages = Math.max(1, Math.ceil(invites.length / PAGE_SIZE));
+  const totalAuditPages = Math.max(1, Math.ceil(auditLogs.length / PAGE_SIZE));
 
   const paginatedUsers = useMemo(
     () => users.slice((userPage - 1) * PAGE_SIZE, userPage * PAGE_SIZE),
@@ -262,6 +339,10 @@ export default function AdminConsole() {
   const paginatedInvites = useMemo(
     () => invites.slice((invitePage - 1) * PAGE_SIZE, invitePage * PAGE_SIZE),
     [invitePage, invites],
+  );
+  const paginatedAuditLogs = useMemo(
+    () => auditLogs.slice((auditPage - 1) * PAGE_SIZE, auditPage * PAGE_SIZE),
+    [auditLogs, auditPage],
   );
 
   if (user?.role !== SystemRoles.ADMIN) {
@@ -414,8 +495,8 @@ export default function AdminConsole() {
         <div className={cardClassName}>
           <div className="text-3xl font-bold">Admin Console</div>
           <p className="mt-2 max-w-3xl text-sm text-text-secondary sm:text-base">
-            Manage access, users, invites, and role permissions for this deployment without
-            touching the current chat or marketplace flows.
+            Manage access, users, invites, role permissions, and audit history for this deployment
+            without touching the current chat or marketplace flows.
           </p>
         </div>
 
@@ -659,6 +740,34 @@ export default function AdminConsole() {
           </div>
         )}
 
+        {activeTab === 'audit' && (
+          <div className="space-y-4">
+            <div className={cardClassName}>
+              <div className="text-lg font-semibold">Audit Log</div>
+              <div className="mt-1 text-sm text-text-secondary">
+                Showing {paginatedAuditLogs.length} of {auditLogs.length} admin activity records.
+              </div>
+            </div>
+
+            {paginatedAuditLogs.length > 0 ? (
+              paginatedAuditLogs.map((auditLog) => (
+                <AuditLogCard key={auditLog._id} auditLog={auditLog} />
+              ))
+            ) : (
+              <div className={cardClassName}>
+                <div className="text-sm text-text-secondary">No audit log entries found.</div>
+              </div>
+            )}
+
+            <PaginationControls
+              page={auditPage}
+              totalPages={totalAuditPages}
+              onPrevious={() => setAuditPage((page) => Math.max(1, page - 1))}
+              onNext={() => setAuditPage((page) => Math.min(totalAuditPages, page + 1))}
+            />
+          </div>
+        )}
+
         {activeTab === 'roles' && (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div className={cardClassName}>
@@ -691,4 +800,3 @@ export default function AdminConsole() {
     </div>
   );
 }
-
