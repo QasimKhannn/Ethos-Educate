@@ -5,6 +5,15 @@ const { SystemRoles, ErrorTypes } = require('librechat-data-provider');
 const { isEnabled, getBalanceConfig, isEmailDomainAllowed } = require('@librechat/api');
 const { createUser, findUser, updateUser, countUsers } = require('~/models');
 const { getAppConfig } = require('~/server/services/Config');
+const {
+  canCreateAccountEffective,
+  getEffectiveAllowedDomains,
+} = require('~/server/services/AdminConfigService');
+const { isUserActive } = require('~/models/userMembership');
+const {
+  getRestrictedRegistrationMessage,
+  shouldAutoAssignFirstAdmin,
+} = require('~/server/services/RegistrationPolicy');
 
 const {
   LDAP_URL,
@@ -21,7 +30,6 @@ const {
   LDAP_STARTTLS,
 } = process.env;
 
-// Check required environment variables
 if (!LDAP_URL || !LDAP_USER_SEARCH_BASE) {
   module.exports = null;
 }
@@ -123,15 +131,27 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
     }
 
     const appConfig = await getAppConfig();
-    if (!isEmailDomainAllowed(mail, appConfig?.registration?.allowedDomains)) {
+    const allowedDomains = await getEffectiveAllowedDomains();
+    if (!isEmailDomainAllowed(mail, allowedDomains)) {
       logger.error(
         `[LDAP Strategy] Authentication blocked - email domain not allowed [Email: ${mail}]`,
       );
       return done(null, false, { message: 'Email domain not allowed' });
     }
 
+    if (user && !(await isUserActive(user._id))) {
+      return done(null, false, {
+        message: 'Your account is inactive. Please contact your administrator.',
+      });
+    }
+
     if (!user) {
-      const isFirstRegisteredUser = (await countUsers()) === 0;
+      const userCount = await countUsers();
+      if (!(await canCreateAccountEffective({ userCount }))) {
+        return done(null, false, { message: getRestrictedRegistrationMessage() });
+      }
+
+      const isFirstRegisteredUser = shouldAutoAssignFirstAdmin({ userCount });
       const role = isFirstRegisteredUser ? SystemRoles.ADMIN : SystemRoles.USER;
 
       user = {
@@ -139,7 +159,7 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
         ldapId,
         username,
         email: mail,
-        emailVerified: true, // The ldap server administrator should verify the email
+        emailVerified: true,
         name: fullName,
         role,
       };
@@ -147,8 +167,6 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
       const userId = await createUser(user, balanceConfig);
       user._id = userId;
     } else {
-      // Users registered in LDAP are assumed to have their user information managed in LDAP,
-      // so update the user information with the values registered in LDAP
       user.provider = 'ldap';
       user.ldapId = ldapId;
       user.email = mail;

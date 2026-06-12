@@ -21,6 +21,7 @@ import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
 import { ProjectRoute } from '~/components/Projects';
+import AdminConsole from '~/components/Admin/AdminConsole';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -132,6 +133,10 @@ export const router = createBrowserRouter(
                 </MarketplaceProvider>
               ),
             },
+            {
+              path: 'admin',
+              element: <AdminConsole />,
+            },
           ],
         },
       ],
@@ -139,3 +144,4 @@ export const router = createBrowserRouter(
   ],
   { basename: baseHref },
 );
+

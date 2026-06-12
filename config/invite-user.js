@@ -1,3 +1,4 @@
+require('dotenv').config();
 const path = require('path');
 const mongoose = require('mongoose');
 const { checkEmailConfig } = require('@librechat/api');
@@ -19,12 +20,6 @@ const connect = require('./connect');
     console.orange('Usage: npm run invite-user <email>');
     console.orange('Note: if you do not pass in the arguments, you will be prompted for them.');
     console.purple('--------------------------');
-  }
-
-  // Check if email service is enabled
-  if (!checkEmailConfig()) {
-    console.red('Error: Email service is not enabled!');
-    silentExit(1);
   }
 
   // Get the email of the user to be invited
@@ -54,7 +49,8 @@ const connect = require('./connect');
   const appName = process.env.APP_TITLE || 'Enterprise Chat';
 
   if (!checkEmailConfig()) {
-    console.green('Send this link to the user:', inviteLink);
+    console.yellow('Email service is not enabled. Use this invite link manually:');
+    console.green(inviteLink);
     silentExit(0);
   }
 

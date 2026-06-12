@@ -2,6 +2,7 @@ const { logger } = require('@librechat/data-schemas');
 const { SystemRoles } = require('librechat-data-provider');
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 const { getUserById, updateUser } = require('~/models');
+const { isUserActive } = require('~/models/userMembership');
 
 // JWT strategy
 const jwtLogin = () =>
@@ -14,6 +15,11 @@ const jwtLogin = () =>
       try {
         const user = await getUserById(payload?.id, '-password -__v -totpSecret -backupCodes');
         if (user) {
+          const active = await isUserActive(user._id);
+          if (!active) {
+            logger.warn('[jwtLogin] JwtStrategy => inactive user blocked: ' + payload?.id);
+            return done(null, false);
+          }
           user.id = user._id.toString();
           if (!user.role) {
             user.role = SystemRoles.USER;
@@ -31,3 +37,4 @@ const jwtLogin = () =>
   );
 
 module.exports = jwtLogin;
+

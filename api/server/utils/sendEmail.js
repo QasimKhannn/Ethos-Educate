@@ -115,11 +115,15 @@ const sendEmail = async ({ email, subject, payload, template, throwError = true 
 
     // Default to SMTP
     logger.debug('[sendEmail] Using SMTP provider');
+    const encryption = String(process.env.EMAIL_ENCRYPTION || '').toLowerCase();
+    const smtpPort = parseInt(process.env.EMAIL_PORT ?? '25', 10);
     const transporterOptions = {
-      // Use STARTTLS by default instead of obligatory TLS
-      secure: process.env.EMAIL_ENCRYPTION === 'tls',
-      // If explicit STARTTLS is set, require it when connecting
-      requireTls: process.env.EMAIL_ENCRYPTION === 'starttls',
+      secure:
+        encryption === 'true' ||
+        encryption === 'ssl' ||
+        encryption === 'tls' ||
+        smtpPort === 465,
+      requireTls: encryption === 'starttls',
       tls: {
         // Whether to accept unsigned certificates
         rejectUnauthorized: !isEnabled(process.env.EMAIL_ALLOW_SELFSIGNED),
@@ -140,7 +144,7 @@ const sendEmail = async ({ email, subject, payload, template, throwError = true 
       transporterOptions.service = process.env.EMAIL_SERVICE;
     } else {
       transporterOptions.host = process.env.EMAIL_HOST;
-      transporterOptions.port = process.env.EMAIL_PORT ?? 25;
+      transporterOptions.port = smtpPort;
     }
 
     const mailOptions = {

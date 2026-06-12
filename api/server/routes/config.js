@@ -5,7 +5,10 @@ const { Constants, CacheKeys, defaultSocialLogins } = require('librechat-data-pr
 const { getLdapConfig } = require('~/server/services/Config/ldap');
 const { getAppConfig } = require('~/server/services/Config/app');
 const { getProjectByName } = require('~/models/Project');
+const { countUsers } = require('~/models');
 const { getLogStores } = require('~/cache');
+const { canRegisterWithoutInviteEffective } = require('~/server/services/AdminConfigService');
+const { getEffectiveAuthMode } = require('~/server/services/SsoConfigService');
 
 const router = express.Router();
 const emailLoginEnabled =
@@ -38,9 +41,11 @@ router.get('/', async function (req, res) {
   const instanceProject = await getProjectByName(Constants.GLOBAL_PROJECT_NAME, '_id');
 
   const ldap = getLdapConfig();
+  const userCount = await countUsers();
 
   try {
     const appConfig = await getAppConfig({ role: req.user?.role });
+    const registrationEnabled = !ldap?.enabled && (await canRegisterWithoutInviteEffective({ userCount }));
 
     const isOpenIdEnabled =
       !!process.env.OPENID_CLIENT_ID &&
@@ -53,6 +58,20 @@ router.get('/', async function (req, res) {
       !!process.env.SAML_ISSUER &&
       !!process.env.SAML_CERT &&
       !!process.env.SAML_SESSION_SECRET;
+
+    /**
+     * Admin-managed auth mode. Absent/`local_and_sso` => current behavior.
+     * `local_only` hides SSO buttons. `sso_only` hides local login/registration,
+     * but ONLY when SSO is actually active — this prevents an admin from locking
+     * everyone (including admins) out with a misconfigured/disabled SSO.
+     */
+    const authMode = await getEffectiveAuthMode();
+    const ssoActive = isOpenIdEnabled || isSamlEnabled;
+    const showOpenIdLogin = authMode === 'local_only' ? false : isOpenIdEnabled;
+    const showSamlLogin = authMode === 'local_only' ? false : !isOpenIdEnabled && isSamlEnabled;
+    const lockToSso = authMode === 'sso_only' && ssoActive;
+    const effectiveEmailLoginEnabled = lockToSso ? false : emailLoginEnabled;
+    const effectiveRegistrationEnabled = lockToSso ? false : registrationEnabled;
 
     const balanceConfig = getBalanceConfig(appConfig);
 
@@ -70,17 +89,19 @@ router.get('/', async function (req, res) {
         !!process.env.APPLE_TEAM_ID &&
         !!process.env.APPLE_KEY_ID &&
         !!process.env.APPLE_PRIVATE_KEY_PATH,
-      openidLoginEnabled: isOpenIdEnabled,
+      openidLoginEnabled: showOpenIdLogin,
       openidLabel: process.env.OPENID_BUTTON_LABEL || 'Continue with OpenID',
       openidImageUrl: process.env.OPENID_IMAGE_URL,
       openidAutoRedirect: isEnabled(process.env.OPENID_AUTO_REDIRECT),
-      samlLoginEnabled: !isOpenIdEnabled && isSamlEnabled,
+      samlLoginEnabled: showSamlLogin,
       samlLabel: process.env.SAML_BUTTON_LABEL,
       samlImageUrl: process.env.SAML_IMAGE_URL,
       serverDomain: process.env.DOMAIN_SERVER || 'http://localhost:3080',
-      emailLoginEnabled,
-      registrationEnabled: !ldap?.enabled && isEnabled(process.env.ALLOW_REGISTRATION),
-      socialLoginEnabled: isEnabled(process.env.ALLOW_SOCIAL_LOGIN),
+      emailLoginEnabled: effectiveEmailLoginEnabled,
+      registrationEnabled: effectiveRegistrationEnabled,
+      authMode,
+      socialLoginEnabled:
+        isEnabled(process.env.ALLOW_SOCIAL_LOGIN) || showOpenIdLogin || showSamlLogin,
       emailEnabled:
         (!!process.env.EMAIL_SERVICE || !!process.env.EMAIL_HOST) &&
         !!process.env.EMAIL_USERNAME &&

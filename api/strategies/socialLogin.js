@@ -1,9 +1,18 @@
 const { logger } = require('@librechat/data-schemas');
-const { ErrorTypes } = require('librechat-data-provider');
+const { ErrorTypes, SystemRoles } = require('librechat-data-provider');
 const { isEnabled, isEmailDomainAllowed } = require('@librechat/api');
 const { createSocialUser, handleExistingUser } = require('./process');
 const { getAppConfig } = require('~/server/services/Config');
-const { findUser } = require('~/models');
+const {
+  canCreateAccountEffective,
+  getEffectiveAllowedDomains,
+} = require('~/server/services/AdminConfigService');
+const { isUserActive } = require('~/models/userMembership');
+const { findUser, countUsers } = require('~/models');
+const {
+  getRestrictedRegistrationMessage,
+  shouldAutoAssignFirstAdmin,
+} = require('~/server/services/RegistrationPolicy');
 
 const socialLogin =
   (provider, getProfileDetails) => async (accessToken, refreshToken, idToken, profile, cb) => {
@@ -14,8 +23,9 @@ const socialLogin =
       });
 
       const appConfig = await getAppConfig();
+      const allowedDomains = await getEffectiveAllowedDomains();
 
-      if (!isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains)) {
+      if (!isEmailDomainAllowed(email, allowedDomains)) {
         logger.error(
           `[${provider}Login] Authentication blocked - email domain not allowed [Email: ${email}]`,
         );
@@ -28,17 +38,21 @@ const socialLogin =
       const providerKey = `${provider}Id`;
       let existingUser = null;
 
-      /** First try to find user by provider ID (e.g., googleId, facebookId) */
       if (id && typeof id === 'string') {
         existingUser = await findUser({ [providerKey]: id });
       }
 
-      /** If not found by provider ID, try finding by email */
       if (!existingUser) {
         existingUser = await findUser({ email: email?.trim() });
         if (existingUser) {
           logger.warn(`[${provider}Login] User found by email: ${email} but not by ${providerKey}`);
         }
+      }
+
+      if (existingUser && !(await isUserActive(existingUser._id))) {
+        return cb(null, false, {
+          message: 'Your account is inactive. Please contact your administrator.',
+        });
       }
 
       if (existingUser?.provider === provider) {
@@ -65,6 +79,21 @@ const socialLogin =
         return cb(error);
       }
 
+      const userCount = await countUsers();
+      if (!(await canCreateAccountEffective({ userCount }))) {
+        logger.error(
+          `[${provider}Login] Registration blocked - restricted access mode active [Email: ${email}]`,
+        );
+        const error = new Error(ErrorTypes.AUTH_FAILED);
+        error.code = ErrorTypes.AUTH_FAILED;
+        error.message = getRestrictedRegistrationMessage();
+        return cb(error);
+      }
+
+      const role = shouldAutoAssignFirstAdmin({ userCount })
+        ? SystemRoles.ADMIN
+        : SystemRoles.USER;
+
       const newUser = await createSocialUser({
         email,
         avatarUrl,
@@ -75,6 +104,7 @@ const socialLogin =
         name,
         emailVerified,
         appConfig,
+        role,
       });
       return cb(null, newUser);
     } catch (err) {

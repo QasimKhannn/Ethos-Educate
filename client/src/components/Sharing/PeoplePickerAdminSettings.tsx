@@ -145,12 +145,6 @@ const PeoplePickerAdminSettings = () => {
         setSelectedRole(SystemRoles.USER);
       },
     },
-    {
-      label: SystemRoles.ADMIN,
-      onClick: () => {
-        setSelectedRole(SystemRoles.ADMIN);
-      },
-    },
   ];
 
   return (
@@ -158,10 +152,10 @@ const PeoplePickerAdminSettings = () => {
       <OGDialogTrigger asChild>
         <Button
           variant={'outline'}
-          className="btn btn-neutral border-token-border-light relative gap-1 rounded-lg font-medium"
+          className="relative h-11 w-full justify-center gap-2 rounded-xl border-border-light font-medium"
           aria-label={localize('com_ui_admin_settings')}
         >
-          <ShieldEllipsis className="cursor-pointer" aria-hidden="true" />
+          <ShieldEllipsis className="size-5 cursor-pointer" aria-hidden="true" />
           {localize('com_ui_admin_settings')}
         </Button>
       </OGDialogTrigger>
@@ -170,7 +164,6 @@ const PeoplePickerAdminSettings = () => {
           {localize('com_ui_admin_settings_section', { section: localize('com_ui_people_picker') })}
         </OGDialogTitle>
         <div className="p-2">
-          {/* Role selection dropdown */}
           <div className="flex items-center gap-2">
             <span className="font-medium">{localize('com_ui_role_select')}:</span>
             <DropdownPopup
@@ -179,7 +172,7 @@ const PeoplePickerAdminSettings = () => {
               isOpen={isRoleMenuOpen}
               setIsOpen={setIsRoleMenuOpen}
               trigger={
-                <Ariakit.MenuButton className="inline-flex w-1/4 items-center justify-center rounded-lg border border-border-light bg-transparent px-2 py-1 text-text-primary transition-all ease-in-out hover:bg-surface-tertiary">
+                <Ariakit.MenuButton className="inline-flex min-w-28 items-center justify-center rounded-lg border border-border-light bg-transparent px-3 py-1.5 text-text-primary transition-all ease-in-out hover:bg-surface-tertiary">
                   {selectedRole}
                 </Ariakit.MenuButton>
               }
@@ -188,7 +181,6 @@ const PeoplePickerAdminSettings = () => {
               sameWidth={true}
             />
           </div>
-          {/* Permissions form */}
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="py-5">
               {labelControllerData.map(({ peoplePickerPerm, label }) => (
@@ -204,14 +196,14 @@ const PeoplePickerAdminSettings = () => {
               ))}
             </div>
             <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSubmit(onSubmit)}
+              <Button
+                type="submit"
+                variant="submit"
                 disabled={isSubmitting || isLoading}
-                className="btn rounded bg-green-500 font-bold text-white transition-all hover:bg-green-600"
+                aria-label={localize('com_ui_save')}
               >
                 {localize('com_ui_save')}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -221,3 +213,4 @@ const PeoplePickerAdminSettings = () => {
 };
 
 export default PeoplePickerAdminSettings;
+

@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const openIdClient = require('openid-client');
 const { logger } = require('@librechat/data-schemas');
 const { isEnabled, findOpenIDUser } = require('@librechat/api');
+const { markInviteAccepted } = require('~/models/inviteUser');
+const { isUserActive } = require('~/models/userMembership');
 const {
   requestPasswordReset,
   setOpenIDAuthTokens,
@@ -23,6 +25,9 @@ const { getOpenIdConfig, getOpenIdEmail } = require('~/strategies');
 const registrationController = async (req, res) => {
   try {
     const response = await registerUser(req.body);
+    if (response.status === 200 && req.invite?._id && response.userId) {
+      await markInviteAccepted(req.invite._id, response.userId);
+    }
     const { status, message } = response;
     res.status(status).send({ message });
   } catch (err) {
@@ -104,6 +109,10 @@ const refreshController = async (req, res) => {
         return res.status(401).redirect('/login');
       }
 
+      if (!(await isUserActive(user._id))) {
+        return res.status(403).send('Account inactive');
+      }
+
       // Handle migration: update user with openidId if found by email without openidId
       // Also handle case where user has mismatched openidId (e.g., after database switch)
       if (migration || user.openidId !== claims.sub) {
@@ -144,6 +153,10 @@ const refreshController = async (req, res) => {
     const user = await getUserById(payload.id, '-password -__v -totpSecret -backupCodes');
     if (!user) {
       return res.status(401).redirect('/login');
+    }
+
+    if (!(await isUserActive(user._id))) {
+      return res.status(403).send('Account inactive');
     }
 
     const userId = payload.id;
@@ -228,3 +241,5 @@ module.exports = {
   resetPasswordRequestController,
   graphTokenController,
 };
+
+
