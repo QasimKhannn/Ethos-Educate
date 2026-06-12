@@ -196,14 +196,14 @@ const PeoplePickerAdminSettings = () => {
               ))}
             </div>
             <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSubmit(onSubmit)}
+              <Button
+                type="submit"
+                variant="submit"
                 disabled={isSubmitting || isLoading}
-                className="btn rounded bg-green-500 font-bold text-white transition-all hover:bg-green-600"
+                aria-label={localize('com_ui_save')}
               >
                 {localize('com_ui_save')}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -213,3 +213,4 @@ const PeoplePickerAdminSettings = () => {
 };
 
 export default PeoplePickerAdminSettings;
+
