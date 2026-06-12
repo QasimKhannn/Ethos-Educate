@@ -7,6 +7,7 @@ const {
   updateOpenIdConfig,
   updateAuthMode,
   validateOpenIdDiscovery,
+  invalidateStartupConfigCache,
 } = require('~/server/services/SsoConfigService');
 
 const router = express.Router();
@@ -38,6 +39,7 @@ router.put('/openid', async (req, res) => {
 
   try {
     const status = await updateOpenIdConfig({ fields, secretAction, clientSecret, enabled });
+    await invalidateStartupConfigCache();
 
     await logAdminAction({
       actorUserId: req.user?._id ?? null,
@@ -67,6 +69,7 @@ router.put('/auth-mode', async (req, res) => {
 
   try {
     const result = await updateAuthMode(authMode);
+    await invalidateStartupConfigCache();
 
     await logAdminAction({
       actorUserId: req.user?._id ?? null,

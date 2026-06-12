@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const { logger, encryptV2, decryptV2 } = require('@librechat/data-schemas');
 const { getAdminConfig, updateAdminConfig } = require('~/models/adminConfig');
 
@@ -245,6 +246,78 @@ const validateOpenIdDiscovery = async (issuer) => {
   }
 };
 
+const deriveSessionSecret = () => {
+  const base = process.env.CREDS_KEY || process.env.JWT_SECRET || 'ethos-openid-session';
+  return crypto.createHash('sha256').update(`openid-session:${base}`).digest('hex');
+};
+
+const setEnvIfPresent = (key, value) => {
+  if (value !== undefined && value !== null && value !== '') {
+    process.env[key] = String(value);
+  }
+};
+
+/**
+ * Apply admin-managed OpenID config to process.env at STARTUP, before the
+ * passport/social-login bootstrap runs. When DB config is absent or disabled,
+ * this is a no-op and env-driven behavior is preserved byte-for-byte.
+ *
+ * NOTE: changes take effect on the next server start (restart-to-apply).
+ * Live re-init without restart is a separate, later slice.
+ *
+ * @returns {Promise<boolean>} true if admin-managed OpenID config was applied.
+ */
+const applyAdminSsoEnvOverrides = async () => {
+  let effective;
+  try {
+    effective = await getEffectiveOpenIdConfig();
+  } catch (err) {
+    logger.error('[SsoConfigService] applyAdminSsoEnvOverrides failed; keeping env config', err);
+    return false;
+  }
+
+  if (effective.source !== 'db' || !effective.enabled) {
+    return false;
+  }
+
+  setEnvIfPresent('OPENID_CLIENT_ID', effective.clientId);
+  setEnvIfPresent('OPENID_CLIENT_SECRET', effective.clientSecret);
+  setEnvIfPresent('OPENID_ISSUER', effective.issuer);
+  setEnvIfPresent('OPENID_SCOPE', effective.scope);
+  setEnvIfPresent('OPENID_CALLBACK_URL', effective.callbackUrl);
+  setEnvIfPresent('OPENID_BUTTON_LABEL', effective.buttonLabel);
+  setEnvIfPresent('OPENID_IMAGE_URL', effective.imageUrl);
+  setEnvIfPresent('OPENID_EMAIL_CLAIM', effective.emailClaim);
+  setEnvIfPresent('OPENID_USERNAME_CLAIM', effective.usernameClaim);
+  setEnvIfPresent('OPENID_NAME_CLAIM', effective.nameClaim);
+  setEnvIfPresent('OPENID_REQUIRED_ROLE', effective.requiredRole);
+  setEnvIfPresent('OPENID_ADMIN_ROLE', effective.adminRole);
+
+  if (effective.autoRedirect === true) {
+    process.env.OPENID_AUTO_REDIRECT = 'true';
+  }
+  if (!process.env.OPENID_SESSION_SECRET) {
+    process.env.OPENID_SESSION_SECRET = deriveSessionSecret();
+  }
+
+  logger.info(
+    '[SsoConfigService] Applied admin-managed OpenID config from DB (restart required to re-apply later changes).',
+  );
+  return true;
+};
+
+/** Invalidate the cached /api/config payload so login flags reflect new SSO state. */
+const invalidateStartupConfigCache = async () => {
+  try {
+    const { getLogStores } = require('~/cache');
+    const { CacheKeys } = require('librechat-data-provider');
+    const cache = getLogStores(CacheKeys.CONFIG_STORE);
+    await cache.delete(CacheKeys.STARTUP_CONFIG);
+  } catch (err) {
+    logger.warn(`[SsoConfigService] Failed to invalidate startup config cache: ${err.message}`);
+  }
+};
+
 module.exports = {
   AUTH_MODES,
   DEFAULT_AUTH_MODE,
@@ -254,4 +327,6 @@ module.exports = {
   updateOpenIdConfig,
   updateAuthMode,
   validateOpenIdDiscovery,
+  applyAdminSsoEnvOverrides,
+  invalidateStartupConfigCache,
 };

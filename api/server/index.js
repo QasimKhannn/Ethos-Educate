@@ -29,6 +29,7 @@ const { updateInterfacePermissions } = require('~/models/interface');
 const { checkMigrations } = require('./services/start/migration');
 const initializeMCPs = require('./services/initializeMCPs');
 const configureSocialLogins = require('./socialLogins');
+const { applyAdminSsoEnvOverrides } = require('./services/SsoConfigService');
 const { getAppConfig } = require('./services/Config');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
@@ -51,6 +52,14 @@ const startServer = async () => {
   await connectDb();
 
   logger.info('Connected to MongoDB');
+
+  /**
+   * Apply admin-managed OpenID config (from DB) to process.env BEFORE social
+   * logins bootstrap. No-op when DB SSO config is absent/disabled, so env-driven
+   * behavior is preserved. Returns true when DB OpenID config was applied.
+   */
+  const adminSsoApplied = await applyAdminSsoEnvOverrides();
+
   indexSync().catch((err) => {
     logger.error('[indexSync] Background sync failed:', err);
   });
@@ -130,7 +139,7 @@ const startServer = async () => {
     passport.use(ldapLogin);
   }
 
-  if (isEnabled(ALLOW_SOCIAL_LOGIN)) {
+  if (isEnabled(ALLOW_SOCIAL_LOGIN) || adminSsoApplied) {
     await configureSocialLogins(app);
   }
 
