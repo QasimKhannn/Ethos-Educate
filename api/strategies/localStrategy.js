@@ -3,6 +3,7 @@ const { errorsToString } = require('librechat-data-provider');
 const { isEnabled, checkEmailConfig } = require('@librechat/api');
 const { Strategy: PassportLocalStrategy } = require('passport-local');
 const { findUser, comparePassword, updateUser } = require('~/models');
+const { isUserActive } = require('~/models/userMembership');
 const { loginSchema } = require('./validators');
 
 // Unix timestamp for 2024-06-07 15:20:18 Eastern Time
@@ -27,6 +28,14 @@ async function passportLogin(req, email, password, done) {
       logError('Passport Local Strategy - User Not Found', { email });
       logger.error(`[Login] [Login failed] [Username: ${email}] [Request-IP: ${req.ip}]`);
       return done(null, false, { message: 'Email does not exist.' });
+    }
+
+    if (!(await isUserActive(user._id))) {
+      logError('Passport Local Strategy - User inactive', { email });
+      logger.error(`[Login] [Login failed] [Username: ${email}] [Request-IP: ${req.ip}]`);
+      return done(null, false, {
+        message: 'Your account is inactive. Please contact your administrator.',
+      });
     }
 
     if (!user.password) {

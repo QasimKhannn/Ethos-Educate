@@ -1,5 +1,4 @@
 const { getInvite } = require('~/models/inviteUser');
-const { deleteTokens } = require('~/models');
 
 async function checkInviteUser(req, res, next) {
   const token = req.body.token;
@@ -16,7 +15,6 @@ async function checkInviteUser(req, res, next) {
       return res.status(400).json({ message: 'Invalid invite token' });
     }
 
-    await deleteTokens({ token: invite.token });
     req.invite = invite;
     next();
   } catch (error) {

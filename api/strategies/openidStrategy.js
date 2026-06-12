@@ -17,9 +17,16 @@ const {
   isEmailDomainAllowed,
 } = require('@librechat/api');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
-const { findUser, createUser, updateUser } = require('~/models');
+const { findUser, createUser, updateUser, countUsers } = require('~/models');
 const { getAppConfig } = require('~/server/services/Config');
+const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const { isUserActive } = require('~/models/userMembership');
 const getLogStores = require('~/cache/getLogStores');
+const {
+  canCreateAccount,
+  getRestrictedRegistrationMessage,
+  shouldAutoAssignFirstAdmin,
+} = require('~/server/services/RegistrationPolicy');
 
 /**
  * @typedef {import('openid-client').ClientMetadata} ClientMetadata
@@ -407,8 +414,9 @@ async function processOpenIDAuth(tokenset, existingUsersOnly = false) {
   }
 
   const appConfig = await getAppConfig();
+  const allowedDomains = await getEffectiveAllowedDomains();
   const email = getOpenIdEmail(userinfo);
-  if (!isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains)) {
+  if (!isEmailDomainAllowed(email, allowedDomains)) {
     logger.error(
       `[OpenID Strategy] Authentication blocked - email domain not allowed [Identifier: ${email}]`,
     );
@@ -427,6 +435,10 @@ async function processOpenIDAuth(tokenset, existingUsersOnly = false) {
 
   if (error) {
     throw new Error(ErrorTypes.AUTH_FAILED);
+  }
+
+  if (user && !(await isUserActive(user._id))) {
+    throw new Error('Your account is inactive. Please contact your administrator.');
   }
 
   const fullName = getFullName(userinfo);
@@ -503,6 +515,11 @@ async function processOpenIDAuth(tokenset, existingUsersOnly = false) {
   }
 
   if (!user) {
+    const userCount = await countUsers();
+    if (!canCreateAccount({ userCount })) {
+      throw new Error(getRestrictedRegistrationMessage());
+    }
+
     user = {
       provider: 'openid',
       openidId: userinfo.sub,
@@ -511,6 +528,7 @@ async function processOpenIDAuth(tokenset, existingUsersOnly = false) {
       emailVerified: userinfo.email_verified || false,
       name: fullName,
       idOnTheSource: userinfo.oid,
+      role: shouldAutoAssignFirstAdmin({ userCount }) ? SystemRoles.ADMIN : SystemRoles.USER,
     };
 
     const balanceConfig = getBalanceConfig(appConfig);
@@ -641,6 +659,9 @@ function createOpenIDCallback(existingUsersOnly) {
         return done(null, false, { message: err.message });
       }
       if (err.message && err.message.includes('role to log in')) {
+        return done(null, false, { message: err.message });
+      }
+      if (err.message === 'Your account is inactive. Please contact your administrator.') {
         return done(null, false, { message: err.message });
       }
       logger.error('[openidStrategy] login failed', err);

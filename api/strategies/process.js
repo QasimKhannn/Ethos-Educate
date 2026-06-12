@@ -86,6 +86,7 @@ const createSocialUser = async ({
   name,
   appConfig,
   emailVerified,
+  role,
 }) => {
   const update = {
     email,
@@ -95,6 +96,7 @@ const createSocialUser = async ({
     username,
     name,
     emailVerified,
+    ...(role ? { role } : {}),
   };
 
   const balanceConfig = getBalanceConfig(appConfig);

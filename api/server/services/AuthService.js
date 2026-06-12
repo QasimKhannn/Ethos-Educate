@@ -33,6 +33,9 @@ const {
 const { registerSchema } = require('~/strategies/validators');
 const { getAppConfig } = require('~/server/services/Config');
 const { sendEmail } = require('~/server/utils');
+const { shouldAutoAssignFirstAdmin } = require('~/server/services/RegistrationPolicy');
+const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const { ensureUserMembership } = require('~/models/userMembership');
 
 const domains = {
   client: process.env.DOMAIN_CLIENT,
@@ -190,7 +193,8 @@ const registerUser = async (user, additionalData = {}) => {
   let newUserId;
   try {
     const appConfig = await getAppConfig();
-    if (!isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains)) {
+    const allowedDomains = await getEffectiveAllowedDomains();
+    if (!isEmailDomainAllowed(email, allowedDomains)) {
       const errorMessage =
         'The email address provided cannot be used. Please use a different email address.';
       logger.error(`[registerUser] [Registration not allowed] [Email: ${user.email}]`);
@@ -212,7 +216,8 @@ const registerUser = async (user, additionalData = {}) => {
     }
 
     //determine if this is the first registered user (not counting anonymous_user)
-    const isFirstRegisteredUser = (await countUsers()) === 0;
+    const userCount = await countUsers();
+    const isFirstRegisteredUser = shouldAutoAssignFirstAdmin({ userCount });
 
     const salt = bcrypt.genSaltSync(10);
     const newUserData = {
@@ -231,6 +236,7 @@ const registerUser = async (user, additionalData = {}) => {
 
     const newUser = await createUser(newUserData, appConfig.balance, disableTTL, true);
     newUserId = newUser._id;
+    await ensureUserMembership(newUserId);
     if (emailEnabled && !newUser.emailVerified) {
       await sendVerificationEmail({
         _id: newUserId,
@@ -241,7 +247,7 @@ const registerUser = async (user, additionalData = {}) => {
       await updateUser(newUserId, { emailVerified: true });
     }
 
-    return { status: 200, message: genericVerificationMessage };
+    return { status: 200, message: genericVerificationMessage, userId: newUserId };
   } catch (err) {
     logger.error('[registerUser] Error in registering user:', err);
     if (newUserId) {
@@ -261,7 +267,8 @@ const registerUser = async (user, additionalData = {}) => {
 const requestPasswordReset = async (req) => {
   const { email } = req.body;
   const appConfig = await getAppConfig();
-  if (!isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains)) {
+    const allowedDomains = await getEffectiveAllowedDomains();
+    if (!isEmailDomainAllowed(email, allowedDomains)) {
     const error = new Error(ErrorTypes.AUTH_FAILED);
     error.code = ErrorTypes.AUTH_FAILED;
     error.message = 'Email domain not allowed';
@@ -599,3 +606,4 @@ module.exports = {
   requestPasswordReset,
   resendVerificationEmail,
 };
+

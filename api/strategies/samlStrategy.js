@@ -9,6 +9,8 @@ const { getBalanceConfig, isEmailDomainAllowed } = require('@librechat/api');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { findUser, createUser, updateUser } = require('~/models');
 const { getAppConfig } = require('~/server/services/Config');
+const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const { isUserActive } = require('~/models/userMembership');
 const paths = require('~/config/paths');
 
 let crypto;
@@ -194,8 +196,9 @@ async function setupSaml() {
 
           const userEmail = getEmail(profile) || '';
           const appConfig = await getAppConfig();
+          const allowedDomains = await getEffectiveAllowedDomains();
 
-          if (!isEmailDomainAllowed(userEmail, appConfig?.registration?.allowedDomains)) {
+          if (!isEmailDomainAllowed(userEmail, allowedDomains)) {
             logger.error(
               `[SAML Strategy] Authentication blocked - email domain not allowed [Email: ${userEmail}]`,
             );
@@ -212,6 +215,12 @@ async function setupSaml() {
             logger.info(
               `[samlStrategy] User ${user ? 'found' : 'not found'} with email: ${userEmail}`,
             );
+          }
+
+          if (user && !(await isUserActive(user._id))) {
+            return done(null, false, {
+              message: 'Your account is inactive. Please contact your administrator.',
+            });
           }
 
           if (user && user.provider !== 'saml') {

@@ -5,6 +5,13 @@ const { SystemRoles, ErrorTypes } = require('librechat-data-provider');
 const { isEnabled, getBalanceConfig, isEmailDomainAllowed } = require('@librechat/api');
 const { createUser, findUser, updateUser, countUsers } = require('~/models');
 const { getAppConfig } = require('~/server/services/Config');
+const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const { isUserActive } = require('~/models/userMembership');
+const {
+  canCreateAccount,
+  getRestrictedRegistrationMessage,
+  shouldAutoAssignFirstAdmin,
+} = require('~/server/services/RegistrationPolicy');
 
 const {
   LDAP_URL,
@@ -123,15 +130,27 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
     }
 
     const appConfig = await getAppConfig();
-    if (!isEmailDomainAllowed(mail, appConfig?.registration?.allowedDomains)) {
+    const allowedDomains = await getEffectiveAllowedDomains();
+    if (!isEmailDomainAllowed(mail, allowedDomains)) {
       logger.error(
         `[LDAP Strategy] Authentication blocked - email domain not allowed [Email: ${mail}]`,
       );
       return done(null, false, { message: 'Email domain not allowed' });
     }
 
+    if (user && !(await isUserActive(user._id))) {
+      return done(null, false, {
+        message: 'Your account is inactive. Please contact your administrator.',
+      });
+    }
+
     if (!user) {
-      const isFirstRegisteredUser = (await countUsers()) === 0;
+      const userCount = await countUsers();
+      if (!canCreateAccount({ userCount })) {
+        return done(null, false, { message: getRestrictedRegistrationMessage() });
+      }
+
+      const isFirstRegisteredUser = shouldAutoAssignFirstAdmin({ userCount });
       const role = isFirstRegisteredUser ? SystemRoles.ADMIN : SystemRoles.USER;
 
       user = {

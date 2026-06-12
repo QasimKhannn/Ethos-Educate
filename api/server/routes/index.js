@@ -1,7 +1,7 @@
 const accessPermissions = require('./accessPermissions');
 const assistants = require('./assistants');
 const categories = require('./categories');
-const adminAuth = require('./admin/auth');
+const adminAuth = require('./admin');
 const endpoints = require('./endpoints');
 const staticRoute = require('./static');
 const messages = require('./messages');
@@ -21,6 +21,7 @@ const agents = require('./agents');
 const roles = require('./roles');
 const oauth = require('./oauth');
 const files = require('./files');
+const invites = require('./invites');
 const share = require('./share');
 const tags = require('./tags');
 const auth = require('./auth');
@@ -39,6 +40,7 @@ module.exports = {
   roles,
   oauth,
   files,
+  invites,
   share,
   banner,
   agents,
