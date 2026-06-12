@@ -24,34 +24,23 @@ export interface PermissionConfig {
 }
 
 export interface AdminSettingsDialogProps {
-  /** The permission type from PermissionTypes enum */
   permissionType: PermissionTypes;
-  /** Localization key for the section name (e.g., 'com_ui_memories', 'com_ui_agents') */
   sectionKey: TranslationKeys;
-  /** Array of permission configurations to display */
   permissions: PermissionConfig[];
-  /** Unique ID for the role dropdown menu */
   menuId: string;
-  /** Mutation function and loading state from the permission update hook */
   mutation: {
     mutate: (data: { roleName: SystemRoles; updates: Record<Permissions, boolean> }) => void;
     isLoading: boolean;
   };
-  /** Whether to show the admin access warning when ADMIN role and USE permission is displayed (default: true) */
   showAdminWarning?: boolean;
-  /** Custom trigger element. If not provided, uses default button with icon and text */
   trigger?: React.ReactNode;
-  /** Additional className for the dialog content */
   dialogContentClassName?: string;
-  /** Custom callback when a permission change requires confirmation */
   onPermissionConfirm?: (
     permission: Permissions,
     newValue: boolean,
     onChange: (value: boolean) => void,
   ) => void;
-  /** Permissions that require confirmation before changing (only applies when onPermissionConfirm is provided) */
   confirmPermissions?: Permissions[];
-  /** Custom content to render after the permissions form (e.g., confirmation dialogs) */
   extraContent?: React.ReactNode;
 }
 
@@ -156,19 +145,13 @@ const AdminSettingsDialog: React.FC<AdminSettingsDialogProps> = ({
         setSelectedRole(SystemRoles.USER);
       },
     },
-    {
-      label: SystemRoles.ADMIN,
-      onClick: () => {
-        setSelectedRole(SystemRoles.ADMIN);
-      },
-    },
   ];
 
   const defaultTrigger = (
     <Button
       size="sm"
       variant="outline"
-      className="relative h-9 w-full gap-2 rounded-lg border-border-light font-medium focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary"
+      className="relative h-11 w-full justify-center gap-2 rounded-xl border-border-light font-medium focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary"
       aria-label={localize('com_ui_admin_settings')}
     >
       <ShieldEllipsis className="size-5 cursor-pointer" aria-hidden="true" />
@@ -190,7 +173,6 @@ const AdminSettingsDialog: React.FC<AdminSettingsDialogProps> = ({
             {localize('com_ui_admin_settings_section', { section: localize(sectionKey) })}
           </OGDialogTitle>
           <div className="p-2">
-            {/* Role selection dropdown */}
             <div className="flex items-center gap-2">
               <span className="font-medium">{localize('com_ui_role_select')}:</span>
               <DropdownPopup
@@ -199,7 +181,7 @@ const AdminSettingsDialog: React.FC<AdminSettingsDialogProps> = ({
                 isOpen={isRoleMenuOpen}
                 setIsOpen={setIsRoleMenuOpen}
                 trigger={
-                  <Ariakit.MenuButton className="inline-flex w-1/4 items-center justify-center rounded-lg border border-border-light bg-transparent px-2 py-1 text-text-primary transition-all ease-in-out hover:bg-surface-tertiary">
+                  <Ariakit.MenuButton className="inline-flex min-w-28 items-center justify-center rounded-lg border border-border-light bg-transparent px-3 py-1.5 text-text-primary transition-all ease-in-out hover:bg-surface-tertiary">
                     {selectedRole}
                   </Ariakit.MenuButton>
                 }
@@ -208,7 +190,6 @@ const AdminSettingsDialog: React.FC<AdminSettingsDialogProps> = ({
                 sameWidth={true}
               />
             </div>
-            {/* Permissions form */}
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="py-5">
                 {permissions.map(({ permission, labelKey }) => {

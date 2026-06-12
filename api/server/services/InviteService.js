@@ -1,6 +1,7 @@
-const { checkEmailConfig } = require('@librechat/api');
+const { checkEmailConfig, isEmailDomainAllowed } = require('@librechat/api');
 const { findUser } = require('~/models');
 const { sendEmail } = require('~/server/utils');
+const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
 const {
   createInvite,
   listInvites,
@@ -29,6 +30,13 @@ const createAndSendInvite = async ({ email, inviter = null, forceEmail = true })
   const existingUser = await findUser({ email }, 'email _id');
   if (existingUser) {
     const error = new Error('A user with that email already exists.');
+    error.status = 400;
+    throw error;
+  }
+
+  const allowedDomains = await getEffectiveAllowedDomains();
+  if (!isEmailDomainAllowed(email, allowedDomains)) {
+    const error = new Error('That email domain is not allowed for this organization.');
     error.status = 400;
     throw error;
   }

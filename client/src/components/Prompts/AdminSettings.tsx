@@ -43,10 +43,10 @@ const AdminSettings = () => {
     <Button
       size="sm"
       variant="outline"
-      className="mr-2 h-10 w-fit gap-1 border transition-all dark:bg-transparent dark:hover:bg-surface-tertiary sm:m-0"
+      className="relative h-11 w-full justify-center gap-2 rounded-xl border-border-light font-medium focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary"
     >
-      <ShieldEllipsis className="cursor-pointer" aria-hidden="true" />
-      <span className="hidden sm:flex">{localize('com_ui_admin')}</span>
+      <ShieldEllipsis className="size-5 cursor-pointer" aria-hidden="true" />
+      {localize('com_ui_admin_settings')}
     </Button>
   );
 

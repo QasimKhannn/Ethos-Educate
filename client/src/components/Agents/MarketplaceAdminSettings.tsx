@@ -36,13 +36,14 @@ const MarketplaceAdminSettings = ({
     <Button
       variant="outline"
       className={cn(
-        'relative h-12 rounded-xl border-border-light bg-surface-primary px-3.5 font-medium text-text-secondary shadow-none hover:bg-surface-hover hover:text-text-primary',
+        'relative h-11 w-full justify-center gap-2 rounded-xl border-border-light bg-surface-primary font-medium text-text-primary shadow-none hover:bg-surface-hover',
         triggerClassName,
       )}
       aria-label={localize('com_ui_admin_settings')}
       data-control-panel-tour-id={tourId}
     >
-      <ShieldEllipsis className="h-[18px] w-[18px] cursor-pointer" aria-hidden="true" />
+      <ShieldEllipsis className="size-5 cursor-pointer" aria-hidden="true" />
+      {localize('com_ui_admin_settings')}
     </Button>
   );
 

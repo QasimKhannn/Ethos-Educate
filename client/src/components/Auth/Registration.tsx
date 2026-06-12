@@ -33,8 +33,9 @@ const Registration: React.FC = () => {
   const queryParams = new URLSearchParams(location.search);
   const token = queryParams.get('token');
   const validTheme = isDark(theme) ? 'dark' : 'light';
+  const registrationEnabled = startupConfig?.registrationEnabled === true;
+  const canShowRegistrationForm = registrationEnabled || Boolean(token);
 
-  // only require captcha if we have a siteKey
   const requireCaptcha = Boolean(startupConfig?.turnstile?.siteKey);
 
   const registerUser = useRegisterUserMutation({
@@ -119,97 +120,108 @@ const Registration: React.FC = () => {
       )}
       {!startupConfigError && !isFetching && (
         <>
-          <form
-            className="mt-6"
-            aria-label="Registration form"
-            method="POST"
-            onSubmit={handleSubmit((data: TRegisterUser) =>
-              registerUser.mutate({ ...data, token: token ?? undefined }),
-            )}
-          >
-            {renderInput('name', 'com_auth_full_name', 'text', {
-              required: localize('com_auth_name_required'),
-              minLength: {
-                value: 3,
-                message: localize('com_auth_name_min_length'),
-              },
-              maxLength: {
-                value: 80,
-                message: localize('com_auth_name_max_length'),
-              },
-            })}
-            {renderInput('username', 'com_auth_username', 'text', {
-              minLength: {
-                value: 2,
-                message: localize('com_auth_username_min_length'),
-              },
-              maxLength: {
-                value: 80,
-                message: localize('com_auth_username_max_length'),
-              },
-            })}
-            {renderInput('email', 'com_auth_email', 'email', {
-              required: localize('com_auth_email_required'),
-              minLength: {
-                value: 1,
-                message: localize('com_auth_email_min_length'),
-              },
-              maxLength: {
-                value: 120,
-                message: localize('com_auth_email_max_length'),
-              },
-              pattern: {
-                value: /\S+@\S+\.\S+/,
-                message: localize('com_auth_email_pattern'),
-              },
-            })}
-            {renderInput('password', 'com_auth_password', 'password', {
-              required: localize('com_auth_password_required'),
-              minLength: {
-                value: startupConfig?.minPasswordLength || 8,
-                message: localize('com_auth_password_min_length'),
-              },
-              maxLength: {
-                value: 128,
-                message: localize('com_auth_password_max_length'),
-              },
-            })}
-            {renderInput('confirm_password', 'com_auth_password_confirm', 'password', {
-              validate: (value: string) =>
-                value === password || localize('com_auth_password_not_match'),
-            })}
+          {canShowRegistrationForm ? (
+            <form
+              className="mt-6"
+              aria-label="Registration form"
+              method="POST"
+              onSubmit={handleSubmit((data: TRegisterUser) =>
+                registerUser.mutate({ ...data, token: token ?? undefined }),
+              )}
+            >
+              {renderInput('name', 'com_auth_full_name', 'text', {
+                required: localize('com_auth_name_required'),
+                minLength: {
+                  value: 3,
+                  message: localize('com_auth_name_min_length'),
+                },
+                maxLength: {
+                  value: 80,
+                  message: localize('com_auth_name_max_length'),
+                },
+              })}
+              {renderInput('username', 'com_auth_username', 'text', {
+                minLength: {
+                  value: 2,
+                  message: localize('com_auth_username_min_length'),
+                },
+                maxLength: {
+                  value: 80,
+                  message: localize('com_auth_username_max_length'),
+                },
+              })}
+              {renderInput('email', 'com_auth_email', 'email', {
+                required: localize('com_auth_email_required'),
+                minLength: {
+                  value: 1,
+                  message: localize('com_auth_email_min_length'),
+                },
+                maxLength: {
+                  value: 120,
+                  message: localize('com_auth_email_max_length'),
+                },
+                pattern: {
+                  value: /\S+@\S+\.\S+/,
+                  message: localize('com_auth_email_pattern'),
+                },
+              })}
+              {renderInput('password', 'com_auth_password', 'password', {
+                required: localize('com_auth_password_required'),
+                minLength: {
+                  value: startupConfig?.minPasswordLength || 8,
+                  message: localize('com_auth_password_min_length'),
+                },
+                maxLength: {
+                  value: 128,
+                  message: localize('com_auth_password_max_length'),
+                },
+              })}
+              {renderInput('confirm_password', 'com_auth_password_confirm', 'password', {
+                validate: (value: string) =>
+                  value === password || localize('com_auth_password_not_match'),
+              })}
 
-            {startupConfig?.turnstile?.siteKey && (
-              <div className="my-4 flex justify-center">
-                <Turnstile
-                  siteKey={startupConfig.turnstile.siteKey}
-                  options={{
-                    ...startupConfig.turnstile.options,
-                    theme: validTheme,
-                  }}
-                  onSuccess={(token) => setTurnstileToken(token)}
-                  onError={() => setTurnstileToken(null)}
-                  onExpire={() => setTurnstileToken(null)}
-                />
+              {startupConfig?.turnstile?.siteKey && (
+                <div className="my-4 flex justify-center">
+                  <Turnstile
+                    siteKey={startupConfig.turnstile.siteKey}
+                    options={{
+                      ...startupConfig.turnstile.options,
+                      theme: validTheme,
+                    }}
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    onError={() => setTurnstileToken(null)}
+                    onExpire={() => setTurnstileToken(null)}
+                  />
+                </div>
+              )}
+
+              <div className="mt-6">
+                <Button
+                  disabled={
+                    Object.keys(errors).length > 0 ||
+                    isSubmitting ||
+                    (requireCaptcha && !turnstileToken)
+                  }
+                  type="submit"
+                  aria-label="Submit registration"
+                  variant="submit"
+                  className="h-12 w-full rounded-2xl"
+                >
+                  {isSubmitting ? <Spinner /> : localize('com_auth_continue')}
+                </Button>
               </div>
-            )}
-
-            <div className="mt-6">
-              <Button
-                disabled={
-                  Object.keys(errors).length > 0 ||
-                  isSubmitting ||
-                  (requireCaptcha && !turnstileToken)
-                }
-                type="submit"
-                aria-label="Submit registration"
-                variant="submit"
-                className="h-12 w-full rounded-2xl"
-              >
-                {isSubmitting ? <Spinner /> : localize('com_auth_continue')}
-              </Button>
+            </form>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-border-light bg-surface-primary px-4 py-5 text-center">
+              <div className="text-base font-medium text-text-primary">
+                Ask the owner for an invite.
+              </div>
+              <div className="mt-2 text-sm text-text-secondary">
+                Registration is currently invite-only. Please contact the workspace owner or administrator to receive an invite link.
+              </div>
             </div>
-          </form>
+          )}
 
           <p className="my-4 text-center text-sm font-light text-gray-700 dark:text-white">
             {localize('com_auth_already_have_account')}{' '}

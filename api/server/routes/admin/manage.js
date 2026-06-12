@@ -1,6 +1,7 @@
 const express = require('express');
-const { SystemRoles } = require('librechat-data-provider');
+const { SystemRoles, CacheKeys } = require('librechat-data-provider');
 const { requireJwtAuth, checkAdmin } = require('~/server/middleware');
+const { getLogStores } = require('~/cache');
 const { updateRegistrationPolicy } = require('~/server/services/AdminConfigService');
 const {
   ACTIVE_STATUS,
@@ -103,6 +104,9 @@ router.patch('/registration-policy', async (req, res) => {
         : undefined,
     });
 
+    const cache = getLogStores(CacheKeys.CONFIG_STORE);
+    await cache.delete(CacheKeys.STARTUP_CONFIG);
+
     return res.status(200).json({
       allowedDomains: Array.isArray(config.allowedDomains) ? config.allowedDomains : [],
       inviteOnlyRegistration:
@@ -116,3 +120,5 @@ router.patch('/registration-policy', async (req, res) => {
 });
 
 module.exports = router;
+
+

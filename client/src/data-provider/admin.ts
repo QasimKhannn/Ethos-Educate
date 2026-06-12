@@ -138,6 +138,7 @@ export const useUpdateRegistrationPolicyMutation = () => {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.startupConfig] });
     },
   });
 };
@@ -176,3 +177,5 @@ export const useRevokeInviteMutation = () => {
     },
   });
 };
+
+

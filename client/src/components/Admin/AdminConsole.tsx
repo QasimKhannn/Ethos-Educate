@@ -35,6 +35,7 @@ const tabs: { id: AdminTab; label: string }[] = [
 ];
 
 const cardClassName = 'rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm';
+const PAGE_SIZE = 5;
 
 const formatDate = (value?: string | null) => {
   if (!value) {
@@ -42,6 +43,43 @@ const formatDate = (value?: string | null) => {
   }
 
   return new Date(value).toLocaleString();
+};
+
+const normalizeDomain = (value: string) =>
+  value.trim().toLowerCase().replace(/^@+/, '').replace(/\s+/g, '');
+
+const getEmailDomain = (email: string) => email.trim().toLowerCase().split('@')[1] ?? '';
+
+const PaginationControls = ({
+  page,
+  totalPages,
+  onPrevious,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) => {
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-border-light bg-surface-primary px-4 py-3">
+      <div className="text-sm text-text-secondary">
+        Page {page} of {totalPages}
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" disabled={page <= 1} onClick={onPrevious}>
+          Previous
+        </Button>
+        <Button type="button" variant="outline" disabled={page >= totalPages} onClick={onNext}>
+          Next
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 const UserCard = ({
@@ -174,7 +212,10 @@ export default function AdminConsole() {
   const { showToast } = useToastContext();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [inviteEmail, setInviteEmail] = useState('');
-  const [allowedDomainsText, setAllowedDomainsText] = useState('');
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([]);
+  const [allowedDomainInput, setAllowedDomainInput] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [invitePage, setInvitePage] = useState(1);
 
   const overviewQuery = useAdminOverviewQuery();
   const usersQuery = useAdminUsersQuery();
@@ -187,10 +228,19 @@ export default function AdminConsole() {
   const updateUserRoleMutation = useUpdateUserRoleMutation();
   const updateRegistrationPolicyMutation = useUpdateRegistrationPolicyMutation();
 
+  const effectiveAllowedDomains = overviewQuery.data?.policy?.allowedDomains ?? [];
+
   useEffect(() => {
-    const domains = overviewQuery.data?.policy?.allowedDomains ?? [];
-    setAllowedDomainsText(domains.join('\n'));
-  }, [overviewQuery.data?.policy?.allowedDomains]);
+    setAllowedDomains(effectiveAllowedDomains);
+  }, [effectiveAllowedDomains]);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [usersQuery.data?.length]);
+
+  useEffect(() => {
+    setInvitePage(1);
+  }, [invitesQuery.data?.length]);
 
   const anyPending =
     createInviteMutation.isLoading ||
@@ -200,13 +250,18 @@ export default function AdminConsole() {
     updateUserRoleMutation.isLoading ||
     updateRegistrationPolicyMutation.isLoading;
 
-  const allowedDomains = useMemo(
-    () =>
-      allowedDomainsText
-        .split(/\r?\n|,/)
-        .map((domain) => domain.trim().toLowerCase())
-        .filter(Boolean),
-    [allowedDomainsText],
+  const users = usersQuery.data ?? [];
+  const invites = invitesQuery.data ?? [];
+  const totalUserPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const totalInvitePages = Math.max(1, Math.ceil(invites.length / PAGE_SIZE));
+
+  const paginatedUsers = useMemo(
+    () => users.slice((userPage - 1) * PAGE_SIZE, userPage * PAGE_SIZE),
+    [userPage, users],
+  );
+  const paginatedInvites = useMemo(
+    () => invites.slice((invitePage - 1) * PAGE_SIZE, invitePage * PAGE_SIZE),
+    [invitePage, invites],
   );
 
   if (user?.role !== SystemRoles.ADMIN) {
@@ -215,10 +270,51 @@ export default function AdminConsole() {
 
   const shouldShowOpenSidebar = !isSmallScreen && !navVisible;
 
+  const handleAddAllowedDomain = () => {
+    const normalizedDomain = normalizeDomain(allowedDomainInput);
+    if (!normalizedDomain) {
+      showToast({ status: 'error', message: 'Please enter a domain.' });
+      return;
+    }
+
+    if (normalizedDomain.includes('@')) {
+      showToast({ status: 'error', message: 'Enter only the domain, for example: ajaia.ai' });
+      return;
+    }
+
+    if (allowedDomains.includes(normalizedDomain)) {
+      showToast({ status: 'error', message: 'That domain is already added.' });
+      return;
+    }
+
+    setAllowedDomains((currentDomains) => [...currentDomains, normalizedDomain]);
+    setAllowedDomainInput('');
+  };
+
+  const handleRemoveAllowedDomain = (domainToRemove: string) => {
+    setAllowedDomains((currentDomains) =>
+      currentDomains.filter((domain) => domain !== domainToRemove),
+    );
+  };
+
   const handleInviteSubmit = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email) {
       showToast({ status: 'error', message: 'Email is required.' });
+      return;
+    }
+
+    const domain = getEmailDomain(email);
+    if (!domain) {
+      showToast({ status: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+
+    if (effectiveAllowedDomains.length > 0 && !effectiveAllowedDomains.includes(domain)) {
+      showToast({
+        status: 'error',
+        message: `Invites can only be sent to allowed domains. "${domain}" is not allowed.`,
+      });
       return;
     }
 
@@ -360,7 +456,7 @@ export default function AdminConsole() {
               ))}
             </div>
 
-            <div className={`${cardClassName} space-y-4`}>
+            <div className={`${cardClassName} space-y-5`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-lg font-semibold">Registration Policy</div>
@@ -387,16 +483,56 @@ export default function AdminConsole() {
                 </Button>
               </div>
 
-              <label className="block text-sm font-medium text-text-primary">
-                Allowed domains
-                <textarea
-                  value={allowedDomainsText}
-                  onChange={(event) => setAllowedDomainsText(event.target.value)}
-                  rows={6}
-                  className="mt-2 w-full rounded-2xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary"
-                  placeholder="school.org\ncompany.com"
-                />
-              </label>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-sm font-medium text-text-primary">Allowed domains</div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    Add one or more email domains that are allowed to register and receive valid invites.
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {allowedDomains.length > 0 ? (
+                    allowedDomains.map((domain) => (
+                      <div
+                        key={domain}
+                        className="flex items-center gap-2 rounded-full border border-border-light bg-surface-secondary px-3 py-2 text-sm text-text-primary"
+                      >
+                        <span>{domain}</span>
+                        <button
+                          type="button"
+                          className="text-text-secondary transition hover:text-text-primary"
+                          onClick={() => handleRemoveAllowedDomain(domain)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border-light px-4 py-3 text-sm text-text-secondary">
+                      No domain restrictions configured. All domains are currently allowed.
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    value={allowedDomainInput}
+                    onChange={(event) => setAllowedDomainInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleAddAllowedDomain();
+                      }
+                    }}
+                    placeholder="Add domain, for example: ajaia.ai"
+                    className="h-11 flex-1 rounded-xl border border-border-light bg-surface-secondary px-3 text-text-primary"
+                  />
+                  <Button type="button" variant="outline" disabled={anyPending} onClick={handleAddAllowedDomain}>
+                    Add domain
+                  </Button>
+                </div>
+              </div>
 
               <div className="flex justify-end">
                 <Button
@@ -414,15 +550,35 @@ export default function AdminConsole() {
 
         {activeTab === 'users' && (
           <div className="space-y-4">
-            {(usersQuery.data ?? []).map((managedUser) => (
-              <UserCard
-                key={managedUser._id}
-                user={managedUser}
-                onToggleStatus={handleToggleStatus}
-                onChangeRole={handleRoleChange}
-                disableActions={anyPending}
-              />
-            ))}
+            <div className={cardClassName}>
+              <div className="text-lg font-semibold">Users</div>
+              <div className="mt-1 text-sm text-text-secondary">
+                Showing {paginatedUsers.length} of {users.length} users.
+              </div>
+            </div>
+
+            {paginatedUsers.length > 0 ? (
+              paginatedUsers.map((managedUser) => (
+                <UserCard
+                  key={managedUser._id}
+                  user={managedUser}
+                  onToggleStatus={handleToggleStatus}
+                  onChangeRole={handleRoleChange}
+                  disableActions={anyPending}
+                />
+              ))
+            ) : (
+              <div className={cardClassName}>
+                <div className="text-sm text-text-secondary">No users found.</div>
+              </div>
+            )}
+
+            <PaginationControls
+              page={userPage}
+              totalPages={totalUserPages}
+              onPrevious={() => setUserPage((page) => Math.max(1, page - 1))}
+              onNext={() => setUserPage((page) => Math.min(totalUserPages, page + 1))}
+            />
           </div>
         )}
 
@@ -430,6 +586,27 @@ export default function AdminConsole() {
           <div className="space-y-6">
             <div className={`${cardClassName} space-y-4`}>
               <div className="text-lg font-semibold">Send Invite</div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-text-primary">Currently allowed domains</div>
+                <div className="flex flex-wrap gap-2">
+                  {effectiveAllowedDomains.length > 0 ? (
+                    effectiveAllowedDomains.map((domain) => (
+                      <span
+                        key={domain}
+                        className="rounded-full border border-border-light bg-surface-secondary px-3 py-2 text-sm text-text-primary"
+                      >
+                        {domain}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-text-secondary">
+                      No domain restrictions are set. Invites can be sent to any email domain.
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input
                   value={inviteEmail}
@@ -448,17 +625,37 @@ export default function AdminConsole() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {(invitesQuery.data ?? []).map((invite) => (
-                <InviteCard
-                  key={invite._id}
-                  invite={invite}
-                  onResend={handleResendInvite}
-                  onRevoke={handleRevokeInvite}
-                  disableActions={anyPending}
-                />
-              ))}
+            <div className={cardClassName}>
+              <div className="text-lg font-semibold">Invite History</div>
+              <div className="mt-1 text-sm text-text-secondary">
+                Showing {paginatedInvites.length} of {invites.length} invite records.
+              </div>
             </div>
+
+            <div className="space-y-4">
+              {paginatedInvites.length > 0 ? (
+                paginatedInvites.map((invite) => (
+                  <InviteCard
+                    key={invite._id}
+                    invite={invite}
+                    onResend={handleResendInvite}
+                    onRevoke={handleRevokeInvite}
+                    disableActions={anyPending}
+                  />
+                ))
+              ) : (
+                <div className={cardClassName}>
+                  <div className="text-sm text-text-secondary">No invites found.</div>
+                </div>
+              )}
+            </div>
+
+            <PaginationControls
+              page={invitePage}
+              totalPages={totalInvitePages}
+              onPrevious={() => setInvitePage((page) => Math.max(1, page - 1))}
+              onNext={() => setInvitePage((page) => Math.min(totalInvitePages, page + 1))}
+            />
           </div>
         )}
 
@@ -494,5 +691,4 @@ export default function AdminConsole() {
     </div>
   );
 }
-
 
