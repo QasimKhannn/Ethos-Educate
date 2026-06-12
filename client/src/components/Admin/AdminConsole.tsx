@@ -27,8 +27,9 @@ import MCPAdminSettings from '~/components/SidePanel/MCPBuilder/MCPAdminSettings
 import MarketplaceAdminSettings from '~/components/Agents/MarketplaceAdminSettings';
 import PeoplePickerAdminSettings from '~/components/Sharing/PeoplePickerAdminSettings';
 import SsoSettings from './SsoSettings';
+import AdminMcpServers from './AdminMcpServers';
 
-type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles' | 'sso';
+type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles' | 'sso' | 'mcp';
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -37,6 +38,7 @@ const tabs: { id: AdminTab; label: string }[] = [
   { id: 'audit', label: 'Audit Log' },
   { id: 'roles', label: 'Roles & Permissions' },
   { id: 'sso', label: 'SSO' },
+  { id: 'mcp', label: 'MCP Servers' },
 ];
 
 const cardClassName = 'rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm';
@@ -800,6 +802,8 @@ export default function AdminConsole() {
         )}
 
         {activeTab === 'sso' && <SsoSettings />}
+
+        {activeTab === 'mcp' && <AdminMcpServers />}
       </div>
     </div>
   );
