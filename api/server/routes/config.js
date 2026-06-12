@@ -100,7 +100,8 @@ router.get('/', async function (req, res) {
       emailLoginEnabled: effectiveEmailLoginEnabled,
       registrationEnabled: effectiveRegistrationEnabled,
       authMode,
-      socialLoginEnabled: isEnabled(process.env.ALLOW_SOCIAL_LOGIN),
+      socialLoginEnabled:
+        isEnabled(process.env.ALLOW_SOCIAL_LOGIN) || showOpenIdLogin || showSamlLogin,
       emailEnabled:
         (!!process.env.EMAIL_SERVICE || !!process.env.EMAIL_HOST) &&
         !!process.env.EMAIL_USERNAME &&
