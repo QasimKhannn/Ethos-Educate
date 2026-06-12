@@ -26,8 +26,9 @@ import MemoryAdminSettings from '~/components/SidePanel/Memories/AdminSettings';
 import MCPAdminSettings from '~/components/SidePanel/MCPBuilder/MCPAdminSettings';
 import MarketplaceAdminSettings from '~/components/Agents/MarketplaceAdminSettings';
 import PeoplePickerAdminSettings from '~/components/Sharing/PeoplePickerAdminSettings';
+import SsoSettings from './SsoSettings';
 
-type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles';
+type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles' | 'sso';
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -35,6 +36,7 @@ const tabs: { id: AdminTab; label: string }[] = [
   { id: 'invites', label: 'Invites' },
   { id: 'audit', label: 'Audit Log' },
   { id: 'roles', label: 'Roles & Permissions' },
+  { id: 'sso', label: 'SSO' },
 ];
 
 const cardClassName = 'rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm';
@@ -796,6 +798,8 @@ export default function AdminConsole() {
             </div>
           </div>
         )}
+
+        {activeTab === 'sso' && <SsoSettings />}
       </div>
     </div>
   );

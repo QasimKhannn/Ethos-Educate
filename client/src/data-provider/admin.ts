@@ -81,6 +81,49 @@ export type AdminAuditLogItem = {
   details?: Record<string, unknown> | null;
 };
 
+export type SsoAuthMode = 'local_only' | 'local_and_sso' | 'sso_only';
+
+export type SsoOpenIdStatus = {
+  source: 'db' | 'env' | 'none';
+  enabled: boolean;
+  authMode: SsoAuthMode;
+  clientId?: string;
+  issuer?: string;
+  scope?: string;
+  callbackUrl?: string;
+  buttonLabel?: string;
+  imageUrl?: string;
+  autoRedirect?: boolean;
+  emailClaim?: string;
+  usernameClaim?: string;
+  nameClaim?: string;
+  requiredRole?: string;
+  adminRole?: string;
+  allowedDomains?: string[];
+  secretStored: boolean;
+  error?: string | null;
+};
+
+export type SsoOpenIdUpdate = {
+  enabled?: boolean;
+  fields?: Record<string, string | boolean | string[] | undefined>;
+  secretAction?: 'replace' | 'keep' | 'clear';
+  clientSecret?: string;
+};
+
+export type SsoValidateResult = {
+  ok: boolean;
+  error?: string;
+  missing?: string[];
+  issuer?: string;
+  endpoints?: {
+    authorization_endpoint: string;
+    token_endpoint: string;
+    jwks_uri: string;
+  };
+  detail?: string;
+};
+
 const adminBase = '/api/admin';
 const invitesBase = '/api/invites';
 
@@ -89,6 +132,7 @@ const adminKeys = {
   users: [QueryKeys.user, 'admin-users'] as const,
   invites: [QueryKeys.user, 'admin-invites'] as const,
   auditLogs: [QueryKeys.user, 'admin-audit-logs'] as const,
+  sso: [QueryKeys.user, 'admin-sso'] as const,
 };
 
 export const useAdminOverviewQuery = () =>
@@ -207,3 +251,42 @@ export const useRevokeInviteMutation = () => {
     },
   });
 };
+
+export const useSsoStatusQuery = () =>
+  useQuery<SsoOpenIdStatus>({
+    queryKey: adminKeys.sso,
+    queryFn: () => request.get(`${adminBase}/sso`),
+    refetchOnWindowFocus: false,
+  });
+
+export const useUpdateOpenIdMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: SsoOpenIdUpdate) => request.put(`${adminBase}/sso/openid`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.sso });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.startupConfig] });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
+    },
+  });
+};
+
+export const useUpdateAuthModeMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (authMode: SsoAuthMode) =>
+      request.put(`${adminBase}/sso/auth-mode`, { authMode }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.sso });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.startupConfig] });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
+    },
+  });
+};
+
+export const useValidateOpenIdMutation = () =>
+  useMutation<SsoValidateResult, unknown, string>({
+    mutationFn: (issuer: string) => request.post(`${adminBase}/sso/openid/validate`, { issuer }),
+  });
