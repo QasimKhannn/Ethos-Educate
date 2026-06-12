@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Button, useToastContext } from '@librechat/client';
+import { Navigate, useOutletContext } from 'react-router-dom';
+import { Button, useMediaQuery, useToastContext } from '@librechat/client';
 import { SystemRoles } from 'librechat-data-provider';
 import {
   useAdminOverviewQuery,
@@ -15,6 +15,8 @@ import {
   type AdminManagedUser,
   type InviteListItem,
 } from '~/data-provider';
+import type { ContextType } from '~/common';
+import { OpenSidebar } from '~/components/Chat/Menus';
 import { useAuthContext } from '~/hooks';
 import AgentAdminSettings from '~/components/SidePanel/Agents/AdminSettings';
 import PromptAdminSettings from '~/components/Prompts/AdminSettings';
@@ -36,7 +38,7 @@ const cardClassName = 'rounded-2xl border border-border-light bg-surface-primary
 
 const formatDate = (value?: string | null) => {
   if (!value) {
-    return '—';
+    return '-';
   }
 
   return new Date(value).toLocaleString();
@@ -160,13 +162,15 @@ const InviteCard = ({
       <div>Created: {formatDate(invite.createdAt)}</div>
       <div>Accepted: {formatDate(invite.acceptedAt)}</div>
       <div>Revoked: {formatDate(invite.revokedAt)}</div>
-      <div>Accepted user: {invite.acceptedUser?.email || '—'}</div>
+      <div>Accepted user: {invite.acceptedUser?.email || '-'}</div>
     </div>
   </div>
 );
 
 export default function AdminConsole() {
   const { user } = useAuthContext();
+  const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+  const isSmallScreen = useMediaQuery('(max-width: 767px)');
   const { showToast } = useToastContext();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -209,6 +213,8 @@ export default function AdminConsole() {
     return <Navigate to="/c/new" replace={true} />;
   }
 
+  const shouldShowOpenSidebar = !isSmallScreen && !navVisible;
+
   const handleInviteSubmit = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email) {
@@ -232,6 +238,25 @@ export default function AdminConsole() {
     try {
       await updateRegistrationPolicyMutation.mutateAsync({ allowedDomains });
       showToast({ status: 'success', message: 'Allowed domains updated.' });
+    } catch (error: any) {
+      showToast({ status: 'error', message: error?.response?.data?.message || error?.message });
+    }
+  };
+
+  const handleInviteOnlyToggle = async () => {
+    const inviteOnlyRegistration = overviewQuery.data?.policy?.inviteOnlyRegistration;
+    if (inviteOnlyRegistration === undefined) {
+      return;
+    }
+
+    try {
+      await updateRegistrationPolicyMutation.mutateAsync({
+        inviteOnlyRegistration: !inviteOnlyRegistration,
+      });
+      showToast({
+        status: 'success',
+        message: `Invite-only registration ${inviteOnlyRegistration ? 'disabled' : 'enabled'}.`,
+      });
     } catch (error: any) {
       showToast({ status: 'error', message: error?.response?.data?.message || error?.message });
     }
@@ -285,6 +310,11 @@ export default function AdminConsole() {
   return (
     <div className="h-full overflow-y-auto bg-background p-4 text-text-primary sm:p-6 lg:p-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        {shouldShowOpenSidebar && (
+          <div className="flex items-center">
+            <OpenSidebar setNavVisible={setNavVisible} />
+          </div>
+        )}
         <div className={cardClassName}>
           <div className="text-3xl font-bold">Admin Console</div>
           <p className="mt-2 max-w-3xl text-sm text-text-secondary sm:text-base">
@@ -331,14 +361,30 @@ export default function AdminConsole() {
             </div>
 
             <div className={`${cardClassName} space-y-4`}>
-              <div>
-                <div className="text-lg font-semibold">Registration Policy</div>
-                <div className="mt-1 text-sm text-text-secondary">
-                  Invite-only registration currently:
-                  <span className="ml-2 font-medium text-text-primary">
-                    {overviewQuery.data?.policy.inviteOnlyRegistration ? 'Enabled' : 'Disabled'}
-                  </span>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-lg font-semibold">Registration Policy</div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    Invite-only registration currently:
+                    <span className="ml-2 font-medium text-text-primary">
+                      {overviewQuery.data?.policy.inviteOnlyRegistration ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    If disabled, everyone can register. If enabled, only invited users can register.
+                  </div>
                 </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={anyPending || overviewQuery.data?.policy.inviteOnlyRegistration == null}
+                  onClick={handleInviteOnlyToggle}
+                >
+                  {overviewQuery.data?.policy.inviteOnlyRegistration
+                    ? 'Disable invite-only'
+                    : 'Enable invite-only'}
+                </Button>
               </div>
 
               <label className="block text-sm font-medium text-text-primary">
@@ -448,3 +494,5 @@ export default function AdminConsole() {
     </div>
   );
 }
+
+

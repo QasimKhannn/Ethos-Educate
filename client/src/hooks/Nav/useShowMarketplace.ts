@@ -2,15 +2,6 @@ import { useContext, useMemo } from 'react';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import { useHasAccess, AuthContext } from '~/hooks';
 
-/**
- * Hook to determine if Ethos Tools should be shown.
- * Consolidates the logic for checking:
- * - Auth readiness (avoid race conditions)
- * - Access to Agents permission
- * - Access to Marketplace permission
- *
- * @returns Whether Ethos Tools should be displayed
- */
 export default function useShowMarketplace(): boolean {
   const authContext = useContext(AuthContext);
 
@@ -19,12 +10,6 @@ export default function useShowMarketplace(): boolean {
     permission: Permissions.USE,
   });
 
-  const hasAccessToMarketplace = useHasAccess({
-    permissionType: PermissionTypes.MARKETPLACE,
-    permission: Permissions.USE,
-  });
-
-  // Check if auth is ready (avoid race conditions)
   const authReady = useMemo(
     () =>
       authContext?.isAuthenticated !== undefined &&
@@ -32,6 +17,5 @@ export default function useShowMarketplace(): boolean {
     [authContext?.isAuthenticated, authContext?.user],
   );
 
-  // Show Ethos Tools when marketplace permission is enabled, auth is ready, and user has access to agents
-  return authReady && hasAccessToAgents && hasAccessToMarketplace;
+  return authReady && hasAccessToAgents;
 }

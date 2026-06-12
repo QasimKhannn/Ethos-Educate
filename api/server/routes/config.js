@@ -7,7 +7,7 @@ const { getAppConfig } = require('~/server/services/Config/app');
 const { getProjectByName } = require('~/models/Project');
 const { countUsers } = require('~/models');
 const { getLogStores } = require('~/cache');
-const { canRegisterWithoutInvite } = require('~/server/services/RegistrationPolicy');
+const { canRegisterWithoutInviteEffective } = require('~/server/services/AdminConfigService');
 
 const router = express.Router();
 const emailLoginEnabled =
@@ -44,6 +44,7 @@ router.get('/', async function (req, res) {
 
   try {
     const appConfig = await getAppConfig({ role: req.user?.role });
+    const registrationEnabled = !ldap?.enabled && (await canRegisterWithoutInviteEffective({ userCount }));
 
     const isOpenIdEnabled =
       !!process.env.OPENID_CLIENT_ID &&
@@ -82,7 +83,7 @@ router.get('/', async function (req, res) {
       samlImageUrl: process.env.SAML_IMAGE_URL,
       serverDomain: process.env.DOMAIN_SERVER || 'http://localhost:3080',
       emailLoginEnabled,
-      registrationEnabled: !ldap?.enabled && canRegisterWithoutInvite({ userCount }),
+      registrationEnabled,
       socialLoginEnabled: isEnabled(process.env.ALLOW_SOCIAL_LOGIN),
       emailEnabled:
         (!!process.env.EMAIL_SERVICE || !!process.env.EMAIL_HOST) &&

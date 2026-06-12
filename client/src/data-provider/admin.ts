@@ -125,8 +125,17 @@ export const useUpdateRegistrationPolicyMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ allowedDomains }: { allowedDomains: string[] }) =>
-      request.patch(`${adminBase}/registration-policy`, { allowedDomains }),
+    mutationFn: ({
+      allowedDomains,
+      inviteOnlyRegistration,
+    }: {
+      allowedDomains?: string[];
+      inviteOnlyRegistration?: boolean;
+    }) =>
+      request.patch(`${adminBase}/registration-policy`, {
+        ...(allowedDomains !== undefined ? { allowedDomains } : {}),
+        ...(inviteOnlyRegistration !== undefined ? { inviteOnlyRegistration } : {}),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.overview });
     },

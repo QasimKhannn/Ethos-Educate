@@ -1,8 +1,6 @@
 const { countUsers } = require('~/models');
-const {
-  canRegisterWithoutInvite,
-  getRestrictedRegistrationMessage,
-} = require('~/server/services/RegistrationPolicy');
+const { getRestrictedRegistrationMessage } = require('~/server/services/RegistrationPolicy');
+const { canRegisterWithoutInviteEffective } = require('~/server/services/AdminConfigService');
 
 async function validateRegistration(req, res, next) {
   if (req.invite) {
@@ -10,7 +8,7 @@ async function validateRegistration(req, res, next) {
   }
 
   const userCount = await countUsers();
-  if (canRegisterWithoutInvite({ userCount })) {
+  if (await canRegisterWithoutInviteEffective({ userCount })) {
     return next();
   }
 

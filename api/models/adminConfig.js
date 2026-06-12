@@ -13,15 +13,23 @@ const getAdminConfig = async () =>
     { upsert: true, new: true, setDefaultsOnInsert: true },
   ).lean();
 
-const updateAllowedDomains = async (domains = []) =>
+const updateAdminConfig = async (updates = {}) =>
   AdminConfig.findOneAndUpdate(
     { key: 'global' },
-    { $set: { allowedDomains: normalizeAllowedDomains(domains) } },
+    { $set: updates },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   ).lean();
+
+const updateAllowedDomains = async (domains = []) =>
+  updateAdminConfig({ allowedDomains: normalizeAllowedDomains(domains) });
+
+const updateInviteOnlyRegistration = async (inviteOnlyRegistration) =>
+  updateAdminConfig({ inviteOnlyRegistration: Boolean(inviteOnlyRegistration) });
 
 module.exports = {
   getAdminConfig,
   normalizeAllowedDomains,
+  updateAdminConfig,
   updateAllowedDomains,
+  updateInviteOnlyRegistration,
 };

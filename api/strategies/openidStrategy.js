@@ -19,7 +19,10 @@ const {
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { findUser, createUser, updateUser, countUsers } = require('~/models');
 const { getAppConfig } = require('~/server/services/Config');
-const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const {
+  canCreateAccountEffective,
+  getEffectiveAllowedDomains,
+} = require('~/server/services/AdminConfigService');
 const { isUserActive } = require('~/models/userMembership');
 const getLogStores = require('~/cache/getLogStores');
 const {
@@ -516,7 +519,7 @@ async function processOpenIDAuth(tokenset, existingUsersOnly = false) {
 
   if (!user) {
     const userCount = await countUsers();
-    if (!canCreateAccount({ userCount })) {
+    if (!(await canCreateAccountEffective({ userCount }))) {
       throw new Error(getRestrictedRegistrationMessage());
     }
 
@@ -778,3 +781,4 @@ module.exports = {
   getOpenIdConfig,
   getOpenIdEmail,
 };
+

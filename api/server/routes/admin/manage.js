@@ -1,7 +1,7 @@
 const express = require('express');
 const { SystemRoles } = require('librechat-data-provider');
 const { requireJwtAuth, checkAdmin } = require('~/server/middleware');
-const { updateAllowedDomains } = require('~/server/services/AdminConfigService');
+const { updateRegistrationPolicy } = require('~/server/services/AdminConfigService');
 const {
   ACTIVE_STATUS,
   INACTIVE_STATUS,
@@ -75,16 +75,40 @@ router.patch('/users/:userId/role', async (req, res) => {
 });
 
 router.patch('/registration-policy', async (req, res) => {
-  const allowedDomains = Array.isArray(req.body?.allowedDomains) ? req.body.allowedDomains : null;
+  const hasAllowedDomains = req.body?.allowedDomains !== undefined;
+  const hasInviteOnlyRegistration = req.body?.inviteOnlyRegistration !== undefined;
 
-  if (allowedDomains == null) {
+  if (!hasAllowedDomains && !hasInviteOnlyRegistration) {
+    return res.status(400).json({
+      message: 'allowedDomains or inviteOnlyRegistration must be provided.',
+    });
+  }
+
+  if (hasAllowedDomains && !Array.isArray(req.body.allowedDomains)) {
     return res.status(400).json({ message: 'allowedDomains must be an array.' });
   }
 
+  if (
+    hasInviteOnlyRegistration &&
+    typeof req.body.inviteOnlyRegistration !== 'boolean'
+  ) {
+    return res.status(400).json({ message: 'inviteOnlyRegistration must be a boolean.' });
+  }
+
   try {
-    const config = await updateAllowedDomains(allowedDomains);
+    const config = await updateRegistrationPolicy({
+      allowedDomains: hasAllowedDomains ? req.body.allowedDomains : undefined,
+      inviteOnlyRegistration: hasInviteOnlyRegistration
+        ? req.body.inviteOnlyRegistration
+        : undefined,
+    });
+
     return res.status(200).json({
       allowedDomains: Array.isArray(config.allowedDomains) ? config.allowedDomains : [],
+      inviteOnlyRegistration:
+        typeof config.inviteOnlyRegistration === 'boolean'
+          ? config.inviteOnlyRegistration
+          : undefined,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });

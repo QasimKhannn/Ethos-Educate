@@ -12,6 +12,10 @@ const adminConfigSchema = new mongoose.Schema(
       type: [String],
       required: false,
     },
+    inviteOnlyRegistration: {
+      type: Boolean,
+      required: false,
+    },
   },
   { timestamps: true },
 );

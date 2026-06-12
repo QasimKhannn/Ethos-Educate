@@ -5,10 +5,12 @@ const { SystemRoles, ErrorTypes } = require('librechat-data-provider');
 const { isEnabled, getBalanceConfig, isEmailDomainAllowed } = require('@librechat/api');
 const { createUser, findUser, updateUser, countUsers } = require('~/models');
 const { getAppConfig } = require('~/server/services/Config');
-const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const {
+  canCreateAccountEffective,
+  getEffectiveAllowedDomains,
+} = require('~/server/services/AdminConfigService');
 const { isUserActive } = require('~/models/userMembership');
 const {
-  canCreateAccount,
   getRestrictedRegistrationMessage,
   shouldAutoAssignFirstAdmin,
 } = require('~/server/services/RegistrationPolicy');
@@ -28,7 +30,6 @@ const {
   LDAP_STARTTLS,
 } = process.env;
 
-// Check required environment variables
 if (!LDAP_URL || !LDAP_USER_SEARCH_BASE) {
   module.exports = null;
 }
@@ -146,7 +147,7 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
 
     if (!user) {
       const userCount = await countUsers();
-      if (!canCreateAccount({ userCount })) {
+      if (!(await canCreateAccountEffective({ userCount }))) {
         return done(null, false, { message: getRestrictedRegistrationMessage() });
       }
 
@@ -158,7 +159,7 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
         ldapId,
         username,
         email: mail,
-        emailVerified: true, // The ldap server administrator should verify the email
+        emailVerified: true,
         name: fullName,
         role,
       };
@@ -166,8 +167,6 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
       const userId = await createUser(user, balanceConfig);
       user._id = userId;
     } else {
-      // Users registered in LDAP are assumed to have their user information managed in LDAP,
-      // so update the user information with the values registered in LDAP
       user.provider = 'ldap';
       user.ldapId = ldapId;
       user.email = mail;

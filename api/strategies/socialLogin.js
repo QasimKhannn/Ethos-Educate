@@ -3,11 +3,13 @@ const { ErrorTypes, SystemRoles } = require('librechat-data-provider');
 const { isEnabled, isEmailDomainAllowed } = require('@librechat/api');
 const { createSocialUser, handleExistingUser } = require('./process');
 const { getAppConfig } = require('~/server/services/Config');
-const { getEffectiveAllowedDomains } = require('~/server/services/AdminConfigService');
+const {
+  canCreateAccountEffective,
+  getEffectiveAllowedDomains,
+} = require('~/server/services/AdminConfigService');
 const { isUserActive } = require('~/models/userMembership');
 const { findUser, countUsers } = require('~/models');
 const {
-  canCreateAccount,
   getRestrictedRegistrationMessage,
   shouldAutoAssignFirstAdmin,
 } = require('~/server/services/RegistrationPolicy');
@@ -36,12 +38,10 @@ const socialLogin =
       const providerKey = `${provider}Id`;
       let existingUser = null;
 
-      /** First try to find user by provider ID (e.g., googleId, facebookId) */
       if (id && typeof id === 'string') {
         existingUser = await findUser({ [providerKey]: id });
       }
 
-      /** If not found by provider ID, try finding by email */
       if (!existingUser) {
         existingUser = await findUser({ email: email?.trim() });
         if (existingUser) {
@@ -80,7 +80,7 @@ const socialLogin =
       }
 
       const userCount = await countUsers();
-      if (!canCreateAccount({ userCount })) {
+      if (!(await canCreateAccountEffective({ userCount }))) {
         logger.error(
           `[${provider}Login] Registration blocked - restricted access mode active [Email: ${email}]`,
         );

@@ -425,13 +425,13 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     };
   };
 
-  const hasAccessToMarketplace = useHasAccess({
-    permissionType: PermissionTypes.MARKETPLACE,
+  const hasAccessToAgents = useHasAccess({
+    permissionType: PermissionTypes.AGENTS,
     permission: Permissions.USE,
   });
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
-    if (!hasAccessToMarketplace) {
+    if (!hasAccessToAgents) {
       timeoutId = setTimeout(() => {
         navigate('/c/new');
       }, 1000);
@@ -439,9 +439,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [hasAccessToMarketplace, navigate]);
+  }, [hasAccessToAgents, navigate]);
 
-  if (!hasAccessToMarketplace) {
+  if (!hasAccessToAgents) {
     return null;
   }
 
@@ -795,3 +795,4 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 };
 
 export default AgentMarketplace;
+
