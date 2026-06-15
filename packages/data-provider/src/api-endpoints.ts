@@ -137,6 +137,25 @@ export const projectFiles = (id: string) => `${projectsRoot}/${encodeURIComponen
 export const projectFile = (id: string, fileId: string) =>
   `${projectFiles(id)}/${encodeURIComponent(fileId)}`;
 
+/* cowork — projects + per-project workspace */
+export const coworkRoot = `${BASE_URL}/api/cowork`;
+
+export const coworkProjects = () => `${coworkRoot}/projects`;
+
+export const coworkProject = (projectId: string) =>
+  `${coworkRoot}/projects/${encodeURIComponent(projectId)}`;
+
+export const coworkTree = (projectId: string) => `${coworkProject(projectId)}/tree`;
+
+export const coworkFile = (projectId: string, filePath: string) =>
+  `${coworkProject(projectId)}/file?path=${encodeURIComponent(filePath)}`;
+
+export const coworkDownload = (projectId: string, filePath: string) =>
+  `${coworkProject(projectId)}/download?path=${encodeURIComponent(filePath)}`;
+
+export const coworkUpload = (projectId: string, subdir?: string) =>
+  `${coworkProject(projectId)}/upload${subdir ? `?path=${encodeURIComponent(subdir)}` : ''}`;
+
 export const search = (q: string, cursor?: string | null) =>
   `${BASE_URL}/api/search?q=${q}${cursor ? `&cursor=${cursor}` : ''}`;
 

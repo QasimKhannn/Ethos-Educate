@@ -37,6 +37,7 @@ export * from './headers-helpers';
 export { loginPage, registerPage, apiBaseUrl, buildLoginRedirectUrl } from './api-endpoints';
 export { default as request } from './request';
 export { dataService };
+export type { TCoworkProject, TCoworkFileNode, TCoworkTreeResponse } from './data-service'; // cowork
 import * as dataService from './data-service';
 /* general helpers */
 export * from './utils';

@@ -43,6 +43,8 @@ export * from './web';
 export * from './cache';
 /* Stream */
 export * from './stream';
+/* Cowork */
+export * from './cowork';
 /* Diagnostics */
 export { memoryDiagnostics } from './utils/memory';
 /* types */

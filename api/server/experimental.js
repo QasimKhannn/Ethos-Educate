@@ -308,6 +308,7 @@ if (cluster.isMaster) {
     app.use('/api/messages', routes.messages);
     app.use('/api/convos', routes.convos);
     app.use('/api/projects', routes.projects);
+    app.use('/api/cowork', routes.cowork); // cowork
     app.use('/api/presets', routes.presets);
     app.use('/api/prompts', routes.prompts);
     app.use('/api/categories', routes.categories);

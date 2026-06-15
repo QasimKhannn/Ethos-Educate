@@ -768,6 +768,94 @@ export function removeProjectFile(payload: t.TProjectFileRequest): Promise<t.TPr
   return request.delete(endpoints.projectFile(payload.projectId, payload.fileId));
 }
 
+/* cowork — projects + per-project workspace */
+
+export type TCoworkProject = {
+  _id: string;
+  name: string;
+  user: string;
+  description?: string;
+  instructions?: string;
+  enabledSkills: string[];
+  conversationIds: string[];
+  archived?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type TCoworkFileNode = {
+  name: string;
+  /** POSIX path relative to the workspace root, e.g. "output/report.pptx". */
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  modifiedAt?: string;
+  children?: TCoworkFileNode[];
+};
+
+export type TCoworkTreeResponse = {
+  projectId: string;
+  tree: TCoworkFileNode[];
+  usage: number;
+  quotaBytes?: number;
+};
+
+/* projects */
+export function listCoworkProjects(): Promise<TCoworkProject[]> {
+  return request.get<TCoworkProject[]>(endpoints.coworkProjects());
+}
+
+export function createCoworkProject(payload: {
+  name: string;
+  description?: string;
+  instructions?: string;
+}): Promise<TCoworkProject> {
+  return request.post(endpoints.coworkProjects(), payload);
+}
+
+export function getCoworkProject(projectId: string): Promise<TCoworkProject> {
+  return request.get<TCoworkProject>(endpoints.coworkProject(projectId));
+}
+
+export function updateCoworkProject(
+  projectId: string,
+  payload: Partial<Pick<TCoworkProject, 'name' | 'description' | 'instructions' | 'enabledSkills'>>,
+): Promise<TCoworkProject> {
+  return request.patch(endpoints.coworkProject(projectId), payload);
+}
+
+export function deleteCoworkProject(projectId: string): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(endpoints.coworkProject(projectId));
+}
+
+/* workspace */
+export function getCoworkTree(projectId: string): Promise<TCoworkTreeResponse> {
+  return request.get<TCoworkTreeResponse>(endpoints.coworkTree(projectId));
+}
+
+/** Fetch a workspace file as a Blob (auth header is attached by the request layer). */
+export function getCoworkFileBlob(projectId: string, filePath: string): Promise<Blob> {
+  return request.get<Blob>(endpoints.coworkFile(projectId, filePath), {
+    responseType: 'blob',
+  });
+}
+
+/** Upload one or many files (folder uploads pass relative paths in the FormData). */
+export function uploadCoworkFiles(
+  projectId: string,
+  data: FormData,
+  subdir?: string,
+): Promise<{ uploaded: number; paths: string[] }> {
+  return request.postMultiPart(endpoints.coworkUpload(projectId, subdir), data);
+}
+
+export function deleteCoworkFile(
+  projectId: string,
+  filePath: string,
+): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(endpoints.coworkFile(projectId, filePath));
+}
+
 export function updateConversation(
   payload: t.TUpdateConversationRequest,
 ): Promise<t.TUpdateConversationResponse> {
