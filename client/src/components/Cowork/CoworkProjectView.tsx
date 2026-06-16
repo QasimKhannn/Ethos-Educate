@@ -1,12 +1,14 @@
-// cowork — a single Cowork project: chat/goal area (center) + workspace (right).
-//
-// The center is a placeholder for now; the agent chat engine gets wired in next.
-// The right pane has Workspace / Trace / Skills tabs (Workspace is live).
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+// cowork — a single Cowork project: chat with the Cowork agent (center) +
+// workspace/trace/skills (right pane).
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, SquarePen } from 'lucide-react';
 import { useCoworkProjectsQuery } from '~/data-provider';
 import CoworkWorkspacePanel from '~/components/SidePanel/Cowork/CoworkWorkspacePanel';
+import CoworkChat from './CoworkChat';
+import CoworkTracePanel from './CoworkTracePanel';
+import CoworkSkillsPanel from './CoworkSkillsPanel';
+import type { CoworkTraceEntry } from './useCoworkChat';
 
 type PaneTab = 'workspace' | 'trace' | 'skills';
 
@@ -19,9 +21,53 @@ const TABS: { id: PaneTab; label: string }[] = [
 export default function CoworkProjectView() {
   const { projectId = '' } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: projects = [] } = useCoworkProjectsQuery();
   const project = projects.find((p) => p._id === projectId);
-  const [tab, setTab] = useState<PaneTab>('workspace');
+
+  // The last persisted conversation on the project doc (used as default).
+  const latestConvoId = project?.conversationIds?.[project.conversationIds.length - 1];
+
+  // ?convo= — set by sidebar when the user picks a specific conversation.
+  const convoParam = searchParams.get('convo');
+  // ?new= — timestamp set by "New chat" to force a fresh mount even without a convo param.
+  const newParam = searchParams.get('new');
+  // ?tab= — right panel tab.
+  const tabParam = searchParams.get('tab') as PaneTab | null;
+
+  const [tab, setTab] = useState<PaneTab>(
+    tabParam && ['workspace', 'trace', 'skills'].includes(tabParam) ? tabParam : 'workspace',
+  );
+  const [trace, setTrace] = useState<CoworkTraceEntry[]>([]);
+
+  // Reset trace when switching projects.
+  useEffect(() => {
+    setTrace([]);
+  }, [projectId]);
+
+  // Sync right-panel tab when ?tab= changes (e.g. sidebar Skills link).
+  useEffect(() => {
+    if (tabParam && ['workspace', 'trace', 'skills'].includes(tabParam)) {
+      setTab(tabParam);
+    }
+  }, [tabParam]);
+
+  // Which conversation to load:
+  // - ?convo=<id>  → that specific conversation
+  // - ?new=<ts>    → new conversation (undefined = blank slate)
+  // - neither      → the latest linked conversation on the project
+  const effectiveConvoId = newParam
+    ? undefined
+    : (convoParam ?? latestConvoId);
+
+  // Mount key: changes whenever convo selection or new-chat param changes,
+  // force-remounting CoworkChat with the right initial state.
+  const chatMountKey = `${projectId}-${convoParam ?? 'default'}-${newParam ?? '0'}`;
+
+  const newChat = () => {
+    setTrace([]);
+    navigate(`/cowork/${projectId}?new=${Date.now()}`);
+  };
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -34,27 +80,34 @@ export default function CoworkProjectView() {
           >
             <ArrowLeft className="size-4" /> Projects
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="truncate font-medium text-text-primary">
               {project?.name ?? 'Cowork project'}
             </div>
             <div className="text-xs text-text-tertiary">Cowork workspace</div>
           </div>
+          <button
+            type="button"
+            onClick={newChat}
+            title="New conversation"
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+          >
+            <SquarePen className="size-4" />
+            <span className="hidden sm:inline">New chat</span>
+          </button>
         </header>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <Sparkles className="size-7 text-text-secondary" />
-          <p className="max-w-md text-sm text-text-secondary">
-            Project ready. The agent chat lands here next — for now, use the workspace on the right
-            to upload files and folders.
-          </p>
-          <div className="mt-2 flex w-full max-w-xl items-center gap-2 rounded-lg border border-border-medium px-3 py-3 text-text-tertiary">
-            <span className="flex-1 text-left text-sm">Message Cowork… (coming soon)</span>
-          </div>
+        <div className="min-h-0 flex-1">
+          <CoworkChat
+            key={chatMountKey}
+            projectId={projectId}
+            initialConversationId={effectiveConvoId}
+            onTraceChange={setTrace}
+          />
         </div>
       </div>
 
-      <aside className="flex w-80 flex-none flex-col border-l border-border-medium">
+      <aside className="hidden w-80 flex-none flex-col border-l border-border-medium lg:flex">
         <div className="flex gap-1 border-b border-border-medium px-2 py-2">
           {TABS.map((t) => (
             <button
@@ -74,18 +127,8 @@ export default function CoworkProjectView() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           {tab === 'workspace' && <CoworkWorkspacePanel projectId={projectId} />}
-          {tab === 'trace' && (
-            <div className="flex h-full flex-col items-center justify-center gap-1 px-4 text-center text-text-tertiary">
-              <p className="text-sm">Trace coming soon</p>
-              <p className="text-xs">Live steps the agent takes will appear here.</p>
-            </div>
-          )}
-          {tab === 'skills' && (
-            <div className="flex h-full flex-col items-center justify-center gap-1 px-4 text-center text-text-tertiary">
-              <p className="text-sm">Skills coming soon</p>
-              <p className="text-xs">Toggle PPTX / DOCX / XLSX / PDF skills for this project.</p>
-            </div>
-          )}
+          {tab === 'trace' && <CoworkTracePanel trace={trace} />}
+          {tab === 'skills' && <CoworkSkillsPanel projectId={projectId} />}
         </div>
       </aside>
     </div>

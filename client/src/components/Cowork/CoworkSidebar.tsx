@@ -1,12 +1,88 @@
 // cowork — persistent left rail for the dedicated Cowork section.
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Folder, Briefcase, Puzzle, Plug, MessageSquare, Loader2 } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import {
+  Plus,
+  Folder,
+  Briefcase,
+  Puzzle,
+  Plug,
+  MessageSquare,
+  Loader2,
+  SquarePen,
+  MessagesSquare,
+  Clock,
+} from 'lucide-react';
 import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-provider';
+import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
+
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function ProjectConversations({ projectId, activeConvoId }: { projectId: string; activeConvoId?: string | null }) {
+  const navigate = useNavigate();
+  const { data: conversations = [], isLoading } = useCoworkConversationsQuery(projectId);
+
+  if (isLoading) {
+    return (
+      <div className="pl-7 py-1">
+        <Loader2 className="size-3 animate-spin text-text-tertiary" />
+      </div>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <div className="pl-7 py-1 text-xs text-text-tertiary">No conversations yet</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {conversations.map((c) => {
+        const isActive = c.conversationId === activeConvoId;
+        return (
+          <button
+            key={c.conversationId}
+            type="button"
+            onClick={() => navigate(`/cowork/${projectId}?convo=${c.conversationId}`)}
+            className={`group flex w-full items-start gap-2 rounded-md py-1.5 pl-7 pr-2 text-left text-xs transition-colors ${
+              isActive
+                ? 'bg-surface-tertiary text-text-primary'
+                : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+            }`}
+          >
+            <MessagesSquare className="mt-0.5 size-3 flex-none shrink-0 opacity-60" />
+            <span className="min-w-0 flex-1 truncate">{c.title || 'Untitled'}</span>
+            {c.updatedAt && (
+              <span className="flex-none text-[10px] text-text-tertiary opacity-0 group-hover:opacity-100">
+                {timeAgo(c.updatedAt)}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function CoworkSidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { projectId } = useParams();
+
+  const searchParams = new URLSearchParams(location.search);
+  const activeConvoId = searchParams.get('convo');
+  const skillsActive = !!projectId && searchParams.get('tab') === 'skills';
+
   const { data: projects = [] } = useCoworkProjectsQuery();
   const createMutation = useCreateCoworkProjectMutation();
   const [name, setName] = useState('');
@@ -14,9 +90,7 @@ export default function CoworkSidebar() {
 
   const submit = () => {
     const trimmed = name.trim();
-    if (!trimmed) {
-      return;
-    }
+    if (!trimmed) return;
     createMutation.mutate(
       { name: trimmed },
       {
@@ -30,7 +104,7 @@ export default function CoworkSidebar() {
   };
 
   return (
-    <aside className="flex h-full w-60 flex-none flex-col border-r border-border-medium px-3 py-4">
+    <aside className="hidden h-full w-60 flex-none flex-col border-r border-border-medium px-3 py-4 md:flex">
       <div className="mb-4 flex items-center gap-2 px-1">
         <Briefcase className="size-5 text-text-secondary" />
         <span className="text-lg font-semibold text-text-primary">Cowork</span>
@@ -43,13 +117,8 @@ export default function CoworkSidebar() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                submit();
-              }
-              if (e.key === 'Escape') {
-                setCreating(false);
-                setName('');
-              }
+              if (e.key === 'Enter') submit();
+              if (e.key === 'Escape') { setCreating(false); setName(''); }
             }}
             placeholder="Project name"
             className="rounded-md border border-border-medium bg-surface-primary px-2 py-1.5 text-sm text-text-primary outline-none"
@@ -66,10 +135,7 @@ export default function CoworkSidebar() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCreating(false);
-                setName('');
-              }}
+              onClick={() => { setCreating(false); setName(''); }}
               className="rounded-md px-2 py-1 text-xs text-text-secondary hover:text-text-primary"
             >
               Cancel
@@ -91,28 +157,62 @@ export default function CoworkSidebar() {
         {projects.map((p) => {
           const active = p._id === projectId;
           return (
-            <button
-              key={p._id}
-              type="button"
-              onClick={() => navigate(`/cowork/${p._id}`)}
-              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${
-                active
-                  ? 'bg-surface-tertiary text-text-primary'
-                  : 'text-text-secondary hover:bg-surface-secondary'
-              }`}
-            >
-              <Folder className="size-4 flex-none" />
-              <span className="truncate">{p.name}</span>
-            </button>
+            <div key={p._id}>
+              {/* Project row */}
+              <div className={`flex items-center gap-1 rounded-md ${active ? 'bg-surface-tertiary' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/cowork/${p._id}`)}
+                  className={`flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-sm ${
+                    active ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <Folder className="size-4 flex-none" />
+                  <span className="truncate">{p.name}</span>
+                </button>
+                {/* New chat shortcut — only on active project */}
+                {active && (
+                  <button
+                    type="button"
+                    title="New conversation"
+                    onClick={() => navigate(`/cowork/${p._id}?new=${Date.now()}`)}
+                    className="mr-1 flex-none rounded p-1 text-text-tertiary hover:text-text-primary"
+                  >
+                    <SquarePen className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Conversation sub-list — only for the active project */}
+              {active && (
+                <div className="mt-0.5 mb-1">
+                  <ProjectConversations projectId={p._id} activeConvoId={activeConvoId} />
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
 
       <div className="mt-2 flex flex-col gap-0.5 border-t border-border-medium pt-2">
-        <span className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-tertiary" title="Coming soon">
-          <Puzzle className="size-4" /> Skills
-        </span>
-        <span className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-tertiary" title="Coming soon">
+        {projectId ? (
+          <button
+            type="button"
+            onClick={() => navigate(`/cowork/${projectId}?tab=skills`)}
+            className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
+              skillsActive
+                ? 'bg-surface-tertiary text-text-primary'
+                : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+            }`}
+          >
+            <Puzzle className="size-4" /> Skills
+          </button>
+        ) : (
+          <span className="flex cursor-default items-center gap-2 px-2 py-1.5 text-sm text-text-tertiary" title="Open a project to manage skills">
+            <Puzzle className="size-4" /> Skills
+          </span>
+        )}
+        <span className="flex cursor-default items-center gap-2 px-2 py-1.5 text-sm text-text-tertiary" title="Coming soon">
           <Plug className="size-4" /> Connectors
         </span>
         <button

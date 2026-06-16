@@ -800,6 +800,27 @@ export type TCoworkTreeResponse = {
   quotaBytes?: number;
 };
 
+export type TCoworkConversation = {
+  conversationId: string;
+  title: string;
+  updatedAt?: string;
+};
+
+export type TCoworkMessageDoc = {
+  messageId: string;
+  parentMessageId?: string | null;
+  isCreatedByUser: boolean;
+  text: string;
+  content?: Array<Record<string, unknown>>;
+  createdAt?: string;
+};
+
+export type TCoworkMessagesPage = {
+  messages: TCoworkMessageDoc[];
+  hasMore: boolean;
+  nextBefore?: string;
+};
+
 /* projects */
 export function listCoworkProjects(): Promise<TCoworkProject[]> {
   return request.get<TCoworkProject[]>(endpoints.coworkProjects());
@@ -828,6 +849,34 @@ export function deleteCoworkProject(projectId: string): Promise<{ deleted: strin
   return request.delete<{ deleted: string }>(endpoints.coworkProject(projectId));
 }
 
+/** Link a chat conversation to a Cowork project (so the executor can resolve the workspace). */
+export function linkCoworkConversation(
+  projectId: string,
+  conversationId: string,
+): Promise<{ linked: string }> {
+  return request.post(endpoints.coworkProjectConversations(projectId), { conversationId });
+}
+
+/** List a project's linked conversations with titles, most recent first. */
+export function listCoworkConversations(
+  projectId: string,
+): Promise<{ conversations: TCoworkConversation[] }> {
+  return request.get<{ conversations: TCoworkConversation[] }>(
+    endpoints.coworkProjectConversations(projectId),
+  );
+}
+
+/** Page a conversation's messages (newest-first cursor via `before`). */
+export function getCoworkConversationMessages(
+  projectId: string,
+  conversationId: string,
+  params?: { limit?: number; before?: string },
+): Promise<TCoworkMessagesPage> {
+  return request.get<TCoworkMessagesPage>(
+    endpoints.coworkConversationMessages(projectId, conversationId, params),
+  );
+}
+
 /* workspace */
 export function getCoworkTree(projectId: string): Promise<TCoworkTreeResponse> {
   return request.get<TCoworkTreeResponse>(endpoints.coworkTree(projectId));
@@ -854,6 +903,20 @@ export function deleteCoworkFile(
   filePath: string,
 ): Promise<{ deleted: string }> {
   return request.delete<{ deleted: string }>(endpoints.coworkFile(projectId, filePath));
+}
+
+/* cowork — skills */
+
+export type TCoworkSkill = {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+};
+
+/** List available builtin skills for a project, with enabled flag from the project's enabledSkills. */
+export function listCoworkSkills(projectId: string): Promise<TCoworkSkill[]> {
+  return request.get<TCoworkSkill[]>(endpoints.coworkSkills(projectId));
 }
 
 export function updateConversation(

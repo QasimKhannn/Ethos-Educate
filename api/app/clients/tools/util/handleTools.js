@@ -16,6 +16,7 @@ const {
   buildWebSearchContext,
   createLocalCodeExecutionTool,
   resolveCodeExecutionRuntime,
+  CoworkWorkspaceService,
 } = require('@librechat/api');
 const { getMCPServersRegistry } = require('~/config');
 const {
@@ -47,7 +48,28 @@ const {
   prepareLocalCodeExecutionInputs,
 } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
+const { getUserCoworkProject } = require('~/models/CoworkProject'); // cowork
+const coworkPaths = require('~/config/paths'); // cowork
 const { getUserPluginAuthValue } = require('~/server/services/PluginService');
+
+// cowork — guidance injected when execute_code runs in a Cowork project workspace.
+function buildCoworkCodeContext(entries) {
+  const lines = [
+    "- The execute_code tool runs with this project's workspace as the working directory.",
+    '- Read and write files using paths relative to the workspace root (e.g. "./data.csv", "./output/report.pptx").',
+    '- Save deliverables into the "output/" folder so the user can find and download them.',
+    '- If a Python package is missing, the runtime installs it automatically and reruns the code.',
+  ];
+  if (entries && entries.length) {
+    lines.push('- Currently in the workspace:');
+    for (const name of entries) {
+      lines.push(`\t- ./${name}`);
+    }
+  } else {
+    lines.push('- The workspace is currently empty.');
+  }
+  return lines.join('\n');
+}
 const { createMCPTool, createMCPTools } = require('~/server/services/MCP');
 const { loadAuthValues } = require('~/server/services/Tools/credentials');
 const { getMCPServerTools } = require('~/server/services/Config');
@@ -298,14 +320,43 @@ const loadTools = async ({
         }
 
         const codeFiles = options.tool_resources?.[EToolResources.execute_code]?.files ?? [];
-        const toolContext = buildLocalCodeToolContext(codeFiles.map((file) => file.filename));
+
+        // cowork — if this run belongs to a Cowork project (the client sends the
+        // project id), execute IN the project workspace (work-in-place) with a clean
+        // env (no backend secrets). Non-cowork runs are completely unaffected.
+        let coworkWorkingDir;
+        let coworkContext;
+        try {
+          const coworkProjectId = options.req?.body?.coworkProjectId;
+          if (coworkProjectId) {
+            const project = await getUserCoworkProject({ user, projectId: coworkProjectId });
+            if (project) {
+              const root = process.env.COWORK_WORKSPACE_ROOT || coworkPaths.coworkWorkspaces;
+              const ws = new CoworkWorkspaceService({ root, projectId: String(project._id) });
+              await ws.ensure();
+              coworkWorkingDir = ws.basePath;
+              const tree = await ws.getTree();
+              coworkContext = buildCoworkCodeContext(
+                tree.map((n) => (n.type === 'directory' ? `${n.name}/` : n.name)),
+              );
+            }
+          }
+        } catch (error) {
+          logger.warn('[handleTools] cowork workspace resolution failed; using default sandbox', error);
+        }
+
+        const toolContext =
+          coworkContext ?? buildLocalCodeToolContext(codeFiles.map((file) => file.filename));
         if (toolContext) {
           toolContextMap[tool] = toolContext;
         }
 
         return createLocalCodeExecutionTool({
           projectRoot: process.cwd(),
-          loadInputs: () => prepareLocalCodeExecutionInputs({ req: options.req, files: codeFiles }),
+          loadInputs: coworkWorkingDir
+            ? undefined
+            : () => prepareLocalCodeExecutionInputs({ req: options.req, files: codeFiles }),
+          ...(coworkWorkingDir ? { workingDir: coworkWorkingDir, cleanEnv: true } : {}),
         });
       };
       continue;

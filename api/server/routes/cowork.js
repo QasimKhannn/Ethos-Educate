@@ -8,7 +8,7 @@ const fs = require('fs').promises;
 const multer = require('multer');
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
-const { CoworkWorkspaceService } = require('@librechat/api');
+const { CoworkWorkspaceService, listBuiltinSkills } = require('@librechat/api');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const {
   createCoworkProject,
@@ -16,6 +16,9 @@ const {
   getUserCoworkProject,
   updateCoworkProject,
   deleteCoworkProject,
+  addCoworkProjectConversation,
+  getCoworkProjectConversations,
+  getCoworkConversationMessages,
 } = require('~/models/CoworkProject');
 const paths = require('~/config/paths');
 
@@ -23,6 +26,7 @@ const router = express.Router();
 router.use(requireJwtAuth);
 
 const workspaceRoot = process.env.COWORK_WORKSPACE_ROOT || paths.coworkWorkspaces;
+const skillsRoot = process.env.COWORK_SKILLS_ROOT || paths.coworkSkillsRoot;
 const quotaMB = parseInt(process.env.COWORK_WORKSPACE_QUOTA_MB || '', 10);
 const quotaBytes = Number.isFinite(quotaMB) && quotaMB > 0 ? quotaMB * 1024 * 1024 : undefined;
 
@@ -166,6 +170,86 @@ router.delete('/projects/:projectId', async (req, res) => {
     res.status(200).json({ deleted: project._id });
   } catch {
     res.status(500).json({ message: 'Error deleting project' });
+  }
+});
+
+/**
+ * GET /api/cowork/projects/:projectId/skills
+ * Lists available builtin skills with an `enabled` flag derived from the project's
+ * enabledSkills array. Owner-scoped — verifies the project belongs to the caller.
+ * skill-creator is excluded from the user-facing list (meta skill, not a document task).
+ */
+router.get('/projects/:projectId/skills', async (req, res) => {
+  try {
+    const project = await getUserCoworkProject({ user: req.user.id, projectId: req.params.projectId });
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    const enabledSet = new Set(Array.isArray(project.enabledSkills) ? project.enabledSkills : []);
+    const allSkills = await listBuiltinSkills(skillsRoot);
+    // Exclude the meta skill-creator from the user-facing panel.
+    const userSkills = allSkills
+      .filter((s) => s.id !== 'skill-creator')
+      .map((s) => ({ ...s, enabled: enabledSet.has(s.id) }));
+    res.status(200).json(userSkills);
+  } catch (error) {
+    logger.error('[/cowork skills] Error', error);
+    res.status(500).json({ message: 'Error listing skills' });
+  }
+});
+
+/** GET /api/cowork/projects/:projectId/conversations — list the project's chats. */
+router.get('/projects/:projectId/conversations', async (req, res) => {
+  try {
+    const conversations = await getCoworkProjectConversations({
+      user: req.user.id,
+      projectId: req.params.projectId,
+    });
+    if (conversations == null) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    res.status(200).json({ conversations });
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error listing conversations' });
+  }
+});
+
+/**
+ * GET /api/cowork/projects/:projectId/conversations/:conversationId/messages
+ * Page a conversation's messages (newest-first cursor via ?before=ISO&limit=N).
+ */
+router.get('/projects/:projectId/conversations/:conversationId/messages', async (req, res) => {
+  try {
+    const result = await getCoworkConversationMessages({
+      user: req.user.id,
+      projectId: req.params.projectId,
+      conversationId: req.params.conversationId,
+      limit: req.query.limit,
+      before: req.query.before,
+    });
+    if (result == null) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error loading messages' });
+  }
+});
+
+/** POST /api/cowork/projects/:projectId/conversations — link a chat to the project. */
+router.post('/projects/:projectId/conversations', async (req, res) => {
+  try {
+    const project = await addCoworkProjectConversation({
+      user: req.user.id,
+      projectId: req.params.projectId,
+      conversationId: req.body?.conversationId,
+    });
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    res.status(200).json({ linked: req.body?.conversationId });
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error linking conversation' });
   }
 });
 

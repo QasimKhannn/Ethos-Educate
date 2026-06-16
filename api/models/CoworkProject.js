@@ -1,5 +1,7 @@
 // cowork — CRUD for Cowork projects (separate collection; does not touch Project).
-const { CoworkProject } = require('~/db/models');
+const { CoworkProject, Conversation, Message } = require('~/db/models');
+
+const MESSAGES_PAGE = 25;
 
 const MAX_NAME = 128;
 const MAX_DESCRIPTION = 2048;
@@ -73,10 +75,119 @@ const deleteCoworkProject = async ({ user, projectId }) => {
   return CoworkProject.findOneAndDelete(ownerFilter(user, projectId)).lean();
 };
 
+/** Link a conversation to a Cowork project (idempotent; owner-scoped). */
+const addCoworkProjectConversation = async ({ user, projectId, conversationId }) => {
+  if (!conversationId) {
+    throw new Error('conversationId is required');
+  }
+  return CoworkProject.findOneAndUpdate(
+    ownerFilter(user, projectId),
+    { $addToSet: { conversationIds: conversationId } },
+    { new: true },
+  ).lean();
+};
+
+/**
+ * Reverse lookup: find the Cowork project a conversation belongs to (owner-scoped).
+ * Used by the execution bridge to resolve the workspace from the active conversation.
+ */
+const getCoworkProjectByConversation = async ({ user, conversationId }) => {
+  if (!conversationId) {
+    return null;
+  }
+  return CoworkProject.findOne({ user, conversationIds: conversationId }).lean();
+};
+
+/**
+ * List a project's linked conversations with metadata (title + recency), most
+ * recent first. Owner-scoped on both the project and the conversations. Returns
+ * `null` if the project doesn't exist for this user.
+ */
+const getCoworkProjectConversations = async ({ user, projectId }) => {
+  const project = await CoworkProject.findOne(ownerFilter(user, projectId))
+    .select('conversationIds')
+    .lean();
+  if (!project) {
+    return null;
+  }
+  const ids = Array.isArray(project.conversationIds) ? project.conversationIds : [];
+  if (ids.length === 0) {
+    return [];
+  }
+  const convos = await Conversation.find({ user, conversationId: { $in: ids } })
+    .select('conversationId title updatedAt')
+    .sort({ updatedAt: -1 })
+    .lean();
+  return convos.map((c) => ({
+    conversationId: c.conversationId,
+    title: c.title || 'New chat',
+    updatedAt: c.updatedAt,
+  }));
+};
+
+/**
+ * Page a conversation's messages, newest-first cursor (`before` = ISO createdAt).
+ * Owner-scoped: the project must belong to the user and link this conversation.
+ * Returns messages in chronological (ascending) order for easy prepend, plus a
+ * `nextBefore` cursor and `hasMore`. Returns `null` if access is denied.
+ */
+const getCoworkConversationMessages = async ({ user, projectId, conversationId, limit, before }) => {
+  const project = await CoworkProject.findOne({
+    ...ownerFilter(user, projectId),
+    conversationIds: conversationId,
+  })
+    .select('_id')
+    .lean();
+  if (!project) {
+    return null;
+  }
+
+  const pageSize = Math.min(Math.max(Number(limit) || MESSAGES_PAGE, 1), 100);
+  const query = { user, conversationId };
+  if (before) {
+    const beforeDate = new Date(before);
+    if (!Number.isNaN(beforeDate.getTime())) {
+      query.createdAt = { $lt: beforeDate };
+    }
+  }
+
+  // Fetch newest-first with one extra to detect whether older pages remain.
+  const docs = await Message.find(query)
+    .select('messageId parentMessageId isCreatedByUser text content createdAt')
+    .sort({ createdAt: -1 })
+    .limit(pageSize + 1)
+    .lean();
+
+  const hasMore = docs.length > pageSize;
+  const page = hasMore ? docs.slice(0, pageSize) : docs;
+  // page is newest-first → its last element is the oldest in this page (next cursor).
+  const nextBefore = page.length > 0 ? page[page.length - 1].createdAt : undefined;
+
+  return {
+    messages: page
+      .slice()
+      .reverse()
+      .map((m) => ({
+        messageId: m.messageId,
+        parentMessageId: m.parentMessageId ?? null,
+        isCreatedByUser: !!m.isCreatedByUser,
+        text: m.text || '',
+        content: m.content,
+        createdAt: m.createdAt,
+      })),
+    hasMore,
+    nextBefore,
+  };
+};
+
 module.exports = {
   createCoworkProject,
   getUserCoworkProjects,
   getUserCoworkProject,
   updateCoworkProject,
   deleteCoworkProject,
+  addCoworkProjectConversation,
+  getCoworkProjectByConversation,
+  getCoworkProjectConversations,
+  getCoworkConversationMessages,
 };

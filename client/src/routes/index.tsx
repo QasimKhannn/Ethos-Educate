@@ -140,19 +140,19 @@ export const router = createBrowserRouter(
               path: 'admin',
               element: <AdminConsole />,
             },
-          ],
-        },
-        {
-          path: 'cowork',
-          element: <CoworkLayout />,
-          children: [
             {
-              index: true,
-              element: <CoworkHome />,
-            },
-            {
-              path: ':projectId',
-              element: <CoworkProjectView />,
+              path: 'cowork',
+              element: <CoworkLayout />,
+              children: [
+                {
+                  index: true,
+                  element: <CoworkHome />,
+                },
+                {
+                  path: ':projectId',
+                  element: <CoworkProjectView />,
+                },
+              ],
             },
           ],
         },

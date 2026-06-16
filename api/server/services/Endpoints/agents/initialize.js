@@ -8,6 +8,9 @@ const {
   GenerationJobManager,
   getCustomEndpointConfig,
   createSequentialChainEdges,
+  // cowork — skills injection (load individual skills by id + build prompt block)
+  loadBuiltinSkill,
+  buildSkillsPrompt,
 } = require('@librechat/api');
 const {
   EModelEndpoint,
@@ -25,8 +28,11 @@ const AgentClient = require('~/server/controllers/agents/client');
 const { getConvoFiles } = require('~/models/Conversation');
 const { processAddedConvo } = require('./addedConvo');
 const { getAgent } = require('~/models/Agent');
+const { getUserCoworkProject } = require('~/models/CoworkProject'); // cowork
 const { logViolation } = require('~/cache');
 const db = require('~/models');
+const paths = require('~/config/paths'); // cowork — skills root
+const _coworkSkillsRoot = process.env.COWORK_SKILLS_ROOT || paths.coworkSkillsRoot; // cowork
 
 /**
  * Creates a tool loader function for the agent.
@@ -150,6 +156,31 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   delete endpointOption.agent;
   if (!primaryAgent) {
     throw new Error('Agent not found');
+  }
+
+  // cowork — inject enabled skills into the agent's system prompt.
+  // ONLY fires when the client sends coworkProjectId (Cowork conversations).
+  // Normal chats, projects, and the global tool registry are completely unaffected.
+  // Fails safe: any error here logs a warning and leaves instructions unchanged.
+  try {
+    const coworkProjectId = req.body?.coworkProjectId;
+    if (coworkProjectId) {
+      const project = await getUserCoworkProject({ user: req.user?.id, projectId: coworkProjectId });
+      const enabledIds = Array.isArray(project?.enabledSkills) ? project.enabledSkills : [];
+      if (enabledIds.length > 0) {
+        const loadedSkills = (
+          await Promise.all(enabledIds.map((id) => loadBuiltinSkill(_coworkSkillsRoot, id)))
+        ).filter(Boolean);
+        const skillsBlock = buildSkillsPrompt(loadedSkills);
+        if (skillsBlock) {
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', skillsBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+      }
+    }
+  } catch (coworkErr) {
+    logger.warn('[initializeClient] cowork skills injection failed; continuing without skills', coworkErr);
   }
 
   const modelsConfig = await getModelsConfig(req);

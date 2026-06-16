@@ -12,7 +12,7 @@ export default function CoworkLayout() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-surface-primary">
+    <div className="flex h-full w-full overflow-hidden bg-surface-primary">
       <CoworkSidebar />
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Outlet />

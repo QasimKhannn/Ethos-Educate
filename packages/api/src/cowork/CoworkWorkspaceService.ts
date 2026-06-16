@@ -39,6 +39,15 @@ export interface CoworkWorkspaceOptions {
 /** Default subfolder the agent is instructed to write deliverables into. */
 export const COWORK_OUTPUT_DIR = 'output';
 
+/** Execution machinery that lives in the workspace but is hidden from the file tree. */
+const COWORK_HIDDEN_ENTRIES = new Set([
+  '.venv',
+  '__pycache__',
+  '__librechat_exec.py',
+  '__librechat_exec.js',
+  '__librechat_ptc.py',
+]);
+
 /** projectId must be a single safe path segment — no separators, no dots-only. */
 function isSafeProjectId(id: string): boolean {
   return /^[A-Za-z0-9_-]+$/.test(id);
@@ -112,6 +121,9 @@ export class CoworkWorkspaceService {
     const nodes: CoworkFileNode[] = [];
 
     for (const entry of entries) {
+      if (COWORK_HIDDEN_ENTRIES.has(entry.name)) {
+        continue;
+      }
       const abs = path.join(absDir, entry.name);
       const rel = toPosix(path.relative(this.basePath, abs));
       if (entry.isDirectory()) {

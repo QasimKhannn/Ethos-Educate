@@ -83,49 +83,54 @@ export default function CoworkWorkspaceHeader({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-border-medium px-2 py-2">
-      {isUploading ? (
-        <span className="flex items-center gap-1.5 text-xs text-text-secondary">
-          <Loader2 className="size-3.5 animate-spin" /> Uploading…
-        </span>
-      ) : (
-        <span className="text-xs text-text-secondary">{usageLabel}</span>
-      )}
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          title="Refresh"
-          className="rounded p-1.5 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-          onClick={onRefresh}
-        >
-          <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
-        </button>
-        <button
-          type="button"
-          title="Upload files"
-          disabled={isUploading}
-          className="rounded-md p-1.5 text-text-secondary hover:bg-surface-secondary hover:text-text-primary disabled:opacity-50"
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload className="size-4" />
-        </button>
-        <button
-          type="button"
-          title="Upload a folder"
-          disabled={isUploading}
-          className="rounded-md p-1.5 text-text-secondary hover:bg-surface-secondary hover:text-text-primary disabled:opacity-50"
-          onClick={() => folderRef.current?.click()}
-        >
-          <FolderUp className="size-4" />
-        </button>
-        <input ref={fileRef} type="file" multiple className="hidden" onChange={handleChange(false)} />
-        <input
-          ref={folderRef}
-          type="file"
-          className="hidden"
-          onChange={handleChange(true)}
-          {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
-        />
+    <div className="flex-none border-b border-border-medium px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">Files</p>
+          {isUploading ? (
+            <span className="flex items-center gap-1 text-xs text-text-secondary">
+              <Loader2 className="size-3 animate-spin" /> Uploading…
+            </span>
+          ) : (
+            <span className="text-xs text-text-secondary">{usageLabel} used</span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            title="Refresh"
+            className="rounded-md p-1.5 text-text-tertiary hover:bg-surface-secondary hover:text-text-primary"
+            onClick={onRefresh}
+          >
+            <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            title="Upload files"
+            disabled={isUploading}
+            className="rounded-md p-1.5 text-text-tertiary hover:bg-surface-secondary hover:text-text-primary disabled:opacity-50"
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Upload a folder"
+            disabled={isUploading}
+            className="rounded-md p-1.5 text-text-tertiary hover:bg-surface-secondary hover:text-text-primary disabled:opacity-50"
+            onClick={() => folderRef.current?.click()}
+          >
+            <FolderUp className="size-3.5" />
+          </button>
+          <input ref={fileRef} type="file" multiple className="hidden" onChange={handleChange(false)} />
+          <input
+            ref={folderRef}
+            type="file"
+            className="hidden"
+            onChange={handleChange(true)}
+            {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+          />
+        </div>
       </div>
     </div>
   );

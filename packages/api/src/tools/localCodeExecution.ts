@@ -23,6 +23,7 @@ const PYTHON_PACKAGE_OVERRIDES: Readonly<Record<string, string>> = {
   bs4: 'beautifulsoup4',
   cv2: 'opencv-python-headless',
   Crypto: 'pycryptodome',
+  dateutil: 'python-dateutil',
   docx: 'python-docx',
   dotenv: 'python-dotenv',
   fitz: 'PyMuPDF',
@@ -119,6 +120,10 @@ export interface CreateLocalCodeExecutionToolParams {
   loadInputs?: () => Promise<LoadLocalCodeExecutionInputsResult>;
   projectRoot: string;
   timeoutMs?: number;
+  // cowork — run in this dir (work-in-place) instead of a temp sandbox
+  workingDir?: string;
+  // cowork — strip backend secrets from the executed code's environment
+  cleanEnv?: boolean;
 }
 
 const dedupeFileNames = (files: SandboxInputFile[]): SandboxInputFile[] => {
@@ -190,13 +195,38 @@ const getVirtualEnvironmentPythonPath = (sandboxPath: string): string =>
     process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
   );
 
-const getPythonBaseEnv = (extraEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv => ({
-  ...process.env,
+const getPythonBaseEnv = (
+  extraEnv?: NodeJS.ProcessEnv,
+  baseEnv: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv => ({
+  ...baseEnv,
   ...extraEnv,
   PIP_CACHE_DIR:
     process.env.CODE_EXECUTION_PIP_CACHE_DIR ?? path.join(os.tmpdir(), 'librechat-pip-cache'),
   PYTHONNOUSERSITE: '1',
 });
+
+// cowork — operational env an interpreter needs, WITHOUT app secrets. Used when
+// `cleanEnv` is requested (Cowork) so executed code can't read backend secrets.
+const CLEAN_ENV_ALLOWLIST = new Set<string>([
+  'PATH', 'HOME', 'SHELL', 'USER', 'LOGNAME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'LANGUAGE',
+  'SystemRoot', 'SYSTEMROOT', 'COMSPEC', 'PATHEXT', 'WINDIR', 'SystemDrive', 'SYSTEMDRIVE',
+  'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE',
+]);
+const CLEAN_ENV_PREFIXES = ['LC_', 'CODE_EXECUTION_', 'PYTHON', 'VIRTUAL_ENV', 'PIP_'];
+
+export const buildCleanEnv = (source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv => {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (value == null) {
+      continue;
+    }
+    if (CLEAN_ENV_ALLOWLIST.has(key) || CLEAN_ENV_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+      out[key] = value;
+    }
+  }
+  return out;
+};
 
 export const getPythonCommandCandidates = (
   preferredCommand = process.env.CODE_EXECUTION_PYTHON_BIN,
@@ -531,10 +561,13 @@ export const preparePythonExecutionEnvironment = async ({
   packageInstallationEnabled = isPythonPackageInstallationEnabled(),
   sandboxPath,
   timeoutMs = 30_000,
+  baseEnv = process.env,
 }: {
   packageInstallationEnabled?: boolean;
   sandboxPath: string;
   timeoutMs?: number;
+  // cowork — base env for the executed code (pass buildCleanEnv() to strip secrets)
+  baseEnv?: NodeJS.ProcessEnv;
 }): Promise<PythonExecutionEnvironment> => {
   let lastError: unknown;
 
@@ -545,14 +578,14 @@ export const preparePythonExecutionEnvironment = async ({
           args: ['--version'],
           command,
           cwd: sandboxPath,
-          env: getPythonBaseEnv(),
+          env: getPythonBaseEnv(undefined, baseEnv),
           timeoutMs,
         });
 
         if (result.exitCode === 0 && !result.timedOut) {
           return {
             command,
-            env: getPythonBaseEnv(),
+            env: getPythonBaseEnv(undefined, baseEnv),
             packageInstallationEnabled: false,
           };
         }
@@ -570,10 +603,13 @@ export const preparePythonExecutionEnvironment = async ({
 
       return {
         command: pythonPath,
-        env: getPythonBaseEnv({
-          PATH: `${path.dirname(pythonPath)}${path.delimiter}${process.env.PATH ?? ''}`,
-          VIRTUAL_ENV: venvPath,
-        }),
+        env: getPythonBaseEnv(
+          {
+            PATH: `${path.dirname(pythonPath)}${path.delimiter}${process.env.PATH ?? ''}`,
+            VIRTUAL_ENV: venvPath,
+          },
+          baseEnv,
+        ),
         packageInstallationEnabled: true,
       };
     } catch (error) {
@@ -797,23 +833,40 @@ export const collectGeneratedFiles = async ({
   return generatedFiles;
 };
 
-const executeLocalCode = async ({
+export const executeLocalCode = async ({
   code,
   inputFiles,
   language,
   projectRoot,
   timeoutMs,
+  workingDir,
+  cleanEnv,
 }: {
   code: string;
   inputFiles: SandboxInputFile[];
   language: ResolvedLanguage;
   projectRoot: string;
   timeoutMs: number;
+  // cowork — run in this dir (work-in-place) instead of a throwaway temp sandbox
+  workingDir?: string;
+  // cowork — strip backend secrets from the executed code's environment
+  cleanEnv?: boolean;
 }): Promise<LocalExecutionResult> => {
-  const sandboxPath = await fs.mkdtemp(path.join(os.tmpdir(), 'librechat-exec-'));
+  const inPlace = typeof workingDir === 'string' && workingDir.length > 0;
+  const sandboxPath: string = inPlace
+    ? (workingDir as string)
+    : await fs.mkdtemp(path.join(os.tmpdir(), 'librechat-exec-'));
+  const baseEnv = cleanEnv ? buildCleanEnv() : process.env;
 
   try {
-    const beforeState = await prepareSandbox({ inputFiles, sandboxPath });
+    if (inPlace) {
+      await fs.mkdir(sandboxPath, { recursive: true });
+    }
+    // In-place runs operate directly on the workspace, so we don't copy inputs in or
+    // snapshot/collect outputs — generated files already live in the workspace.
+    const beforeState = inPlace
+      ? new Map<string, string>()
+      : await prepareSandbox({ inputFiles, sandboxPath });
     const executionFilePath = await writeExecutionFile({
       code,
       language,
@@ -823,7 +876,7 @@ const executeLocalCode = async ({
     const result =
       language === 'python'
         ? await runPythonFileWithPackageInstallation({
-            environment: await preparePythonExecutionEnvironment({ sandboxPath }),
+            environment: await preparePythonExecutionEnvironment({ sandboxPath, baseEnv }),
             filePath: executionFilePath,
             sandboxPath,
             timeoutMs,
@@ -831,19 +884,26 @@ const executeLocalCode = async ({
         : await runCommandWithFallback({
             commandCandidates: [process.execPath],
             cwd: sandboxPath,
-            env: process.env,
+            env: baseEnv,
             filePath: executionFilePath,
             timeoutMs,
           });
-    const generatedFiles = await collectGeneratedFiles({
-      beforeState,
-      excludedFiles: new Set([JS_WRAPPER_FILE, PYTHON_WRAPPER_FILE]),
-      excludedPathPrefixes: [PYTHON_CACHE_DIRECTORY, PYTHON_VENV_DIRECTORY],
-      sandboxPath,
-    });
 
-    if (generatedFiles.length === 0) {
-      await fs.rm(sandboxPath, { recursive: true, force: true });
+    let generatedFiles: SandboxOutputFile[] = [];
+    if (inPlace) {
+      // Remove only the wrapper file; leave the workspace (and any venv cache) intact.
+      await fs.rm(executionFilePath, { force: true }).catch(() => undefined);
+    } else {
+      generatedFiles = await collectGeneratedFiles({
+        beforeState,
+        excludedFiles: new Set([JS_WRAPPER_FILE, PYTHON_WRAPPER_FILE]),
+        excludedPathPrefixes: [PYTHON_CACHE_DIRECTORY, PYTHON_VENV_DIRECTORY],
+        sandboxPath,
+      });
+
+      if (generatedFiles.length === 0) {
+        await fs.rm(sandboxPath, { recursive: true, force: true });
+      }
     }
 
     return {
@@ -867,7 +927,15 @@ const executeLocalCode = async ({
       }),
     };
   } catch (error) {
-    await fs.rm(sandboxPath, { recursive: true, force: true }).catch(() => undefined);
+    if (inPlace) {
+      const wrapper = path.join(
+        sandboxPath,
+        language === 'python' ? PYTHON_WRAPPER_FILE : JS_WRAPPER_FILE,
+      );
+      await fs.rm(wrapper, { force: true }).catch(() => undefined);
+    } else {
+      await fs.rm(sandboxPath, { recursive: true, force: true }).catch(() => undefined);
+    }
     const message = error instanceof Error ? error.message : String(error);
 
     return {
@@ -940,10 +1008,15 @@ export const createLocalCodeExecutionTool = ({
   loadInputs,
   projectRoot,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  workingDir,
+  cleanEnv,
 }: CreateLocalCodeExecutionToolParams) =>
   tool(
     async ({ code, lang }) => {
-      const loadedInputs = (await loadInputs?.()) ?? { files: [] };
+      // Work-in-place (Cowork) reads files straight from the workspace, so skip input copy.
+      const loadedInputs: LoadLocalCodeExecutionInputsResult = workingDir
+        ? { files: [] }
+        : ((await loadInputs?.()) ?? { files: [] });
 
       try {
         const normalized = normalizeLanguage(lang, projectRoot, code);
@@ -956,6 +1029,8 @@ export const createLocalCodeExecutionTool = ({
           language: normalized.language,
           projectRoot,
           timeoutMs,
+          workingDir,
+          cleanEnv,
         });
         return [result.content, result.artifact];
       } finally {

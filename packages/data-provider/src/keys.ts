@@ -18,6 +18,8 @@ export enum QueryKeys {
   projectFiles = 'projectFiles',
   coworkProjects = 'coworkProjects', // cowork — list of the user's Cowork projects
   coworkWorkspace = 'coworkWorkspace', // cowork — workspace file tree, keyed by projectId
+  coworkConversations = 'coworkConversations', // cowork — a project's chats, keyed by projectId
+  coworkSkills = 'coworkSkills', // cowork — available skills + enabled flags, keyed by projectId
   searchResults = 'searchResults',
   tokenCount = 'tokenCount',
   availablePlugins = 'availablePlugins',

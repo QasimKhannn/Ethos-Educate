@@ -145,6 +145,27 @@ export const coworkProjects = () => `${coworkRoot}/projects`;
 export const coworkProject = (projectId: string) =>
   `${coworkRoot}/projects/${encodeURIComponent(projectId)}`;
 
+export const coworkProjectConversations = (projectId: string) =>
+  `${coworkProject(projectId)}/conversations`;
+
+export const coworkConversationMessages = (
+  projectId: string,
+  conversationId: string,
+  params?: { limit?: number; before?: string },
+) => {
+  const qs = new URLSearchParams();
+  if (params?.limit != null) {
+    qs.set('limit', String(params.limit));
+  }
+  if (params?.before) {
+    qs.set('before', params.before);
+  }
+  const suffix = qs.toString();
+  return `${coworkProject(projectId)}/conversations/${encodeURIComponent(
+    conversationId,
+  )}/messages${suffix ? `?${suffix}` : ''}`;
+};
+
 export const coworkTree = (projectId: string) => `${coworkProject(projectId)}/tree`;
 
 export const coworkFile = (projectId: string, filePath: string) =>
@@ -155,6 +176,8 @@ export const coworkDownload = (projectId: string, filePath: string) =>
 
 export const coworkUpload = (projectId: string, subdir?: string) =>
   `${coworkProject(projectId)}/upload${subdir ? `?path=${encodeURIComponent(subdir)}` : ''}`;
+
+export const coworkSkills = (projectId: string) => `${coworkProject(projectId)}/skills`;
 
 export const search = (q: string, cursor?: string | null) =>
   `${BASE_URL}/api/search?q=${q}${cursor ? `&cursor=${cursor}` : ''}`;

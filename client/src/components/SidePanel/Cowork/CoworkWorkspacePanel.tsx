@@ -79,7 +79,8 @@ export default function CoworkWorkspacePanel({ projectId }: { projectId?: string
   const data = treeQuery.data;
 
   return (
-    <div className="flex h-full flex-col">
+    // `relative` so CoworkFilePreview can use absolute inset-0 as an overlay.
+    <div className="relative flex h-full flex-col">
       <CoworkWorkspaceHeader
         usage={data?.usage}
         quotaBytes={data?.quotaBytes}
@@ -89,9 +90,9 @@ export default function CoworkWorkspacePanel({ projectId }: { projectId?: string
         onRefresh={() => treeQuery.refetch()}
       />
 
-      <div className="flex-1 overflow-auto p-1">
+      <div className="flex-1 overflow-auto py-2">
         {treeQuery.isError ? (
-          <p className="px-3 py-6 text-center text-sm text-red-500">Could not load workspace.</p>
+          <p className="px-4 py-6 text-center text-sm text-red-500">Could not load workspace.</p>
         ) : (
           <CoworkFileTree
             tree={data?.tree ?? []}

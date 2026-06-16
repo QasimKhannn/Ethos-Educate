@@ -137,3 +137,64 @@ _Last updated: 2026-06-15 · branch `feature/cowork-mode`_
   editor, not the shell. Strongly consider a non-synced path (`C:\dev\…`) for the repo.
 - **Seeding for prod:** the Cowork agent lives in MongoDB; run `npm run seed-cowork-agent`
   once per environment/database (idempotent).
+
+---
+
+## RESUME HERE (paused 2026-06-15, branch `feature/cowork-mode`)
+
+### Built & working
+- **Phase 0** — Cowork agent seeded (`config/seed-cowork-agent.js`, `npm run seed-cowork-agent`),
+  replies via Azure `azureOpenAI` model key `gpt-5-chat`. Agent visible via ACL owner grant.
+  `librechat.yaml` agent capabilities include `web_search`, `actions`.
+- **Phase 1 backend** — `CoworkWorkspaceService` (TS, `packages/api/src/cowork/`) + 13 passing
+  tests. Path containment, tree, read/write/delete, usage/quota.
+- **Phase 2 (partial)** — `CoworkSkillsService` (TS) + 9 passing tests. **5 ORIGINAL** SKILL.md
+  files in `api/lib/skills/` (pptx, docx, xlsx, pdf, skill-creator) — built on python-pptx /
+  python-docx / openpyxl / pypdf. (Proprietary Open-Cowork skills were removed — see D-5.)
+- **Phase 5 (pulled forward)** — `CoworkProject` separate collection (D-8) + CRUD + routes;
+  workspace re-keyed to `projectId`; **any-size folder/file upload** (disk-streamed, junk-filtered:
+  node_modules/.git/build/etc.); **dedicated Cowork UI**: sidebar "Cowork" entry → `CoworkLayout`
+  (persistent rail: projects list/create, Skills/Connectors placeholders, "Back to chat") →
+  `/cowork` landing + `/cowork/:projectId` (center placeholder + right pane with
+  Workspace / Trace / Skills tabs; **Workspace tab is live**).
+
+### Remaining
+- **Task 18 (next, headline)** — wire LibreChat's agent chat engine into the center of
+  `CoworkProjectView` (currently a placeholder), scoped to the project.
+- **Tasks 11–13** — skill enabled-state model + routes, prompt injection of enabled skills into
+  the agent prompt, and a **functional** Skills tab/panel (currently a placeholder).
+- **Task 19** — make the Trace tab live (Phase 4 streaming) + Skills tab functional.
+- **Task 8** — sandbox↔workspace file flow (agent reads workspace files / writes outputs back).
+- **Responsive pass** — the dedicated Cowork layout uses fixed widths; not yet responsive.
+- **Connectors** (Phase 3), **Scheduling** (Phase 6) — not started.
+
+### Future ideas (backlog)
+- **Model picker per session** — instead of a single fixed Cowork agent/model, let the user
+  choose the model when starting a Cowork project/session (like Claude Cowork), then lock it for
+  that session. Implement after the core (chat + execution bridge) is working.
+
+### Code execution — NO paid key needed (corrected 2026-06-16)
+- Earlier this doc treated `LIBRECHAT_CODE_API_KEY` as a blocker. **It is not.** The team
+  replaced LibreChat's hosted Code Interpreter with a **custom LOCAL executor**:
+  `packages/api/src/tools/localCodeExecution.ts` (+ `localProgrammaticToolCalling.ts`). It spawns
+  `python3`/`node` via `child_process` in a temp sandbox (`librechat-exec-*`), puts input files in
+  `mnt/data/`, auto-`pip install`s missing packages into a venv, and returns generated files as
+  artifacts.
+- `resolveCodeExecutionRuntime({ codeApiKey })` (localCodeExecution.ts:885): default `auto` →
+  **`local` when no key**. So `execute_code` runs locally out of the box; the key only forces the
+  remote/hosted path. Wired for agents in `api/server/services/ToolService.js` (~711 priming,
+  ~1187 tool creation → `createLocalProgrammaticToolCallingTool`).
+- **Requirement:** `python3` (and `node`, already present) must be installed wherever the backend
+  runs. Skill libs (python-pptx, python-docx, openpyxl, pypdf) are pure-Python and auto-install.
+- **Optional env:** `CODE_EXECUTION_RUNTIME=local|remote|auto`, `CODE_EXECUTION_PYTHON_BIN`,
+  `CODE_EXECUTION_ALLOW_PIP_INSTALLS` (default on), `CODE_EXECUTION_MAX_PIP_INSTALLS`.
+- **Implication:** Task 8 and skill *execution* are UNBLOCKED — no purchase needed. Task 8 just
+  needs to bridge the project workspace into the executor's inputs and persist generated artifacts
+  back into the workspace `output/`.
+
+### Build/run reminders
+- Changes under `packages/*` (api, data-provider, data-schemas) need `npm run build` before the
+  backend/client sees them. Route-only changes in `/api` need just a backend restart; client-only
+  changes need a client rebuild.
+- OneDrive-synced repo: the Linux shell occasionally serves stale/truncated reads of just-edited
+  files — trust the editor, verify via the editor not the shell. Consider a non-synced path.

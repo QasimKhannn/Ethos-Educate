@@ -2,7 +2,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { QueryKeys, dataService } from 'librechat-data-provider';
 import type { QueryObserverResult, UseQueryOptions } from '@tanstack/react-query';
-import type { TCoworkProject, TCoworkTreeResponse } from 'librechat-data-provider';
+import type {
+  TCoworkProject,
+  TCoworkTreeResponse,
+  TCoworkConversation,
+  TCoworkSkill,
+} from 'librechat-data-provider';
 
 /** List the user's Cowork projects. */
 export const useCoworkProjectsQuery = (
@@ -28,6 +33,42 @@ export const useCoworkTreeQuery = (
   return useQuery<TCoworkTreeResponse>(
     [QueryKeys.coworkWorkspace, id],
     () => dataService.getCoworkTree(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 10,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** List available builtin skills for a project with enabled flags. */
+export const useCoworkSkillsQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<TCoworkSkill[]>,
+): QueryObserverResult<TCoworkSkill[]> => {
+  const id = projectId ?? '';
+  return useQuery<TCoworkSkill[]>(
+    [QueryKeys.coworkSkills, id],
+    () => dataService.listCoworkSkills(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** List a project's conversations (titles + recency) for the history picker. */
+export const useCoworkConversationsQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<TCoworkConversation[]>,
+): QueryObserverResult<TCoworkConversation[]> => {
+  const id = projectId ?? '';
+  return useQuery<TCoworkConversation[]>(
+    [QueryKeys.coworkConversations, id],
+    () => dataService.listCoworkConversations(id).then((r) => r.conversations),
     {
       refetchOnWindowFocus: false,
       staleTime: 1000 * 10,
