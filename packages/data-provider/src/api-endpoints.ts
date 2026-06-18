@@ -148,6 +148,9 @@ export const coworkProject = (projectId: string) =>
 export const coworkProjectConversations = (projectId: string) =>
   `${coworkProject(projectId)}/conversations`;
 
+export const coworkConversation = (projectId: string, conversationId: string) =>
+  `${coworkProject(projectId)}/conversations/${encodeURIComponent(conversationId)}`;
+
 export const coworkConversationMessages = (
   projectId: string,
   conversationId: string,
@@ -178,6 +181,28 @@ export const coworkUpload = (projectId: string, subdir?: string) =>
   `${coworkProject(projectId)}/upload${subdir ? `?path=${encodeURIComponent(subdir)}` : ''}`;
 
 export const coworkSkills = (projectId: string) => `${coworkProject(projectId)}/skills`;
+
+/* cowork — edit review (staged changes + undo checkpoints) */
+
+export const coworkChanges = (projectId: string) => `${coworkProject(projectId)}/changes`;
+
+export const coworkChangeDiff = (projectId: string, filePath: string) =>
+  `${coworkProject(projectId)}/changes/diff?path=${encodeURIComponent(filePath)}`;
+
+export const coworkChangesApply = (projectId: string) =>
+  `${coworkProject(projectId)}/changes/apply`;
+
+export const coworkChange = (projectId: string, filePath?: string) =>
+  `${coworkProject(projectId)}/changes${
+    filePath ? `?path=${encodeURIComponent(filePath)}` : '?all=true'
+  }`;
+
+export const coworkCheckpoints = (projectId: string) => `${coworkProject(projectId)}/checkpoints`;
+
+export const coworkCheckpointRestore = (projectId: string, checkpointId: string) =>
+  `${coworkProject(projectId)}/checkpoints/${encodeURIComponent(checkpointId)}/restore`;
+
+export const coworkArchive = (projectId: string) => `${coworkProject(projectId)}/archive`;
 
 export const search = (q: string, cursor?: string | null) =>
   `${BASE_URL}/api/search?q=${q}${cursor ? `&cursor=${cursor}` : ''}`;

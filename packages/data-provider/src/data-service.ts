@@ -778,6 +778,10 @@ export type TCoworkProject = {
   instructions?: string;
   enabledSkills: string[];
   conversationIds: string[];
+  /** LLM model key override (e.g. "gpt-5-chat"). Absent = use seeded agent default. */
+  model?: string;
+  /** LLM provider override (e.g. "azureOpenAI"). Absent = use seeded agent default. */
+  provider?: string;
   archived?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -840,7 +844,7 @@ export function getCoworkProject(projectId: string): Promise<TCoworkProject> {
 
 export function updateCoworkProject(
   projectId: string,
-  payload: Partial<Pick<TCoworkProject, 'name' | 'description' | 'instructions' | 'enabledSkills'>>,
+  payload: Partial<Pick<TCoworkProject, 'name' | 'description' | 'instructions' | 'enabledSkills' | 'model' | 'provider'>>,
 ): Promise<TCoworkProject> {
   return request.patch(endpoints.coworkProject(projectId), payload);
 }
@@ -863,6 +867,16 @@ export function listCoworkConversations(
 ): Promise<{ conversations: TCoworkConversation[] }> {
   return request.get<{ conversations: TCoworkConversation[] }>(
     endpoints.coworkProjectConversations(projectId),
+  );
+}
+
+/** Remove a conversation from a Cowork project (and queue background message cleanup). */
+export function deleteCoworkConversation(
+  projectId: string,
+  conversationId: string,
+): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(
+    endpoints.coworkConversation(projectId, conversationId),
   );
 }
 
@@ -917,6 +931,88 @@ export type TCoworkSkill = {
 /** List available builtin skills for a project, with enabled flag from the project's enabledSkills. */
 export function listCoworkSkills(projectId: string): Promise<TCoworkSkill[]> {
   return request.get<TCoworkSkill[]>(endpoints.coworkSkills(projectId));
+}
+
+/* cowork — edit review (staged changes + undo checkpoints) */
+
+export type TCoworkChangeStatus = 'modified' | 'created';
+export type TCoworkContentKind = 'text' | 'binary';
+
+/** A staged edit awaiting Apply. */
+export type TCoworkChange = {
+  path: string;
+  status: TCoworkChangeStatus;
+  kind: TCoworkContentKind;
+  liveSize?: number;
+  proposedSize: number;
+};
+
+/** Diff payload for one staged change: text carries content, binary carries sizes only. */
+export type TCoworkDiff = {
+  path: string;
+  status: TCoworkChangeStatus;
+  kind: TCoworkContentKind;
+  /** Current live content (text only); null when the file is newly created or binary. */
+  live: string | null;
+  /** Proposed content (text only; null for binary). */
+  proposed: string | null;
+  liveSize?: number;
+  proposedSize: number;
+};
+
+/** One file captured by a checkpoint. */
+export type TCoworkCheckpointEntry = { path: string; hadPrevious: boolean };
+
+/** A restorable undo point created by each Apply. */
+export type TCoworkCheckpoint = {
+  id: string;
+  createdAt: string;
+  message?: string;
+  entries: TCoworkCheckpointEntry[];
+};
+
+/** List the project's staged proposed edits. */
+export function listCoworkChanges(projectId: string): Promise<TCoworkChange[]> {
+  return request.get<TCoworkChange[]>(endpoints.coworkChanges(projectId));
+}
+
+/** Fetch the diff payload for one staged change. */
+export function getCoworkChangeDiff(projectId: string, filePath: string): Promise<TCoworkDiff> {
+  return request.get<TCoworkDiff>(endpoints.coworkChangeDiff(projectId, filePath));
+}
+
+/** Apply staged changes (all, or a subset by path), creating an undo checkpoint. */
+export function applyCoworkChanges(
+  projectId: string,
+  payload: { paths?: string[]; message?: string },
+): Promise<TCoworkCheckpoint> {
+  return request.post(endpoints.coworkChangesApply(projectId), payload);
+}
+
+/** Discard one staged change (by path) or all staged changes. */
+export function discardCoworkChange(
+  projectId: string,
+  filePath?: string,
+): Promise<{ discarded: string }> {
+  return request.delete<{ discarded: string }>(endpoints.coworkChange(projectId, filePath));
+}
+
+/** List the project's undo checkpoints (newest first). */
+export function listCoworkCheckpoints(projectId: string): Promise<TCoworkCheckpoint[]> {
+  return request.get<TCoworkCheckpoint[]>(endpoints.coworkCheckpoints(projectId));
+}
+
+/** Restore (undo) a checkpoint. */
+export function restoreCoworkCheckpoint(
+  projectId: string,
+  checkpointId: string,
+): Promise<TCoworkCheckpoint> {
+  return request.post(endpoints.coworkCheckpointRestore(projectId, checkpointId), {});
+}
+
+/** Fetch the whole workspace as a .zip Blob (visible files only). */
+export function getCoworkArchiveBlob(projectId: string): Promise<Blob> {
+  return request.get<Blob>(endpoints.coworkArchive(projectId), { responseType: 'blob' });
 }
 
 export function updateConversation(

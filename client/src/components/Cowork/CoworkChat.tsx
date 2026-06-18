@@ -83,13 +83,19 @@ export default function CoworkChat({
   projectId,
   initialConversationId,
   onTraceChange,
+  model,
+  provider,
+  onSessionStart,
 }: {
   projectId: string;
   initialConversationId?: string;
   onTraceChange?: (trace: CoworkTraceEntry[]) => void;
+  model?: string;
+  provider?: string;
+  onSessionStart?: () => void;
 }) {
   const { messages, isStreaming, error, send, stop, removeFrom, loadOlder, hasMore, isLoadingOlder, trace } =
-    useCoworkChat(projectId, initialConversationId, onTraceChange);
+    useCoworkChat(projectId, initialConversationId, onTraceChange, model, provider, onSessionStart);
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');

@@ -161,6 +161,12 @@ export function useCoworkChat(
   projectId: string,
   initialConversationId?: string,
   onTraceChange?: (trace: CoworkTraceEntry[]) => void,
+  /** Override the agent's stored model (e.g. "gpt-5-nano"). Falls back to the seeded default. */
+  model?: string,
+  /** Override the agent's stored provider (e.g. "azureOpenAI"). Falls back to the seeded default. */
+  provider?: string,
+  /** Called once when this session becomes active (history loaded or first message sent). */
+  onSessionStart?: () => void,
 ) {
   const { token } = useAuthContext();
   const queryClient = useQueryClient();
@@ -206,6 +212,7 @@ export function useCoworkChat(
         const mapped = page.messages.map(mapDoc).filter((m) => m.text.trim().length > 0);
         if (mapped.length > 0) {
           setMessages(mapped);
+          onSessionStart?.();
         }
         oldestCursorRef.current = page.nextBefore;
         setHasMore(page.hasMore);
@@ -278,6 +285,7 @@ export function useCoworkChat(
         return;
       }
       setError(null);
+      onSessionStart?.();
 
       const userId = uuidv4();
       const assistantId = uuidv4();
@@ -305,11 +313,14 @@ export function useCoworkChat(
           conversationId,
           endpoint: EModelEndpoint.agents,
           agent_id: COWORK_AGENT_ID,
+          ...(model ? { model } : {}),
         },
         endpointOption: {
           endpoint: EModelEndpoint.agents,
           agent_id: COWORK_AGENT_ID,
           coworkProjectId: projectId,
+          ...(model ? { model } : {}),
+          ...(provider ? { provider } : {}),
         },
         isTemporary: false,
         isRegenerate: false,
@@ -367,6 +378,8 @@ export function useCoworkChat(
             setIsStreaming(false);
             // The agent may have written deliverables — refresh the workspace tree.
             queryClient.invalidateQueries([QueryKeys.coworkWorkspace, projectId]);
+            // The agent may have staged edits — refresh the Pending changes panel.
+            queryClient.invalidateQueries([QueryKeys.coworkChanges, projectId]);
             // A new chat / title may now exist — refresh the history picker.
             queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
             return;
@@ -444,7 +457,7 @@ export function useCoworkChat(
           setIsStreaming(false);
         });
     },
-    [isStreaming, token, projectId, queryClient, setAssistantText, adoptConversationId],
+    [isStreaming, token, projectId, queryClient, setAssistantText, adoptConversationId, model, provider, onSessionStart],
   );
 
   /**

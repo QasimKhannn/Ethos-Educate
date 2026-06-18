@@ -6,6 +6,7 @@
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
+const archiver = require('archiver');
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
 const { CoworkWorkspaceService, listBuiltinSkills } = require('@librechat/api');
@@ -17,6 +18,7 @@ const {
   updateCoworkProject,
   deleteCoworkProject,
   addCoworkProjectConversation,
+  removeCoworkConversation,
   getCoworkProjectConversations,
   getCoworkConversationMessages,
 } = require('~/models/CoworkProject');
@@ -151,6 +153,8 @@ router.patch('/projects/:projectId', async (req, res) => {
       description: req.body?.description,
       instructions: req.body?.instructions,
       enabledSkills: req.body?.enabledSkills,
+      model: req.body?.model,
+      provider: req.body?.provider,
     });
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
@@ -195,6 +199,174 @@ router.get('/projects/:projectId/skills', async (req, res) => {
   } catch (error) {
     logger.error('[/cowork skills] Error', error);
     res.status(500).json({ message: 'Error listing skills' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// cowork — edit review: staged proposed changes + undo checkpoints.
+// All owner-scoped via loadWorkspace; the staging/history lives under hidden
+// .cowork/. New-file creation does NOT use these — only edits the user reviews.
+// ---------------------------------------------------------------------------
+
+/** GET /projects/:projectId/changes — list staged proposed edits. */
+router.get('/projects/:projectId/changes', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    res.status(200).json(await ws.listProposedChanges());
+  } catch (error) {
+    logger.error('[/cowork changes] list error', error);
+    res.status(500).json({ message: 'Error listing changes' });
+  }
+});
+
+/** GET /projects/:projectId/changes/diff?path= — diff payload for one staged change. */
+router.get('/projects/:projectId/changes/diff', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    const relPath = String(req.query.path || '');
+    const change = (await ws.listProposedChanges()).find((c) => c.path === relPath);
+    if (!change) {
+      return res.status(404).json({ message: 'Change not found' });
+    }
+    if (change.kind === 'text') {
+      const proposedBuf = await ws.readProposed(relPath);
+      const liveBuf = change.status === 'modified' ? await ws.readFile(relPath) : null;
+      return res.status(200).json({
+        ...change,
+        live: liveBuf ? liveBuf.toString('utf8') : null,
+        proposed: proposedBuf.toString('utf8'),
+      });
+    }
+    res.status(200).json({ ...change, live: null, proposed: null });
+  } catch (error) {
+    logger.error('[/cowork changes diff] error', error);
+    res.status(500).json({ message: 'Error reading diff' });
+  }
+});
+
+/** POST /projects/:projectId/changes/apply — apply staged changes, create a checkpoint. */
+router.post('/projects/:projectId/changes/apply', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    const paths = Array.isArray(req.body?.paths) ? req.body.paths : undefined;
+    const message = typeof req.body?.message === 'string' ? req.body.message : undefined;
+    res.status(200).json(await ws.applyProposed(paths, message));
+  } catch (error) {
+    const msg = error.message || 'Error applying changes';
+    const status = /quota exceeded/.test(msg) ? 400 : /No matching/.test(msg) ? 404 : 500;
+    if (status === 500) {
+      logger.error('[/cowork changes apply] error', error);
+    }
+    res.status(status).json({ message: msg });
+  }
+});
+
+/** DELETE /projects/:projectId/changes?path=  OR  ?all=true — discard staged change(s). */
+router.delete('/projects/:projectId/changes', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    if (String(req.query.all) === 'true') {
+      await ws.discardAllProposed();
+      return res.status(200).json({ discarded: 'all' });
+    }
+    const relPath = String(req.query.path || '');
+    if (!relPath) {
+      return res.status(400).json({ message: 'path or all=true is required' });
+    }
+    await ws.discardProposed(relPath);
+    res.status(200).json({ discarded: relPath });
+  } catch (error) {
+    logger.error('[/cowork changes delete] error', error);
+    res.status(400).json({ message: error.message || 'Error discarding change' });
+  }
+});
+
+/** GET /projects/:projectId/checkpoints — undo checkpoints, newest first. */
+router.get('/projects/:projectId/checkpoints', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    res.status(200).json(await ws.listCheckpoints());
+  } catch (error) {
+    logger.error('[/cowork checkpoints] list error', error);
+    res.status(500).json({ message: 'Error listing checkpoints' });
+  }
+});
+
+/** POST /projects/:projectId/checkpoints/:checkpointId/restore — undo to a checkpoint. */
+router.post('/projects/:projectId/checkpoints/:checkpointId/restore', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    res.status(200).json(await ws.restoreCheckpoint(req.params.checkpointId));
+  } catch (error) {
+    const status = /not found/i.test(error.message || '') ? 404 : 500;
+    if (status === 500) {
+      logger.error('[/cowork checkpoint restore] error', error);
+    }
+    res.status(status).json({ message: error.message || 'Error restoring checkpoint' });
+  }
+});
+
+/** GET /projects/:projectId/archive — stream the visible workspace as a .zip. */
+router.get('/projects/:projectId/archive', async (req, res) => {
+  const ws = await loadWorkspace(req, res);
+  if (!ws) {
+    return;
+  }
+  try {
+    const files = [];
+    const walk = (nodes) => {
+      for (const node of nodes) {
+        if (node.type === 'directory') {
+          walk(node.children || []);
+        } else {
+          files.push(node.path);
+        }
+      }
+    };
+    walk(await ws.getTree());
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="cowork-workspace-${ws.projectId}.zip"`,
+    );
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      logger.error('[/cowork archive] zip error', err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Error building archive' });
+      } else {
+        res.end();
+      }
+    });
+    archive.pipe(res);
+    for (const rel of files) {
+      archive.file(ws.resolve(rel), { name: rel });
+    }
+    await archive.finalize();
+  } catch (error) {
+    logger.error('[/cowork archive] error', error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Error building archive' });
+    }
   }
 });
 
@@ -251,6 +423,74 @@ router.post('/projects/:projectId/conversations', async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error linking conversation' });
   }
+});
+
+/**
+ * DELETE /api/cowork/projects/:projectId/conversations/:conversationId
+ *
+ * Two-phase delete — responds immediately, then cleans up messages in the background:
+ *   1. $pull the conversationId from the project's array → respond 200.
+ *   2. Fire-and-forget: delete all messages in 500-doc chunks (50 ms between chunks),
+ *      then delete the Conversation document itself.
+ *
+ * Cowork-only: only touches CoworkProject, Conversation, and Message collections.
+ * No effect on the regular LibreChat project/chat system.
+ */
+router.delete('/projects/:projectId/conversations/:conversationId', async (req, res) => {
+  const { projectId, conversationId } = req.params;
+  const userId = req.user.id;
+
+  // Verify ownership and $pull in one atomic op.
+  let updated;
+  try {
+    updated = await removeCoworkConversation({ user: userId, projectId, conversationId });
+  } catch (error) {
+    logger.error('[/cowork] delete conversation error', error);
+    return res.status(500).json({ message: 'Error deleting conversation' });
+  }
+
+  if (!updated) {
+    return res.status(404).json({ message: 'Project not found' });
+  }
+
+  // Respond immediately — client gets its optimistic update confirmed.
+  res.status(200).json({ deleted: conversationId });
+
+  // Fire-and-forget background cleanup: remove messages + conversation doc.
+  // We intentionally do NOT await this — the caller already has its 200.
+  setImmediate(async () => {
+    try {
+      const CHUNK = 500;
+      const DELAY_MS = 50;
+
+      // Delete messages in chunks to avoid large in-memory arrays.
+      let deleted = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const docs = await Message.find({ user: userId, conversationId })
+          .select('_id')
+          .limit(CHUNK)
+          .lean();
+        if (!docs.length) {
+          break;
+        }
+        const ids = docs.map((d) => d._id);
+        const result = await Message.deleteMany({ _id: { $in: ids } });
+        deleted += result.deletedCount || 0;
+        if (docs.length < CHUNK) {
+          break;
+        }
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
+
+      // Delete the Conversation document.
+      await Conversation.deleteOne({ user: userId, conversationId });
+
+      logger.debug(`[/cowork] background cleanup: deleted ${deleted} messages for conversation ${conversationId}`);
+    } catch (bgErr) {
+      logger.error(`[/cowork] background cleanup failed for conversation ${conversationId}`, bgErr);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

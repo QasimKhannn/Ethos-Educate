@@ -13,6 +13,10 @@ export interface IMongoCoworkProject extends Document {
   enabledSkills: string[];
   /** Conversations that belong to this project. */
   conversationIds: string[];
+  /** LLM model key override (e.g. "gpt-5-chat", "gpt-5-nano"). Defaults to the seeded agent model. */
+  model?: string;
+  /** LLM provider override (e.g. "azureOpenAI", "google"). Defaults to the seeded agent provider. */
+  provider?: string;
   archived?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -45,6 +49,12 @@ const coworkProjectSchema = new Schema<IMongoCoworkProject>(
     conversationIds: {
       type: [String],
       default: [],
+    },
+    model: {
+      type: String,
+    },
+    provider: {
+      type: String,
     },
     archived: {
       type: Boolean,

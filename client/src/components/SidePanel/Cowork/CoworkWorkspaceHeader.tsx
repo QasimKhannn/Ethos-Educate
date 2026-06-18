@@ -1,6 +1,6 @@
 // cowork — workspace panel header: usage, file upload, folder upload, refresh.
 import { useRef, type ChangeEvent } from 'react';
-import { Upload, FolderUp, RefreshCw, Loader2 } from 'lucide-react';
+import { Upload, FolderUp, RefreshCw, Loader2, History, Archive } from 'lucide-react';
 
 export type CoworkUploadItem = { file: File; relativePath?: string };
 
@@ -9,8 +9,13 @@ type Props = {
   quotaBytes?: number;
   isFetching: boolean;
   isUploading: boolean;
+  /** Cumulative files sent vs. total for the active (chunked) upload, if any. */
+  uploadProgress?: { sent: number; total: number } | null;
+  isDownloading?: boolean;
   onUpload: (items: CoworkUploadItem[]) => void;
   onRefresh: () => void;
+  onOpenHistory: () => void;
+  onDownloadZip: () => void;
 };
 
 const formatBytes = (bytes?: number): string => {
@@ -64,8 +69,12 @@ export default function CoworkWorkspaceHeader({
   quotaBytes,
   isFetching,
   isUploading,
+  uploadProgress,
+  isDownloading,
   onUpload,
   onRefresh,
+  onOpenHistory,
+  onDownloadZip,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
@@ -89,13 +98,37 @@ export default function CoworkWorkspaceHeader({
           <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">Files</p>
           {isUploading ? (
             <span className="flex items-center gap-1 text-xs text-text-secondary">
-              <Loader2 className="size-3 animate-spin" /> Uploading…
+              <Loader2 className="size-3 animate-spin" />
+              {uploadProgress && uploadProgress.total > 1
+                ? `Uploading ${uploadProgress.sent.toLocaleString()} / ${uploadProgress.total.toLocaleString()}…`
+                : 'Uploading…'}
             </span>
           ) : (
             <span className="text-xs text-text-secondary">{usageLabel} used</span>
           )}
         </div>
         <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            title="History (undo applied changes)"
+            className="rounded-md p-1.5 text-text-tertiary hover:bg-surface-secondary hover:text-text-primary"
+            onClick={onOpenHistory}
+          >
+            <History className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Download workspace as .zip"
+            disabled={isDownloading}
+            className="rounded-md p-1.5 text-text-tertiary hover:bg-surface-secondary hover:text-text-primary disabled:opacity-50"
+            onClick={onDownloadZip}
+          >
+            {isDownloading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Archive className="size-3.5" />
+            )}
+          </button>
           <button
             type="button"
             title="Refresh"

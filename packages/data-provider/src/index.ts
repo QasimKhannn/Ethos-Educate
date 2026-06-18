@@ -38,6 +38,14 @@ export { loginPage, registerPage, apiBaseUrl, buildLoginRedirectUrl } from './ap
 export { default as request } from './request';
 export { dataService };
 export type { TCoworkProject, TCoworkFileNode, TCoworkTreeResponse, TCoworkSkill } from './data-service'; // cowork
+export type {
+  TCoworkChange,
+  TCoworkDiff,
+  TCoworkCheckpoint,
+  TCoworkCheckpointEntry,
+  TCoworkChangeStatus,
+  TCoworkContentKind,
+} from './data-service'; // cowork — edit review
 import * as dataService from './data-service';
 /* general helpers */
 export * from './utils';

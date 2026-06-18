@@ -57,7 +57,8 @@ function buildCoworkCodeContext(entries) {
   const lines = [
     "- The execute_code tool runs with this project's workspace as the working directory.",
     '- Read and write files using paths relative to the workspace root (e.g. "./data.csv", "./output/report.pptx").',
-    '- Save deliverables into the "output/" folder so the user can find and download them.',
+    '- Save NEW deliverables into the "output/" folder so the user can find and download them.',
+    '- To EDIT or SUMMARIZE a file that already exists, FIRST read its actual contents (extract text from .docx/.xlsx/.pptx/.pdf), base your output on that real content (never generic/placeholder text), then write the complete updated version to ".cowork/proposed/<same relative path>" (create the folder). Do NOT overwrite the original in place; the user reviews a diff and clicks Apply.',
     '- If a Python package is missing, the runtime installs it automatically and reruns the code.',
   ];
   if (entries && entries.length) {

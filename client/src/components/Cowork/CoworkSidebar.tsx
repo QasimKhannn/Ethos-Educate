@@ -1,5 +1,5 @@
 // cowork — persistent left rail for the dedicated Cowork section.
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Plus,
@@ -11,10 +11,11 @@ import {
   Loader2,
   SquarePen,
   MessagesSquare,
-  Clock,
+  Trash2,
 } from 'lucide-react';
 import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-provider';
 import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
+import { useDeleteCoworkConversationMutation } from '~/data-provider/Cowork/mutations';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -30,6 +31,19 @@ function timeAgo(dateStr?: string): string {
 function ProjectConversations({ projectId, activeConvoId }: { projectId: string; activeConvoId?: string | null }) {
   const navigate = useNavigate();
   const { data: conversations = [], isLoading } = useCoworkConversationsQuery(projectId);
+  const deleteMutation = useDeleteCoworkConversationMutation(projectId);
+
+  const handleDelete = (e: MouseEvent<HTMLButtonElement>, conversationId: string) => {
+    e.stopPropagation();
+    deleteMutation.mutate(conversationId, {
+      onSuccess: () => {
+        // If the deleted conversation was active, navigate away to a new chat.
+        if (conversationId === activeConvoId) {
+          navigate(`/cowork/${projectId}?new=${Date.now()}`);
+        }
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -49,25 +63,39 @@ function ProjectConversations({ projectId, activeConvoId }: { projectId: string;
     <div className="flex flex-col gap-0.5">
       {conversations.map((c) => {
         const isActive = c.conversationId === activeConvoId;
+        const isDeleting = deleteMutation.isLoading && deleteMutation.variables === c.conversationId;
         return (
-          <button
+          <div
             key={c.conversationId}
-            type="button"
-            onClick={() => navigate(`/cowork/${projectId}?convo=${c.conversationId}`)}
-            className={`group flex w-full items-start gap-2 rounded-md py-1.5 pl-7 pr-2 text-left text-xs transition-colors ${
+            className={`group flex w-full items-center gap-1 rounded-md py-1.5 pl-7 pr-1 text-xs transition-colors ${
               isActive
                 ? 'bg-surface-tertiary text-text-primary'
                 : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
-            }`}
+            } ${isDeleting ? 'opacity-50' : ''}`}
           >
-            <MessagesSquare className="mt-0.5 size-3 flex-none shrink-0 opacity-60" />
-            <span className="min-w-0 flex-1 truncate">{c.title || 'Untitled'}</span>
-            {c.updatedAt && (
-              <span className="flex-none text-[10px] text-text-tertiary opacity-0 group-hover:opacity-100">
-                {timeAgo(c.updatedAt)}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/cowork/${projectId}?convo=${c.conversationId}`)}
+              className="flex min-w-0 flex-1 items-start gap-2 text-left"
+              disabled={isDeleting}
+            >
+              <MessagesSquare className="mt-0.5 size-3 flex-none shrink-0 opacity-60" />
+              <span className="min-w-0 flex-1 truncate">{c.title || 'Untitled'}</span>
+            </button>
+            <button
+              type="button"
+              title="Delete conversation"
+              onClick={(e) => handleDelete(e, c.conversationId)}
+              disabled={isDeleting}
+              className="flex-none rounded p-0.5 text-text-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400 disabled:pointer-events-none"
+            >
+              {isDeleting ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Trash2 className="size-3" />
+              )}
+            </button>
+          </div>
         );
       })}
     </div>

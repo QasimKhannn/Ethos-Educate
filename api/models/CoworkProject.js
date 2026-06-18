@@ -40,6 +40,9 @@ const getUserCoworkProject = async ({ user, projectId }) => {
   return CoworkProject.findOne(ownerFilter(user, projectId)).lean();
 };
 
+const MAX_MODEL = 128;
+const MAX_PROVIDER = 64;
+
 const updateCoworkProject = async ({
   user,
   projectId,
@@ -47,6 +50,8 @@ const updateCoworkProject = async ({
   description,
   instructions,
   enabledSkills,
+  model,
+  provider,
 }) => {
   const $set = {};
   const normalizedName = normalizeText(name, MAX_NAME);
@@ -67,12 +72,37 @@ const updateCoworkProject = async ({
   if (Array.isArray(enabledSkills)) {
     $set.enabledSkills = [...new Set(enabledSkills.filter((s) => typeof s === 'string' && s.trim()))];
   }
+  const normalizedModel = normalizeText(model, MAX_MODEL);
+  if (normalizedModel !== undefined) {
+    $set.model = normalizedModel || undefined;
+  }
+  const normalizedProvider = normalizeText(provider, MAX_PROVIDER);
+  if (normalizedProvider !== undefined) {
+    $set.provider = normalizedProvider || undefined;
+  }
 
   return CoworkProject.findOneAndUpdate(ownerFilter(user, projectId), { $set }, { new: true }).lean();
 };
 
 const deleteCoworkProject = async ({ user, projectId }) => {
   return CoworkProject.findOneAndDelete(ownerFilter(user, projectId)).lean();
+};
+
+/**
+ * Remove a conversation from a Cowork project (owner-scoped).
+ * Only unlinks it from the project's conversationIds array — message/conversation
+ * document cleanup is handled asynchronously by the route after responding.
+ * Returns the updated project doc, or null if project/ownership mismatch.
+ */
+const removeCoworkConversation = async ({ user, projectId, conversationId }) => {
+  if (!conversationId) {
+    throw new Error('conversationId is required');
+  }
+  return CoworkProject.findOneAndUpdate(
+    ownerFilter(user, projectId),
+    { $pull: { conversationIds: conversationId } },
+    { new: true },
+  ).lean();
 };
 
 /** Link a conversation to a Cowork project (idempotent; owner-scoped). */
@@ -187,6 +217,7 @@ module.exports = {
   updateCoworkProject,
   deleteCoworkProject,
   addCoworkProjectConversation,
+  removeCoworkConversation,
   getCoworkProjectByConversation,
   getCoworkProjectConversations,
   getCoworkConversationMessages,

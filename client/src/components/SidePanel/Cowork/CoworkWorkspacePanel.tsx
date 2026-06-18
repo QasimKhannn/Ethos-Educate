@@ -14,12 +14,17 @@ import {
 import CoworkWorkspaceHeader from './CoworkWorkspaceHeader';
 import type { CoworkUploadItem } from './CoworkWorkspaceHeader';
 import CoworkFilePreview from './CoworkFilePreview';
+import CoworkChangesPanel from './CoworkChangesPanel';
+import CoworkHistoryPanel from './CoworkHistoryPanel';
 import CoworkFileTree from './CoworkFileTree';
 
 export default function CoworkWorkspacePanel({ projectId }: { projectId?: string }) {
   const id = projectId ?? '';
   const { showToast } = useToastContext();
   const [selected, setSelected] = useState<TCoworkFileNode | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ sent: number; total: number } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
   const treeQuery = useCoworkTreeQuery(id);
   const uploadMutation = useUploadCoworkFilesMutation(id);
@@ -44,16 +49,39 @@ export default function CoworkWorkspacePanel({ projectId }: { projectId?: string
     [id],
   );
 
+  const handleDownloadZip = useCallback(async () => {
+    setIsDownloadingZip(true);
+    try {
+      const blob = await dataService.getCoworkArchiveBlob(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cowork-workspace.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast({ message: 'Could not download the workspace.', status: 'error' });
+    } finally {
+      setIsDownloadingZip(false);
+    }
+  }, [id, showToast]);
+
   const handleUpload = useCallback(
     (items: CoworkUploadItem[]) =>
       uploadMutation.mutate(
-        { files: items },
+        {
+          files: items,
+          onProgress: (sent, total) => setUploadProgress({ sent, total }),
+        },
         {
           onError: () =>
             showToast({
               message: 'Upload failed — a file may exceed the size limit.',
               status: 'error',
             }),
+          onSettled: () => setUploadProgress(null),
         },
       ),
     [uploadMutation, showToast],
@@ -86,9 +114,15 @@ export default function CoworkWorkspacePanel({ projectId }: { projectId?: string
         quotaBytes={data?.quotaBytes}
         isFetching={treeQuery.isFetching}
         isUploading={uploadMutation.isLoading}
+        uploadProgress={uploadProgress}
+        isDownloading={isDownloadingZip}
         onUpload={handleUpload}
         onRefresh={() => treeQuery.refetch()}
+        onOpenHistory={() => setShowHistory(true)}
+        onDownloadZip={handleDownloadZip}
       />
+
+      <CoworkChangesPanel projectId={id} />
 
       <div className="flex-1 overflow-auto py-2">
         {treeQuery.isError ? (
@@ -111,6 +145,10 @@ export default function CoworkWorkspacePanel({ projectId }: { projectId?: string
           onClose={() => setSelected(null)}
           onDownload={handleDownload}
         />
+      )}
+
+      {showHistory && (
+        <CoworkHistoryPanel projectId={id} onClose={() => setShowHistory(false)} />
       )}
     </div>
   );

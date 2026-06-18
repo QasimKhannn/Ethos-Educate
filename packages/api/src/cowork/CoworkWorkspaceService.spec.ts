@@ -123,12 +123,127 @@ describe('CoworkWorkspaceService', () => {
       expect(await ws.getUsage()).toBe(150);
     });
 
+    it('excludes hidden execution machinery from usage', async () => {
+      const ws = makeService();
+      await ws.writeFile('visible.bin', Buffer.alloc(100));
+      await ws.writeFile('.venv/lib.bin', Buffer.alloc(5000));
+      await ws.writeFile('__pycache__/x.pyc', Buffer.alloc(3000));
+      await ws.writeFile('__librechat_exec.py', Buffer.from('print(1)'));
+      // Only the visible file counts.
+      expect(await ws.getUsage()).toBe(100);
+    });
+
     it('enforces the quota on write', async () => {
       const ws = makeService(120);
       await ws.writeFile('a.bin', Buffer.alloc(100));
       await expect(ws.writeFile('b.bin', Buffer.alloc(50))).rejects.toThrow(/quota exceeded/);
       // Overwriting the existing file within quota still works.
       await expect(ws.writeFile('a.bin', Buffer.alloc(110))).resolves.toBeUndefined();
+    });
+  });
+
+  describe('edit review - staging, apply, undo', () => {
+    it('hides .cowork from the tree and excludes it from usage', async () => {
+      const ws = makeService();
+      await ws.writeFile('doc.md', Buffer.from('hello'));
+      await ws.stageProposed('doc.md', Buffer.from('hello world'));
+      const tree = await ws.getTree();
+      expect(tree.find((n) => n.name === '.cowork')).toBeUndefined();
+      // usage counts only the live file (5 bytes), not the staged proposal.
+      expect(await ws.getUsage()).toBe(5);
+    });
+
+    it('lists staged changes with status and kind, and reads proposed bytes', async () => {
+      const ws = makeService();
+      await ws.writeFile('notes.md', Buffer.from('v1'));
+      await ws.stageProposed('notes.md', Buffer.from('v2')); // modified, text
+      await ws.stageProposed('output/new.bin', Buffer.from('x')); // created, binary
+
+      const changes = await ws.listProposedChanges();
+      expect(changes).toHaveLength(2);
+      expect(changes.find((c) => c.path === 'notes.md')).toMatchObject({
+        status: 'modified',
+        kind: 'text',
+        proposedSize: 2,
+        liveSize: 2,
+      });
+      expect(changes.find((c) => c.path === 'output/new.bin')).toMatchObject({
+        status: 'created',
+        kind: 'binary',
+      });
+      expect(await ws.readProposed('notes.md')).toEqual(Buffer.from('v2'));
+    });
+
+    it('discards staged proposals (one and all)', async () => {
+      const ws = makeService();
+      await ws.stageProposed('a.md', Buffer.from('x'));
+      await ws.stageProposed('b.md', Buffer.from('y'));
+      await ws.discardProposed('a.md');
+      expect((await ws.listProposedChanges()).map((c) => c.path)).toEqual(['b.md']);
+      await ws.discardAllProposed();
+      expect(await ws.listProposedChanges()).toEqual([]);
+    });
+
+    it('applies a modified file: promotes it, clears staging, records a checkpoint', async () => {
+      const ws = makeService();
+      await ws.writeFile('doc.md', Buffer.from('original'));
+      await ws.stageProposed('doc.md', Buffer.from('edited'));
+
+      const cp = await ws.applyProposed(['doc.md'], 'edit doc');
+      expect((await ws.readFile('doc.md')).toString()).toBe('edited');
+      expect(await ws.listProposedChanges()).toEqual([]);
+      expect(cp.entries).toEqual([{ path: 'doc.md', hadPrevious: true }]);
+
+      const list = await ws.listCheckpoints();
+      expect(list).toHaveLength(1);
+      expect(list[0].message).toBe('edit doc');
+    });
+
+    it('restores a checkpoint, reverting a modified file to its prior content', async () => {
+      const ws = makeService();
+      await ws.writeFile('doc.md', Buffer.from('original'));
+      await ws.stageProposed('doc.md', Buffer.from('edited'));
+      const cp = await ws.applyProposed(['doc.md']);
+
+      await ws.restoreCheckpoint(cp.id);
+      expect((await ws.readFile('doc.md')).toString()).toBe('original');
+      // The restore itself is snapshotted as a redo checkpoint.
+      expect(await ws.listCheckpoints()).toHaveLength(2);
+    });
+
+    it('undoes a newly-created applied file by deleting it on restore', async () => {
+      const ws = makeService();
+      await ws.stageProposed('output/fresh.txt', Buffer.from('new'));
+      const cp = await ws.applyProposed();
+      expect(await ws.exists('output/fresh.txt')).toBe(true);
+
+      await ws.restoreCheckpoint(cp.id);
+      expect(await ws.exists('output/fresh.txt')).toBe(false);
+    });
+
+    it('prunes history beyond the checkpoint cap (20)', async () => {
+      const ws = makeService();
+      await ws.writeFile('f.md', Buffer.from('0'));
+      for (let i = 1; i <= 22; i++) {
+        await ws.stageProposed('f.md', Buffer.from(String(i)));
+        await ws.applyProposed(['f.md'], `edit ${i}`);
+      }
+      expect(await ws.listCheckpoints()).toHaveLength(20);
+    });
+
+    it('rejects unsafe proposed paths', async () => {
+      const ws = makeService();
+      await expect(ws.stageProposed('../escape.md', Buffer.from('x'))).rejects.toThrow();
+      await expect(ws.stageProposed('.cowork/proposed/x', Buffer.from('x'))).rejects.toThrow();
+    });
+
+    it('counts applied content against quota but not staging or history', async () => {
+      const ws = makeService(50);
+      await ws.writeFile('a.bin', Buffer.alloc(30));
+      // Staging a large proposal does not trip the quota (it lives under .cowork).
+      await ws.stageProposed('a.bin', Buffer.alloc(40));
+      await ws.applyProposed(['a.bin']);
+      expect(await ws.getUsage()).toBe(40);
     });
   });
 });

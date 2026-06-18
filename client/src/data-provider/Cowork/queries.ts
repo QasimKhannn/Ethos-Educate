@@ -7,6 +7,9 @@ import type {
   TCoworkTreeResponse,
   TCoworkConversation,
   TCoworkSkill,
+  TCoworkChange,
+  TCoworkDiff,
+  TCoworkCheckpoint,
 } from 'librechat-data-provider';
 
 /** List the user's Cowork projects. */
@@ -54,6 +57,62 @@ export const useCoworkSkillsQuery = (
     {
       refetchOnWindowFocus: false,
       staleTime: 1000 * 60,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** List a project's staged proposed edits (the Changes panel). */
+export const useCoworkChangesQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<TCoworkChange[]>,
+): QueryObserverResult<TCoworkChange[]> => {
+  const id = projectId ?? '';
+  return useQuery<TCoworkChange[]>(
+    [QueryKeys.coworkChanges, id],
+    () => dataService.listCoworkChanges(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 5,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** Fetch the diff payload for one staged change (lazy — enabled when a path is set). */
+export const useCoworkChangeDiffQuery = (
+  projectId?: string | null,
+  filePath?: string | null,
+  config?: UseQueryOptions<TCoworkDiff>,
+): QueryObserverResult<TCoworkDiff> => {
+  const id = projectId ?? '';
+  const path = filePath ?? '';
+  return useQuery<TCoworkDiff>(
+    [QueryKeys.coworkChanges, id, 'diff', path],
+    () => dataService.getCoworkChangeDiff(id, path),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 5,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '' && path !== '',
+    },
+  );
+};
+
+/** List a project's undo checkpoints (newest first). */
+export const useCoworkCheckpointsQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<TCoworkCheckpoint[]>,
+): QueryObserverResult<TCoworkCheckpoint[]> => {
+  const id = projectId ?? '';
+  return useQuery<TCoworkCheckpoint[]>(
+    [QueryKeys.coworkCheckpoints, id],
+    () => dataService.listCoworkCheckpoints(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 5,
       ...config,
       enabled: (config?.enabled ?? true) === true && id !== '',
     },
