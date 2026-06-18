@@ -22,7 +22,10 @@ export const useCreateCoworkProjectMutation = (): UseMutationResult<
 };
 
 type UpdateProjectPayload = Partial<
-  Pick<TCoworkProject, 'name' | 'description' | 'instructions' | 'enabledSkills' | 'model' | 'provider'>
+  Pick<
+    TCoworkProject,
+    'name' | 'description' | 'instructions' | 'enabledSkills' | 'enabledConnectors' | 'model' | 'provider'
+  >
 >;
 
 export const useUpdateCoworkProjectMutation = (
@@ -178,6 +181,39 @@ export const useUpdateCoworkMemoryMutation = (
     mutationFn: (memory: string) => dataService.updateCoworkMemory(projectId, memory),
     onSuccess: () => {
       queryClient.invalidateQueries([QueryKeys.coworkMemory, projectId]);
+    },
+  });
+};
+
+/* connectors */
+
+/** Save per-teacher API-key credentials for a connector. */
+export const useSaveCoworkConnectorCredentialsMutation = (): UseMutationResult<
+  { connected: boolean },
+  unknown,
+  { connectorId: string; fields: Record<string, string> }
+> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkConnectorCredentialsSave'], {
+    mutationFn: ({ connectorId, fields }: { connectorId: string; fields: Record<string, string> }) =>
+      dataService.saveCoworkConnectorCredentials(connectorId, fields),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkConnectors]);
+    },
+  });
+};
+
+/** Disconnect a connector (remove this user's stored credentials). */
+export const useDeleteCoworkConnectorCredentialsMutation = (): UseMutationResult<
+  { connected: boolean },
+  unknown,
+  string
+> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkConnectorCredentialsDelete'], {
+    mutationFn: (connectorId: string) => dataService.deleteCoworkConnectorCredentials(connectorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkConnectors]);
     },
   });
 };

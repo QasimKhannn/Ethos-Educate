@@ -777,6 +777,8 @@ export type TCoworkProject = {
   description?: string;
   instructions?: string;
   enabledSkills: string[];
+  /** Connector ids enabled for this project (e.g. "wordpress", "canva"). */
+  enabledConnectors?: string[];
   conversationIds: string[];
   /** LLM model key override (e.g. "gpt-5-chat"). Absent = use seeded agent default. */
   model?: string;
@@ -1013,6 +1015,58 @@ export function restoreCoworkCheckpoint(
 /** Fetch the whole workspace as a .zip Blob (visible files only). */
 export function getCoworkArchiveBlob(projectId: string): Promise<Blob> {
   return request.get<Blob>(endpoints.coworkArchive(projectId), { responseType: 'blob' });
+}
+
+/* cowork — connectors */
+
+export type TCoworkConnectorAuth = 'oauth' | 'apikey' | 'platform';
+
+export type TCoworkConnectorField = {
+  key: string;
+  label: string;
+  placeholder?: string;
+  secret?: boolean;
+};
+
+export type TCoworkConnectorHelp = {
+  summary: string;
+  steps: string[];
+  url?: string;
+};
+
+export type TCoworkConnector = {
+  id: string;
+  label: string;
+  description: string;
+  auth: TCoworkConnectorAuth;
+  help?: TCoworkConnectorHelp;
+  credentialFields: TCoworkConnectorField[];
+  hasWriteActions: boolean;
+  status: 'available' | 'planned';
+  /** MCP server name (OAuth connectors) — drives the connect/disconnect flow in the Connectors tab. */
+  mcpServer?: string;
+  /** Whether THIS user has connected it (creds present / oauth done / platform). */
+  connected: boolean;
+};
+
+/** List the connector catalog with this user's connection status. */
+export function getCoworkConnectors(): Promise<TCoworkConnector[]> {
+  return request.get<TCoworkConnector[]>(endpoints.coworkConnectors());
+}
+
+/** Save per-teacher API-key credentials for a connector. */
+export function saveCoworkConnectorCredentials(
+  connectorId: string,
+  fields: Record<string, string>,
+): Promise<{ connected: boolean }> {
+  return request.put(endpoints.coworkConnectorCredentials(connectorId), { fields });
+}
+
+/** Disconnect a connector (remove this user's stored credentials). */
+export function deleteCoworkConnectorCredentials(
+  connectorId: string,
+): Promise<{ connected: boolean }> {
+  return request.delete<{ connected: boolean }>(endpoints.coworkConnectorCredentials(connectorId));
 }
 
 /* cowork — project memory */

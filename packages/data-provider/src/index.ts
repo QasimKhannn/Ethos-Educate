@@ -46,6 +46,11 @@ export type {
   TCoworkChangeStatus,
   TCoworkContentKind,
 } from './data-service'; // cowork — edit review
+export type {
+  TCoworkConnector,
+  TCoworkConnectorAuth,
+  TCoworkConnectorField,
+} from './data-service'; // cowork — connectors
 import * as dataService from './data-service';
 /* general helpers */
 export * from './utils';

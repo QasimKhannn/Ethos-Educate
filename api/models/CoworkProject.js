@@ -50,6 +50,7 @@ const updateCoworkProject = async ({
   description,
   instructions,
   enabledSkills,
+  enabledConnectors,
   model,
   provider,
 }) => {
@@ -71,6 +72,11 @@ const updateCoworkProject = async ({
   }
   if (Array.isArray(enabledSkills)) {
     $set.enabledSkills = [...new Set(enabledSkills.filter((s) => typeof s === 'string' && s.trim()))];
+  }
+  if (Array.isArray(enabledConnectors)) {
+    $set.enabledConnectors = [
+      ...new Set(enabledConnectors.filter((s) => typeof s === 'string' && s.trim())),
+    ];
   }
   const normalizedModel = normalizeText(model, MAX_MODEL);
   if (normalizedModel !== undefined) {

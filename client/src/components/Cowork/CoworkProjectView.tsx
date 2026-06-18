@@ -237,7 +237,7 @@ export default function CoworkProjectView() {
       </div>
 
       <aside className="hidden w-80 flex-none flex-col border-l border-border-medium lg:flex">
-        <div className="flex gap-1 border-b border-border-medium px-2 py-2">
+        <div className="flex flex-wrap gap-1 border-b border-border-medium px-2 py-2">
           {TABS.map((t) => (
             <button
               key={t.id}

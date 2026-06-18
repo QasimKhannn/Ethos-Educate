@@ -206,6 +206,13 @@ export const coworkArchive = (projectId: string) => `${coworkProject(projectId)}
 
 /* cowork — project memory */
 
+/* cowork — connectors */
+
+export const coworkConnectors = () => `${coworkRoot}/connectors`;
+
+export const coworkConnectorCredentials = (connectorId: string) =>
+  `${coworkRoot}/connectors/${encodeURIComponent(connectorId)}/credentials`;
+
 export const coworkMemory = (projectId: string) => `${coworkProject(projectId)}/memory`;
 
 export const coworkMemoryArchive = (projectId: string) =>

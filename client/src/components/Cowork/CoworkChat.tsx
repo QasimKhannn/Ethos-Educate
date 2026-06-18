@@ -4,6 +4,8 @@ import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil } from 
 import { useCoworkChat, type CoworkTraceEntry, type CoworkMode } from './useCoworkChat';
 import { TraceRow } from './CoworkTracePanel';
 import CoworkPlanCard from './CoworkPlanCard';
+import CoworkEmailCard, { extractEmail } from './CoworkEmailCard';
+import CoworkActionCard, { extractAction } from './CoworkActionCard';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
 import { useState } from 'react';
 
@@ -175,6 +177,15 @@ export default function CoworkChat({
     send('Execute the approved plan above.', 'agent');
   };
 
+  /** Approve a previewed connector write action: tell the agent to perform it now. */
+  const approveAction = () => {
+    if (isStreaming) {
+      return;
+    }
+    setMode('agent');
+    send('Approved — perform the action you previewed above.', 'agent');
+  };
+
   return (
     <>
       {/* Bounce keyframe — injected once as a style tag, avoids a CSS file dependency */}
@@ -300,9 +311,35 @@ export default function CoworkChat({
                           onApprove={approvePlan}
                         />
                       ) : (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <MarkdownLite content={m.text} />
-                        </div>
+                        (() => {
+                          const { email, rest: afterEmail } = extractEmail(m.text);
+                          const { action, rest } = extractAction(afterEmail);
+                          return (
+                            <>
+                              {rest && (
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                  <MarkdownLite content={rest} />
+                                </div>
+                              )}
+                              {email && (
+                                <div className={rest ? 'mt-3' : ''}>
+                                  <CoworkEmailCard email={email} />
+                                </div>
+                              )}
+                              {action && (
+                                <div className={rest || email ? 'mt-3' : ''}>
+                                  <CoworkActionCard
+                                    action={action}
+                                    onApprove={
+                                      m.id === lastId && !isStreaming ? approveAction : undefined
+                                    }
+                                    isBusy={isStreaming}
+                                  />
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()
                       )}
                     </div>
                   </div>

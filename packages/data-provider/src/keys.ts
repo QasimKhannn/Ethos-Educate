@@ -23,6 +23,7 @@ export enum QueryKeys {
   coworkChanges = 'coworkChanges', // cowork — staged proposed edits, keyed by projectId
   coworkCheckpoints = 'coworkCheckpoints', // cowork — undo checkpoints, keyed by projectId
   coworkMemory = 'coworkMemory', // cowork — project memory (core + archive), keyed by projectId
+  coworkConnectors = 'coworkConnectors', // cowork — connector catalog + per-user connection status
   searchResults = 'searchResults',
   tokenCount = 'tokenCount',
   availablePlugins = 'availablePlugins',

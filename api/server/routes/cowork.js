@@ -9,7 +9,18 @@ const multer = require('multer');
 const archiver = require('archiver');
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
-const { CoworkWorkspaceService, listBuiltinSkills } = require('@librechat/api');
+const {
+  CoworkWorkspaceService,
+  listBuiltinSkills,
+  listCoworkConnectors,
+  getCoworkConnector,
+} = require('@librechat/api');
+const { Constants } = require('librechat-data-provider');
+const {
+  updateUserPluginAuth,
+  getUserPluginAuthValue,
+  deleteUserPluginAuth,
+} = require('~/server/services/PluginService');
 const { Message, Conversation } = require('~/db/models');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const {
@@ -158,6 +169,7 @@ router.patch('/projects/:projectId', async (req, res) => {
       description: req.body?.description,
       instructions: req.body?.instructions,
       enabledSkills: req.body?.enabledSkills,
+      enabledConnectors: req.body?.enabledConnectors,
       model: req.body?.model,
       provider: req.body?.provider,
     });
@@ -545,6 +557,114 @@ router.delete('/projects/:projectId/conversations/:conversationId', async (req, 
       logger.error(`[/cowork] background cleanup failed for conversation ${conversationId}`, bgErr);
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// cowork — connectors: catalog + per-teacher credentials (API-key connectors).
+// Credentials are stored per user, encrypted, via the existing PluginService, namespaced
+// by a "cowork_connector_<id>" plugin key so they never collide with other tools.
+// Enabling/disabling a connector for a project is done via the project update route
+// (enabledConnectors). OAuth connect/disconnect is wired per connector in a later phase.
+// ---------------------------------------------------------------------------
+
+// Where a connector's per-teacher credentials are stored. For connectors backed by an MCP server,
+// store under that server's per-user var key (`mcp_<server>`) — this is the SAME place LibreChat reads
+// `customUserVars` from, so the saved key is injected into the MCP server automatically (no extra
+// plumbing). Connectors without a server yet fall back to a cowork-local key.
+const connectorStoreKey = (def) =>
+  def.mcpServer ? `${Constants.mcp_prefix}${def.mcpServer}` : `cowork_connector_${def.id}`;
+
+/** Per-user connection status for a connector (platform=always; apikey=all creds present). */
+async function isConnectorConnected(userId, def) {
+  if (def.auth === 'platform') {
+    return true;
+  }
+  if (def.auth === 'apikey') {
+    const fields = def.credentialFields || [];
+    if (fields.length === 0) {
+      return false;
+    }
+    for (const field of fields) {
+      const value = await getUserPluginAuthValue(
+        userId,
+        field.key,
+        false,
+        connectorStoreKey(def),
+      );
+      if (!value) {
+        return false;
+      }
+    }
+    return true;
+  }
+  // oauth — connection wiring lands in a later phase.
+  return false;
+}
+
+/** GET /api/cowork/connectors — catalog + this user's connection status (no secret values). */
+router.get('/connectors', async (req, res) => {
+  try {
+    const connectors = await Promise.all(
+      listCoworkConnectors().map(async (def) => ({
+        id: def.id,
+        label: def.label,
+        description: def.description,
+        auth: def.auth,
+        help: def.help,
+        credentialFields: def.credentialFields ?? [],
+        hasWriteActions: def.hasWriteActions,
+        status: def.status,
+        // OAuth connectors need the MCP server name so the Connectors tab can drive LibreChat's
+        // connect/disconnect flow (without it the UI falls back to "Login coming soon").
+        mcpServer: def.mcpServer,
+        connected: await isConnectorConnected(req.user.id, def),
+      })),
+    );
+    res.status(200).json(connectors);
+  } catch (error) {
+    logger.error('[/cowork connectors] list error', error);
+    res.status(500).json({ message: 'Error listing connectors' });
+  }
+});
+
+/** PUT /api/cowork/connectors/:connectorId/credentials — save per-teacher API-key credentials. */
+router.put('/connectors/:connectorId/credentials', async (req, res) => {
+  try {
+    const def = getCoworkConnector(req.params.connectorId);
+    if (!def) {
+      return res.status(404).json({ message: 'Unknown connector' });
+    }
+    if (def.auth !== 'apikey') {
+      return res.status(400).json({ message: 'This connector does not use API-key credentials' });
+    }
+    const fields = req.body?.fields || {};
+    const pluginKey = connectorStoreKey(def);
+    for (const field of def.credentialFields || []) {
+      const value = fields[field.key];
+      if (typeof value === 'string' && value.trim()) {
+        await updateUserPluginAuth(req.user.id, field.key, pluginKey, value.trim());
+      }
+    }
+    res.status(200).json({ connected: await isConnectorConnected(req.user.id, def) });
+  } catch (error) {
+    logger.error('[/cowork connectors] save credentials error', error);
+    res.status(400).json({ message: error.message || 'Error saving credentials' });
+  }
+});
+
+/** DELETE /api/cowork/connectors/:connectorId/credentials — disconnect (remove all creds). */
+router.delete('/connectors/:connectorId/credentials', async (req, res) => {
+  try {
+    const def = getCoworkConnector(req.params.connectorId);
+    if (!def) {
+      return res.status(404).json({ message: 'Unknown connector' });
+    }
+    await deleteUserPluginAuth(req.user.id, null, true, connectorStoreKey(def));
+    res.status(200).json({ connected: false });
+  } catch (error) {
+    logger.error('[/cowork connectors] disconnect error', error);
+    res.status(400).json({ message: error.message || 'Error disconnecting' });
+  }
 });
 
 // ---------------------------------------------------------------------------

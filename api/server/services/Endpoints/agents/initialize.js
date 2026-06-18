@@ -12,13 +12,17 @@ const {
   loadBuiltinSkill,
   buildSkillsPrompt,
   CoworkWorkspaceService,
+  listCoworkConnectors,
 } = require('@librechat/api');
 const {
+  Constants,
   EModelEndpoint,
   isAgentsEndpoint,
   getResponseSender,
   isEphemeralAgentId,
 } = require('librechat-data-provider');
+const { getUserPluginAuthValue } = require('~/server/services/PluginService'); // cowork — connectors
+const { getMCPSetupData, getServerConnectionStatus } = require('~/server/services/MCP'); // cowork — connectors (oauth status)
 const {
   createToolEndCallback,
   getDefaultHandlers,
@@ -40,6 +44,59 @@ const _coworkMemoryCharBudget =
   Number.isFinite(_coworkMemoryTokenBudget) && _coworkMemoryTokenBudget > 0
     ? _coworkMemoryTokenBudget * 4
     : undefined; // cowork
+
+// cowork — connectors: per-user connection check (mirrors the route's helper). API-key creds live
+// under the MCP server's per-user var key (`mcp_<server>`) when the connector has a server, so they
+// double as LibreChat customUserVars; otherwise a cowork-local key.
+const coworkConnectorStoreKey = (def) =>
+  def.mcpServer ? `${Constants.mcp_prefix}${def.mcpServer}` : `cowork_connector_${def.id}`; // cowork
+// `mcpSetup` is the cached result of getMCPSetupData(userId) for this request (OAuth connectors only).
+async function isCoworkConnectorConnected(userId, def, mcpSetup) {
+  if (def.auth === 'platform') {
+    return true;
+  }
+  if (def.auth === 'apikey') {
+    const fields = def.credentialFields || [];
+    if (fields.length === 0) {
+      return false;
+    }
+    for (const field of fields) {
+      const value = await getUserPluginAuthValue(
+        userId,
+        field.key,
+        false,
+        coworkConnectorStoreKey(def),
+      );
+      if (!value) {
+        return false;
+      }
+    }
+    return true;
+  }
+  // oauth — reflect LibreChat's live per-user MCP connection for this server, the same source the
+  // Connectors tab shows, so the agent and the UI always agree on "connected".
+  if (def.auth === 'oauth' && def.mcpServer && mcpSetup) {
+    try {
+      const config = mcpSetup.mcpConfig?.[def.mcpServer];
+      if (!config) {
+        return false;
+      }
+      const status = await getServerConnectionStatus(
+        userId,
+        def.mcpServer,
+        config,
+        mcpSetup.appConnections,
+        mcpSetup.userConnections,
+        mcpSetup.oauthServers,
+      );
+      return status?.connectionState === 'connected';
+    } catch (statusErr) {
+      logger.warn('[initializeClient] cowork oauth connector status check failed', statusErr);
+      return false;
+    }
+  }
+  return false;
+}
 
 /**
  * Creates a tool loader function for the agent.
@@ -236,6 +293,81 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     }
   } catch (modeErr) {
     logger.warn('[initializeClient] cowork mode handling failed; continuing in default mode', modeErr);
+  }
+
+  // cowork — connectors: in Agent mode only, grant the user's CONNECTED connectors' MCP tools to
+  // the agent. Ask/Plan get none (read-only — must not act on external services). Tools are added
+  // ONLY to this Cowork agent for this run; nothing global or in the main chat changes.
+  // A connector with explicit `mcpTools` grants just those; otherwise the whole server's toolset is
+  // granted via the `mcp_all` token (so Canva/Monday work without hard-coding tool names).
+  try {
+    const coworkProjectId = req.body?.coworkProjectId;
+    const coworkMode = req.body?.coworkMode;
+    const isAgentMode = coworkMode !== 'ask' && coworkMode !== 'plan';
+    if (coworkProjectId && isAgentMode) {
+      const connectors = listCoworkConnectors().filter(
+        (def) => def.mcpServer && def.status === 'available',
+      );
+      if (connectors.length > 0) {
+        // OAuth status is resolved against the user's live MCP connections; fetch once per run.
+        let mcpSetup = null;
+        const hasOAuth = connectors.some((def) => def.auth === 'oauth');
+        if (hasOAuth) {
+          try {
+            mcpSetup = await getMCPSetupData(req.user?.id);
+          } catch (setupErr) {
+            logger.warn('[initializeClient] cowork connector MCP setup unavailable', setupErr);
+          }
+        }
+        const toolIds = [];
+        const writeLabels = []; // connected connectors that can change the outside world (Phase 8)
+        for (const def of connectors) {
+          if (!(await isCoworkConnectorConnected(req.user?.id, def, mcpSetup))) {
+            continue;
+          }
+          if (def.hasWriteActions) {
+            writeLabels.push(def.label);
+          }
+          if (Array.isArray(def.mcpTools) && def.mcpTools.length > 0) {
+            for (const toolName of def.mcpTools) {
+              toolIds.push(`${toolName}${Constants.mcp_delimiter}${def.mcpServer}`);
+            }
+          } else {
+            toolIds.push(`${Constants.mcp_all}${Constants.mcp_delimiter}${def.mcpServer}`);
+          }
+        }
+        if (toolIds.length > 0) {
+          const existing = Array.isArray(primaryAgent.tools) ? primaryAgent.tools : [];
+          primaryAgent.tools = [...new Set([...existing, ...toolIds])];
+        }
+        // cowork — Phase 8: write-action safety. When a connected connector can write/publish/send,
+        // require an explicit preview + user approval before the agent performs it. v1 is prompt-
+        // driven (mirrors the email draft→approve→send card); reads/searches stay unguarded.
+        if (writeLabels.length > 0) {
+          const labels = [...new Set(writeLabels)].join(', ');
+          const safetyBlock = [
+            '# Connector write-action safety',
+            `Some connected tools can change the outside world (create, update, delete, publish, or send): ${labels}. Before performing ANY such write action you MUST get the user's approval first.`,
+            '1. Do NOT call the write tool yet.',
+            '2. Preview exactly what you will do as a single fenced block, using this format:',
+            '```action',
+            'connector: <name>',
+            'action: <what you will do, e.g. Create item / Update status / Publish post / Send email>',
+            'target: <where it lands, e.g. board / group / site / list>',
+            '',
+            '<the key fields/content, exactly as they will be written>',
+            '```',
+            '3. Then stop and wait. Only after the user approves in their next message may you call the tool to perform the action.',
+            'Reading, searching, listing, or summarizing data needs NO approval — do those directly. This gate applies only to actions that write, publish, or send.',
+          ].join('\n');
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', safetyBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+      }
+    }
+  } catch (connErr) {
+    logger.warn('[initializeClient] cowork connector injection failed', connErr);
   }
 
   const modelsConfig = await getModelsConfig(req);

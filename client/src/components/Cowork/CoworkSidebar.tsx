@@ -16,6 +16,7 @@ import {
 import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-provider';
 import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
 import { useDeleteCoworkConversationMutation } from '~/data-provider/Cowork/mutations';
+import CoworkConnectorsModal from './CoworkConnectorsPanel';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -115,6 +116,7 @@ export default function CoworkSidebar() {
   const createMutation = useCreateCoworkProjectMutation();
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showConnectors, setShowConnectors] = useState(false);
 
   const submit = () => {
     const trimmed = name.trim();
@@ -240,9 +242,13 @@ export default function CoworkSidebar() {
             <Puzzle className="size-4" /> Skills
           </span>
         )}
-        <span className="flex cursor-default items-center gap-2 px-2 py-1.5 text-sm text-text-tertiary" title="Coming soon">
+        <button
+          type="button"
+          onClick={() => setShowConnectors(true)}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+        >
           <Plug className="size-4" /> Connectors
-        </span>
+        </button>
         <button
           type="button"
           onClick={() => navigate('/c/new')}
@@ -251,6 +257,8 @@ export default function CoworkSidebar() {
           <MessageSquare className="size-4" /> Back to chat
         </button>
       </div>
+
+      {showConnectors && <CoworkConnectorsModal onClose={() => setShowConnectors(false)} />}
     </aside>
   );
 }

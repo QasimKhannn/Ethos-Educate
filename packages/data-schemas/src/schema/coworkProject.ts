@@ -11,6 +11,8 @@ export interface IMongoCoworkProject extends Document {
   instructions?: string;
   /** Skill ids enabled for this project (builtin ids like "pptx", or custom ids). */
   enabledSkills: string[];
+  /** Connector ids enabled for this project (e.g. "wordpress", "canva"). Cowork-only. */
+  enabledConnectors: string[];
   /** Conversations that belong to this project. */
   conversationIds: string[];
   /** LLM model key override (e.g. "gpt-5-chat", "gpt-5-nano"). Defaults to the seeded agent model. */
@@ -43,6 +45,10 @@ const coworkProjectSchema = new Schema<IMongoCoworkProject>(
       default: '',
     },
     enabledSkills: {
+      type: [String],
+      default: [],
+    },
+    enabledConnectors: {
       type: [String],
       default: [],
     },

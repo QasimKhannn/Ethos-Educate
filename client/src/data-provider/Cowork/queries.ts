@@ -10,6 +10,7 @@ import type {
   TCoworkChange,
   TCoworkDiff,
   TCoworkCheckpoint,
+  TCoworkConnector,
 } from 'librechat-data-provider';
 
 /** List the user's Cowork projects. */
@@ -115,6 +116,21 @@ export const useCoworkCheckpointsQuery = (
       staleTime: 1000 * 5,
       ...config,
       enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** List the connector catalog with the current user's connection status. */
+export const useCoworkConnectorsQuery = (
+  config?: UseQueryOptions<TCoworkConnector[]>,
+): QueryObserverResult<TCoworkConnector[]> => {
+  return useQuery<TCoworkConnector[]>(
+    [QueryKeys.coworkConnectors],
+    () => dataService.getCoworkConnectors(),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 30,
+      ...config,
     },
   );
 };
