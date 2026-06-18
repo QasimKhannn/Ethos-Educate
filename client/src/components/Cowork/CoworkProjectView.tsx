@@ -10,16 +10,20 @@ import CoworkWorkspacePanel from '~/components/SidePanel/Cowork/CoworkWorkspaceP
 import CoworkChat from './CoworkChat';
 import CoworkTracePanel from './CoworkTracePanel';
 import CoworkSkillsPanel from './CoworkSkillsPanel';
+import CoworkMemoryPanel from './CoworkMemoryPanel';
 import { COWORK_MODELS, DEFAULT_COWORK_MODEL, resolveModelLabel } from './CoworkModels';
 import type { CoworkTraceEntry } from './useCoworkChat';
 
-type PaneTab = 'workspace' | 'trace' | 'skills';
+type PaneTab = 'workspace' | 'trace' | 'skills' | 'memory';
 
 const TABS: { id: PaneTab; label: string }[] = [
   { id: 'workspace', label: 'Workspace' },
   { id: 'trace', label: 'Trace' },
   { id: 'skills', label: 'Skills' },
+  { id: 'memory', label: 'Memory' },
 ];
+
+const PANE_TABS: PaneTab[] = ['workspace', 'trace', 'skills', 'memory'];
 
 // ---------------------------------------------------------------------------
 // Inline model picker — a small dropdown anchored to the header button.
@@ -127,7 +131,7 @@ export default function CoworkProjectView() {
   const tabParam = searchParams.get('tab') as PaneTab | null;
 
   const [tab, setTab] = useState<PaneTab>(
-    tabParam && ['workspace', 'trace', 'skills'].includes(tabParam) ? tabParam : 'workspace',
+    tabParam && PANE_TABS.includes(tabParam) ? tabParam : 'workspace',
   );
   const [trace, setTrace] = useState<CoworkTraceEntry[]>([]);
 
@@ -138,7 +142,7 @@ export default function CoworkProjectView() {
 
   // Sync right-panel tab when ?tab= changes (e.g. sidebar Skills link).
   useEffect(() => {
-    if (tabParam && ['workspace', 'trace', 'skills'].includes(tabParam)) {
+    if (tabParam && PANE_TABS.includes(tabParam)) {
       setTab(tabParam);
     }
   }, [tabParam]);
@@ -254,6 +258,7 @@ export default function CoworkProjectView() {
           {tab === 'workspace' && <CoworkWorkspacePanel projectId={projectId} />}
           {tab === 'trace' && <CoworkTracePanel trace={trace} />}
           {tab === 'skills' && <CoworkSkillsPanel projectId={projectId} />}
+          {tab === 'memory' && <CoworkMemoryPanel projectId={projectId} />}
         </div>
       </aside>
     </div>

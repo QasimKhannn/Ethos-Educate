@@ -119,6 +119,42 @@ export const useCoworkCheckpointsQuery = (
   );
 };
 
+/** Read a project's always-injected core memory. */
+export const useCoworkMemoryQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<{ memory: string }>,
+): QueryObserverResult<{ memory: string }> => {
+  const id = projectId ?? '';
+  return useQuery<{ memory: string }>(
+    [QueryKeys.coworkMemory, id],
+    () => dataService.getCoworkMemory(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 5,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** Read a project's on-demand memory archive (lazy — enable when opened). */
+export const useCoworkMemoryArchiveQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<{ archive: string }>,
+): QueryObserverResult<{ archive: string }> => {
+  const id = projectId ?? '';
+  return useQuery<{ archive: string }>(
+    [QueryKeys.coworkMemory, id, 'archive'],
+    () => dataService.getCoworkMemoryArchive(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 5,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
 /** List a project's conversations (titles + recency) for the history picker. */
 export const useCoworkConversationsQuery = (
   projectId?: string | null,

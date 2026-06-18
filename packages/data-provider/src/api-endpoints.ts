@@ -204,6 +204,13 @@ export const coworkCheckpointRestore = (projectId: string, checkpointId: string)
 
 export const coworkArchive = (projectId: string) => `${coworkProject(projectId)}/archive`;
 
+/* cowork — project memory */
+
+export const coworkMemory = (projectId: string) => `${coworkProject(projectId)}/memory`;
+
+export const coworkMemoryArchive = (projectId: string) =>
+  `${coworkProject(projectId)}/memory/archive`;
+
 export const search = (q: string, cursor?: string | null) =>
   `${BASE_URL}/api/search?q=${q}${cursor ? `&cursor=${cursor}` : ''}`;
 

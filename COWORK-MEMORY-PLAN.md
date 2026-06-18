@@ -29,33 +29,46 @@ It's enabled in `librechat.yaml` (`memory.disabled: false`, model `gpt-5-mini`) 
 for Cowork chats. But it is **global per user** — it mixes Cowork context with normal-chat memory
 and has no notion of a project. We keep it untouched and add a **project-scoped** layer beside it.
 
-## 3. Design
+## 3. Design — tiered memory (context-window safe)
 
-Store project memory as markdown at a known hidden path in the workspace:
+The naive "inject the whole memory file every run" blows up the context window because the system
+block is re-sent every turn. Instead, **two tiers** under the hidden, quota-exempt `.cowork/memory/`:
 
 ```
-<workspace>/<projectId>/.cowork/memory/project.md
+<workspace>/<projectId>/.cowork/memory/
+  ├─ core.md       ← ALWAYS injected. Hard token budget (~1.5 KB). Curated + top auto-facts.
+  └─ archive.md    ← NEVER injected. The long tail; agent reads it on demand via execute_code.
 ```
 
-- Hidden + quota-exempt already (it's under `.cowork/`, which we exclude from the tree and usage).
-- File-based, mirroring Claude Code and our existing file-centric architecture.
-- **Read (inject):** on every Cowork agent run, the server reads `project.md` and prepends it to
-  the agent's system context as "Project memory" — reliable, not left to the model.
-- **Manual edit:** a Memory UI reads/writes the same file via new routes.
-- **Auto-capture:** the agent is instructed to append concise, durable facts (preferences,
-  decisions, naming conventions, "always do X") to project memory — written via `execute_code`
-  to the same path. Volatile/one-off details are NOT memorized.
+1. **Always-on core (`core.md`)** — a tiny, budgeted block injected into every Cowork run as a
+   `# Project memory` system section. Server-side budget enforcement: measure on inject and
+   truncate with a marker if over. Holds only high-signal durable facts.
+2. **Compaction, not unbounded growth** — when `core.md` nears its budget, compact it with the
+   already-configured memory model (`gpt-5-mini`): dedupe, merge, drop stale/contradicted facts;
+   overflow is spilled to `archive.md`. Mirrors LibreChat's built-in `memory.tokenLimit: 3000`.
+3. **On-demand archive (`archive.md`)** — verbose/historical detail lives here and is NOT injected;
+   the agent greps/reads it via `execute_code` only when a task needs it. Costs **zero** context
+   until used, and only for that one turn's tool output.
 
-Why inject server-side rather than rely on the agent reading the file: guarantees the memory is
-always present in context (the existing per-user memory uses the same inject-into-run approach).
+Steady-state context cost = just the small core block. Depth is retrieved, not resident.
+
+- **Budget** is configurable — `COWORK_MEMORY_TOKEN_BUDGET` (default ~1500 tokens / ~6 KB chars),
+  enforced server-side. Pairs with pinning `maxContextTokens` so the budget is a known fraction.
+- **Read (inject):** server reads `core.md` and injects it — reliable, not left to the model.
+- **Manual edit:** the Memory UI reads/writes `core.md` (and can view `archive.md` read-only).
+- **Auto-capture:** the agent appends concise durable facts to `core.md` (via `execute_code`);
+  verbose detail goes to `archive.md`. Volatile/one-off details are not memorized.
 
 ## 4. Workstreams
 
-### A. Service — read/write project memory (`CoworkWorkspaceService`)
-- `getMemory(): Promise<string>` → contents of `.cowork/memory/project.md` (`''` if absent).
-- `setMemory(text): Promise<void>` → write it (size-capped, e.g. 16 KB; quota-exempt).
-- `appendMemory(text): Promise<void>` → append a timestamped bullet (used by auto-capture path).
-- Unit tests (round-trip, cap, empty default).
+### A. Service — tiered memory store (`CoworkWorkspaceService`)
+- `getMemory(): Promise<string>` → `core.md` (`''` if absent).
+- `setMemory(text): Promise<void>` → write `core.md`, enforcing the budget (truncate/return a
+  flag if over so the caller can trigger compaction). Quota-exempt (`.cowork/`).
+- `appendMemory(text): Promise<void>` → append a concise bullet to `core.md`.
+- `getMemoryArchive()` / `appendMemoryArchive(text)` → the non-injected long tail.
+- `isMemoryOverBudget()` helper using the configurable budget.
+- Unit tests (round-trip, budget enforcement, archive spill, empty default).
 
 ### B. Injection into the Cowork agent run
 - Where the agents request is assembled (resolve `coworkProjectId`, same gating as the exec
@@ -110,10 +123,28 @@ always present in context (the existing per-user memory uses the same inject-int
 | `seed-cowork-agent.js` (auto-capture rule) | — | ✅ | — | ✅ |
 | `client/` (Memory UI) | — | — | ✅ | — |
 
-## 8. Sequencing
-1. **A** — service get/set/append + tests.
-2. **D** — routes + data-provider wiring.
-3. **B** — server-side injection into the Cowork run (the core "always sees it" piece).
-4. **E** — Memory tab UI (view/edit).
-5. **C** — auto-capture prompt rule + re-seed.
-6. **F** — per-chat memory (only if chosen in §6).
+## 8. Phases (implementation order)
+
+**Phase 1 — Memory store + budget (service).** `CoworkWorkspaceService`: core/archive read/write,
+configurable `COWORK_MEMORY_TOKEN_BUDGET`, budget enforcement + archive spill, unit tests. _(packages/api
+build + restart.)_
+
+**Phase 2 — Routes + data-provider wiring.** `GET/PUT /projects/:id/memory` (core),
+`GET /projects/:id/memory/archive`; endpoints, types, keys, data-service fns, query/mutation hooks.
+_(packages build + restart + client build.)_
+
+**Phase 3 — Server-side injection (the core "always sees it" piece).** Resolve `coworkProjectId`
+in the agents run, inject budget-enforced `core.md` as a `# Project memory` system block, gated so
+non-cowork runs are untouched. _(backend restart.)_
+
+**Phase 4 — Memory UI.** A right-pane **"Memory" tab**: edit `core.md` (textarea + Save), read-only
+view of `archive.md`, auto-refresh after each run. _(client build.)_
+
+**Phase 5 — Auto-capture + compaction.** Prompt rule (`seed-cowork-agent.js` + `handleTools.js`):
+append durable facts to `core.md`, verbose detail to `archive.md`. Compaction with `gpt-5-mini` when
+core exceeds budget (dedupe/merge, spill overflow). _(backend restart + re-seed.)_
+
+**Phase 6 — (optional) Per-chat memory.** Conversation-scoped note injected only for that chat —
+only if chosen in §6.
+
+Each phase is independently shippable and testable, same cadence as the edit/undo work.

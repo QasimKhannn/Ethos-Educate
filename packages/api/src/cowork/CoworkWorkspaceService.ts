@@ -34,6 +34,8 @@ export interface CoworkWorkspaceOptions {
   projectId: string;
   /** Optional hard size cap for the whole workspace, in bytes. */
   quotaBytes?: number;
+  /** Char budget for the always-injected core memory (defaults to DEFAULT_MEMORY_CHAR_BUDGET). */
+  memoryCharBudget?: number;
 }
 
 /** Default subfolder the agent is instructed to write deliverables into. */
@@ -50,6 +52,17 @@ const CHECKPOINTS_FILE = `${COWORK_INTERNAL_DIR}/checkpoints.json`;
 
 /** Keep at most this many undo checkpoints; older snapshots are pruned. */
 const MAX_CHECKPOINTS = 20;
+
+// --- Project memory (tiered, context-window safe) ----------------------------
+const MEMORY_DIR = `${COWORK_INTERNAL_DIR}/memory`;
+/** Always-injected, budgeted memory the agent sees every run. */
+const MEMORY_CORE_FILE = `${MEMORY_DIR}/core.md`;
+/** Never-injected long tail; the agent reads it on demand via execute_code. */
+const MEMORY_ARCHIVE_FILE = `${MEMORY_DIR}/archive.md`;
+/** Default char budget for injected core memory (~1500 tokens × ~4 chars/token). */
+export const DEFAULT_MEMORY_CHAR_BUDGET = 6000;
+/** Marker appended when core memory is truncated for injection. */
+const MEMORY_TRUNCATION_MARKER = '\n…(memory truncated — older detail is in archive.md)';
 
 /** Extensions we can show a line-level diff for; everything else is treated as binary. */
 const TEXT_EXTENSIONS = new Set([
@@ -121,8 +134,9 @@ export class CoworkWorkspaceService {
   readonly projectId: string;
   readonly basePath: string;
   readonly quotaBytes?: number;
+  readonly memoryCharBudget: number;
 
-  constructor({ root, projectId, quotaBytes }: CoworkWorkspaceOptions) {
+  constructor({ root, projectId, quotaBytes, memoryCharBudget }: CoworkWorkspaceOptions) {
     if (!root) {
       throw new Error('CoworkWorkspaceService: root is required');
     }
@@ -133,6 +147,8 @@ export class CoworkWorkspaceService {
     this.projectId = projectId;
     this.basePath = path.join(this.root, projectId);
     this.quotaBytes = quotaBytes;
+    this.memoryCharBudget =
+      memoryCharBudget && memoryCharBudget > 0 ? memoryCharBudget : DEFAULT_MEMORY_CHAR_BUDGET;
   }
 
   /**
@@ -509,6 +525,82 @@ export class CoworkWorkspaceService {
       await fs.rm(this.resolve(`${HISTORY_DIR}/${cp.id}`), { recursive: true, force: true });
     }
     return all.slice(all.length - MAX_CHECKPOINTS);
+  }
+
+  // -------------------------------------------------------------------------
+  // Project memory (tiered) — core.md is ALWAYS injected (budget-capped);
+  // archive.md is read on demand. Both live under hidden, quota-exempt
+  // .cowork/memory/, so they never show in the tree or count toward the quota.
+  // -------------------------------------------------------------------------
+
+  /** Read the raw core memory (the always-injected layer); '' if none. */
+  async getMemory(): Promise<string> {
+    try {
+      return await fs.readFile(this.resolve(MEMORY_CORE_FILE), 'utf8');
+    } catch {
+      return '';
+    }
+  }
+
+  /** True if the given core-memory text exceeds the injection budget. */
+  isMemoryOverBudget(text: string): boolean {
+    return text.length > this.memoryCharBudget;
+  }
+
+  /**
+   * Core memory ready for injection: as-is when within budget, otherwise truncated
+   * at a line boundary with a marker. The full text always stays on disk.
+   */
+  async getInjectableMemory(): Promise<string> {
+    const core = await this.getMemory();
+    if (core.length <= this.memoryCharBudget) {
+      return core;
+    }
+    const slice = core.slice(0, this.memoryCharBudget);
+    const lastNewline = slice.lastIndexOf('\n');
+    const trimmed = lastNewline > 0 ? slice.slice(0, lastNewline) : slice;
+    return trimmed + MEMORY_TRUNCATION_MARKER;
+  }
+
+  /** Replace core memory. Returns whether the stored content exceeds the budget. */
+  async setMemory(text: string): Promise<{ overBudget: boolean }> {
+    const content = typeof text === 'string' ? text : '';
+    await this.writeInternal(MEMORY_CORE_FILE, Buffer.from(content, 'utf8'));
+    return { overBudget: this.isMemoryOverBudget(content) };
+  }
+
+  /** Append a concise line to core memory. Returns whether it now exceeds the budget. */
+  async appendMemory(line: string): Promise<{ overBudget: boolean }> {
+    const entry = String(line ?? '').trim();
+    if (!entry) {
+      return { overBudget: this.isMemoryOverBudget(await this.getMemory()) };
+    }
+    const current = await this.getMemory();
+    const separator = current && !current.endsWith('\n') ? '\n' : '';
+    return this.setMemory(`${current}${separator}${entry}\n`);
+  }
+
+  /** Read the on-demand archive (never injected); '' if none. */
+  async getMemoryArchive(): Promise<string> {
+    try {
+      return await fs.readFile(this.resolve(MEMORY_ARCHIVE_FILE), 'utf8');
+    } catch {
+      return '';
+    }
+  }
+
+  /** Append verbose / overflow detail to the archive. */
+  async appendMemoryArchive(text: string): Promise<void> {
+    const entry = String(text ?? '').trim();
+    if (!entry) {
+      return;
+    }
+    const current = await this.getMemoryArchive();
+    const separator = current && !current.endsWith('\n') ? '\n' : '';
+    await this.writeInternal(
+      MEMORY_ARCHIVE_FILE,
+      Buffer.from(`${current}${separator}${entry}\n`, 'utf8'),
+    );
   }
 }
 

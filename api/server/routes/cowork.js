@@ -10,6 +10,7 @@ const archiver = require('archiver');
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
 const { CoworkWorkspaceService, listBuiltinSkills } = require('@librechat/api');
+const { Message, Conversation } = require('~/db/models');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const {
   createCoworkProject,
@@ -31,6 +32,10 @@ const workspaceRoot = process.env.COWORK_WORKSPACE_ROOT || paths.coworkWorkspace
 const skillsRoot = process.env.COWORK_SKILLS_ROOT || paths.coworkSkillsRoot;
 const quotaMB = parseInt(process.env.COWORK_WORKSPACE_QUOTA_MB || '', 10);
 const quotaBytes = Number.isFinite(quotaMB) && quotaMB > 0 ? quotaMB * 1024 * 1024 : undefined;
+// Char budget for the always-injected core memory (~4 chars/token). Unset → service default.
+const memoryTokenBudget = parseInt(process.env.COWORK_MEMORY_TOKEN_BUDGET || '', 10);
+const memoryCharBudget =
+  Number.isFinite(memoryTokenBudget) && memoryTokenBudget > 0 ? memoryTokenBudget * 4 : undefined;
 
 // Uploads stream to a temp dir on disk (NOT into memory), so files/folders of any
 // size are supported. Total size is governed by the optional workspace quota, not a
@@ -370,6 +375,55 @@ router.get('/projects/:projectId/archive', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// cowork — project memory. core is injected into the agent every run (budget-capped);
+// archive is read-only here and read on demand by the agent via execute_code.
+// ---------------------------------------------------------------------------
+
+/** GET /projects/:projectId/memory — the always-injected core memory. */
+router.get('/projects/:projectId/memory', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    res.status(200).json({ memory: await ws.getMemory() });
+  } catch (error) {
+    logger.error('[/cowork memory] get error', error);
+    res.status(500).json({ message: 'Error reading memory' });
+  }
+});
+
+/** PUT /projects/:projectId/memory — replace core memory (manual edit). */
+router.put('/projects/:projectId/memory', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    const memory = typeof req.body?.memory === 'string' ? req.body.memory : '';
+    const { overBudget } = await ws.setMemory(memory);
+    res.status(200).json({ memory, overBudget });
+  } catch (error) {
+    logger.error('[/cowork memory] put error', error);
+    res.status(400).json({ message: error.message || 'Error saving memory' });
+  }
+});
+
+/** GET /projects/:projectId/memory/archive — the on-demand long tail (read-only). */
+router.get('/projects/:projectId/memory/archive', async (req, res) => {
+  try {
+    const ws = await loadWorkspace(req, res);
+    if (!ws) {
+      return;
+    }
+    res.status(200).json({ archive: await ws.getMemoryArchive() });
+  } catch (error) {
+    logger.error('[/cowork memory archive] get error', error);
+    res.status(500).json({ message: 'Error reading memory archive' });
+  }
+});
+
 /** GET /api/cowork/projects/:projectId/conversations — list the project's chats. */
 router.get('/projects/:projectId/conversations', async (req, res) => {
   try {
@@ -514,7 +568,7 @@ async function loadWorkspace(req, res) {
     return null;
   }
   try {
-    return new CoworkWorkspaceService({ root: workspaceRoot, projectId, quotaBytes });
+    return new CoworkWorkspaceService({ root: workspaceRoot, projectId, quotaBytes, memoryCharBudget });
   } catch (error) {
     res.status(400).json({ message: error.message || 'Invalid workspace' });
     return null;

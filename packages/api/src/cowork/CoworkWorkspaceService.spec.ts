@@ -221,6 +221,39 @@ describe('CoworkWorkspaceService', () => {
       expect(await ws.exists('output/fresh.txt')).toBe(false);
     });
 
+    it('stores, appends, and reads project memory', async () => {
+      const ws = makeService();
+      expect(await ws.getMemory()).toBe('');
+      await ws.setMemory('- prefers concise summaries');
+      expect(await ws.getMemory()).toBe('- prefers concise summaries');
+      await ws.appendMemory('- uses British spelling');
+      const core = await ws.getMemory();
+      expect(core).toContain('- prefers concise summaries');
+      expect(core).toContain('- uses British spelling');
+    });
+
+    it('truncates injected memory to the budget but keeps the full text on disk', async () => {
+      const ws = new CoworkWorkspaceService({ root, projectId, memoryCharBudget: 30 });
+      const long = ['- one', '- two', '- three', '- four', '- five'].join('\n');
+      const { overBudget } = await ws.setMemory(long);
+      expect(overBudget).toBe(true);
+      expect(await ws.getMemory()).toBe(long); // full text preserved
+      const injectable = await ws.getInjectableMemory();
+      expect(injectable.length).toBeLessThan(long.length + 60);
+      expect(injectable).toContain('memory truncated');
+    });
+
+    it('keeps memory out of the tree and the quota', async () => {
+      const ws = makeService();
+      await ws.writeFile('visible.txt', Buffer.from('hi'));
+      await ws.setMemory('- a durable fact');
+      await ws.appendMemoryArchive('verbose historical detail');
+      const names = (await ws.getTree()).map((n) => n.name);
+      expect(names).not.toContain('.cowork');
+      expect(await ws.getUsage()).toBe(2); // only visible.txt
+      expect(await ws.getMemoryArchive()).toContain('verbose historical detail');
+    });
+
     it('prunes history beyond the checkpoint cap (20)', async () => {
       const ws = makeService();
       await ws.writeFile('f.md', Buffer.from('0'));

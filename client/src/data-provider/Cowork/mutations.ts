@@ -167,6 +167,21 @@ export const useRestoreCoworkCheckpointMutation = (
   });
 };
 
+/* project memory */
+
+/** Replace a project's core memory (manual edit). */
+export const useUpdateCoworkMemoryMutation = (
+  projectId: string,
+): UseMutationResult<{ memory: string; overBudget: boolean }, unknown, string> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkMemoryUpdate', projectId], {
+    mutationFn: (memory: string) => dataService.updateCoworkMemory(projectId, memory),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkMemory, projectId]);
+    },
+  });
+};
+
 /* workspace */
 
 type CoworkUploadFile = { file: File; relativePath?: string };

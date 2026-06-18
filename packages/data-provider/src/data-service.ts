@@ -1015,6 +1015,26 @@ export function getCoworkArchiveBlob(projectId: string): Promise<Blob> {
   return request.get<Blob>(endpoints.coworkArchive(projectId), { responseType: 'blob' });
 }
 
+/* cowork — project memory */
+
+/** Read the project's always-injected core memory. */
+export function getCoworkMemory(projectId: string): Promise<{ memory: string }> {
+  return request.get<{ memory: string }>(endpoints.coworkMemory(projectId));
+}
+
+/** Replace the project's core memory (manual edit). */
+export function updateCoworkMemory(
+  projectId: string,
+  memory: string,
+): Promise<{ memory: string; overBudget: boolean }> {
+  return request.put(endpoints.coworkMemory(projectId), { memory });
+}
+
+/** Read the project's on-demand memory archive (read-only). */
+export function getCoworkMemoryArchive(projectId: string): Promise<{ archive: string }> {
+  return request.get<{ archive: string }>(endpoints.coworkMemoryArchive(projectId));
+}
+
 export function updateConversation(
   payload: t.TUpdateConversationRequest,
 ): Promise<t.TUpdateConversationResponse> {

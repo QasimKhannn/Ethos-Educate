@@ -1,10 +1,17 @@
 // cowork — lightweight chat UI for a Cowork project (uses useCoworkChat).
 import { useLayoutEffect, useRef, type KeyboardEvent, type UIEvent } from 'react';
 import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil } from 'lucide-react';
-import { useCoworkChat, type CoworkTraceEntry } from './useCoworkChat';
+import { useCoworkChat, type CoworkTraceEntry, type CoworkMode } from './useCoworkChat';
 import { TraceRow } from './CoworkTracePanel';
+import CoworkPlanCard from './CoworkPlanCard';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
 import { useState } from 'react';
+
+const MODES: { id: CoworkMode; label: string; hint: string }[] = [
+  { id: 'ask', label: 'Ask', hint: 'Answer questions — never changes files' },
+  { id: 'plan', label: 'Plan', hint: 'Draft a plan — never changes files' },
+  { id: 'agent', label: 'Agent', hint: 'Do the work — reads and writes files' },
+];
 
 // ---------------------------------------------------------------------------
 // Live status — shown inline while the agent is working, before text appears.
@@ -97,6 +104,7 @@ export default function CoworkChat({
   const { messages, isStreaming, error, send, stop, removeFrom, loadOlder, hasMore, isLoadingOlder, trace } =
     useCoworkChat(projectId, initialConversationId, onTraceChange, model, provider, onSessionStart);
   const [input, setInput] = useState('');
+  const [mode, setMode] = useState<CoworkMode>('agent');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const lastId = messages[messages.length - 1]?.id;
@@ -143,7 +151,7 @@ export default function CoworkChat({
     if (!text || isStreaming) {
       return;
     }
-    send(text);
+    send(text, mode);
     setInput('');
     // Reset height after clearing.
     if (textareaRef.current) {
@@ -156,6 +164,15 @@ export default function CoworkChat({
       e.preventDefault();
       submit();
     }
+  };
+
+  /** Approve a plan: flip to Agent mode and execute it. */
+  const approvePlan = () => {
+    if (isStreaming) {
+      return;
+    }
+    setMode('agent');
+    send('Execute the approved plan above.', 'agent');
   };
 
   return (
@@ -224,7 +241,7 @@ export default function CoworkChat({
                             const t = editText.trim();
                             if (t && editingId) {
                               removeFrom(editingId);
-                              send(t);
+                              send(t, mode);
                             }
                             setEditingId(null);
                             setEditText('');
@@ -276,9 +293,17 @@ export default function CoworkChat({
                           hasText={m.text.length > 0}
                         />
                       )}
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <MarkdownLite content={m.text} />
-                      </div>
+                      {m.mode === 'plan' && m.text ? (
+                        <CoworkPlanCard
+                          content={m.text}
+                          isStreaming={isStreaming && m.id === lastId}
+                          onApprove={approvePlan}
+                        />
+                      ) : (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <MarkdownLite content={m.text} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ),
@@ -293,6 +318,24 @@ export default function CoworkChat({
         {/* ── input bar ── */}
         <div className="px-4 pb-5 pt-2">
           <div className="mx-auto max-w-2xl">
+            {/* Mode toggle — Ask / Plan / Agent (applies to the next message) */}
+            <div className="mb-2 inline-flex rounded-lg border border-border-medium bg-surface-secondary p-0.5 text-xs">
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMode(m.id)}
+                  title={m.hint}
+                  className={`rounded-md px-2.5 py-1 transition-colors ${
+                    mode === m.id
+                      ? 'bg-surface-primary font-medium text-text-primary shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             <div className="relative flex items-end gap-2 rounded-2xl border border-border-medium bg-surface-primary px-4 py-3 shadow-sm">
               <textarea
                 ref={textareaRef}

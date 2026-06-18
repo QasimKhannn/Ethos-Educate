@@ -11,6 +11,7 @@ const {
   // cowork — skills injection (load individual skills by id + build prompt block)
   loadBuiltinSkill,
   buildSkillsPrompt,
+  CoworkWorkspaceService,
 } = require('@librechat/api');
 const {
   EModelEndpoint,
@@ -33,6 +34,12 @@ const { logViolation } = require('~/cache');
 const db = require('~/models');
 const paths = require('~/config/paths'); // cowork — skills root
 const _coworkSkillsRoot = process.env.COWORK_SKILLS_ROOT || paths.coworkSkillsRoot; // cowork
+const _coworkWorkspaceRoot = process.env.COWORK_WORKSPACE_ROOT || paths.coworkWorkspaces; // cowork
+const _coworkMemoryTokenBudget = parseInt(process.env.COWORK_MEMORY_TOKEN_BUDGET || '', 10); // cowork
+const _coworkMemoryCharBudget =
+  Number.isFinite(_coworkMemoryTokenBudget) && _coworkMemoryTokenBudget > 0
+    ? _coworkMemoryTokenBudget * 4
+    : undefined; // cowork
 
 /**
  * Creates a tool loader function for the agent.
@@ -178,9 +185,57 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
             .join('\n\n');
         }
       }
+
+      // cowork — inject project memory (core, budget-capped) into the system prompt so it
+      // is always honored and OUTRANKS the global per-user memory. Read-only here.
+      if (project) {
+        try {
+          const ws = new CoworkWorkspaceService({
+            root: _coworkWorkspaceRoot,
+            projectId: String(project._id),
+            memoryCharBudget: _coworkMemoryCharBudget,
+          });
+          const projectMemory = await ws.getInjectableMemory();
+          if (projectMemory && projectMemory.trim()) {
+            const memoryBlock =
+              '# Project memory (STANDING INSTRUCTIONS)\n' +
+              'Durable, user-approved facts and preferences for THIS project. Apply them ' +
+              'proactively from your first response, and prioritise them over any general or ' +
+              "global preferences. Only a directly conflicting instruction in the user's latest " +
+              'message overrides them.\n\n' +
+              projectMemory;
+            primaryAgent.instructions = [primaryAgent.instructions ?? '', memoryBlock]
+              .filter(Boolean)
+              .join('\n\n');
+          }
+        } catch (memErr) {
+          logger.warn('[initializeClient] cowork project memory injection failed', memErr);
+        }
+      }
     }
   } catch (coworkErr) {
     logger.warn('[initializeClient] cowork skills injection failed; continuing without skills', coworkErr);
+  }
+
+  // cowork — modes (Ask / Plan / Agent). Per-message; default Agent. Steers the agent via its
+  // system prompt, and in Ask mode hard-removes execute_code so it cannot touch files. coworkMode
+  // is only sent by the Cowork chat, so normal chats and other agents are unaffected.
+  try {
+    const coworkMode = req.body?.coworkMode;
+    if (coworkMode === 'ask' || coworkMode === 'plan') {
+      // The workspace is enforced read-only for these modes at the execution layer
+      // (see api/app/clients/tools/util/handleTools.js) — the prompt below is only for
+      // behavior/tone; it is NOT what prevents writes.
+      const modeBlock =
+        coworkMode === 'ask'
+          ? '# Mode: ASK\nYou are in ASK mode. Answer the question directly and conversationally. You can read the workspace to inform your answer, but the workspace is read-only in this mode — you cannot create, edit, or delete files. If the task needs file changes, say so briefly and suggest switching to Agent mode.'
+          : '# Mode: PLAN\nYou are in PLAN mode. Read the workspace as needed to ground the plan (read-only — you cannot create, edit, or delete files). Respond with ONLY an implementation plan, grounded in the actual workspace, using EXACTLY this markdown structure and nothing else:\n\n## Goal\n<one or two sentences>\n\n## Approach\n<numbered, concrete steps>\n\n## Files\n<bullets of files you would create or change, each with a short note; write "None" if not applicable>\n\n## Risks & decisions\n<bullets; write "None" if not applicable>\n\n## Next step\nApprove this plan to run it in Agent mode.';
+      primaryAgent.instructions = [primaryAgent.instructions ?? '', modeBlock]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  } catch (modeErr) {
+    logger.warn('[initializeClient] cowork mode handling failed; continuing in default mode', modeErr);
   }
 
   const modelsConfig = await getModelsConfig(req);

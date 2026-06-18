@@ -39,10 +39,14 @@ function extractContentText(content?: Array<Record<string, unknown>>): string {
     .join('');
 }
 
+export type CoworkMode = 'ask' | 'plan' | 'agent';
+
 export type CoworkMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** Mode the message was produced in (used to render plan-mode replies as a Plan card). */
+  mode?: CoworkMode;
 };
 
 const MESSAGES_PAGE = 25;
@@ -279,7 +283,7 @@ export function useCoworkChat(
   );
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, mode: CoworkMode = 'agent') => {
       const trimmed = text.trim();
       if (!trimmed || isStreaming) {
         return;
@@ -292,7 +296,7 @@ export function useCoworkChat(
       setMessages((prev) => [
         ...prev,
         { id: userId, role: 'user', text: trimmed },
-        { id: assistantId, role: 'assistant', text: '' },
+        { id: assistantId, role: 'assistant', text: '', mode },
       ]);
       setIsStreaming(true);
       setTrace([]); // fresh trace for this run
@@ -319,6 +323,7 @@ export function useCoworkChat(
           endpoint: EModelEndpoint.agents,
           agent_id: COWORK_AGENT_ID,
           coworkProjectId: projectId,
+          coworkMode: mode,
           ...(model ? { model } : {}),
           ...(provider ? { provider } : {}),
         },
@@ -380,6 +385,8 @@ export function useCoworkChat(
             queryClient.invalidateQueries([QueryKeys.coworkWorkspace, projectId]);
             // The agent may have staged edits — refresh the Pending changes panel.
             queryClient.invalidateQueries([QueryKeys.coworkChanges, projectId]);
+            // The agent may have appended to project memory — refresh the Memory tab.
+            queryClient.invalidateQueries([QueryKeys.coworkMemory, projectId]);
             // A new chat / title may now exist — refresh the history picker.
             queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
             return;
