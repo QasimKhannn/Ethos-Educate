@@ -11,6 +11,8 @@ import type {
   TCoworkDiff,
   TCoworkCheckpoint,
   TCoworkConnector,
+  TCoworkRoutine,
+  TCoworkRoutineRun,
 } from 'librechat-data-provider';
 
 /** List the user's Cowork projects. */
@@ -165,6 +167,42 @@ export const useCoworkMemoryArchiveQuery = (
     {
       refetchOnWindowFocus: false,
       staleTime: 1000 * 5,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** List a project's scheduled routines (newest first). */
+export const useCoworkRoutinesQuery = (
+  projectId?: string | null,
+  config?: UseQueryOptions<TCoworkRoutine[]>,
+): QueryObserverResult<TCoworkRoutine[]> => {
+  const id = projectId ?? '';
+  return useQuery<TCoworkRoutine[]>(
+    [QueryKeys.coworkRoutines, id],
+    () => dataService.listCoworkRoutines(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 10,
+      ...config,
+      enabled: (config?.enabled ?? true) === true && id !== '',
+    },
+  );
+};
+
+/** List a routine's run history (newest first). Enabled only when a routineId is provided. */
+export const useCoworkRoutineRunsQuery = (
+  routineId?: string | null,
+  config?: UseQueryOptions<TCoworkRoutineRun[]>,
+): QueryObserverResult<TCoworkRoutineRun[]> => {
+  const id = routineId ?? '';
+  return useQuery<TCoworkRoutineRun[]>(
+    [QueryKeys.coworkRoutineRuns, id],
+    () => dataService.listCoworkRoutineRuns(id),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 10,
       ...config,
       enabled: (config?.enabled ?? true) === true && id !== '',
     },

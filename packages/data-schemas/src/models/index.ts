@@ -15,6 +15,8 @@ import { createFileModel } from './file';
 import { createBannerModel } from './banner';
 import { createProjectModel } from './project';
 import { createCoworkProjectModel } from './coworkProject'; // cowork
+import { createCoworkRoutineModel } from './coworkRoutine'; // cowork
+import { createCoworkRoutineRunModel } from './coworkRoutineRun'; // cowork
 import { createKeyModel } from './key';
 import { createPluginAuthModel } from './pluginAuth';
 import { createTransactionModel } from './transaction';
@@ -51,6 +53,8 @@ export function createModels(mongoose: typeof import('mongoose')) {
     Banner: createBannerModel(mongoose),
     Project: createProjectModel(mongoose),
     CoworkProject: createCoworkProjectModel(mongoose), // cowork
+    CoworkRoutine: createCoworkRoutineModel(mongoose), // cowork
+    CoworkRoutineRun: createCoworkRoutineRunModel(mongoose), // cowork
     Key: createKeyModel(mongoose),
     PluginAuth: createPluginAuthModel(mongoose),
     Transaction: createTransactionModel(mongoose),

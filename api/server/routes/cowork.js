@@ -34,6 +34,15 @@ const {
   getCoworkProjectConversations,
   getCoworkConversationMessages,
 } = require('~/models/CoworkProject');
+const {
+  createCoworkRoutine,
+  getUserCoworkRoutines,
+  getCoworkRoutine,
+  updateCoworkRoutine,
+  deleteCoworkRoutine,
+} = require('~/models/CoworkRoutine');
+const { getRoutineRuns, deleteRoutineRuns } = require('~/models/CoworkRoutineRun');
+const { runRoutine } = require('~/server/services/Cowork/CoworkRoutineRunner');
 const paths = require('~/config/paths');
 
 const router = express.Router();
@@ -664,6 +673,140 @@ router.delete('/connectors/:connectorId/credentials', async (req, res) => {
   } catch (error) {
     logger.error('[/cowork connectors] disconnect error', error);
     res.status(400).json({ message: error.message || 'Error disconnecting' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// cowork — Routines (scheduled automations). Phase 1: CRUD + run-now (headless run).
+// Scheduling (Phase 2), delivery (Phase 4), and the approval queue (Phase 5) are layered on later.
+// ---------------------------------------------------------------------------
+
+/** GET /api/cowork/routines?projectId=... — list this user's routines (optionally one project). */
+router.get('/routines', async (req, res) => {
+  try {
+    const routines = await getUserCoworkRoutines({
+      user: req.user.id,
+      projectId: req.query?.projectId,
+    });
+    res.status(200).json(routines);
+  } catch (error) {
+    logger.error('[/cowork routines] list error', error);
+    res.status(500).json({ message: 'Error listing routines' });
+  }
+});
+
+/** POST /api/cowork/routines — create a routine for a project. */
+router.post('/routines', async (req, res) => {
+  try {
+    const routine = await createCoworkRoutine({
+      user: req.user.id,
+      projectId: req.body?.projectId,
+      name: req.body?.name,
+      prompt: req.body?.prompt,
+      cronExpression: req.body?.cronExpression,
+      mode: req.body?.mode,
+      enabled: req.body?.enabled,
+      autoApprove: req.body?.autoApprove,
+      deliveryTarget: req.body?.deliveryTarget,
+    });
+    res.status(201).json(routine);
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error creating routine' });
+  }
+});
+
+/** GET /api/cowork/routines/:routineId — fetch one routine. */
+router.get('/routines/:routineId', async (req, res) => {
+  try {
+    const routine = await getCoworkRoutine({ user: req.user.id, routineId: req.params.routineId });
+    if (!routine) {
+      return res.status(404).json({ message: 'Routine not found' });
+    }
+    res.status(200).json(routine);
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error fetching routine' });
+  }
+});
+
+/** PATCH /api/cowork/routines/:routineId — update a routine. */
+router.patch('/routines/:routineId', async (req, res) => {
+  try {
+    const routine = await updateCoworkRoutine({
+      user: req.user.id,
+      routineId: req.params.routineId,
+      name: req.body?.name,
+      prompt: req.body?.prompt,
+      cronExpression: req.body?.cronExpression,
+      mode: req.body?.mode,
+      enabled: req.body?.enabled,
+      autoApprove: req.body?.autoApprove,
+      deliveryTarget: req.body?.deliveryTarget,
+    });
+    if (!routine) {
+      return res.status(404).json({ message: 'Routine not found' });
+    }
+    res.status(200).json(routine);
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error updating routine' });
+  }
+});
+
+/** DELETE /api/cowork/routines/:routineId — delete a routine. */
+router.delete('/routines/:routineId', async (req, res) => {
+  try {
+    const deleted = await deleteCoworkRoutine({
+      user: req.user.id,
+      routineId: req.params.routineId,
+    });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Routine not found' });
+    }
+    // Clean up the routine's run history too (best-effort).
+    await deleteRoutineRuns(req.params.routineId).catch(() => {});
+    res.status(200).json({ deleted: true });
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error deleting routine' });
+  }
+});
+
+/**
+ * POST /api/cowork/routines/:routineId/run — run a routine now (headless).
+ * Awaits the agent run and returns the outcome + the conversation the result landed in.
+ */
+router.post('/routines/:routineId/run', async (req, res) => {
+  try {
+    const routine = await getCoworkRoutine({ user: req.user.id, routineId: req.params.routineId });
+    if (!routine) {
+      return res.status(404).json({ message: 'Routine not found' });
+    }
+    const result = await runRoutine(routine, { trigger: 'manual' });
+    const status = result.status === 'success' ? 200 : 500;
+    res.status(status).json(result);
+  } catch (error) {
+    logger.error('[/cowork routines] run error', error);
+    res.status(500).json({ message: error.message || 'Error running routine' });
+  }
+});
+
+/**
+ * GET /api/cowork/routines/:routineId/runs?limit= — this routine's run history (newest first).
+ * Ownership-scoped: 404s unless the routine belongs to the caller.
+ */
+router.get('/routines/:routineId/runs', async (req, res) => {
+  try {
+    const routine = await getCoworkRoutine({ user: req.user.id, routineId: req.params.routineId });
+    if (!routine) {
+      return res.status(404).json({ message: 'Routine not found' });
+    }
+    const runs = await getRoutineRuns({
+      user: req.user.id,
+      routineId: req.params.routineId,
+      limit: req.query?.limit,
+    });
+    res.status(200).json(runs);
+  } catch (error) {
+    logger.error('[/cowork routines] runs list error', error);
+    res.status(500).json({ message: error.message || 'Error listing routine runs' });
   }
 });
 

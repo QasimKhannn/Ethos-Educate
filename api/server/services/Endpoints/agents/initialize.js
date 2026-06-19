@@ -295,6 +295,34 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     logger.warn('[initializeClient] cowork mode handling failed; continuing in default mode', modeErr);
   }
 
+  // cowork — routines: in Agent mode only, grant the `manage_routines` tool so the coworker can
+  // create/list/manage this project's scheduled automations from chat. Gated on coworkProjectId so
+  // it never reaches normal chats or other agents. Ask/Plan (read-only) don't get it.
+  try {
+    const coworkProjectId = req.body?.coworkProjectId;
+    const coworkMode = req.body?.coworkMode;
+    const isAgentMode = coworkMode !== 'ask' && coworkMode !== 'plan';
+    if (coworkProjectId && isAgentMode) {
+      const existing = Array.isArray(primaryAgent.tools) ? primaryAgent.tools : [];
+      if (!existing.includes('manage_routines')) {
+        primaryAgent.tools = [...existing, 'manage_routines'];
+      }
+      const routinesBlock = [
+        '# Routines (scheduled automations)',
+        "Use the `manage_routines` tool to manage THIS project's routines (actions: list, create, enable, disable, delete). A routine is a saved prompt that runs automatically on a schedule (or manually).",
+        '- Translate the user’s natural-language timing into a standard 5-field cron expression (minute hour day-of-month month day-of-week). If they don’t want a schedule, omit the cron — it becomes a manual-only routine.',
+        '- Before you CREATE or DELETE a routine, first summarize exactly what you will do — the name, the schedule in plain English plus the cron expression, the prompt it will run, and the delivery target (message or file) — then STOP and wait for the user’s explicit confirmation. Only after they confirm may you call `manage_routines` with action "create" or "delete".',
+        '- Listing routines needs no confirmation. Enabling/disabling an existing routine is fine to do directly when clearly requested.',
+        '- By default a routine cannot perform external connector writes (publish/send/update) on its automated runs — they are withheld for safety. Only set autoApprove=true when the user EXPLICITLY asks the routine to make those changes automatically, and call out that it is a conscious risk.',
+      ].join('\n');
+      primaryAgent.instructions = [primaryAgent.instructions ?? '', routinesBlock]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  } catch (routinesErr) {
+    logger.warn('[initializeClient] cowork routines tool injection failed', routinesErr);
+  }
+
   // cowork — connectors: in Agent mode only, grant the user's CONNECTED connectors' MCP tools to
   // the agent. Ask/Plan get none (read-only — must not act on external services). Tools are added
   // ONLY to this Cowork agent for this run; nothing global or in the main chat changes.
@@ -319,13 +347,26 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
             logger.warn('[initializeClient] cowork connector MCP setup unavailable', setupErr);
           }
         }
+        // cowork — Phase 5: a routine run is headless (coworkUnattended), so there is no human to
+        // approve a write mid-run. Unless the routine opted into auto-approve, withhold every
+        // write-capable connector entirely — the agent then physically cannot perform an external
+        // write (enforced, not a prompt). Interactive chat (coworkUnattended falsy) is unchanged.
+        const isUnattended = req.body?.coworkUnattended === true;
+        const autoApprove = req.body?.coworkAutoApprove === true;
+        const blockWrites = isUnattended && !autoApprove;
+
         const toolIds = [];
-        const writeLabels = []; // connected connectors that can change the outside world (Phase 8)
+        const writeLabels = []; // connected write-capable connectors that WERE granted
+        const blockedWriteLabels = []; // write-capable connectors withheld for this unattended run
         for (const def of connectors) {
           if (!(await isCoworkConnectorConnected(req.user?.id, def, mcpSetup))) {
             continue;
           }
           if (def.hasWriteActions) {
+            if (blockWrites) {
+              blockedWriteLabels.push(def.label);
+              continue; // withhold this connector's entire toolset for the unattended run
+            }
             writeLabels.push(def.label);
           }
           if (Array.isArray(def.mcpTools) && def.mcpTools.length > 0) {
@@ -340,10 +381,11 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
           const existing = Array.isArray(primaryAgent.tools) ? primaryAgent.tools : [];
           primaryAgent.tools = [...new Set([...existing, ...toolIds])];
         }
-        // cowork — Phase 8: write-action safety. When a connected connector can write/publish/send,
-        // require an explicit preview + user approval before the agent performs it. v1 is prompt-
-        // driven (mirrors the email draft→approve→send card); reads/searches stay unguarded.
-        if (writeLabels.length > 0) {
+
+        // cowork — Phase 8 (interactive only): when a human is present, require an explicit preview
+        // + approval before a connector write. Routine runs are headless, so this synchronous gate
+        // does not apply to them — Phase 5 governs them via the block/auto-approve branches below.
+        if (!isUnattended && writeLabels.length > 0) {
           const labels = [...new Set(writeLabels)].join(', ');
           const safetyBlock = [
             '# Connector write-action safety',
@@ -361,6 +403,33 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
             'Reading, searching, listing, or summarizing data needs NO approval — do those directly. This gate applies only to actions that write, publish, or send.',
           ].join('\n');
           primaryAgent.instructions = [primaryAgent.instructions ?? '', safetyBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+
+        // cowork — Phase 5: unattended run with writes withheld. Tell the agent so it reports the
+        // intended write instead of silently failing to find a (deliberately absent) write tool.
+        if (blockWrites && blockedWriteLabels.length > 0) {
+          const labels = [...new Set(blockedWriteLabels)].join(', ');
+          const blockedBlock = [
+            '# Unattended run — external writes are disabled',
+            `This is an automated routine run with no one available to approve changes, so write/publish/send actions are turned OFF for this run on: ${labels}.`,
+            'You can still read, search, and summarize from these services. If the task needs a write/publish/send, do NOT attempt it — instead clearly describe in your answer exactly what you would have done (connector, action, target, and the key fields) so the user can approve it. The user can enable this routine’s auto-approve setting to allow such writes automatically.',
+          ].join('\n');
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', blockedBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+
+        // cowork — Phase 5: unattended run with auto-approve ON. Writes are granted; make explicit
+        // that the routine is authorized to perform them without a confirmation step.
+        if (isUnattended && autoApprove && writeLabels.length > 0) {
+          const labels = [...new Set(writeLabels)].join(', ');
+          const autoBlock = [
+            '# Unattended run — auto-approved writes',
+            `This routine is authorized to perform write/publish/send actions automatically on: ${labels}. Proceed with the task without asking for confirmation, but only perform the writes the routine’s instruction actually requires — avoid any destructive action beyond that.`,
+          ].join('\n');
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', autoBlock]
             .filter(Boolean)
             .join('\n\n');
         }

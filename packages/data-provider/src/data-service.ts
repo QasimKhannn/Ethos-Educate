@@ -1089,6 +1089,123 @@ export function getCoworkMemoryArchive(projectId: string): Promise<{ archive: st
   return request.get<{ archive: string }>(endpoints.coworkMemoryArchive(projectId));
 }
 
+/* cowork — routines (scheduled automations) */
+
+export type TCoworkRoutineStatus = 'success' | 'error' | 'running';
+
+export type TCoworkRoutine = {
+  _id: string;
+  user: string;
+  projectId: string;
+  name: string;
+  prompt: string;
+  /** 5-field cron expression; empty string = manual-only (run via "Run now"). */
+  cronExpression: string;
+  mode: string;
+  enabled: boolean;
+  autoApprove: boolean;
+  deliveryTarget?: TCoworkDeliveryTarget;
+  /** Next scheduled fire time (set by the server when a cron + enabled is present). */
+  nextRun?: string | null;
+  lastRun?: string | null;
+  lastStatus?: TCoworkRoutineStatus;
+  lastError?: string;
+  lastConversationId?: string;
+  /** Phase 6: consecutive failed runs (resets to 0 on success). */
+  consecutiveFailures?: number;
+  /** Phase 6: set when the routine was auto-disabled (e.g. repeated failures); empty when healthy. */
+  disabledReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** Where a run's result is delivered: 'message' = conversation only; 'file' = also a workspace file. */
+export type TCoworkDeliveryTarget = 'message' | 'file';
+
+export type TCoworkRoutineCreate = {
+  projectId: string;
+  name: string;
+  prompt: string;
+  cronExpression?: string;
+  mode?: string;
+  enabled?: boolean;
+  autoApprove?: boolean;
+  deliveryTarget?: TCoworkDeliveryTarget;
+};
+
+export type TCoworkRoutineUpdate = Partial<
+  Pick<
+    TCoworkRoutine,
+    'name' | 'prompt' | 'cronExpression' | 'mode' | 'enabled' | 'autoApprove' | 'deliveryTarget'
+  >
+>;
+
+export type TCoworkRoutineRunResult = {
+  conversationId: string;
+  status: 'success' | 'error';
+  error?: string;
+  deliveredPath?: string | null;
+};
+
+/** One execution of a routine (run history). */
+export type TCoworkRoutineRun = {
+  _id: string;
+  routineId: string;
+  user: string;
+  projectId: string;
+  trigger: 'manual' | 'scheduled';
+  status: TCoworkRoutineStatus;
+  error?: string;
+  conversationId?: string;
+  deliveredPath?: string;
+  startedAt: string;
+  finishedAt?: string;
+  durationMs?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** List this user's routines, optionally scoped to one project. */
+export function listCoworkRoutines(projectId?: string): Promise<TCoworkRoutine[]> {
+  return request.get<TCoworkRoutine[]>(endpoints.coworkRoutines(projectId));
+}
+
+/** Create a routine for a project. */
+export function createCoworkRoutine(payload: TCoworkRoutineCreate): Promise<TCoworkRoutine> {
+  return request.post(endpoints.coworkRoutines(), payload);
+}
+
+/** Fetch one routine. */
+export function getCoworkRoutine(routineId: string): Promise<TCoworkRoutine> {
+  return request.get<TCoworkRoutine>(endpoints.coworkRoutine(routineId));
+}
+
+/** Update a routine (partial). */
+export function updateCoworkRoutine(
+  routineId: string,
+  payload: TCoworkRoutineUpdate,
+): Promise<TCoworkRoutine> {
+  return request.patch(endpoints.coworkRoutine(routineId), payload);
+}
+
+/** Delete a routine. */
+export function deleteCoworkRoutine(routineId: string): Promise<{ deleted: boolean }> {
+  return request.delete<{ deleted: boolean }>(endpoints.coworkRoutine(routineId));
+}
+
+/** Run a routine now (headless). Resolves when the agent run completes. */
+export function runCoworkRoutine(routineId: string): Promise<TCoworkRoutineRunResult> {
+  return request.post(endpoints.coworkRoutineRun(routineId), {});
+}
+
+/** List a routine's run history (newest first). */
+export function listCoworkRoutineRuns(
+  routineId: string,
+  limit?: number,
+): Promise<TCoworkRoutineRun[]> {
+  return request.get<TCoworkRoutineRun[]>(endpoints.coworkRoutineRuns(routineId, limit));
+}
+
 export function updateConversation(
   payload: t.TUpdateConversationRequest,
 ): Promise<t.TUpdateConversationResponse> {

@@ -218,6 +218,22 @@ export const coworkMemory = (projectId: string) => `${coworkProject(projectId)}/
 export const coworkMemoryArchive = (projectId: string) =>
   `${coworkProject(projectId)}/memory/archive`;
 
+/* cowork — routines (scheduled automations) */
+
+export const coworkRoutines = (projectId?: string) =>
+  `${coworkRoot}/routines${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
+
+export const coworkRoutine = (routineId: string) =>
+  `${coworkRoot}/routines/${encodeURIComponent(routineId)}`;
+
+export const coworkRoutineRun = (routineId: string) =>
+  `${coworkRoot}/routines/${encodeURIComponent(routineId)}/run`;
+
+export const coworkRoutineRuns = (routineId: string, limit?: number) =>
+  `${coworkRoot}/routines/${encodeURIComponent(routineId)}/runs${
+    limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
+  }`;
+
 export const search = (q: string, cursor?: string | null) =>
   `${BASE_URL}/api/search?q=${q}${cursor ? `&cursor=${cursor}` : ''}`;
 

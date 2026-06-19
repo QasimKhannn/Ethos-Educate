@@ -11,19 +11,21 @@ import CoworkChat from './CoworkChat';
 import CoworkTracePanel from './CoworkTracePanel';
 import CoworkSkillsPanel from './CoworkSkillsPanel';
 import CoworkMemoryPanel from './CoworkMemoryPanel';
+import CoworkRoutinesPanel from './CoworkRoutinesPanel';
 import { COWORK_MODELS, DEFAULT_COWORK_MODEL, resolveModelLabel } from './CoworkModels';
 import type { CoworkTraceEntry } from './useCoworkChat';
 
-type PaneTab = 'workspace' | 'trace' | 'skills' | 'memory';
+type PaneTab = 'workspace' | 'trace' | 'skills' | 'memory' | 'routines';
 
 const TABS: { id: PaneTab; label: string }[] = [
   { id: 'workspace', label: 'Workspace' },
   { id: 'trace', label: 'Trace' },
   { id: 'skills', label: 'Skills' },
   { id: 'memory', label: 'Memory' },
+  { id: 'routines', label: 'Routines' },
 ];
 
-const PANE_TABS: PaneTab[] = ['workspace', 'trace', 'skills', 'memory'];
+const PANE_TABS: PaneTab[] = ['workspace', 'trace', 'skills', 'memory', 'routines'];
 
 // ---------------------------------------------------------------------------
 // Inline model picker — a small dropdown anchored to the header button.
@@ -259,6 +261,7 @@ export default function CoworkProjectView() {
           {tab === 'trace' && <CoworkTracePanel trace={trace} />}
           {tab === 'skills' && <CoworkSkillsPanel projectId={projectId} />}
           {tab === 'memory' && <CoworkMemoryPanel projectId={projectId} />}
+          {tab === 'routines' && <CoworkRoutinesPanel projectId={projectId} />}
         </div>
       </aside>
     </div>

@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "Cowork Routines — Phase 1",
+    "_postman_id": "c0w0rk-routines-phase1-0001",
+    "description": "Manual test collection for Cowork Routines Phase 1 (backend only, no UI yet).\n\nSETUP:\n1. Set the `baseUrl` variable (default http://localhost:3080; use https://staging.ajaia.ai for staging).\n2. Set the `token` variable to your JWT. Get it from the app: open devtools → Network → any /api/... request → copy the value after 'Authorization: Bearer '.\n3. Run requests top-to-bottom: 'List Projects' captures a projectId, 'Create Routine' captures a routineId, then 'Run Routine Now'.\n\nNOTE: Build `npm run build:data-schemas` and restart the backend before testing, or the CoworkRoutine model won't be registered.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3080" },
+    { "key": "token", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "routineId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. List Projects (captures projectId)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (Array.isArray(j) && j[0] && j[0]._id) {",
+              "  pm.collectionVariables.set('projectId', j[0]._id);",
+              "  console.log('projectId set to', j[0]._id);",
+              "}",
+              "pm.test('200 OK', () => pm.response.code === 200);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/cowork/projects", "host": ["{{baseUrl}}"], "path": ["api", "cowork", "projects"] }
+      }
+    },
+    {
+      "name": "2. Create Routine (captures routineId)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j && j._id) {",
+              "  pm.collectionVariables.set('routineId', j._id);",
+              "  console.log('routineId set to', j._id);",
+              "}",
+              "pm.test('201 Created', () => pm.response.code === 201);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"name\": \"Workspace summary test\",\n  \"prompt\": \"List the files in this workspace and write a one-line summary of what's here.\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/cowork/routines", "host": ["{{baseUrl}}"], "path": ["api", "cowork", "routines"] }
+      }
+    },
+    {
+      "name": "3. List Routines",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/cowork/routines?projectId={{projectId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "cowork", "routines"],
+          "query": [{ "key": "projectId", "value": "{{projectId}}" }]
+        }
+      }
+    },
+    {
+      "name": "4. Get Routine",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/cowork/routines/{{routineId}}", "host": ["{{baseUrl}}"], "path": ["api", "cowork", "routines", "{{routineId}}"] }
+      }
+    },
+    {
+      "name": "5. Update Routine",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Workspace summary test (edited)\",\n  \"enabled\": true\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/cowork/routines/{{routineId}}", "host": ["{{baseUrl}}"], "path": ["api", "cowork", "routines", "{{routineId}}"] }
+      }
+    },
+    {
+      "name": "6. Run Routine Now (the headless run)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test('run succeeded', () => pm.response.code === 200 && j.status === 'success');",
+              "console.log('run result:', JSON.stringify(j));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": { "raw": "{{baseUrl}}/api/cowork/routines/{{routineId}}/run", "host": ["{{baseUrl}}"], "path": ["api", "cowork", "routines", "{{routineId}}", "run"] }
+      }
+    },
+    {
+      "name": "7. Delete Routine",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/cowork/routines/{{routineId}}", "host": ["{{baseUrl}}"], "path": ["api", "cowork", "routines", "{{routineId}}"] }
+      }
+    }
+  ]
+}

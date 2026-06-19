@@ -2,7 +2,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QueryKeys, dataService } from 'librechat-data-provider';
 import type { UseMutationResult } from '@tanstack/react-query';
-import type { TCoworkProject, TCoworkCheckpoint } from 'librechat-data-provider';
+import type {
+  TCoworkProject,
+  TCoworkCheckpoint,
+  TCoworkRoutine,
+  TCoworkRoutineCreate,
+  TCoworkRoutineUpdate,
+  TCoworkRoutineRunResult,
+} from 'librechat-data-provider';
 
 /* projects */
 
@@ -214,6 +221,83 @@ export const useDeleteCoworkConnectorCredentialsMutation = (): UseMutationResult
     mutationFn: (connectorId: string) => dataService.deleteCoworkConnectorCredentials(connectorId),
     onSuccess: () => {
       queryClient.invalidateQueries([QueryKeys.coworkConnectors]);
+    },
+  });
+};
+
+/* routines — scheduled automations */
+
+/** Create a routine for a project. */
+export const useCreateCoworkRoutineMutation = (
+  projectId: string,
+): UseMutationResult<TCoworkRoutine, unknown, TCoworkRoutineCreate> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkRoutineCreate', projectId], {
+    mutationFn: (payload: TCoworkRoutineCreate) => dataService.createCoworkRoutine(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkRoutines, projectId]);
+    },
+  });
+};
+
+/** Update a routine (partial). Refreshes the project's routine list on success. */
+export const useUpdateCoworkRoutineMutation = (
+  projectId: string,
+): UseMutationResult<
+  TCoworkRoutine,
+  unknown,
+  { routineId: string; payload: TCoworkRoutineUpdate }
+> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkRoutineUpdate', projectId], {
+    mutationFn: ({ routineId, payload }: { routineId: string; payload: TCoworkRoutineUpdate }) =>
+      dataService.updateCoworkRoutine(routineId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkRoutines, projectId]);
+    },
+  });
+};
+
+/** Delete a routine, with optimistic removal from the list. */
+export const useDeleteCoworkRoutineMutation = (
+  projectId: string,
+): UseMutationResult<{ deleted: boolean }, unknown, string> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkRoutineDelete', projectId], {
+    mutationFn: (routineId: string) => dataService.deleteCoworkRoutine(routineId),
+    onMutate: async (routineId: string) => {
+      await queryClient.cancelQueries([QueryKeys.coworkRoutines, projectId]);
+      const previous = queryClient.getQueryData<TCoworkRoutine[]>([
+        QueryKeys.coworkRoutines,
+        projectId,
+      ]);
+      queryClient.setQueryData<TCoworkRoutine[]>(
+        [QueryKeys.coworkRoutines, projectId],
+        (old = []) => old.filter((r) => r._id !== routineId),
+      );
+      return { previous };
+    },
+    onError: (_err, _routineId, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData([QueryKeys.coworkRoutines, projectId], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkRoutines, projectId]);
+    },
+  });
+};
+
+/** Run a routine now (headless). Long-running — resolves when the agent run completes. */
+export const useRunCoworkRoutineMutation = (
+  projectId: string,
+): UseMutationResult<TCoworkRoutineRunResult, unknown, string> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkRoutineRun', projectId], {
+    mutationFn: (routineId: string) => dataService.runCoworkRoutine(routineId),
+    // Refresh so lastRun/lastStatus/lastConversationId reflect the completed run.
+    onSettled: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkRoutines, projectId]);
     },
   });
 };

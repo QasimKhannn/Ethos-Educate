@@ -45,6 +45,7 @@ const {
   TavilySearchResults,
   createGeminiImageTool,
   createOpenAIImageTools,
+  createManageRoutinesTool,
 } = require('../');
 const {
   primeFiles: primeCodeFiles,
@@ -218,6 +219,10 @@ const loadTools = async ({
   };
 
   const customConstructors = {
+    // cowork — routine management tool needs the live request (user + current project).
+    manage_routines: async () => {
+      return createManageRoutinesTool({ req: options.req });
+    },
     image_gen_oai: async (toolContextMap) => {
       const authFields = getAuthFields('image_gen_oai');
       const authValues = await loadAuthValues({ userId: user, authFields });

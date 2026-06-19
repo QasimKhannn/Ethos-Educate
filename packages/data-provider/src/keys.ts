@@ -24,6 +24,8 @@ export enum QueryKeys {
   coworkCheckpoints = 'coworkCheckpoints', // cowork — undo checkpoints, keyed by projectId
   coworkMemory = 'coworkMemory', // cowork — project memory (core + archive), keyed by projectId
   coworkConnectors = 'coworkConnectors', // cowork — connector catalog + per-user connection status
+  coworkRoutines = 'coworkRoutines', // cowork — scheduled automations, keyed by projectId
+  coworkRoutineRuns = 'coworkRoutineRuns', // cowork — per-routine run history, keyed by routineId
   searchResults = 'searchResults',
   tokenCount = 'tokenCount',
   availablePlugins = 'availablePlugins',
