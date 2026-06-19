@@ -29,7 +29,15 @@ function timeAgo(dateStr?: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function ProjectConversations({ projectId, activeConvoId }: { projectId: string; activeConvoId?: string | null }) {
+function ProjectConversations({
+  projectId,
+  activeConvoId,
+  onNavigate,
+}: {
+  projectId: string;
+  activeConvoId?: string | null;
+  onNavigate?: () => void;
+}) {
   const navigate = useNavigate();
   const { data: conversations = [], isLoading } = useCoworkConversationsQuery(projectId);
   const deleteMutation = useDeleteCoworkConversationMutation(projectId);
@@ -76,7 +84,10 @@ function ProjectConversations({ projectId, activeConvoId }: { projectId: string;
           >
             <button
               type="button"
-              onClick={() => navigate(`/cowork/${projectId}?convo=${c.conversationId}`)}
+              onClick={() => {
+                navigate(`/cowork/${projectId}?convo=${c.conversationId}`);
+                onNavigate?.();
+              }}
               className="flex min-w-0 flex-1 items-start gap-2 text-left"
               disabled={isDeleting}
             >
@@ -103,10 +114,22 @@ function ProjectConversations({ projectId, activeConvoId }: { projectId: string;
   );
 }
 
-export default function CoworkSidebar() {
+export default function CoworkSidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { projectId } = useParams();
+
+  // Navigate and close the mobile drawer in one step (no-op for the close on desktop).
+  const go = (path: string) => {
+    navigate(path);
+    onClose?.();
+  };
 
   const searchParams = new URLSearchParams(location.search);
   const activeConvoId = searchParams.get('convo');
@@ -127,18 +150,31 @@ export default function CoworkSidebar() {
         onSuccess: (project) => {
           setName('');
           setCreating(false);
-          navigate(`/cowork/${project._id}`);
+          go(`/cowork/${project._id}`);
         },
       },
     );
   };
 
   return (
-    <aside className="hidden h-full w-60 flex-none flex-col border-r border-border-medium px-3 py-4 md:flex">
-      <div className="mb-4 flex items-center gap-2 px-1">
-        <Briefcase className="size-5 text-text-secondary" />
-        <span className="text-lg font-semibold text-text-primary">Cowork</span>
-      </div>
+    <>
+      {/* Backdrop — only when the drawer is open on small screens. */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={onClose}
+          aria-hidden
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 h-full w-72 max-w-[85vw] flex-none flex-col border-r border-border-medium bg-surface-primary px-3 py-4 md:static md:z-auto md:w-60 md:max-w-none md:flex ${
+          mobileOpen ? 'flex' : 'hidden'
+        }`}
+      >
+        <div className="mb-4 flex items-center gap-2 px-1">
+          <Briefcase className="size-5 text-text-secondary" />
+          <span className="text-lg font-semibold text-text-primary">Cowork</span>
+        </div>
 
       {creating ? (
         <div className="mb-4 flex flex-col gap-2">
@@ -192,7 +228,7 @@ export default function CoworkSidebar() {
               <div className={`flex items-center gap-1 rounded-md ${active ? 'bg-surface-tertiary' : ''}`}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/cowork/${p._id}`)}
+                  onClick={() => go(`/cowork/${p._id}`)}
                   className={`flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-sm ${
                     active ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'
                   }`}
@@ -205,7 +241,7 @@ export default function CoworkSidebar() {
                   <button
                     type="button"
                     title="New conversation"
-                    onClick={() => navigate(`/cowork/${p._id}?new=${Date.now()}`)}
+                    onClick={() => go(`/cowork/${p._id}?new=${Date.now()}`)}
                     className="mr-1 flex-none rounded p-1 text-text-tertiary hover:text-text-primary"
                   >
                     <SquarePen className="size-3.5" />
@@ -216,7 +252,11 @@ export default function CoworkSidebar() {
               {/* Conversation sub-list — only for the active project */}
               {active && (
                 <div className="mt-0.5 mb-1">
-                  <ProjectConversations projectId={p._id} activeConvoId={activeConvoId} />
+                  <ProjectConversations
+                    projectId={p._id}
+                    activeConvoId={activeConvoId}
+                    onNavigate={onClose}
+                  />
                 </div>
               )}
             </div>
@@ -228,7 +268,7 @@ export default function CoworkSidebar() {
         {projectId ? (
           <button
             type="button"
-            onClick={() => navigate(`/cowork/${projectId}?tab=skills`)}
+            onClick={() => go(`/cowork/${projectId}?tab=skills`)}
             className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
               skillsActive
                 ? 'bg-surface-tertiary text-text-primary'
@@ -251,14 +291,15 @@ export default function CoworkSidebar() {
         </button>
         <button
           type="button"
-          onClick={() => navigate('/c/new')}
+          onClick={() => go('/c/new')}
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
         >
           <MessageSquare className="size-4" /> Back to chat
         </button>
       </div>
 
-      {showConnectors && <CoworkConnectorsModal onClose={() => setShowConnectors(false)} />}
-    </aside>
+        {showConnectors && <CoworkConnectorsModal onClose={() => setShowConnectors(false)} />}
+      </aside>
+    </>
   );
 }

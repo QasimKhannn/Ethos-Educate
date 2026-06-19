@@ -2,7 +2,19 @@
 // workspace/trace/skills (right pane).
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, SquarePen, ChevronDown } from 'lucide-react';
+import {
+  ArrowLeft,
+  SquarePen,
+  ChevronDown,
+  Folder,
+  Activity,
+  Puzzle,
+  Brain,
+  Clock,
+  PanelRight,
+  X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import { useCoworkProjectsQuery } from '~/data-provider';
 import { useUpdateCoworkProjectMutation } from '~/data-provider/Cowork/mutations';
@@ -17,12 +29,12 @@ import type { CoworkTraceEntry } from './useCoworkChat';
 
 type PaneTab = 'workspace' | 'trace' | 'skills' | 'memory' | 'routines';
 
-const TABS: { id: PaneTab; label: string }[] = [
-  { id: 'workspace', label: 'Workspace' },
-  { id: 'trace', label: 'Trace' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'memory', label: 'Memory' },
-  { id: 'routines', label: 'Routines' },
+const TABS: { id: PaneTab; label: string; icon: LucideIcon }[] = [
+  { id: 'workspace', label: 'Workspace', icon: Folder },
+  { id: 'trace', label: 'Trace', icon: Activity },
+  { id: 'skills', label: 'Skills', icon: Puzzle },
+  { id: 'memory', label: 'Memory', icon: Brain },
+  { id: 'routines', label: 'Routines', icon: Clock },
 ];
 
 const PANE_TABS: PaneTab[] = ['workspace', 'trace', 'skills', 'memory', 'routines'];
@@ -135,6 +147,8 @@ export default function CoworkProjectView() {
   const [tab, setTab] = useState<PaneTab>(
     tabParam && PANE_TABS.includes(tabParam) ? tabParam : 'workspace',
   );
+  // Right panel as a slide-in drawer on small screens (static aside on lg+).
+  const [panelOpen, setPanelOpen] = useState(false);
   const [trace, setTrace] = useState<CoworkTraceEntry[]>([]);
 
   // Reset trace when switching projects.
@@ -142,10 +156,11 @@ export default function CoworkProjectView() {
     setTrace([]);
   }, [projectId]);
 
-  // Sync right-panel tab when ?tab= changes (e.g. sidebar Skills link).
+  // Sync right-panel tab when ?tab= changes (e.g. sidebar Skills link); also reveal it on mobile.
   useEffect(() => {
     if (tabParam && PANE_TABS.includes(tabParam)) {
       setTab(tabParam);
+      setPanelOpen(true);
     }
   }, [tabParam]);
 
@@ -223,6 +238,17 @@ export default function CoworkProjectView() {
             <SquarePen className="size-4" />
             <span className="hidden sm:inline">New chat</span>
           </button>
+
+          {/* Right-panel toggle — only on small screens where the panel is a drawer. */}
+          <button
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            title="Open panels"
+            aria-label="Open panels"
+            className="flex items-center rounded-md px-2 py-1.5 text-text-secondary hover:bg-surface-secondary hover:text-text-primary lg:hidden"
+          >
+            <PanelRight className="size-4" />
+          </button>
         </header>
 
         <div className="min-h-0 flex-1">
@@ -238,22 +264,52 @@ export default function CoworkProjectView() {
         </div>
       </div>
 
-      <aside className="hidden w-80 flex-none flex-col border-l border-border-medium lg:flex">
-        <div className="flex flex-wrap gap-1 border-b border-border-medium px-2 py-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`rounded-md px-2.5 py-1 text-sm ${
-                tab === t.id
-                  ? 'bg-surface-tertiary font-medium text-text-primary'
-                  : 'text-text-secondary hover:bg-surface-secondary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+      {/* Backdrop — only when the drawer is open on small screens. */}
+      {panelOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={() => setPanelOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] flex-none flex-col border-l border-border-medium bg-surface-primary lg:static lg:z-auto lg:max-w-none lg:flex ${
+          panelOpen ? 'flex' : 'hidden'
+        }`}
+      >
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-border-medium px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                title={t.label}
+                aria-label={t.label}
+                aria-current={active ? 'page' : undefined}
+                className={`flex flex-none items-center gap-1.5 rounded-md text-sm transition-colors ${
+                  active
+                    ? 'bg-surface-tertiary px-2.5 py-1 font-medium text-text-primary'
+                    : 'px-2 py-1 text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+                }`}
+              >
+                <Icon className="size-4 flex-none" />
+                {active && <span>{t.label}</span>}
+              </button>
+            );
+          })}
+          {/* Close the drawer — only on small screens. */}
+          <button
+            type="button"
+            onClick={() => setPanelOpen(false)}
+            aria-label="Close panel"
+            className="ml-auto flex-none rounded-md p-1 text-text-tertiary hover:bg-surface-secondary hover:text-text-primary lg:hidden"
+          >
+            <X className="size-4" />
+          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">

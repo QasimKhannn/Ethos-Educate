@@ -94,7 +94,11 @@ export default function Root() {
                   <div
                     className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden"
                     style={
-                      isSmallScreen
+                      // cowork — Cowork hides the chat Nav/MobileNav, so the mobile nav offset would
+                      // shove (and `inert`) the Cowork content with no way to undo it. Skip the
+                      // offset on Cowork routes; Cowork has its own hamburger drawer. Other routes
+                      // are unchanged.
+                      isSmallScreen && !isCoworkRoute
                         ? {
                             transform: navVisible
                               ? `translateX(${NAV_WIDTH.MOBILE}px)`
@@ -104,7 +108,7 @@ export default function Root() {
                           }
                         : undefined
                     }
-                    {...{ inert: navVisible && isSmallScreen ? '' : undefined }}
+                    {...{ inert: navVisible && isSmallScreen && !isCoworkRoute ? '' : undefined }}
                   >
                     {!isCoworkRoute && (
                       <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
