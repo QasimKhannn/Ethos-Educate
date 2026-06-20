@@ -22,6 +22,9 @@ import Search from './Search';
 import Root from './Root';
 import { ProjectRoute } from '~/components/Projects';
 import AdminConsole from '~/components/Admin/AdminConsole';
+import CoworkLayout from '~/components/Cowork/CoworkLayout'; // cowork
+import CoworkHome from '~/components/Cowork/CoworkHome'; // cowork
+import CoworkProjectView from '~/components/Cowork/CoworkProjectView'; // cowork
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -136,6 +139,20 @@ export const router = createBrowserRouter(
             {
               path: 'admin',
               element: <AdminConsole />,
+            },
+            {
+              path: 'cowork',
+              element: <CoworkLayout />,
+              children: [
+                {
+                  index: true,
+                  element: <CoworkHome />,
+                },
+                {
+                  path: ':projectId',
+                  element: <CoworkProjectView />,
+                },
+              ],
             },
           ],
         },

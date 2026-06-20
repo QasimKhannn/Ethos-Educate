@@ -34,6 +34,7 @@ const { getAppConfig } = require('./services/Config');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const { seedDatabase } = require('~/models');
+const { startCoworkRoutineScheduler } = require('./services/Cowork/CoworkRoutineScheduler'); // cowork
 const routes = require('./routes');
 
 const { PORT, HOST, ALLOW_SOCIAL_LOGIN, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
@@ -155,6 +156,7 @@ const startServer = async () => {
   app.use('/api/messages', routes.messages);
   app.use('/api/convos', routes.convos);
   app.use('/api/projects', routes.projects);
+  app.use('/api/cowork', routes.cowork); // cowork
   app.use('/api/presets', routes.presets);
   app.use('/api/prompts', routes.prompts);
   app.use('/api/categories', routes.categories);
@@ -220,6 +222,9 @@ const startServer = async () => {
     const streamServices = createStreamServices();
     GenerationJobManager.configure(streamServices);
     GenerationJobManager.initialize();
+
+    // cowork — start the Routines scheduler (no-op unless COWORK_ROUTINES_ENABLED is set).
+    startCoworkRoutineScheduler();
 
     const inspectFlags = process.execArgv.some((arg) => arg.startsWith('--inspect'));
     if (inspectFlags || isEnabled(process.env.MEM_DIAG)) {

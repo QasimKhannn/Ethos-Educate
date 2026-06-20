@@ -26,6 +26,7 @@ import {
 import { useConversationsInfiniteQuery, useTitleGeneration } from '~/data-provider';
 import { Conversations } from '~/components/Conversations';
 import { ProjectsNav } from '~/components/Projects';
+import CoworkNavLink from '~/components/Cowork/CoworkNavLink'; // cowork
 import FavoritesList from './Favorites/FavoritesList';
 import SearchBar from './SearchBar';
 import NewChat from './NewChat';
@@ -267,6 +268,7 @@ const Nav = memo(
               isSmallScreen={isSmallScreen}
             />
             <FavoritesList isSmallScreen={isSmallScreen} toggleNav={itemToggleNav} />
+            <CoworkNavLink toggleNav={itemToggleNav} />
             <ProjectsNav toggleNav={itemToggleNav} />
             <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
               <Conversations

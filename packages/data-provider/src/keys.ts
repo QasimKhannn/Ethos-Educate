@@ -16,6 +16,16 @@ export enum QueryKeys {
   projects = 'projects',
   project = 'project',
   projectFiles = 'projectFiles',
+  coworkProjects = 'coworkProjects', // cowork — list of the user's Cowork projects
+  coworkWorkspace = 'coworkWorkspace', // cowork — workspace file tree, keyed by projectId
+  coworkConversations = 'coworkConversations', // cowork — a project's chats, keyed by projectId
+  coworkSkills = 'coworkSkills', // cowork — available skills + enabled flags, keyed by projectId
+  coworkChanges = 'coworkChanges', // cowork — staged proposed edits, keyed by projectId
+  coworkCheckpoints = 'coworkCheckpoints', // cowork — undo checkpoints, keyed by projectId
+  coworkMemory = 'coworkMemory', // cowork — project memory (core + archive), keyed by projectId
+  coworkConnectors = 'coworkConnectors', // cowork — connector catalog + per-user connection status
+  coworkRoutines = 'coworkRoutines', // cowork — scheduled automations, keyed by projectId
+  coworkRoutineRuns = 'coworkRoutineRuns', // cowork — per-routine run history, keyed by routineId
   searchResults = 'searchResults',
   tokenCount = 'tokenCount',
   availablePlugins = 'availablePlugins',
@@ -79,6 +89,8 @@ export enum MutationKeys {
   deleteAgentApiKey = 'deleteAgentApiKey',
   fileUpload = 'fileUpload',
   fileDelete = 'fileDelete',
+  coworkUpload = 'coworkUpload', // cowork
+  coworkDelete = 'coworkDelete', // cowork
   updatePreset = 'updatePreset',
   deletePreset = 'deletePreset',
   loginUser = 'loginUser',

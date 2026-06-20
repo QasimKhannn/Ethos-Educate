@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useMediaQuery } from '@librechat/client';
 import type { ContextType } from '~/common';
 import {
@@ -35,6 +35,9 @@ export default function Root() {
   const { user, isAuthenticated, logout } = useAuthContext();
   const backendQueriesEnabled = isAuthenticated;
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
+  // cowork — the dedicated Cowork section renders its own rail, so hide the chat
+  // sidebar ONLY for /cowork routes. All other routes are unaffected.
+  const isCoworkRoute = useLocation().pathname.startsWith('/cowork');
   const onboardingStorageKey = useMemo(() => {
     const identifier = user?.id ?? user?.email ?? user?.username;
 
@@ -87,11 +90,15 @@ export default function Root() {
               <Banner onHeightChange={setBannerHeight} />
               <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
                 <div className="relative z-0 flex h-full w-full overflow-hidden">
-                  <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
+                  {!isCoworkRoute && <Nav navVisible={navVisible} setNavVisible={setNavVisible} />}
                   <div
                     className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden"
                     style={
-                      isSmallScreen
+                      // cowork — Cowork hides the chat Nav/MobileNav, so the mobile nav offset would
+                      // shove (and `inert`) the Cowork content with no way to undo it. Skip the
+                      // offset on Cowork routes; Cowork has its own hamburger drawer. Other routes
+                      // are unchanged.
+                      isSmallScreen && !isCoworkRoute
                         ? {
                             transform: navVisible
                               ? `translateX(${NAV_WIDTH.MOBILE}px)`
@@ -101,9 +108,11 @@ export default function Root() {
                           }
                         : undefined
                     }
-                    {...{ inert: navVisible && isSmallScreen ? '' : undefined }}
+                    {...{ inert: navVisible && isSmallScreen && !isCoworkRoute ? '' : undefined }}
                   >
-                    <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
+                    {!isCoworkRoute && (
+                      <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
+                    )}
                     <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                   </div>
                 </div>

@@ -39,6 +39,15 @@ export type RegistrationPolicy = {
   allowedDomains: string[];
 };
 
+export type CoworkGrantedUser = { id: string; email: string; name: string };
+
+export type CoworkAccessPolicy = {
+  enabled: boolean;
+  mode: 'everyone' | 'allowlist';
+  grantedUserIds: string[];
+  grantedUsers: CoworkGrantedUser[];
+};
+
 export type AdminOverview = {
   counts: {
     totalUsers: number;
@@ -133,6 +142,7 @@ const adminKeys = {
   invites: [QueryKeys.user, 'admin-invites'] as const,
   auditLogs: [QueryKeys.user, 'admin-audit-logs'] as const,
   sso: [QueryKeys.user, 'admin-sso'] as const,
+  coworkAccess: [QueryKeys.user, 'admin-cowork-access'] as const,
 };
 
 export const useAdminOverviewQuery = () =>
@@ -290,3 +300,49 @@ export const useValidateOpenIdMutation = () =>
   useMutation<SsoValidateResult, unknown, string>({
     mutationFn: (issuer: string) => request.post(`${adminBase}/sso/openid/validate`, { issuer }),
   });
+
+/* cowork — admin access management */
+
+export const useCoworkAccessAdminQuery = () =>
+  useQuery<CoworkAccessPolicy>({
+    queryKey: adminKeys.coworkAccess,
+    queryFn: () => request.get(`${adminBase}/cowork/access`),
+    refetchOnWindowFocus: false,
+  });
+
+export const useUpdateCoworkAccessMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { enabled?: boolean; mode?: 'everyone' | 'allowlist' }) =>
+      request.patch(`${adminBase}/cowork/access`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.coworkAccess });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
+    },
+  });
+};
+
+export const useGrantCoworkUserMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => request.post(`${adminBase}/cowork/access/grant`, { userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.coworkAccess });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
+    },
+  });
+};
+
+export const useRevokeCoworkUserMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => request.post(`${adminBase}/cowork/access/revoke`, { userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.coworkAccess });
+      queryClient.invalidateQueries({ queryKey: adminKeys.auditLogs });
+    },
+  });
+};

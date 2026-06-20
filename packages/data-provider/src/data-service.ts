@@ -768,6 +768,444 @@ export function removeProjectFile(payload: t.TProjectFileRequest): Promise<t.TPr
   return request.delete(endpoints.projectFile(payload.projectId, payload.fileId));
 }
 
+/* cowork — projects + per-project workspace */
+
+export type TCoworkProject = {
+  _id: string;
+  name: string;
+  user: string;
+  description?: string;
+  instructions?: string;
+  enabledSkills: string[];
+  /** Connector ids enabled for this project (e.g. "wordpress", "canva"). */
+  enabledConnectors?: string[];
+  conversationIds: string[];
+  /** LLM model key override (e.g. "gpt-5-chat"). Absent = use seeded agent default. */
+  model?: string;
+  /** LLM provider override (e.g. "azureOpenAI"). Absent = use seeded agent default. */
+  provider?: string;
+  archived?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type TCoworkFileNode = {
+  name: string;
+  /** POSIX path relative to the workspace root, e.g. "output/report.pptx". */
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  modifiedAt?: string;
+  children?: TCoworkFileNode[];
+};
+
+export type TCoworkTreeResponse = {
+  projectId: string;
+  tree: TCoworkFileNode[];
+  usage: number;
+  quotaBytes?: number;
+};
+
+export type TCoworkConversation = {
+  conversationId: string;
+  title: string;
+  updatedAt?: string;
+};
+
+export type TCoworkMessageDoc = {
+  messageId: string;
+  parentMessageId?: string | null;
+  isCreatedByUser: boolean;
+  text: string;
+  content?: Array<Record<string, unknown>>;
+  createdAt?: string;
+};
+
+export type TCoworkMessagesPage = {
+  messages: TCoworkMessageDoc[];
+  hasMore: boolean;
+  nextBefore?: string;
+};
+
+/* projects */
+export function listCoworkProjects(): Promise<TCoworkProject[]> {
+  return request.get<TCoworkProject[]>(endpoints.coworkProjects());
+}
+
+export function createCoworkProject(payload: {
+  name: string;
+  description?: string;
+  instructions?: string;
+}): Promise<TCoworkProject> {
+  return request.post(endpoints.coworkProjects(), payload);
+}
+
+export function getCoworkProject(projectId: string): Promise<TCoworkProject> {
+  return request.get<TCoworkProject>(endpoints.coworkProject(projectId));
+}
+
+export function updateCoworkProject(
+  projectId: string,
+  payload: Partial<Pick<TCoworkProject, 'name' | 'description' | 'instructions' | 'enabledSkills' | 'model' | 'provider'>>,
+): Promise<TCoworkProject> {
+  return request.patch(endpoints.coworkProject(projectId), payload);
+}
+
+export function deleteCoworkProject(projectId: string): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(endpoints.coworkProject(projectId));
+}
+
+/** Link a chat conversation to a Cowork project (so the executor can resolve the workspace). */
+export function linkCoworkConversation(
+  projectId: string,
+  conversationId: string,
+): Promise<{ linked: string }> {
+  return request.post(endpoints.coworkProjectConversations(projectId), { conversationId });
+}
+
+/** List a project's linked conversations with titles, most recent first. */
+export function listCoworkConversations(
+  projectId: string,
+): Promise<{ conversations: TCoworkConversation[] }> {
+  return request.get<{ conversations: TCoworkConversation[] }>(
+    endpoints.coworkProjectConversations(projectId),
+  );
+}
+
+/** Remove a conversation from a Cowork project (and queue background message cleanup). */
+export function deleteCoworkConversation(
+  projectId: string,
+  conversationId: string,
+): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(
+    endpoints.coworkConversation(projectId, conversationId),
+  );
+}
+
+/** Page a conversation's messages (newest-first cursor via `before`). */
+export function getCoworkConversationMessages(
+  projectId: string,
+  conversationId: string,
+  params?: { limit?: number; before?: string },
+): Promise<TCoworkMessagesPage> {
+  return request.get<TCoworkMessagesPage>(
+    endpoints.coworkConversationMessages(projectId, conversationId, params),
+  );
+}
+
+/* workspace */
+export function getCoworkTree(projectId: string): Promise<TCoworkTreeResponse> {
+  return request.get<TCoworkTreeResponse>(endpoints.coworkTree(projectId));
+}
+
+/** Fetch a workspace file as a Blob (auth header is attached by the request layer). */
+export function getCoworkFileBlob(projectId: string, filePath: string): Promise<Blob> {
+  return request.get<Blob>(endpoints.coworkFile(projectId, filePath), {
+    responseType: 'blob',
+  });
+}
+
+/** Upload one or many files (folder uploads pass relative paths in the FormData). */
+export function uploadCoworkFiles(
+  projectId: string,
+  data: FormData,
+  subdir?: string,
+): Promise<{ uploaded: number; paths: string[] }> {
+  return request.postMultiPart(endpoints.coworkUpload(projectId, subdir), data);
+}
+
+export function deleteCoworkFile(
+  projectId: string,
+  filePath: string,
+): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(endpoints.coworkFile(projectId, filePath));
+}
+
+/* cowork — skills */
+
+export type TCoworkSkill = {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+};
+
+/** List available builtin skills for a project, with enabled flag from the project's enabledSkills. */
+export function listCoworkSkills(projectId: string): Promise<TCoworkSkill[]> {
+  return request.get<TCoworkSkill[]>(endpoints.coworkSkills(projectId));
+}
+
+/* cowork — edit review (staged changes + undo checkpoints) */
+
+export type TCoworkChangeStatus = 'modified' | 'created';
+export type TCoworkContentKind = 'text' | 'binary';
+
+/** A staged edit awaiting Apply. */
+export type TCoworkChange = {
+  path: string;
+  status: TCoworkChangeStatus;
+  kind: TCoworkContentKind;
+  liveSize?: number;
+  proposedSize: number;
+};
+
+/** Diff payload for one staged change: text carries content, binary carries sizes only. */
+export type TCoworkDiff = {
+  path: string;
+  status: TCoworkChangeStatus;
+  kind: TCoworkContentKind;
+  /** Current live content (text only); null when the file is newly created or binary. */
+  live: string | null;
+  /** Proposed content (text only; null for binary). */
+  proposed: string | null;
+  liveSize?: number;
+  proposedSize: number;
+};
+
+/** One file captured by a checkpoint. */
+export type TCoworkCheckpointEntry = { path: string; hadPrevious: boolean };
+
+/** A restorable undo point created by each Apply. */
+export type TCoworkCheckpoint = {
+  id: string;
+  createdAt: string;
+  message?: string;
+  entries: TCoworkCheckpointEntry[];
+};
+
+/** List the project's staged proposed edits. */
+export function listCoworkChanges(projectId: string): Promise<TCoworkChange[]> {
+  return request.get<TCoworkChange[]>(endpoints.coworkChanges(projectId));
+}
+
+/** Fetch the diff payload for one staged change. */
+export function getCoworkChangeDiff(projectId: string, filePath: string): Promise<TCoworkDiff> {
+  return request.get<TCoworkDiff>(endpoints.coworkChangeDiff(projectId, filePath));
+}
+
+/** Apply staged changes (all, or a subset by path), creating an undo checkpoint. */
+export function applyCoworkChanges(
+  projectId: string,
+  payload: { paths?: string[]; message?: string },
+): Promise<TCoworkCheckpoint> {
+  return request.post(endpoints.coworkChangesApply(projectId), payload);
+}
+
+/** Discard one staged change (by path) or all staged changes. */
+export function discardCoworkChange(
+  projectId: string,
+  filePath?: string,
+): Promise<{ discarded: string }> {
+  return request.delete<{ discarded: string }>(endpoints.coworkChange(projectId, filePath));
+}
+
+/** List the project's undo checkpoints (newest first). */
+export function listCoworkCheckpoints(projectId: string): Promise<TCoworkCheckpoint[]> {
+  return request.get<TCoworkCheckpoint[]>(endpoints.coworkCheckpoints(projectId));
+}
+
+/** Restore (undo) a checkpoint. */
+export function restoreCoworkCheckpoint(
+  projectId: string,
+  checkpointId: string,
+): Promise<TCoworkCheckpoint> {
+  return request.post(endpoints.coworkCheckpointRestore(projectId, checkpointId), {});
+}
+
+/** Fetch the whole workspace as a .zip Blob (visible files only). */
+export function getCoworkArchiveBlob(projectId: string): Promise<Blob> {
+  return request.get<Blob>(endpoints.coworkArchive(projectId), { responseType: 'blob' });
+}
+
+/* cowork — connectors */
+
+export type TCoworkConnectorAuth = 'oauth' | 'apikey' | 'platform';
+
+export type TCoworkConnectorField = {
+  key: string;
+  label: string;
+  placeholder?: string;
+  secret?: boolean;
+};
+
+export type TCoworkConnectorHelp = {
+  summary: string;
+  steps: string[];
+  url?: string;
+};
+
+export type TCoworkConnector = {
+  id: string;
+  label: string;
+  description: string;
+  auth: TCoworkConnectorAuth;
+  help?: TCoworkConnectorHelp;
+  credentialFields: TCoworkConnectorField[];
+  hasWriteActions: boolean;
+  status: 'available' | 'planned';
+  /** MCP server name (OAuth connectors) — drives the connect/disconnect flow in the Connectors tab. */
+  mcpServer?: string;
+  /** Whether THIS user has connected it (creds present / oauth done / platform). */
+  connected: boolean;
+};
+
+/** List the connector catalog with this user's connection status. */
+export function getCoworkConnectors(): Promise<TCoworkConnector[]> {
+  return request.get<TCoworkConnector[]>(endpoints.coworkConnectors());
+}
+
+/** Save per-teacher API-key credentials for a connector. */
+export function saveCoworkConnectorCredentials(
+  connectorId: string,
+  fields: Record<string, string>,
+): Promise<{ connected: boolean }> {
+  return request.put(endpoints.coworkConnectorCredentials(connectorId), { fields });
+}
+
+/** Disconnect a connector (remove this user's stored credentials). */
+export function deleteCoworkConnectorCredentials(
+  connectorId: string,
+): Promise<{ connected: boolean }> {
+  return request.delete<{ connected: boolean }>(endpoints.coworkConnectorCredentials(connectorId));
+}
+
+/* cowork — project memory */
+
+/** Read the project's always-injected core memory. */
+export function getCoworkMemory(projectId: string): Promise<{ memory: string }> {
+  return request.get<{ memory: string }>(endpoints.coworkMemory(projectId));
+}
+
+/** Replace the project's core memory (manual edit). */
+export function updateCoworkMemory(
+  projectId: string,
+  memory: string,
+): Promise<{ memory: string; overBudget: boolean }> {
+  return request.put(endpoints.coworkMemory(projectId), { memory });
+}
+
+/** Read the project's on-demand memory archive (read-only). */
+export function getCoworkMemoryArchive(projectId: string): Promise<{ archive: string }> {
+  return request.get<{ archive: string }>(endpoints.coworkMemoryArchive(projectId));
+}
+
+/* cowork — routines (scheduled automations) */
+
+export type TCoworkRoutineStatus = 'success' | 'error' | 'running';
+
+export type TCoworkRoutine = {
+  _id: string;
+  user: string;
+  projectId: string;
+  name: string;
+  prompt: string;
+  /** 5-field cron expression; empty string = manual-only (run via "Run now"). */
+  cronExpression: string;
+  mode: string;
+  enabled: boolean;
+  autoApprove: boolean;
+  deliveryTarget?: TCoworkDeliveryTarget;
+  /** Next scheduled fire time (set by the server when a cron + enabled is present). */
+  nextRun?: string | null;
+  lastRun?: string | null;
+  lastStatus?: TCoworkRoutineStatus;
+  lastError?: string;
+  lastConversationId?: string;
+  /** Phase 6: consecutive failed runs (resets to 0 on success). */
+  consecutiveFailures?: number;
+  /** Phase 6: set when the routine was auto-disabled (e.g. repeated failures); empty when healthy. */
+  disabledReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** Where a run's result is delivered: 'message' = conversation only; 'file' = also a workspace file. */
+export type TCoworkDeliveryTarget = 'message' | 'file';
+
+export type TCoworkRoutineCreate = {
+  projectId: string;
+  name: string;
+  prompt: string;
+  cronExpression?: string;
+  mode?: string;
+  enabled?: boolean;
+  autoApprove?: boolean;
+  deliveryTarget?: TCoworkDeliveryTarget;
+};
+
+export type TCoworkRoutineUpdate = Partial<
+  Pick<
+    TCoworkRoutine,
+    'name' | 'prompt' | 'cronExpression' | 'mode' | 'enabled' | 'autoApprove' | 'deliveryTarget'
+  >
+>;
+
+export type TCoworkRoutineRunResult = {
+  conversationId: string;
+  status: 'success' | 'error';
+  error?: string;
+  deliveredPath?: string | null;
+};
+
+/** One execution of a routine (run history). */
+export type TCoworkRoutineRun = {
+  _id: string;
+  routineId: string;
+  user: string;
+  projectId: string;
+  trigger: 'manual' | 'scheduled';
+  status: TCoworkRoutineStatus;
+  error?: string;
+  conversationId?: string;
+  deliveredPath?: string;
+  startedAt: string;
+  finishedAt?: string;
+  durationMs?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** List this user's routines, optionally scoped to one project. */
+export function listCoworkRoutines(projectId?: string): Promise<TCoworkRoutine[]> {
+  return request.get<TCoworkRoutine[]>(endpoints.coworkRoutines(projectId));
+}
+
+/** Create a routine for a project. */
+export function createCoworkRoutine(payload: TCoworkRoutineCreate): Promise<TCoworkRoutine> {
+  return request.post(endpoints.coworkRoutines(), payload);
+}
+
+/** Fetch one routine. */
+export function getCoworkRoutine(routineId: string): Promise<TCoworkRoutine> {
+  return request.get<TCoworkRoutine>(endpoints.coworkRoutine(routineId));
+}
+
+/** Update a routine (partial). */
+export function updateCoworkRoutine(
+  routineId: string,
+  payload: TCoworkRoutineUpdate,
+): Promise<TCoworkRoutine> {
+  return request.patch(endpoints.coworkRoutine(routineId), payload);
+}
+
+/** Delete a routine. */
+export function deleteCoworkRoutine(routineId: string): Promise<{ deleted: boolean }> {
+  return request.delete<{ deleted: boolean }>(endpoints.coworkRoutine(routineId));
+}
+
+/** Run a routine now (headless). Resolves when the agent run completes. */
+export function runCoworkRoutine(routineId: string): Promise<TCoworkRoutineRunResult> {
+  return request.post(endpoints.coworkRoutineRun(routineId), {});
+}
+
+/** List a routine's run history (newest first). */
+export function listCoworkRoutineRuns(
+  routineId: string,
+  limit?: number,
+): Promise<TCoworkRoutineRun[]> {
+  return request.get<TCoworkRoutineRun[]>(endpoints.coworkRoutineRuns(routineId, limit));
+}
+
 export function updateConversation(
   payload: t.TUpdateConversationRequest,
 ): Promise<t.TUpdateConversationResponse> {

@@ -1,3 +1,6 @@
+const os = require('os'); // cowork — read-only mode temp copy
+const path = require('path'); // cowork
+const { promises: fsp } = require('fs'); // cowork
 const { logger } = require('@librechat/data-schemas');
 const {
   EnvVar,
@@ -16,6 +19,7 @@ const {
   buildWebSearchContext,
   createLocalCodeExecutionTool,
   resolveCodeExecutionRuntime,
+  CoworkWorkspaceService,
 } = require('@librechat/api');
 const { getMCPServersRegistry } = require('~/config');
 const {
@@ -41,13 +45,37 @@ const {
   TavilySearchResults,
   createGeminiImageTool,
   createOpenAIImageTools,
+  createManageRoutinesTool,
 } = require('../');
 const {
   primeFiles: primeCodeFiles,
   prepareLocalCodeExecutionInputs,
 } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
+const { getUserCoworkProject } = require('~/models/CoworkProject'); // cowork
+const coworkPaths = require('~/config/paths'); // cowork
 const { getUserPluginAuthValue } = require('~/server/services/PluginService');
+
+// cowork — guidance injected when execute_code runs in a Cowork project workspace.
+function buildCoworkCodeContext(entries) {
+  const lines = [
+    "- The execute_code tool runs with this project's workspace as the working directory.",
+    '- Read and write files using paths relative to the workspace root (e.g. "./data.csv", "./output/report.pptx").',
+    '- Save NEW deliverables into the "output/" folder so the user can find and download them.',
+    '- To EDIT or SUMMARIZE a file that already exists, FIRST read its actual contents (extract text from .docx/.xlsx/.pptx/.pdf), base your output on that real content (never generic/placeholder text), then write the complete updated version to ".cowork/proposed/<same relative path>" (create the folder). Do NOT overwrite the original in place; the user reviews a diff and clicks Apply.',
+    '- If a Python package is missing, the runtime installs it automatically and reruns the code.',
+    '- Project memory: a short core memory is already in your system prompt. Record DURABLE project facts by appending a concise bullet to ".cowork/memory/core.md"; put verbose/older detail in ".cowork/memory/archive.md" (read it on demand) and keep core tight. Never write memory outside ".cowork/memory/".',
+  ];
+  if (entries && entries.length) {
+    lines.push('- Currently in the workspace:');
+    for (const name of entries) {
+      lines.push(`\t- ./${name}`);
+    }
+  } else {
+    lines.push('- The workspace is currently empty.');
+  }
+  return lines.join('\n');
+}
 const { createMCPTool, createMCPTools } = require('~/server/services/MCP');
 const { loadAuthValues } = require('~/server/services/Tools/credentials');
 const { getMCPServerTools } = require('~/server/services/Config');
@@ -191,6 +219,10 @@ const loadTools = async ({
   };
 
   const customConstructors = {
+    // cowork — routine management tool needs the live request (user + current project).
+    manage_routines: async () => {
+      return createManageRoutinesTool({ req: options.req });
+    },
     image_gen_oai: async (toolContextMap) => {
       const authFields = getAuthFields('image_gen_oai');
       const authValues = await loadAuthValues({ userId: user, authFields });
@@ -298,14 +330,78 @@ const loadTools = async ({
         }
 
         const codeFiles = options.tool_resources?.[EToolResources.execute_code]?.files ?? [];
-        const toolContext = buildLocalCodeToolContext(codeFiles.map((file) => file.filename));
+
+        // cowork — if this run belongs to a Cowork project (the client sends the
+        // project id), execute IN the project workspace (work-in-place) with a clean
+        // env (no backend secrets). Non-cowork runs are completely unaffected.
+        let coworkWorkingDir;
+        let coworkContext;
+        try {
+          const coworkProjectId = options.req?.body?.coworkProjectId;
+          if (coworkProjectId) {
+            const project = await getUserCoworkProject({ user, projectId: coworkProjectId });
+            if (project) {
+              const root = process.env.COWORK_WORKSPACE_ROOT || coworkPaths.coworkWorkspaces;
+              const ws = new CoworkWorkspaceService({ root, projectId: String(project._id) });
+              await ws.ensure();
+
+              // cowork — Ask/Plan are READ-ONLY. Enforce it at the execution layer (not the
+              // prompt): run execute_code in a throwaway COPY of the workspace, so the agent
+              // can read everything but any write physically lands in the temp copy and is
+              // discarded — it can never reach the real workspace. Agent mode runs in-place.
+              const coworkMode = options.req?.body?.coworkMode;
+              const readOnly = coworkMode === 'ask' || coworkMode === 'plan';
+              if (readOnly) {
+                const tmpDir = path.join(os.tmpdir(), `cowork-ro-${String(project._id)}`);
+                await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+                await fsp.cp(ws.basePath, tmpDir, {
+                  recursive: true,
+                  filter: (src) => {
+                    const rel = path.relative(ws.basePath, src);
+                    if (rel === '') {
+                      return true; // workspace root
+                    }
+                    const segments = rel.split(path.sep);
+                    const base = segments[segments.length - 1];
+                    // Skip heavy/internal dirs wherever they appear.
+                    if (['.venv', '__pycache__', 'node_modules', '.git'].includes(base)) {
+                      return false;
+                    }
+                    // Inside .cowork, allow ONLY the memory folder (so archive.md is readable
+                    // while planning); skip history, staged proposals, checkpoints, etc.
+                    if (segments[0] === '.cowork') {
+                      return segments.length === 1 || segments[1] === 'memory';
+                    }
+                    return true;
+                  },
+                });
+                coworkWorkingDir = tmpDir;
+              } else {
+                coworkWorkingDir = ws.basePath;
+              }
+
+              const tree = await ws.getTree();
+              coworkContext = buildCoworkCodeContext(
+                tree.map((n) => (n.type === 'directory' ? `${n.name}/` : n.name)),
+              );
+            }
+          }
+        } catch (error) {
+          logger.warn('[handleTools] cowork workspace resolution failed; using default sandbox', error);
+        }
+
+        const toolContext =
+          coworkContext ?? buildLocalCodeToolContext(codeFiles.map((file) => file.filename));
         if (toolContext) {
           toolContextMap[tool] = toolContext;
         }
 
         return createLocalCodeExecutionTool({
           projectRoot: process.cwd(),
-          loadInputs: () => prepareLocalCodeExecutionInputs({ req: options.req, files: codeFiles }),
+          loadInputs: coworkWorkingDir
+            ? undefined
+            : () => prepareLocalCodeExecutionInputs({ req: options.req, files: codeFiles }),
+          ...(coworkWorkingDir ? { workingDir: coworkWorkingDir, cleanEnv: true } : {}),
         });
       };
       continue;

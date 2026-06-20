@@ -802,7 +802,16 @@ class AgentClient extends BaseClient {
         //   messages = addCacheControl(messages);
         // }
 
-        memoryPromise = this.runMemory(messages);
+        // cowork — a Cowork run must never write to the global per-user memory; the
+        // coworker only persists durable facts to its own project workspace (.cowork/memory).
+        // Reading global memory is still allowed; project memory takes priority via its
+        // system-prompt injection (see agents/initialize.js).
+        const isCoworkRun =
+          this.options.agent?.id === 'agent_cowork_default' ||
+          !!this.options.req?.body?.coworkProjectId;
+        if (!isCoworkRun) {
+          memoryPromise = this.runMemory(messages);
+        }
 
         run = await createRun({
           agents,

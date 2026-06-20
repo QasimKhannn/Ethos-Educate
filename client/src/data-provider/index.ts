@@ -1,5 +1,6 @@
 export * from './Auth';
 export * from './Agents';
+export * from './Cowork'; // cowork
 export * from './Endpoints';
 export * from './Files';
 /* Memories */

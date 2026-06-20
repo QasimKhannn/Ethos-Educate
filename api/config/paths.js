@@ -3,6 +3,8 @@ const path = require('path');
 module.exports = {
   root: path.resolve(__dirname, '..', '..'),
   uploads: path.resolve(__dirname, '..', '..', 'uploads'),
+  coworkWorkspaces: path.resolve(__dirname, '..', '..', 'uploads', 'cowork-workspaces'), // cowork
+  coworkSkillsRoot: path.resolve(__dirname, '..', 'lib', 'skills'), // cowork — builtin skill dirs
   clientPath: path.resolve(__dirname, '..', '..', 'client'),
   dist: path.resolve(__dirname, '..', '..', 'client', 'dist'),
   publicPath: path.resolve(__dirname, '..', '..', 'client', 'public'),

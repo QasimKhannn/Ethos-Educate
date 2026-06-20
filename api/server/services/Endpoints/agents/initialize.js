@@ -8,13 +8,21 @@ const {
   GenerationJobManager,
   getCustomEndpointConfig,
   createSequentialChainEdges,
+  // cowork — skills injection (load individual skills by id + build prompt block)
+  loadBuiltinSkill,
+  buildSkillsPrompt,
+  CoworkWorkspaceService,
+  listCoworkConnectors,
 } = require('@librechat/api');
 const {
+  Constants,
   EModelEndpoint,
   isAgentsEndpoint,
   getResponseSender,
   isEphemeralAgentId,
 } = require('librechat-data-provider');
+const { getUserPluginAuthValue } = require('~/server/services/PluginService'); // cowork — connectors
+const { getMCPSetupData, getServerConnectionStatus } = require('~/server/services/MCP'); // cowork — connectors (oauth status)
 const {
   createToolEndCallback,
   getDefaultHandlers,
@@ -25,8 +33,70 @@ const AgentClient = require('~/server/controllers/agents/client');
 const { getConvoFiles } = require('~/models/Conversation');
 const { processAddedConvo } = require('./addedConvo');
 const { getAgent } = require('~/models/Agent');
+const { getUserCoworkProject } = require('~/models/CoworkProject'); // cowork
 const { logViolation } = require('~/cache');
 const db = require('~/models');
+const paths = require('~/config/paths'); // cowork — skills root
+const _coworkSkillsRoot = process.env.COWORK_SKILLS_ROOT || paths.coworkSkillsRoot; // cowork
+const _coworkWorkspaceRoot = process.env.COWORK_WORKSPACE_ROOT || paths.coworkWorkspaces; // cowork
+const _coworkMemoryTokenBudget = parseInt(process.env.COWORK_MEMORY_TOKEN_BUDGET || '', 10); // cowork
+const _coworkMemoryCharBudget =
+  Number.isFinite(_coworkMemoryTokenBudget) && _coworkMemoryTokenBudget > 0
+    ? _coworkMemoryTokenBudget * 4
+    : undefined; // cowork
+
+// cowork — connectors: per-user connection check (mirrors the route's helper). API-key creds live
+// under the MCP server's per-user var key (`mcp_<server>`) when the connector has a server, so they
+// double as LibreChat customUserVars; otherwise a cowork-local key.
+const coworkConnectorStoreKey = (def) =>
+  def.mcpServer ? `${Constants.mcp_prefix}${def.mcpServer}` : `cowork_connector_${def.id}`; // cowork
+// `mcpSetup` is the cached result of getMCPSetupData(userId) for this request (OAuth connectors only).
+async function isCoworkConnectorConnected(userId, def, mcpSetup) {
+  if (def.auth === 'platform') {
+    return true;
+  }
+  if (def.auth === 'apikey') {
+    const fields = def.credentialFields || [];
+    if (fields.length === 0) {
+      return false;
+    }
+    for (const field of fields) {
+      const value = await getUserPluginAuthValue(
+        userId,
+        field.key,
+        false,
+        coworkConnectorStoreKey(def),
+      );
+      if (!value) {
+        return false;
+      }
+    }
+    return true;
+  }
+  // oauth — reflect LibreChat's live per-user MCP connection for this server, the same source the
+  // Connectors tab shows, so the agent and the UI always agree on "connected".
+  if (def.auth === 'oauth' && def.mcpServer && mcpSetup) {
+    try {
+      const config = mcpSetup.mcpConfig?.[def.mcpServer];
+      if (!config) {
+        return false;
+      }
+      const status = await getServerConnectionStatus(
+        userId,
+        def.mcpServer,
+        config,
+        mcpSetup.appConnections,
+        mcpSetup.userConnections,
+        mcpSetup.oauthServers,
+      );
+      return status?.connectionState === 'connected';
+    } catch (statusErr) {
+      logger.warn('[initializeClient] cowork oauth connector status check failed', statusErr);
+      return false;
+    }
+  }
+  return false;
+}
 
 /**
  * Creates a tool loader function for the agent.
@@ -150,6 +220,223 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   delete endpointOption.agent;
   if (!primaryAgent) {
     throw new Error('Agent not found');
+  }
+
+  // cowork — inject enabled skills into the agent's system prompt.
+  // ONLY fires when the client sends coworkProjectId (Cowork conversations).
+  // Normal chats, projects, and the global tool registry are completely unaffected.
+  // Fails safe: any error here logs a warning and leaves instructions unchanged.
+  try {
+    const coworkProjectId = req.body?.coworkProjectId;
+    if (coworkProjectId) {
+      const project = await getUserCoworkProject({ user: req.user?.id, projectId: coworkProjectId });
+      const enabledIds = Array.isArray(project?.enabledSkills) ? project.enabledSkills : [];
+      if (enabledIds.length > 0) {
+        const loadedSkills = (
+          await Promise.all(enabledIds.map((id) => loadBuiltinSkill(_coworkSkillsRoot, id)))
+        ).filter(Boolean);
+        const skillsBlock = buildSkillsPrompt(loadedSkills);
+        if (skillsBlock) {
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', skillsBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+      }
+
+      // cowork — inject project memory (core, budget-capped) into the system prompt so it
+      // is always honored and OUTRANKS the global per-user memory. Read-only here.
+      if (project) {
+        try {
+          const ws = new CoworkWorkspaceService({
+            root: _coworkWorkspaceRoot,
+            projectId: String(project._id),
+            memoryCharBudget: _coworkMemoryCharBudget,
+          });
+          const projectMemory = await ws.getInjectableMemory();
+          if (projectMemory && projectMemory.trim()) {
+            const memoryBlock =
+              '# Project memory (STANDING INSTRUCTIONS)\n' +
+              'Durable, user-approved facts and preferences for THIS project. Apply them ' +
+              'proactively from your first response, and prioritise them over any general or ' +
+              "global preferences. Only a directly conflicting instruction in the user's latest " +
+              'message overrides them.\n\n' +
+              projectMemory;
+            primaryAgent.instructions = [primaryAgent.instructions ?? '', memoryBlock]
+              .filter(Boolean)
+              .join('\n\n');
+          }
+        } catch (memErr) {
+          logger.warn('[initializeClient] cowork project memory injection failed', memErr);
+        }
+      }
+    }
+  } catch (coworkErr) {
+    logger.warn('[initializeClient] cowork skills injection failed; continuing without skills', coworkErr);
+  }
+
+  // cowork — modes (Ask / Plan / Agent). Per-message; default Agent. Steers the agent via its
+  // system prompt, and in Ask mode hard-removes execute_code so it cannot touch files. coworkMode
+  // is only sent by the Cowork chat, so normal chats and other agents are unaffected.
+  try {
+    const coworkMode = req.body?.coworkMode;
+    if (coworkMode === 'ask' || coworkMode === 'plan') {
+      // The workspace is enforced read-only for these modes at the execution layer
+      // (see api/app/clients/tools/util/handleTools.js) — the prompt below is only for
+      // behavior/tone; it is NOT what prevents writes.
+      const modeBlock =
+        coworkMode === 'ask'
+          ? '# Mode: ASK\nYou are in ASK mode. Answer the question directly and conversationally. You can read the workspace to inform your answer, but the workspace is read-only in this mode — you cannot create, edit, or delete files. If the task needs file changes, say so briefly and suggest switching to Agent mode.'
+          : '# Mode: PLAN\nYou are in PLAN mode. Read the workspace as needed to ground the plan (read-only — you cannot create, edit, or delete files). Respond with ONLY an implementation plan, grounded in the actual workspace, using EXACTLY this markdown structure and nothing else:\n\n## Goal\n<one or two sentences>\n\n## Approach\n<numbered, concrete steps>\n\n## Files\n<bullets of files you would create or change, each with a short note; write "None" if not applicable>\n\n## Risks & decisions\n<bullets; write "None" if not applicable>\n\n## Next step\nApprove this plan to run it in Agent mode.';
+      primaryAgent.instructions = [primaryAgent.instructions ?? '', modeBlock]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  } catch (modeErr) {
+    logger.warn('[initializeClient] cowork mode handling failed; continuing in default mode', modeErr);
+  }
+
+  // cowork — routines: in Agent mode only, grant the `manage_routines` tool so the coworker can
+  // create/list/manage this project's scheduled automations from chat. Gated on coworkProjectId so
+  // it never reaches normal chats or other agents. Ask/Plan (read-only) don't get it.
+  try {
+    const coworkProjectId = req.body?.coworkProjectId;
+    const coworkMode = req.body?.coworkMode;
+    const isAgentMode = coworkMode !== 'ask' && coworkMode !== 'plan';
+    if (coworkProjectId && isAgentMode) {
+      const existing = Array.isArray(primaryAgent.tools) ? primaryAgent.tools : [];
+      if (!existing.includes('manage_routines')) {
+        primaryAgent.tools = [...existing, 'manage_routines'];
+      }
+      const routinesBlock = [
+        '# Routines (scheduled automations)',
+        "Use the `manage_routines` tool to manage THIS project's routines (actions: list, create, enable, disable, delete). A routine is a saved prompt that runs automatically on a schedule (or manually).",
+        '- Translate the user’s natural-language timing into a standard 5-field cron expression (minute hour day-of-month month day-of-week). If they don’t want a schedule, omit the cron — it becomes a manual-only routine.',
+        '- Before you CREATE or DELETE a routine, first summarize exactly what you will do — the name, the schedule in plain English plus the cron expression, the prompt it will run, and the delivery target (message or file) — then STOP and wait for the user’s explicit confirmation. Only after they confirm may you call `manage_routines` with action "create" or "delete".',
+        '- Listing routines needs no confirmation. Enabling/disabling an existing routine is fine to do directly when clearly requested.',
+        '- By default a routine cannot perform external connector writes (publish/send/update) on its automated runs — they are withheld for safety. Only set autoApprove=true when the user EXPLICITLY asks the routine to make those changes automatically, and call out that it is a conscious risk.',
+      ].join('\n');
+      primaryAgent.instructions = [primaryAgent.instructions ?? '', routinesBlock]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  } catch (routinesErr) {
+    logger.warn('[initializeClient] cowork routines tool injection failed', routinesErr);
+  }
+
+  // cowork — connectors: in Agent mode only, grant the user's CONNECTED connectors' MCP tools to
+  // the agent. Ask/Plan get none (read-only — must not act on external services). Tools are added
+  // ONLY to this Cowork agent for this run; nothing global or in the main chat changes.
+  // A connector with explicit `mcpTools` grants just those; otherwise the whole server's toolset is
+  // granted via the `mcp_all` token (so Canva/Monday work without hard-coding tool names).
+  try {
+    const coworkProjectId = req.body?.coworkProjectId;
+    const coworkMode = req.body?.coworkMode;
+    const isAgentMode = coworkMode !== 'ask' && coworkMode !== 'plan';
+    if (coworkProjectId && isAgentMode) {
+      const connectors = listCoworkConnectors().filter(
+        (def) => def.mcpServer && def.status === 'available',
+      );
+      if (connectors.length > 0) {
+        // OAuth status is resolved against the user's live MCP connections; fetch once per run.
+        let mcpSetup = null;
+        const hasOAuth = connectors.some((def) => def.auth === 'oauth');
+        if (hasOAuth) {
+          try {
+            mcpSetup = await getMCPSetupData(req.user?.id);
+          } catch (setupErr) {
+            logger.warn('[initializeClient] cowork connector MCP setup unavailable', setupErr);
+          }
+        }
+        // cowork — Phase 5: a routine run is headless (coworkUnattended), so there is no human to
+        // approve a write mid-run. Unless the routine opted into auto-approve, withhold every
+        // write-capable connector entirely — the agent then physically cannot perform an external
+        // write (enforced, not a prompt). Interactive chat (coworkUnattended falsy) is unchanged.
+        const isUnattended = req.body?.coworkUnattended === true;
+        const autoApprove = req.body?.coworkAutoApprove === true;
+        const blockWrites = isUnattended && !autoApprove;
+
+        const toolIds = [];
+        const writeLabels = []; // connected write-capable connectors that WERE granted
+        const blockedWriteLabels = []; // write-capable connectors withheld for this unattended run
+        for (const def of connectors) {
+          if (!(await isCoworkConnectorConnected(req.user?.id, def, mcpSetup))) {
+            continue;
+          }
+          if (def.hasWriteActions) {
+            if (blockWrites) {
+              blockedWriteLabels.push(def.label);
+              continue; // withhold this connector's entire toolset for the unattended run
+            }
+            writeLabels.push(def.label);
+          }
+          if (Array.isArray(def.mcpTools) && def.mcpTools.length > 0) {
+            for (const toolName of def.mcpTools) {
+              toolIds.push(`${toolName}${Constants.mcp_delimiter}${def.mcpServer}`);
+            }
+          } else {
+            toolIds.push(`${Constants.mcp_all}${Constants.mcp_delimiter}${def.mcpServer}`);
+          }
+        }
+        if (toolIds.length > 0) {
+          const existing = Array.isArray(primaryAgent.tools) ? primaryAgent.tools : [];
+          primaryAgent.tools = [...new Set([...existing, ...toolIds])];
+        }
+
+        // cowork — Phase 8 (interactive only): when a human is present, require an explicit preview
+        // + approval before a connector write. Routine runs are headless, so this synchronous gate
+        // does not apply to them — Phase 5 governs them via the block/auto-approve branches below.
+        if (!isUnattended && writeLabels.length > 0) {
+          const labels = [...new Set(writeLabels)].join(', ');
+          const safetyBlock = [
+            '# Connector write-action safety',
+            `Some connected tools can change the outside world (create, update, delete, publish, or send): ${labels}. Before performing ANY such write action you MUST get the user's approval first.`,
+            '1. Do NOT call the write tool yet.',
+            '2. Preview exactly what you will do as a single fenced block, using this format:',
+            '```action',
+            'connector: <name>',
+            'action: <what you will do, e.g. Create item / Update status / Publish post / Send email>',
+            'target: <where it lands, e.g. board / group / site / list>',
+            '',
+            '<the key fields/content, exactly as they will be written>',
+            '```',
+            '3. Then stop and wait. Only after the user approves in their next message may you call the tool to perform the action.',
+            'Reading, searching, listing, or summarizing data needs NO approval — do those directly. This gate applies only to actions that write, publish, or send.',
+          ].join('\n');
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', safetyBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+
+        // cowork — Phase 5: unattended run with writes withheld. Tell the agent so it reports the
+        // intended write instead of silently failing to find a (deliberately absent) write tool.
+        if (blockWrites && blockedWriteLabels.length > 0) {
+          const labels = [...new Set(blockedWriteLabels)].join(', ');
+          const blockedBlock = [
+            '# Unattended run — external writes are disabled',
+            `This is an automated routine run with no one available to approve changes, so write/publish/send actions are turned OFF for this run on: ${labels}.`,
+            'You can still read, search, and summarize from these services. If the task needs a write/publish/send, do NOT attempt it — instead clearly describe in your answer exactly what you would have done (connector, action, target, and the key fields) so the user can approve it. The user can enable this routine’s auto-approve setting to allow such writes automatically.',
+          ].join('\n');
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', blockedBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+
+        // cowork — Phase 5: unattended run with auto-approve ON. Writes are granted; make explicit
+        // that the routine is authorized to perform them without a confirmation step.
+        if (isUnattended && autoApprove && writeLabels.length > 0) {
+          const labels = [...new Set(writeLabels)].join(', ');
+          const autoBlock = [
+            '# Unattended run — auto-approved writes',
+            `This routine is authorized to perform write/publish/send actions automatically on: ${labels}. Proceed with the task without asking for confirmation, but only perform the writes the routine’s instruction actually requires — avoid any destructive action beyond that.`,
+          ].join('\n');
+          primaryAgent.instructions = [primaryAgent.instructions ?? '', autoBlock]
+            .filter(Boolean)
+            .join('\n\n');
+        }
+      }
+    }
+  } catch (connErr) {
+    logger.warn('[initializeClient] cowork connector injection failed', connErr);
   }
 
   const modelsConfig = await getModelsConfig(req);

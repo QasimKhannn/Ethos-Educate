@@ -137,6 +137,103 @@ export const projectFiles = (id: string) => `${projectsRoot}/${encodeURIComponen
 export const projectFile = (id: string, fileId: string) =>
   `${projectFiles(id)}/${encodeURIComponent(fileId)}`;
 
+/* cowork — projects + per-project workspace */
+export const coworkRoot = `${BASE_URL}/api/cowork`;
+
+export const coworkProjects = () => `${coworkRoot}/projects`;
+
+export const coworkProject = (projectId: string) =>
+  `${coworkRoot}/projects/${encodeURIComponent(projectId)}`;
+
+export const coworkProjectConversations = (projectId: string) =>
+  `${coworkProject(projectId)}/conversations`;
+
+export const coworkConversation = (projectId: string, conversationId: string) =>
+  `${coworkProject(projectId)}/conversations/${encodeURIComponent(conversationId)}`;
+
+export const coworkConversationMessages = (
+  projectId: string,
+  conversationId: string,
+  params?: { limit?: number; before?: string },
+) => {
+  const qs = new URLSearchParams();
+  if (params?.limit != null) {
+    qs.set('limit', String(params.limit));
+  }
+  if (params?.before) {
+    qs.set('before', params.before);
+  }
+  const suffix = qs.toString();
+  return `${coworkProject(projectId)}/conversations/${encodeURIComponent(
+    conversationId,
+  )}/messages${suffix ? `?${suffix}` : ''}`;
+};
+
+export const coworkTree = (projectId: string) => `${coworkProject(projectId)}/tree`;
+
+export const coworkFile = (projectId: string, filePath: string) =>
+  `${coworkProject(projectId)}/file?path=${encodeURIComponent(filePath)}`;
+
+export const coworkDownload = (projectId: string, filePath: string) =>
+  `${coworkProject(projectId)}/download?path=${encodeURIComponent(filePath)}`;
+
+export const coworkUpload = (projectId: string, subdir?: string) =>
+  `${coworkProject(projectId)}/upload${subdir ? `?path=${encodeURIComponent(subdir)}` : ''}`;
+
+export const coworkSkills = (projectId: string) => `${coworkProject(projectId)}/skills`;
+
+/* cowork — edit review (staged changes + undo checkpoints) */
+
+export const coworkChanges = (projectId: string) => `${coworkProject(projectId)}/changes`;
+
+export const coworkChangeDiff = (projectId: string, filePath: string) =>
+  `${coworkProject(projectId)}/changes/diff?path=${encodeURIComponent(filePath)}`;
+
+export const coworkChangesApply = (projectId: string) =>
+  `${coworkProject(projectId)}/changes/apply`;
+
+export const coworkChange = (projectId: string, filePath?: string) =>
+  `${coworkProject(projectId)}/changes${
+    filePath ? `?path=${encodeURIComponent(filePath)}` : '?all=true'
+  }`;
+
+export const coworkCheckpoints = (projectId: string) => `${coworkProject(projectId)}/checkpoints`;
+
+export const coworkCheckpointRestore = (projectId: string, checkpointId: string) =>
+  `${coworkProject(projectId)}/checkpoints/${encodeURIComponent(checkpointId)}/restore`;
+
+export const coworkArchive = (projectId: string) => `${coworkProject(projectId)}/archive`;
+
+/* cowork — project memory */
+
+/* cowork — connectors */
+
+export const coworkConnectors = () => `${coworkRoot}/connectors`;
+
+export const coworkConnectorCredentials = (connectorId: string) =>
+  `${coworkRoot}/connectors/${encodeURIComponent(connectorId)}/credentials`;
+
+export const coworkMemory = (projectId: string) => `${coworkProject(projectId)}/memory`;
+
+export const coworkMemoryArchive = (projectId: string) =>
+  `${coworkProject(projectId)}/memory/archive`;
+
+/* cowork — routines (scheduled automations) */
+
+export const coworkRoutines = (projectId?: string) =>
+  `${coworkRoot}/routines${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
+
+export const coworkRoutine = (routineId: string) =>
+  `${coworkRoot}/routines/${encodeURIComponent(routineId)}`;
+
+export const coworkRoutineRun = (routineId: string) =>
+  `${coworkRoot}/routines/${encodeURIComponent(routineId)}/run`;
+
+export const coworkRoutineRuns = (routineId: string, limit?: number) =>
+  `${coworkRoot}/routines/${encodeURIComponent(routineId)}/runs${
+    limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
+  }`;
+
 export const search = (q: string, cursor?: string | null) =>
   `${BASE_URL}/api/search?q=${q}${cursor ? `&cursor=${cursor}` : ''}`;
 

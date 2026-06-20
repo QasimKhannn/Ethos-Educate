@@ -32,14 +32,18 @@ function AgentSelect({
     { requiredPermission: permissionLevel },
     {
       select: (res) =>
-        res.data.map((agent) =>
-          processAgentOption({
-            agent: {
-              ...agent,
-              name: agent.name || agent.id,
-            },
-          }),
-        ),
+        res.data
+          // cowork — the Cowork agent is managed inside the Cowork section; hide it from the
+          // normal chat Agent Builder (it has no purpose to edit/select here).
+          .filter((agent) => agent.id !== 'agent_cowork_default')
+          .map((agent) =>
+            processAgentOption({
+              agent: {
+                ...agent,
+                name: agent.name || agent.id,
+              },
+            }),
+          ),
     },
   );
 

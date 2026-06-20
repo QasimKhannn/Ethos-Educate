@@ -354,8 +354,58 @@ export const fileSearchSchema: ExtendedJsonSchema = {
   required: ['query'],
 };
 
+/** cowork — manage_routines tool JSON schema (mirrors the zod schema in ManageRoutines.js). */
+export const manageRoutinesSchema: ExtendedJsonSchema = {
+  type: 'object',
+  properties: {
+    action: {
+      type: 'string',
+      enum: ['list', 'create', 'enable', 'disable', 'delete'],
+      description: 'What to do with this project’s routines.',
+    },
+    name: {
+      type: 'string',
+      description:
+        'Routine name. Required for "create". For enable/disable/delete you may pass either name or routineId.',
+    },
+    prompt: {
+      type: 'string',
+      description:
+        'The instruction the coworker runs each time the routine fires. Required for "create".',
+    },
+    cronExpression: {
+      type: 'string',
+      description:
+        'Standard 5-field cron: "minute hour day-of-month month day-of-week" (e.g. "0 9 * * 1-5" = weekdays 9am). Omit or leave empty for a manual-only routine (no schedule).',
+    },
+    deliveryTarget: {
+      type: 'string',
+      enum: ['message', 'file'],
+      description:
+        "Where the result goes: 'message' (in the conversation, default) or 'file' (also saved as a workspace markdown file).",
+    },
+    routineId: {
+      type: 'string',
+      description: 'The routine id (from a prior "list") to enable/disable/delete.',
+    },
+    autoApprove: {
+      type: 'boolean',
+      description:
+        'For "create": allow this routine to perform external connector writes automatically on each unattended run, with no approval. Default false (writes are withheld on scheduled runs). Only set true when the user explicitly asks — it is a conscious risk.',
+    },
+  },
+  required: ['action'],
+};
+
 /** Tool definitions registry - maps tool names to their definitions */
 export const toolDefinitions: Record<string, ToolRegistryDefinition> = {
+  manage_routines: {
+    name: 'manage_routines',
+    description:
+      'Create and manage scheduled automations ("routines") for the current Cowork project. A routine is a saved prompt the coworker runs automatically on a schedule (or manually). Use it when the user asks to do something "every day/week", "each morning", "on a schedule", or to set up / list / enable / disable / delete a routine. Translate natural-language timing into a 5-field cron expression, and confirm details before creating or deleting.',
+    schema: manageRoutinesSchema,
+    toolType: 'builtin',
+  },
   google: {
     name: 'google',
     description:
