@@ -85,7 +85,8 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
   const { data: agents = null } = useListAgentsQuery(
     { requiredPermission: permissionLevel },
     {
-      select: (data) => data?.data,
+      // cowork — the Cowork agent lives in the Cowork section; hide it from the normal chat picker.
+      select: (data) => data?.data?.filter((agent) => agent.id !== 'agent_cowork_default'),
     },
   );
 

@@ -4,7 +4,13 @@ const { User } = require('~/db/models');
 const { requireJwtAuth, checkAdmin } = require('~/server/middleware');
 const { getLogStores } = require('~/cache');
 const { logAdminAction, listAdminAuditLogs } = require('~/server/services/AdminAuditService');
-const { updateRegistrationPolicy } = require('~/server/services/AdminConfigService');
+const {
+  updateRegistrationPolicy,
+  getCoworkAccessPolicy,
+  updateCoworkAccess,
+  grantCoworkUser,
+  revokeCoworkUser,
+} = require('~/server/services/AdminConfigService');
 const {
   ACTIVE_STATUS,
   INACTIVE_STATUS,
@@ -161,6 +167,106 @@ router.patch('/registration-policy', async (req, res) => {
           ? config.inviteOnlyRegistration
           : undefined,
     });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+/* cowork — admin access management. */
+
+const buildCoworkAccessResponse = async (policy) => {
+  let grantedUsers = [];
+  if (policy.grantedUserIds.length > 0) {
+    const users = await User.find({ _id: { $in: policy.grantedUserIds } })
+      .select('_id email name username')
+      .lean();
+    grantedUsers = users.map((u) => ({
+      id: String(u._id),
+      email: u.email,
+      name: u.name || u.username || u.email,
+    }));
+  }
+  return {
+    enabled: policy.enabled,
+    mode: policy.mode,
+    grantedUserIds: policy.grantedUserIds,
+    grantedUsers,
+  };
+};
+
+router.get('/cowork/access', async (_req, res) => {
+  try {
+    const policy = await getCoworkAccessPolicy();
+    return res.status(200).json(await buildCoworkAccessResponse(policy));
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch('/cowork/access', async (req, res) => {
+  const { enabled, mode } = req.body || {};
+  if (enabled === undefined && mode === undefined) {
+    return res.status(400).json({ message: 'enabled or mode must be provided.' });
+  }
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    return res.status(400).json({ message: 'enabled must be a boolean.' });
+  }
+  if (mode !== undefined && !['everyone', 'allowlist'].includes(mode)) {
+    return res.status(400).json({ message: "mode must be 'everyone' or 'allowlist'." });
+  }
+  try {
+    const policy = await updateCoworkAccess({ enabled, mode });
+    await logAdminAction({
+      actorUserId: req.user?._id ?? null,
+      action: 'cowork_access_updated',
+      targetType: 'policy',
+      targetLabel: 'cowork-access',
+      details: {
+        ...(enabled !== undefined ? { enabled } : {}),
+        ...(mode !== undefined ? { mode } : {}),
+      },
+    });
+    return res.status(200).json(await buildCoworkAccessResponse(policy));
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/cowork/access/grant', async (req, res) => {
+  const userId = req.body?.userId;
+  if (!userId) {
+    return res.status(400).json({ message: 'userId is required.' });
+  }
+  try {
+    const policy = await grantCoworkUser(userId);
+    await logAdminAction({
+      actorUserId: req.user?._id ?? null,
+      action: 'cowork_access_granted',
+      targetType: 'user',
+      targetLabel: String(userId),
+      details: { userId: String(userId) },
+    });
+    return res.status(200).json(await buildCoworkAccessResponse(policy));
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/cowork/access/revoke', async (req, res) => {
+  const userId = req.body?.userId;
+  if (!userId) {
+    return res.status(400).json({ message: 'userId is required.' });
+  }
+  try {
+    const policy = await revokeCoworkUser(userId);
+    await logAdminAction({
+      actorUserId: req.user?._id ?? null,
+      action: 'cowork_access_revoked',
+      targetType: 'user',
+      targetLabel: String(userId),
+      details: { userId: String(userId) },
+    });
+    return res.status(200).json(await buildCoworkAccessResponse(policy));
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

@@ -28,8 +28,9 @@ import MarketplaceAdminSettings from '~/components/Agents/MarketplaceAdminSettin
 import PeoplePickerAdminSettings from '~/components/Sharing/PeoplePickerAdminSettings';
 import SsoSettings from './SsoSettings';
 import AdminMcpServers from './AdminMcpServers';
+import CoworkAdminSettings from './CoworkAdminSettings';
 
-type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles' | 'sso' | 'mcp';
+type AdminTab = 'overview' | 'users' | 'invites' | 'audit' | 'roles' | 'sso' | 'mcp' | 'cowork';
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -39,6 +40,7 @@ const tabs: { id: AdminTab; label: string }[] = [
   { id: 'roles', label: 'Roles & Permissions' },
   { id: 'sso', label: 'SSO' },
   { id: 'mcp', label: 'MCP Servers' },
+  { id: 'cowork', label: 'Cowork' },
 ];
 
 const cardClassName = 'rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm';
@@ -804,6 +806,18 @@ export default function AdminConsole() {
         {activeTab === 'sso' && <SsoSettings />}
 
         {activeTab === 'mcp' && <AdminMcpServers />}
+
+        {activeTab === 'cowork' && (
+          <div className="space-y-4">
+            <div className={cardClassName}>
+              <div className="text-lg font-semibold">Cowork</div>
+              <div className="mt-1 text-sm text-text-secondary">
+                Control who can access the Cowork section. Admins always have access.
+              </div>
+            </div>
+            <CoworkAdminSettings />
+          </div>
+        )}
       </div>
     </div>
   );

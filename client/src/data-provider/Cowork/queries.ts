@@ -1,6 +1,6 @@
 // cowork — React Query hooks: Cowork projects + per-project workspace.
 import { useQuery } from '@tanstack/react-query';
-import { QueryKeys, dataService } from 'librechat-data-provider';
+import { QueryKeys, dataService, request } from 'librechat-data-provider';
 import type { QueryObserverResult, UseQueryOptions } from '@tanstack/react-query';
 import type {
   TCoworkProject,
@@ -14,6 +14,21 @@ import type {
   TCoworkRoutine,
   TCoworkRoutineRun,
 } from 'librechat-data-provider';
+
+/** Whether the current user may use Cowork (admin-managed access policy). */
+export const useCoworkAccessQuery = (
+  config?: UseQueryOptions<{ allowed: boolean; enabled: boolean; mode: string }>,
+): QueryObserverResult<{ allowed: boolean; enabled: boolean; mode: string }> => {
+  return useQuery<{ allowed: boolean; enabled: boolean; mode: string }>(
+    ['coworkAccess'],
+    () => request.get('/api/cowork/access'),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60,
+      ...config,
+    },
+  );
+};
 
 /** List the user's Cowork projects. */
 export const useCoworkProjectsQuery = (

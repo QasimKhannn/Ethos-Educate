@@ -43,10 +43,41 @@ const {
 } = require('~/models/CoworkRoutine');
 const { getRoutineRuns, deleteRoutineRuns } = require('~/models/CoworkRoutineRun');
 const { runRoutine } = require('~/server/services/Cowork/CoworkRoutineRunner');
+const { getCoworkAccessPolicy, canUseCowork } = require('~/server/services/AdminConfigService');
 const paths = require('~/config/paths');
 
 const router = express.Router();
 router.use(requireJwtAuth);
+
+// cowork — admin access gate. `/access` is authed-but-ungated so the client can ask whether the
+// user may use Cowork; everything declared after the router.use() below requires access (403 if not).
+router.get('/access', async (req, res) => {
+  try {
+    const policy = await getCoworkAccessPolicy();
+    res.status(200).json({
+      allowed: canUseCowork(req.user, policy),
+      enabled: policy.enabled,
+      mode: policy.mode,
+    });
+  } catch (error) {
+    logger.error('[/cowork access] check error', error);
+    res.status(500).json({ message: 'Error checking Cowork access' });
+  }
+});
+
+async function requireCoworkAccess(req, res, next) {
+  try {
+    const policy = await getCoworkAccessPolicy();
+    if (canUseCowork(req.user, policy)) {
+      return next();
+    }
+    return res.status(403).json({ message: 'You do not have access to Cowork.' });
+  } catch (error) {
+    logger.error('[/cowork access] gate error', error);
+    return res.status(500).json({ message: 'Cowork access check failed' });
+  }
+}
+router.use(requireCoworkAccess);
 
 const workspaceRoot = process.env.COWORK_WORKSPACE_ROOT || paths.coworkWorkspaces;
 const skillsRoot = process.env.COWORK_SKILLS_ROOT || paths.coworkSkillsRoot;

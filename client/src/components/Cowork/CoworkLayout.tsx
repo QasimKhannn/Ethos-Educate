@@ -2,17 +2,24 @@
 // Sits outside the regular chat shell so Cowork is its own self-contained space.
 // On small screens the rail collapses into a slide-in drawer opened from a top bar.
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { Menu, Briefcase } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useCoworkAccessQuery } from '~/data-provider';
 import CoworkSidebar from './CoworkSidebar';
 
 export default function CoworkLayout() {
   const { isAuthenticated } = useAuthContext();
+  const { data: access } = useCoworkAccessQuery({ enabled: isAuthenticated });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Admin-managed access: send users without Cowork access back to chat (the API enforces it too).
+  if (access && !access.allowed) {
+    return <Navigate to="/c/new" replace={true} />;
   }
 
   return (

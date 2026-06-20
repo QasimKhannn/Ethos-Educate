@@ -27,6 +27,21 @@ const ssoOpenidSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/**
+ * cowork — admin-managed access policy for the Cowork section.
+ * Absent => defaults (enabled, everyone), so existing deployments are unaffected.
+ *   mode 'everyone'  => any authenticated user may use Cowork.
+ *   mode 'allowlist' => only users in grantedUserIds (admins always allowed).
+ */
+const coworkAccessSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, required: false },
+    mode: { type: String, enum: ['everyone', 'allowlist'], required: false },
+    grantedUserIds: { type: [String], required: false },
+  },
+  { _id: false },
+);
+
 const adminConfigSchema = new mongoose.Schema(
   {
     key: {
@@ -34,6 +49,10 @@ const adminConfigSchema = new mongoose.Schema(
       required: true,
       unique: true,
       default: 'global',
+    },
+    cowork: {
+      type: coworkAccessSchema,
+      required: false,
     },
     allowedDomains: {
       type: [String],

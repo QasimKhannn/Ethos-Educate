@@ -230,7 +230,16 @@ export default function CoworkChat({
                       <textarea
                         autoFocus
                         value={editText}
-                        ref={(el) => { if (el) { el.selectionStart = el.selectionEnd = el.value.length; } }}
+                        ref={(el) => {
+                          // Place the caret at the end ONCE when the edit box opens. Doing this on
+                          // every render (the old behavior) yanked the cursor to the end after each
+                          // keystroke, making mid-message edits impossible. The dataset flag persists
+                          // on the (reused) DOM node, so it only runs the first time.
+                          if (el && !el.dataset.caretInit) {
+                            el.dataset.caretInit = '1';
+                            el.selectionStart = el.selectionEnd = el.value.length;
+                          }
+                        }}
                         onChange={(e) => setEditText(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Escape') { setEditingId(null); setEditText(''); }
@@ -257,7 +266,7 @@ export default function CoworkChat({
                             setEditingId(null);
                             setEditText('');
                           }}
-                          className="rounded-md bg-text-info px-3 py-1.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
+                          className="rounded-md bg-blue-600 px-3 py-1.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
                           disabled={!editText.trim() || isStreaming}
                         >
                           Send
@@ -389,7 +398,7 @@ export default function CoworkChat({
                 <button
                   type="button"
                   onClick={stop}
-                  className="mb-0.5 flex-none rounded-full bg-text-info p-1.5 text-white transition-opacity hover:opacity-80"
+                  className="mb-0.5 flex-none rounded-full bg-blue-600 p-1.5 text-white transition-opacity hover:opacity-80"
                   title="Stop generation"
                 >
                   <Square className="size-3.5 fill-current" />
@@ -399,7 +408,7 @@ export default function CoworkChat({
                   type="button"
                   onClick={submit}
                   disabled={!input.trim()}
-                  className="mb-0.5 flex-none rounded-full bg-text-info p-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-30"
+                  className="mb-0.5 flex-none rounded-full bg-blue-600 p-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-30"
                   title="Send (Enter)"
                 >
                   <ArrowUp className="size-4" />

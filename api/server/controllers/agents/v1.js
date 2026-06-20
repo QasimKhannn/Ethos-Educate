@@ -575,6 +575,13 @@ const getListAgentsHandler = async (req, res) => {
       sortDirection: validatedSortDirection,
     });
 
+    // cowork — the Cowork agent is managed inside the Cowork section, not a normal selectable/
+    // editable agent. Exclude it from the agents list (chat picker, marketplace, builder). It's
+    // still loadable by id (GET /:id) for the Cowork run path, so Cowork itself is unaffected.
+    if (data && Array.isArray(data.data)) {
+      data.data = data.data.filter((agent) => agent?.id !== 'agent_cowork_default');
+    }
+
     const agents = data?.data ?? [];
     if (!agents.length) {
       return res.json(data);

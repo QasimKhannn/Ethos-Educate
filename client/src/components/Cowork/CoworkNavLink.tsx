@@ -2,8 +2,14 @@
 // Styled as a featured destination (icon tile + label + tagline), not a plain nav heading.
 import { Link } from 'react-router-dom';
 import { Briefcase, ChevronRight } from 'lucide-react';
+import { useCoworkAccessQuery } from '~/data-provider';
 
 export default function CoworkNavLink({ toggleNav }: { toggleNav?: () => void }) {
+  const { data: access } = useCoworkAccessQuery();
+  // Hide the entry for users the admin hasn't granted Cowork access (the API enforces it too).
+  if (access && !access.allowed) {
+    return null;
+  }
   return (
     <Link
       to="/cowork"
