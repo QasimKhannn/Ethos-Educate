@@ -41,12 +41,26 @@ function extractContentText(content?: Array<Record<string, unknown>>): string {
 
 export type CoworkMode = 'ask' | 'plan' | 'agent';
 
+/** Minimal shape of an uploaded message file (image attachment) sent to the agent. */
+export type CoworkFile = {
+  file_id?: string;
+  filepath?: string;
+  filename?: string;
+  /** Storage backend (local/azure_blob/s3/…) — drives the download route for non-image files. */
+  source?: string;
+  type?: string;
+  height?: number;
+  width?: number;
+};
+
 export type CoworkMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   /** Mode the message was produced in (used to render plan-mode replies as a Plan card). */
   mode?: CoworkMode;
+  /** Attached files (images/docs) shown in the user's own bubble. */
+  files?: CoworkFile[];
 };
 
 const MESSAGES_PAGE = 25;
@@ -56,6 +70,7 @@ type CoworkMessageDoc = {
   isCreatedByUser: boolean;
   text: string;
   content?: Array<Record<string, unknown>>;
+  files?: CoworkFile[];
 };
 
 /** Map a stored message doc to a display message. */
@@ -64,7 +79,13 @@ function mapDoc(m: CoworkMessageDoc): CoworkMessage {
     id: m.messageId,
     role: (m.isCreatedByUser ? 'user' : 'assistant') as 'user' | 'assistant',
     text: m.text || extractContentText(m.content),
+    ...(Array.isArray(m.files) && m.files.length > 0 ? { files: m.files } : {}),
   };
+}
+
+/** A message is worth displaying if it has text OR file attachments. */
+function hasContent(m: CoworkMessage): boolean {
+  return m.text.trim().length > 0 || (m.files != null && m.files.length > 0);
 }
 
 /** One step in the agent's trace (a tool call and, once finished, its output). */
@@ -213,7 +234,7 @@ export function useCoworkChat(
     dataService
       .getCoworkConversationMessages(projectId, initialConversationId, { limit: MESSAGES_PAGE })
       .then((page) => {
-        const mapped = page.messages.map(mapDoc).filter((m) => m.text.trim().length > 0);
+        const mapped = page.messages.map(mapDoc).filter(hasContent);
         if (mapped.length > 0) {
           setMessages(mapped);
           onSessionStart?.();
@@ -244,7 +265,7 @@ export function useCoworkChat(
     dataService
       .getCoworkConversationMessages(projectId, cid, { limit: MESSAGES_PAGE, before })
       .then((page) => {
-        const mapped = page.messages.map(mapDoc).filter((m) => m.text.trim().length > 0);
+        const mapped = page.messages.map(mapDoc).filter(hasContent);
         if (mapped.length > 0) {
           setMessages((prev) => [...mapped, ...prev]);
         }
@@ -283,9 +304,11 @@ export function useCoworkChat(
   );
 
   const send = useCallback(
-    (text: string, mode: CoworkMode = 'agent') => {
+    (text: string, mode: CoworkMode = 'agent', files?: CoworkFile[]) => {
       const trimmed = text.trim();
-      if (!trimmed || isStreaming) {
+      const attachedFiles = (files ?? []).filter((f) => f.file_id);
+      // Allow attachment-only messages (no typed comment) as long as a file is present.
+      if ((!trimmed && attachedFiles.length === 0) || isStreaming) {
         return;
       }
       setError(null);
@@ -295,7 +318,12 @@ export function useCoworkChat(
       const assistantId = uuidv4();
       setMessages((prev) => [
         ...prev,
-        { id: userId, role: 'user', text: trimmed },
+        {
+          id: userId,
+          role: 'user',
+          text: trimmed,
+          ...(attachedFiles.length > 0 ? { files: attachedFiles } : {}),
+        },
         { id: assistantId, role: 'assistant', text: '', mode },
       ]);
       setIsStreaming(true);
@@ -310,6 +338,9 @@ export function useCoworkChat(
         sender: 'User',
         isCreatedByUser: true,
         endpoint: EModelEndpoint.agents,
+        // Image attachments → carried through createPayload as req.body.files and
+        // encoded as vision content by the standard agents pipeline.
+        ...(attachedFiles.length > 0 ? { files: attachedFiles } : {}),
       };
       const submission = {
         userMessage,
