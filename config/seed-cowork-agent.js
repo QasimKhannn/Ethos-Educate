@@ -238,6 +238,26 @@ const COWORK_TOOLS = ['execute_code', 'tavily_search_results_json'];
     console.orange(`REMOTE_AGENT_OWNER grant skipped: ${err.message}`);
   }
 
+  // Cowork is a single shared agent that every user's session loads by the same
+  // id. The admin-console interface toggle controls feature *visibility* only; it
+  // does NOT create a resource-level ACL grant on the agent. Without a public
+  // grant, non-admin users pass the feature gate but get a 403 ("view denied") at
+  // canAccessAgentResource. Grant PUBLIC view (use, not edit) so all users can run
+  // the Cowork agent while their own chats, files, and projects stay private.
+  try {
+    await grantPermission({
+      principalType: PrincipalType.PUBLIC,
+      principalId: null,
+      resourceType: ResourceType.AGENT,
+      resourceId,
+      accessRoleId: AccessRoleIds.AGENT_VIEWER,
+      grantedBy: user._id,
+    });
+    console.green('Granted PUBLIC view access to Cowork agent (all users can use it).');
+  } catch (err) {
+    console.orange(`PUBLIC view grant skipped (may already exist): ${err.message}`);
+  }
+
   console.purple(`  provider: ${provider}`);
   console.purple(`  model:    ${model}`);
   console.purple(`  tools:    ${COWORK_TOOLS.join(', ')}`);

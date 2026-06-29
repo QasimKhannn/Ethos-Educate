@@ -9,9 +9,9 @@ export type CoworkModel = {
 };
 
 export const COWORK_MODELS: CoworkModel[] = [
-  { provider: 'azureOpenAI', model: 'gpt-5-chat', label: 'GPT-5 Pro' },
-  { provider: 'azureOpenAI', model: 'gpt-5-mini', label: 'GPT-5 Mini' },
-  { provider: 'azureOpenAI', model: 'gpt-5-nano', label: 'GPT-5 Nano' },
+  { provider: 'azureOpenAI', model: 'gpt-5-chat', label: 'Ethos-Pro' },
+  { provider: 'azureOpenAI', model: 'gpt-5-mini', label: 'Ethos-Mini' },  // see note
+  { provider: 'azureOpenAI', model: 'gpt-5-nano', label: 'Ethos-Nano' },
 ];
 
 /** Default model — matches the seeded Cowork agent in seed-cowork-agent.js. */

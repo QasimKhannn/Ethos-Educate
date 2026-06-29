@@ -1,5 +1,8 @@
 ### node etc ###
 
+# cowork — Azure deploy params hold real secrets (the *.example.json stays tracked)
+deploy/azure/main.parameters.json
+
 # Logs
 data-node
 meili_data*

@@ -1,13 +1,115 @@
 // cowork — lightweight chat UI for a Cowork project (uses useCoworkChat).
-import { useLayoutEffect, useRef, type KeyboardEvent, type UIEvent } from 'react';
-import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil } from 'lucide-react';
-import { useCoworkChat, type CoworkTraceEntry, type CoworkMode } from './useCoworkChat';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  type UIEvent,
+} from 'react';
+import { useRecoilValue } from 'recoil';
+import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil, Paperclip } from 'lucide-react';
+import { FileUpload, TooltipAnchor, AttachmentIcon } from '@librechat/client';
+import { EModelEndpoint, Constants, dataService } from 'librechat-data-provider';
+import type { TConversation } from 'librechat-data-provider';
+import type { ExtendedFile } from '~/common';
+import {
+  useCoworkChat,
+  COWORK_AGENT_ID,
+  type CoworkTraceEntry,
+  type CoworkMode,
+  type CoworkFile,
+} from './useCoworkChat';
 import { TraceRow } from './CoworkTracePanel';
 import CoworkPlanCard from './CoworkPlanCard';
 import CoworkEmailCard, { extractEmail } from './CoworkEmailCard';
 import CoworkActionCard, { extractAction } from './CoworkActionCard';
+import CoworkAudioRecorder from './CoworkAudioRecorder';
+import FileRow from '~/components/Chat/Input/Files/FileRow';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
-import { useState } from 'react';
+import { useAttachmentLink } from '~/components/Chat/Messages/Content/Parts/LogLink';
+import { useFileHandlingNoChatContext } from '~/hooks/Files/useFileHandling';
+import { useAuthContext } from '~/hooks/AuthContext';
+import { useLocalize } from '~/hooks';
+import store from '~/store';
+
+// A clickable file chip that downloads non-image attachments through the authenticated
+// /api/files/download endpoint (the raw filepath 404s for local/blob-stored docs).
+function CoworkFileChip({ file, userId }: { file: CoworkFile; userId?: string }) {
+  const { handleDownload } = useAttachmentLink({
+    href: file.filepath ?? '',
+    filename: file.filename ?? 'file',
+    file_id: file.file_id,
+    user: userId,
+    source: file.source,
+  });
+  return (
+    <a
+      href={file.filepath ?? '#'}
+      onClick={handleDownload}
+      target="_blank"
+      rel="noreferrer"
+      title={file.filename ?? 'Open file'}
+      className="flex items-center gap-1.5 rounded-lg border border-border-medium bg-surface-secondary px-2.5 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
+    >
+      <Paperclip className="size-3.5 flex-none" />
+      <span className="max-w-[10rem] truncate">{file.filename ?? 'Attachment'}</span>
+    </a>
+  );
+}
+
+// An image attachment. The raw filepath isn't directly navigable (it falls through to
+// the SPA 404, and on the deployed non-public blob store it isn't fetchable at all), so
+// we pull the bytes through the authenticated download endpoint into a blob URL and use
+// that for BOTH the inline thumbnail and the click-to-open-in-new-tab target.
+function CoworkImageAttachment({ file, userId }: { file: CoworkFile; userId?: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!file.file_id || !userId) {
+      return;
+    }
+    let active = true;
+    let created: string | undefined;
+    dataService
+      .getFileDownload(userId, file.file_id)
+      .then((res) => {
+        if (!active) {
+          return;
+        }
+        // The download endpoint serves bytes as a generic attachment, so re-wrap the
+        // blob with the real image MIME type — otherwise the browser downloads it as a
+        // file instead of rendering it inline.
+        const data = res.data as Blob;
+        const typed = new Blob([data], { type: file.type || data.type || 'image/png' });
+        created = window.URL.createObjectURL(typed);
+        setBlobUrl(created);
+      })
+      .catch(() => {
+        /* fall back to the raw filepath below */
+      });
+    return () => {
+      active = false;
+      if (created) {
+        window.URL.revokeObjectURL(created);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.file_id, userId, file.type]);
+
+  const src = blobUrl ?? file.filepath;
+  return (
+    <a href={src} target="_blank" rel="noreferrer" title={file.filename ?? 'Open image'}>
+      <img
+        src={src}
+        alt={file.filename ?? 'image'}
+        className="max-h-44 max-w-[12rem] cursor-pointer rounded-xl border border-border-light object-cover transition-opacity hover:opacity-90"
+      />
+    </a>
+  );
+}
 
 const MODES: { id: CoworkMode; label: string; hint: string }[] = [
   { id: 'ask', label: 'Ask', hint: 'Answer questions — never changes files' },
@@ -106,6 +208,28 @@ export default function CoworkChat({
   const { messages, isStreaming, error, send, stop, removeFrom, loadOlder, hasMore, isLoadingOlder, trace } =
     useCoworkChat(projectId, initialConversationId, onTraceChange, model, provider, onSessionStart);
   const [input, setInput] = useState('');
+  const localize = useLocalize();
+  const { user } = useAuthContext();
+  const speechEnabled = useRecoilValue(store.speechToText);
+  // Image / file attachments for the next message — Cowork-local state (isolated
+  // from the normal chat's Recoil file store). Uploaded via the standard files API
+  // through the no-ChatContext variant of useFileHandling.
+  const [files, setFiles] = useState<Map<string, ExtendedFile>>(new Map());
+  const [filesLoading, setFilesLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { handleFileChange, handleFiles, abortUpload } = useFileHandlingNoChatContext(
+    { endpointOverride: EModelEndpoint.agents },
+    {
+      files,
+      setFiles,
+      setFilesLoading,
+      conversation: {
+        conversationId: Constants.NEW_CONVO,
+        endpoint: EModelEndpoint.agents,
+        agent_id: COWORK_AGENT_ID,
+      } as unknown as TConversation,
+    },
+  );
   const [mode, setMode] = useState<CoworkMode>('agent');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -150,11 +274,24 @@ export default function CoworkChat({
 
   const submit = () => {
     const text = input.trim();
-    if (!text || isStreaming) {
+    // Only fully-uploaded files (progress === 1, has a server file_id) are sent.
+    const uploaded: CoworkFile[] = Array.from(files.values())
+      .filter((f) => f.progress === 1 && f.file_id)
+      .map((f) => ({
+        file_id: f.file_id,
+        filepath: f.filepath,
+        filename: f.filename,
+        source: f.source,
+        type: f.type,
+        height: f.height,
+        width: f.width,
+      }));
+    if ((!text && uploaded.length === 0) || isStreaming || filesLoading) {
       return;
     }
-    send(text, mode);
+    send(text, mode, uploaded);
     setInput('');
+    setFiles(new Map());
     // Reset height after clearing.
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -165,6 +302,28 @@ export default function CoworkChat({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submit();
+    }
+  };
+
+  /** Paste images straight from the clipboard (e.g. a screenshot) into the message. */
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData?.files;
+    if (!pasted || pasted.length === 0) {
+      return;
+    }
+    const images = Array.from(pasted).filter((f) => f.type.startsWith('image/'));
+    if (images.length > 0) {
+      e.preventDefault();
+      handleFiles(images);
+    }
+  };
+
+  /** Drag-and-drop files onto the input bar. */
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    const dropped = e.dataTransfer?.files;
+    if (dropped && dropped.length > 0) {
+      e.preventDefault();
+      handleFiles(Array.from(dropped));
     }
   };
 
@@ -276,9 +435,28 @@ export default function CoworkChat({
                   ) : (
                     <div key={m.id} className="group flex justify-end">
                       <div className="relative max-w-[80%]">
-                        <div className="whitespace-pre-wrap rounded-2xl bg-surface-tertiary px-4 py-2.5 text-sm text-text-primary">
-                          {m.text}
-                        </div>
+                        {/* Attached images / files shown in the user's own bubble */}
+                        {m.files && m.files.length > 0 && (
+                          <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
+                            {m.files.map((f, i) =>
+                              f.type?.startsWith('image') ? (
+                                <CoworkImageAttachment
+                                  key={f.file_id ?? i}
+                                  file={f}
+                                  userId={user?.id}
+                                />
+                              ) : (
+                                // Non-image files download via the authenticated endpoint.
+                                <CoworkFileChip key={f.file_id ?? i} file={f} userId={user?.id} />
+                              ),
+                            )}
+                          </div>
+                        )}
+                        {m.text && (
+                          <div className="whitespace-pre-wrap rounded-2xl bg-surface-tertiary px-4 py-2.5 text-sm text-text-primary">
+                            {m.text}
+                          </div>
+                        )}
                         <button
                           type="button"
                           title="Edit message"
@@ -382,38 +560,90 @@ export default function CoworkChat({
                 </button>
               ))}
             </div>
-            <div className="relative flex items-end gap-2 rounded-2xl border border-border-medium bg-surface-primary px-4 py-3 shadow-sm">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                value={input}
-                onChange={(e) => { setInput(e.target.value); resizeTextarea(); }}
-                onKeyDown={onKeyDown}
-                placeholder="Message Cowork agent… (Shift+Enter for new line)"
-                readOnly={isStreaming}
-                className="w-full resize-none bg-transparent text-sm leading-relaxed text-text-primary outline-none focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
-                style={{ overflow: 'hidden' }}
-              />
-              {isStreaming ? (
-                <button
-                  type="button"
-                  onClick={stop}
-                  className="mb-0.5 flex-none rounded-full bg-blue-600 p-1.5 text-white transition-opacity hover:opacity-80"
-                  title="Stop generation"
-                >
-                  <Square className="size-3.5 fill-current" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={!input.trim()}
-                  className="mb-0.5 flex-none rounded-full bg-blue-600 p-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-30"
-                  title="Send (Enter)"
-                >
-                  <ArrowUp className="size-4" />
-                </button>
+            <div
+              className="rounded-2xl border border-border-medium bg-surface-primary px-3 py-2.5 shadow-sm"
+              onDrop={onDrop}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              {/* Attached image / file thumbnails (reuses the normal chat's FileRow) */}
+              {files.size > 0 && (
+                <div className="mb-2 px-1">
+                  <FileRow
+                    files={files}
+                    setFiles={setFiles}
+                    abortUpload={abortUpload}
+                    setFilesLoading={setFilesLoading}
+                    agent_id={COWORK_AGENT_ID}
+                  />
+                </div>
               )}
+              <div className="relative flex items-end gap-1.5">
+                {/* Attach image / file */}
+                <FileUpload ref={fileInputRef} handleFileChange={handleFileChange}>
+                  <TooltipAnchor
+                    description={localize('com_sidepanel_attach_files')}
+                    render={
+                      <button
+                        type="button"
+                        aria-label={localize('com_sidepanel_attach_files')}
+                        disabled={isStreaming}
+                        onClick={() => {
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                            fileInputRef.current.click();
+                          }
+                        }}
+                        className="flex size-9 flex-none items-center justify-center rounded-full p-1 transition-colors hover:bg-surface-hover disabled:opacity-40"
+                        title="Attach image or file"
+                      >
+                        <AttachmentIcon />
+                      </button>
+                    }
+                  />
+                </FileUpload>
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={input}
+                  onChange={(e) => { setInput(e.target.value); resizeTextarea(); }}
+                  onKeyDown={onKeyDown}
+                  onPaste={onPaste}
+                  placeholder="Message Cowork agent… (Shift+Enter for new line)"
+                  readOnly={isStreaming}
+                  className="w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed text-text-primary outline-none focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
+                  style={{ overflow: 'hidden' }}
+                />
+                {speechEnabled && (
+                  <CoworkAudioRecorder
+                    disabled={isStreaming}
+                    value={input}
+                    onChange={(t) => {
+                      setInput(t);
+                      requestAnimationFrame(resizeTextarea);
+                    }}
+                  />
+                )}
+                {isStreaming ? (
+                  <button
+                    type="button"
+                    onClick={stop}
+                    className="mb-0.5 flex-none rounded-full bg-blue-600 p-1.5 text-white transition-opacity hover:opacity-80"
+                    title="Stop generation"
+                  >
+                    <Square className="size-3.5 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={submit}
+                    disabled={(!input.trim() && files.size === 0) || filesLoading}
+                    className="mb-0.5 flex-none rounded-full bg-blue-600 p-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-30"
+                    title="Send (Enter)"
+                  >
+                    <ArrowUp className="size-4" />
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mt-1.5 text-center text-[11px] text-text-tertiary">
               Enter to send · Shift+Enter for new line
