@@ -196,22 +196,31 @@ export class CoworkWorkspaceService {
       }
       const abs = path.join(absDir, entry.name);
       const rel = toPosix(path.relative(this.basePath, abs));
-      if (entry.isDirectory()) {
-        nodes.push({
-          name: entry.name,
-          path: rel,
-          type: 'directory',
-          children: await this.readDir(abs),
-        });
-      } else if (entry.isFile()) {
-        const stat = await fs.stat(abs);
-        nodes.push({
-          name: entry.name,
-          path: rel,
-          type: 'file',
-          size: stat.size,
-          modifiedAt: stat.mtime.toISOString(),
-        });
+      try {
+        if (entry.isDirectory()) {
+          nodes.push({
+            name: entry.name,
+            path: rel,
+            type: 'directory',
+            children: await this.readDir(abs),
+          });
+        } else if (entry.isFile()) {
+          const stat = await fs.stat(abs);
+          nodes.push({
+            name: entry.name,
+            path: rel,
+            type: 'file',
+            size: stat.size,
+            modifiedAt: stat.mtime.toISOString(),
+          });
+        }
+      } catch (error) {
+        // An entry can vanish between readdir and stat (e.g. a temp file removed
+        // mid-upload). Skip it instead of failing the whole tree read; consistent
+        // with getUsage()'s handling. Re-throw anything that isn't a missing entry.
+        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+          throw error;
+        }
       }
     }
 
