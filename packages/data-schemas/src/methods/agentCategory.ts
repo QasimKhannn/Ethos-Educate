@@ -15,11 +15,33 @@ export function createAgentCategoryMethods(mongoose: typeof import('mongoose')) 
    * Get categories with agent counts
    * @returns Categories with agent counts
    */
-  async function getCategoriesWithCounts(): Promise<(IAgentCategory & { agentCount: number })[]> {
+  async function getCategoriesWithCounts(options?: {
+    accessibleIds?: Types.ObjectId[];
+    excludeAgentIds?: string[];
+  }): Promise<(IAgentCategory & { agentCount: number })[]> {
     const Agent = mongoose.models.Agent;
 
+    type AgentCountMatch = {
+      category: { $exists: true; $ne: null };
+      _id?: { $in: Types.ObjectId[] };
+      id?: { $nin: string[] };
+    };
+
+    const match: AgentCountMatch = { category: { $exists: true, $ne: null } };
+    // Count only agents the caller can access, so the badge counts match the
+    // ACL-filtered marketplace list. Omitting accessibleIds preserves the prior
+    // count-everything behaviour for callers that don't pass it.
+    if (options?.accessibleIds) {
+      match._id = { $in: options.accessibleIds };
+    }
+    // Exclude agents hidden from the list (e.g. the Cowork agent) so a category
+    // whose only member is hidden doesn't render a phantom "1".
+    if (options?.excludeAgentIds?.length) {
+      match.id = { $nin: options.excludeAgentIds };
+    }
+
     const categoryCounts = await Agent.aggregate([
-      { $match: { category: { $exists: true, $ne: null } } },
+      { $match: match },
       { $group: { _id: '$category', count: { $sum: 1 } } },
     ]);
 
