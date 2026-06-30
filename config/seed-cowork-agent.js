@@ -67,7 +67,7 @@ Maintaining (do this yourself via execute_code, without being asked):
 ## Tool usage
 
 - **execute_code** — Use for ALL file reading, writing, data processing, and computation. This is your primary tool. Every file operation goes through here.
-- **web_search** — Use when the task requires current information, research, or data you cannot generate from the workspace alone. Search before writing research-heavy content.
+- **Web search (SearXNG)** — A SearXNG-backed web search tool is available. Use it when the task requires current information, research, or data you cannot generate from the workspace alone. Search before writing research-heavy content.
 - Do not ask the user to run code or install packages — handle it yourself in execute_code.
 
 ## Workspace conventions
@@ -127,10 +127,17 @@ Rules: put recipients in \`to\` (comma-separate several); include \`cc\`/\`bcc\`
 // Capabilities persisted as tool entries. Keep in sync with the `agents` endpoint
 // capabilities list in librechat.yaml.
 //
-// Search: we use `tavily_search_results_json` (gated on TAVILY_API_KEY, which is
-// configured) rather than the unified `web_search` tool. `web_search` requires a
-// full search/scrape/rerank stack (Serper + Firecrawl + Jina/Cohere) that isn't
-// set up here, so it can't be built and the agent errors when it tries to call it.
+// Search: we grant the deployed SearXNG MCP server via the `sys__all__sys_mcp_searxng`
+// token (mcp_all + mcp_delimiter + server name) — NOT Tavily and NOT the unified
+// `web_search` tool. Tavily was gated on TAVILY_API_KEY (never configured here), so every
+// search call errored. `web_search` would need a full search/scrape/rerank stack (Serper +
+// Firecrawl + Jina/Cohere) we deliberately don't run. SearXNG gives basic, stable search
+// with none of that. Granting the WHOLE server (mcp_all) — rather than a named tool — means
+// no coupling to an exact tool name, so a tool-name change on the server can't silently
+// break search. Because this lives in the base tools array (not the Agent-only connector
+// injection in initialize.js), search works in ALL Cowork modes — Ask, Plan, and Agent —
+// so Plan-mode research has live web access. The `searxng` server is registered
+// chatMenu:false in deploy/azure/librechat.azure.yaml, so normal chat never sees it.
 //
 // NOTE: `artifacts` is intentionally NOT here. It is not a callable tool — the
 // runtime reads it from the agent's `artifacts` string field (see
@@ -143,7 +150,7 @@ Rules: put recipients in \`to\` (comma-separate several); include \`cc\`/\`bcc\`
 // RAG, so it would find nothing (and error if the RAG service is down). The agent
 // reads workspace files via execute_code instead. This only changes THIS agent — the
 // file_search tool stays registered app-wide for normal chats and other agents.
-const COWORK_TOOLS = ['execute_code', 'tavily_search_results_json'];
+const COWORK_TOOLS = ['execute_code', 'sys__all__sys_mcp_searxng'];
 
 (async () => {
   await connect();

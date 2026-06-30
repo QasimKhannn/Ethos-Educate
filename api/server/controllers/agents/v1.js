@@ -771,9 +771,23 @@ const revertAgentVersionHandler = async (req, res) => {
  * @param {Object} _req - Express request object (unused)
  * @param {Object} res - Express response object
  */
-const getAgentCategories = async (_req, res) => {
+const getAgentCategories = async (req, res) => {
   try {
-    const categories = await getCategoriesWithCounts();
+    // Count only agents the caller can actually see (the same ACL set the
+    // marketplace list uses) and exclude the hidden Cowork agent, so the category
+    // badge counts match the agent grid. Without this, agents private to other
+    // users — or the Cowork agent — inflate the counts and produce categories that
+    // read "1" but display "No agents found".
+    const accessibleIds = await findAccessibleResources({
+      userId: req.user.id,
+      role: req.user.role,
+      resourceType: ResourceType.AGENT,
+      requiredPermissions: PermissionBits.VIEW,
+    });
+    const categories = await getCategoriesWithCounts({
+      accessibleIds,
+      excludeAgentIds: ['agent_cowork_default'],
+    });
     const promotedCount = await countPromotedAgents();
     const formattedCategories = categories.map((category) => ({
       value: category.value,

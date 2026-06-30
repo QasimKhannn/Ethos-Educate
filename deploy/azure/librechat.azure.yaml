@@ -40,6 +40,8 @@ mcpSettings:
     - "www.canva.com"
     - "canva.com"
     - "canva.ai"
+    # cowork — SearXNG web-search MCP host (Cowork-only; see the `searxng` server below)
+    - "searxng-mcp-1081644116068.us-central1.run.app"
 
 mcpServers:
   Image_Generation:
@@ -150,6 +152,26 @@ mcpServers:
     timeout: 60000
     initTimeout: 15000
     serverInstructions: true
+
+  # cowork — SearXNG web search (Cowork-only). Gives the coworker real, current web results via the
+  # deployed SearXNG MCP. chatMenu:false → invisible to normal chat's tool menu (same convention as
+  # wordpress/airtable/youtube); startup:false → loaded on demand. Granted to the Cowork agent in ALL
+  # modes via the `sys__all__sys_mcp_searxng` token in config/seed-cowork-agent.js — granting the whole
+  # server (mcp_all) avoids coupling to an exact tool name. URL is hardcoded inline (fixed public Cloud
+  # Run endpoint, like the `monday` server) so it can't break on an unset env var; host is allow-listed
+  # in mcpSettings.allowedDomains above. No auth/creds — uses its own endpoint.
+  searxng:
+    description: "Search the web via SearXNG"
+    type: streamable-http
+    url: "https://searxng-mcp-1081644116068.us-central1.run.app/mcp"
+    chatMenu: false
+    startup: false
+    timeout: 60000
+    initTimeout: 15000
+    serverInstructions: |
+      Use this to look up current, real-world information on the web when the task needs facts you
+      cannot derive from the workspace alone. Returns web search results (title, link, snippet) to use
+      as context. Search before writing research-heavy content.
 
   onedrive:
     description: "Access OneDrive files"
