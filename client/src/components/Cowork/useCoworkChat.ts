@@ -336,12 +336,22 @@ export function useCoworkChat(
       conversationIdRef.current = cid;
       if (!linkedRef.current && projectId) {
         linkedRef.current = true;
-        dataService.linkCoworkConversation(projectId, cid).catch(() => {
-          linkedRef.current = false; // allow retry on next event
-        });
+        dataService
+          .linkCoworkConversation(projectId, cid)
+          .then(() => {
+            // Reflect the newly-linked conversation in the cached lists immediately, so
+            // leaving and coming back resolves/loads this chat WITHOUT a hard refresh:
+            //  - coworkProjects holds conversationIds → latestConvoId (used to pick the convo)
+            //  - coworkConversations is the sidebar list (so the new chat is clickable)
+            queryClient.invalidateQueries([QueryKeys.coworkProjects]);
+            queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
+          })
+          .catch(() => {
+            linkedRef.current = false; // allow retry on next event
+          });
       }
     },
-    [projectId],
+    [projectId, queryClient],
   );
 
   /**
@@ -392,8 +402,10 @@ export function useCoworkChat(
           queryClient.invalidateQueries([QueryKeys.coworkChanges, projectId]);
           // The agent may have appended to project memory — refresh the Memory tab.
           queryClient.invalidateQueries([QueryKeys.coworkMemory, projectId]);
-          // A new chat / title may now exist — refresh the history picker.
+          // A new chat / title may now exist — refresh the history picker and the project
+          // (whose conversationIds drive which chat is loaded on return).
           queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
+          queryClient.invalidateQueries([QueryKeys.coworkProjects]);
           return;
         }
         if (data.created != null) {
