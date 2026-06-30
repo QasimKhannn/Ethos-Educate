@@ -17,6 +17,7 @@ import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-p
 import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
 import { useDeleteCoworkConversationMutation } from '~/data-provider/Cowork/mutations';
 import CoworkConnectorsModal from './CoworkConnectorsPanel';
+import { CoworkSkillsModal } from './CoworkSkillsPanel';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -133,13 +134,13 @@ export default function CoworkSidebar({
 
   const searchParams = new URLSearchParams(location.search);
   const activeConvoId = searchParams.get('convo');
-  const skillsActive = !!projectId && searchParams.get('tab') === 'skills';
 
   const { data: projects = [] } = useCoworkProjectsQuery();
   const createMutation = useCreateCoworkProjectMutation();
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showConnectors, setShowConnectors] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
 
   const submit = () => {
     const trimmed = name.trim();
@@ -268,9 +269,9 @@ export default function CoworkSidebar({
         {projectId ? (
           <button
             type="button"
-            onClick={() => go(`/cowork/${projectId}?tab=skills`)}
+            onClick={() => setShowSkills(true)}
             className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
-              skillsActive
+              showSkills
                 ? 'bg-surface-tertiary text-text-primary'
                 : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
             }`}
@@ -299,6 +300,9 @@ export default function CoworkSidebar({
       </div>
 
         {showConnectors && <CoworkConnectorsModal onClose={() => setShowConnectors(false)} />}
+        {showSkills && projectId && (
+          <CoworkSkillsModal projectId={projectId} onClose={() => setShowSkills(false)} />
+        )}
       </aside>
     </>
   );

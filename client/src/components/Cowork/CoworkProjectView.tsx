@@ -251,7 +251,7 @@ export default function CoworkProjectView() {
           </button>
         </header>
 
-        <div className="min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col">
           <CoworkChat
             key={chatMountKey}
             projectId={projectId}
