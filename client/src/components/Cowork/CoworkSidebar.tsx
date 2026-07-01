@@ -12,12 +12,14 @@ import {
   SquarePen,
   MessagesSquare,
   Trash2,
+  HelpCircle,
 } from 'lucide-react';
 import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-provider';
 import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
 import { useDeleteCoworkConversationMutation } from '~/data-provider/Cowork/mutations';
 import CoworkConnectorsModal from './CoworkConnectorsPanel';
 import { CoworkSkillsModal } from './CoworkSkillsPanel';
+import AccountSettings from '~/components/Nav/AccountSettings';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -212,6 +214,7 @@ export default function CoworkSidebar({
       ) : (
         <button
           type="button"
+          data-tour-id="cowork-new-project"
           onClick={() => setCreating(true)}
           className="mb-4 flex items-center gap-2 rounded-md border border-border-medium px-2 py-1.5 text-sm text-text-primary hover:bg-surface-secondary"
         >
@@ -285,10 +288,21 @@ export default function CoworkSidebar({
         )}
         <button
           type="button"
+          data-tour-id="cowork-connectors"
           onClick={() => setShowConnectors(true)}
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
         >
           <Plug className="size-4" /> Connectors
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('cowork-tour-replay'));
+            onClose?.();
+          }}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+        >
+          <HelpCircle className="size-4" /> Take a tour
         </button>
         <button
           type="button"
@@ -297,6 +311,10 @@ export default function CoworkSidebar({
         >
           <MessageSquare className="size-4" /> Back to chat
         </button>
+        {/* cowork — signed-in account, pinned in the footer group (reuses the chat sidebar's
+            account card: identity + settings + log out) so users can see who they are and sign
+            out without leaving Cowork. */}
+        <AccountSettings />
       </div>
 
         {showConnectors && <CoworkConnectorsModal onClose={() => setShowConnectors(false)} />}

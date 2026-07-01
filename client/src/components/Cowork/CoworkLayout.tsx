@@ -7,6 +7,7 @@ import { Menu, Briefcase } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useCoworkAccessQuery } from '~/data-provider';
 import CoworkSidebar from './CoworkSidebar';
+import CoworkTour from './CoworkTour';
 
 export default function CoworkLayout() {
   const { isAuthenticated } = useAuthContext();
@@ -43,6 +44,8 @@ export default function CoworkLayout() {
           <Outlet />
         </main>
       </div>
+      {/* cowork — onboarding tour (Cowork-only; renders via a portal, gated on access above) */}
+      <CoworkTour />
     </div>
   );
 }

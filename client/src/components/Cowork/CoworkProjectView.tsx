@@ -162,6 +162,14 @@ export default function CoworkProjectView() {
     }
   }, [tabParam]);
 
+  // cowork — let the onboarding tour open the right-panel drawer on small screens so it can
+  // spotlight the panel tabs. No effect on desktop, where the panel is always visible.
+  useEffect(() => {
+    const openPanel = () => setPanelOpen(true);
+    window.addEventListener('cowork-tour-open-panel', openPanel);
+    return () => window.removeEventListener('cowork-tour-open-panel', openPanel);
+  }, []);
+
   // What the center pane shows:
   // - ?convo=<id>  → that specific conversation (chat)
   // - ?new=<ts>    → a fresh conversation (chat, blank slate)
@@ -219,11 +227,13 @@ export default function CoworkProjectView() {
 
           {/* Model picker */}
           {project && (
-            <ModelPicker
-              currentModel={activeModel}
-              onSelect={handleModelSelect}
-              disabled={sessionStarted}
-            />
+            <div data-tour-id="cowork-model-picker">
+              <ModelPicker
+                currentModel={activeModel}
+                onSelect={handleModelSelect}
+                disabled={sessionStarted}
+              />
+            </div>
           )}
 
           <button
@@ -287,6 +297,7 @@ export default function CoworkProjectView() {
               <button
                 key={t.id}
                 type="button"
+                data-tour-id={`cowork-tab-${t.id}`}
                 onClick={() => setTab(t.id)}
                 title={t.label}
                 aria-label={t.label}

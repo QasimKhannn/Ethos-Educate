@@ -23,11 +23,12 @@ export default function CoworkChatList({ projectId }: { projectId: string }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
-      <div className="mx-auto w-full max-w-2xl">
+      <div data-tour-id="cowork-chat-list" className="mx-auto w-full max-w-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-medium text-text-primary">Chats</h2>
           <button
             type="button"
+            data-tour-id="cowork-new-chat"
             onClick={newChat}
             className="flex items-center gap-1.5 rounded-md border border-border-medium px-2.5 py-1.5 text-sm text-text-primary transition-colors hover:bg-surface-secondary"
           >

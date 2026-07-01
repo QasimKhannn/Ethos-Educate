@@ -600,7 +600,10 @@ export default function CoworkChat({
         <div className="px-4 pb-5 pt-2">
           <div className="mx-auto max-w-2xl">
             {/* Mode toggle — Ask / Plan / Agent (applies to the next message) */}
-            <div className="mb-2 inline-flex rounded-lg border border-border-medium bg-surface-secondary p-0.5 text-xs">
+            <div
+              data-tour-id="cowork-mode-toggle"
+              className="mb-2 inline-flex rounded-lg border border-border-medium bg-surface-secondary p-0.5 text-xs"
+            >
               {MODES.map((m) => (
                 <button
                   key={m.id}
