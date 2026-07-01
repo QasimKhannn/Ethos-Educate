@@ -217,6 +217,16 @@ export function useCoworkChat(
   const sseRef = useRef<SSE | null>(null);
   const streamIdRef = useRef<string | null>(null);
 
+  // On unmount (switching chats / leaving Cowork), close the client SSE so we don't leak an
+  // orphaned connection or setState on an unmounted component. We deliberately do NOT abort the
+  // server job here — it keeps running, and we reconnect to it on return (see the load effect).
+  useEffect(() => {
+    return () => {
+      sseRef.current?.close();
+      sseRef.current = null;
+    };
+  }, []);
+
   // Restore the project's saved conversation on open — newest page only; older
   // messages page in on scroll-up (see loadOlder).
   const loadedRef = useRef(false);
@@ -246,6 +256,37 @@ export function useCoworkChat(
         if (last?.messageId) {
           lastMessageIdRef.current = last.messageId;
         }
+        // Resume on return: if a generation for this conversation is STILL running
+        // server-side (the user navigated away mid-run and came back), reconnect to its
+        // stream and keep streaming to completion. The server never aborts on disconnect,
+        // so the run is still going — we just re-subscribe (streamId === conversationId).
+        dataService
+          .getActiveJobs()
+          .then(({ activeJobIds }) => {
+            if (!activeJobIds?.includes(initialConversationId)) {
+              return;
+            }
+            const lastMapped = mapped[mapped.length - 1];
+            let assistantId: string;
+            if (lastMapped && lastMapped.role === 'assistant') {
+              // Stream into the partial assistant message already saved.
+              assistantId = lastMapped.id;
+            } else {
+              // Otherwise add a fresh placeholder to stream into.
+              assistantId = uuidv4();
+              setMessages((prev) => [
+                ...prev,
+                { id: assistantId, role: 'assistant', text: '', mode: 'agent' },
+              ]);
+            }
+            streamIdRef.current = initialConversationId;
+            setIsStreaming(true);
+            onSessionStart?.();
+            subscribeToStream(initialConversationId, assistantId, true);
+          })
+          .catch(() => {
+            /* no active job / not reachable — leave the loaded history as-is */
+          });
       })
       .catch(() => {
         /* start fresh if history can't load */
@@ -295,12 +336,162 @@ export function useCoworkChat(
       conversationIdRef.current = cid;
       if (!linkedRef.current && projectId) {
         linkedRef.current = true;
-        dataService.linkCoworkConversation(projectId, cid).catch(() => {
-          linkedRef.current = false; // allow retry on next event
-        });
+        dataService
+          .linkCoworkConversation(projectId, cid)
+          .then(() => {
+            // Reflect the newly-linked conversation in the cached lists immediately, so
+            // leaving and coming back resolves/loads this chat WITHOUT a hard refresh:
+            //  - coworkProjects holds conversationIds → latestConvoId (used to pick the convo)
+            //  - coworkConversations is the sidebar list (so the new chat is clickable)
+            queryClient.invalidateQueries([QueryKeys.coworkProjects]);
+            queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
+          })
+          .catch(() => {
+            linkedRef.current = false; // allow retry on next event
+          });
       }
     },
-    [projectId],
+    [projectId, queryClient],
+  );
+
+  /**
+   * Subscribe to a generation job's SSE stream and pipe its events into message/trace state.
+   * Used for a fresh send AND to RESUME an in-flight run after the user navigated away and came
+   * back (isResume=true → server replays a `sync` event with the partial state, then streams live).
+   * The server never aborts on disconnect, so a run started earlier is still going on return.
+   */
+  const subscribeToStream = useCallback(
+    (streamId: string, assistantId: string, isResume = false, authToken?: string) => {
+      const streamUrl = `${apiBaseUrl()}/api/agents/chat/stream/${encodeURIComponent(streamId)}${
+        isResume ? '?resume=true' : ''
+      }`;
+      const sse = new SSE(streamUrl, {
+        headers: { Authorization: `Bearer ${authToken ?? token}` },
+        method: 'GET',
+      });
+      sseRef.current = sse;
+      streamIdRef.current = streamId;
+
+      sse.addEventListener('message', (e: MessageEvent) => {
+        let data: Record<string, unknown>;
+        try {
+          data = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+
+        if (data.final != null) {
+          const response = data.responseMessage as
+            | { text?: string; content?: Array<Record<string, unknown>>; messageId?: string }
+            | undefined;
+          const finalText = response?.text || extractContentText(response?.content);
+          if (finalText) {
+            setAssistantText(assistantId, finalText);
+          }
+          if (response?.messageId) {
+            lastMessageIdRef.current = response.messageId;
+          }
+          const convo = data.conversation as { conversationId?: string } | undefined;
+          adoptConversationId(convo?.conversationId);
+          sseRef.current = null;
+          streamIdRef.current = null;
+          setIsStreaming(false);
+          // The agent may have written deliverables — refresh the workspace tree.
+          queryClient.invalidateQueries([QueryKeys.coworkWorkspace, projectId]);
+          // The agent may have staged edits — refresh the Pending changes panel.
+          queryClient.invalidateQueries([QueryKeys.coworkChanges, projectId]);
+          // The agent may have appended to project memory — refresh the Memory tab.
+          queryClient.invalidateQueries([QueryKeys.coworkMemory, projectId]);
+          // A new chat / title may now exist — refresh the history picker and the project
+          // (whose conversationIds drive which chat is loaded on return).
+          queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
+          queryClient.invalidateQueries([QueryKeys.coworkProjects]);
+          return;
+        }
+        if (data.created != null) {
+          const convo = data.conversation as { conversationId?: string } | undefined;
+          const msg = data.message as { conversationId?: string } | undefined;
+          adoptConversationId(convo?.conversationId ?? msg?.conversationId);
+          return;
+        }
+        // Agent content stream: text arrives as `type: 'text'` content parts with the
+        // cumulative text in data.text. Tool/step/other parts handled below.
+        if (data.type != null) {
+          if (data.type === ContentTypes.TEXT && typeof data.text === 'string') {
+            setAssistantText(assistantId, data.text as string);
+          }
+          return;
+        }
+        // Agent run-step events → build the trace (tool calls + outputs).
+        if (typeof data.event === 'string') {
+          handleStepEvent(data.event as string, data.data, setTrace);
+          return;
+        }
+        if (data.sync != null) {
+          // Reconnected to an in-flight run: seed the partial text already produced so the gap
+          // before live events is filled. Subsequent (cumulative) text events take over.
+          const rs = data.resumeState as
+            | { aggregatedContent?: Array<Record<string, unknown>> }
+            | undefined;
+          const partial = extractContentText(rs?.aggregatedContent);
+          if (partial) {
+            setAssistantText(assistantId, partial);
+          }
+          return;
+        }
+        // Fallback simple-text streaming (cumulative).
+        const chunk = (data.text ?? data.response) as string | undefined;
+        if (data.message != null && typeof chunk === 'string') {
+          setAssistantText(assistantId, chunk);
+        }
+      });
+
+      sse.addEventListener('error', async (e: MessageEvent) => {
+        // Token expired → refresh once and re-subscribe, mirroring the normal chat.
+        // @ts-ignore - sse.js sets responseCode on the event
+        if (e.responseCode === 401 && authToken == null) {
+          try {
+            const refresh = await request.refreshToken();
+            const newToken = refresh?.token ?? '';
+            if (newToken) {
+              request.dispatchTokenUpdatedEvent(newToken);
+              subscribeToStream(streamId, assistantId, isResume, newToken);
+              return;
+            }
+          } catch {
+            /* fall through to error handling */
+          }
+        }
+        sseRef.current = null;
+        streamIdRef.current = null;
+        setIsStreaming(false);
+        if (isResume) {
+          // The run most likely finished between the active-job check and this reconnect
+          // (the stream 404s once the job expires). Pull the final answer from the DB
+          // instead of showing a stream error.
+          const cid = conversationIdRef.current;
+          if (cid) {
+            dataService
+              .getCoworkConversationMessages(projectId, cid, { limit: MESSAGES_PAGE })
+              .then((page) => {
+                const mapped = page.messages.map(mapDoc).filter(hasContent);
+                if (mapped.length > 0) {
+                  setMessages(mapped);
+                }
+              })
+              .catch(() => {
+                /* keep what we have */
+              });
+          }
+          return;
+        }
+        setError('The agent stream failed. Check the Code Interpreter setup if it persists.');
+      });
+
+      sse.addEventListener('cancel', () => setIsStreaming(false));
+      sse.stream();
+    },
+    [token, setAssistantText, adoptConversationId, queryClient, projectId],
   );
 
   const send = useCallback(
@@ -380,102 +571,6 @@ export function useCoworkChat(
 
       // Resumable stream: POST starts generation (returns streamId + real
       // conversationId), then we subscribe to a separate GET SSE for the events.
-      const subscribe = (streamId: string, authToken?: string) => {
-        const streamUrl = `${apiBaseUrl()}/api/agents/chat/stream/${encodeURIComponent(streamId)}`;
-        const sse = new SSE(streamUrl, {
-          headers: { Authorization: `Bearer ${authToken ?? token}` },
-          method: 'GET',
-        });
-        sseRef.current = sse;
-
-        sse.addEventListener('message', (e: MessageEvent) => {
-          let data: Record<string, unknown>;
-          try {
-            data = JSON.parse(e.data);
-          } catch {
-            return;
-          }
-
-          if (data.final != null) {
-            const response = data.responseMessage as
-              | { text?: string; content?: Array<Record<string, unknown>>; messageId?: string }
-              | undefined;
-            const finalText = response?.text || extractContentText(response?.content);
-            if (finalText) {
-              setAssistantText(assistantId, finalText);
-            }
-            if (response?.messageId) {
-              lastMessageIdRef.current = response.messageId;
-            }
-            const convo = data.conversation as { conversationId?: string } | undefined;
-            adoptConversationId(convo?.conversationId);
-            sseRef.current = null;
-            streamIdRef.current = null;
-            setIsStreaming(false);
-            // The agent may have written deliverables — refresh the workspace tree.
-            queryClient.invalidateQueries([QueryKeys.coworkWorkspace, projectId]);
-            // The agent may have staged edits — refresh the Pending changes panel.
-            queryClient.invalidateQueries([QueryKeys.coworkChanges, projectId]);
-            // The agent may have appended to project memory — refresh the Memory tab.
-            queryClient.invalidateQueries([QueryKeys.coworkMemory, projectId]);
-            // A new chat / title may now exist — refresh the history picker.
-            queryClient.invalidateQueries([QueryKeys.coworkConversations, projectId]);
-            return;
-          }
-          if (data.created != null) {
-            const convo = data.conversation as { conversationId?: string } | undefined;
-            const msg = data.message as { conversationId?: string } | undefined;
-            adoptConversationId(convo?.conversationId ?? msg?.conversationId);
-            return;
-          }
-          // Agent content stream: text arrives as `type: 'text'` content parts with the
-          // cumulative text in data.text. Tool/step/sync/other parts are skipped here.
-          if (data.type != null) {
-            if (data.type === ContentTypes.TEXT && typeof data.text === 'string') {
-              setAssistantText(assistantId, data.text as string);
-            }
-            return;
-          }
-          // Agent run-step events → build the trace (tool calls + outputs).
-          if (typeof data.event === 'string') {
-            handleStepEvent(data.event as string, data.data, setTrace);
-            return;
-          }
-          if (data.sync != null) {
-            return;
-          }
-          // Fallback simple-text streaming (cumulative).
-          const chunk = (data.text ?? data.response) as string | undefined;
-          if (data.message != null && typeof chunk === 'string') {
-            setAssistantText(assistantId, chunk);
-          }
-        });
-
-        sse.addEventListener('error', async (e: MessageEvent) => {
-          // Token expired → refresh once and re-subscribe, mirroring the normal chat.
-          // @ts-ignore - sse.js sets responseCode on the event
-          if (e.responseCode === 401 && authToken == null) {
-            try {
-              const refresh = await request.refreshToken();
-              const newToken = refresh?.token ?? '';
-              if (newToken) {
-                request.dispatchTokenUpdatedEvent(newToken);
-                subscribe(streamId, newToken);
-                return;
-              }
-            } catch {
-              /* fall through to error display */
-            }
-          }
-          sseRef.current = null;
-          setError('The agent stream failed. Check the Code Interpreter setup if it persists.');
-          setIsStreaming(false);
-        });
-
-        sse.addEventListener('cancel', () => setIsStreaming(false));
-        sse.stream();
-      };
-
       request
         .post(server, payload)
         .then((res: { streamId?: string; conversationId?: string } | undefined) => {
@@ -487,15 +582,14 @@ export function useCoworkChat(
             setIsStreaming(false);
             return;
           }
-          streamIdRef.current = res.streamId;
-          subscribe(res.streamId);
+          subscribeToStream(res.streamId, assistantId, false);
         })
         .catch(() => {
           setError('Could not reach the agent.');
           setIsStreaming(false);
         });
     },
-    [isStreaming, token, projectId, queryClient, setAssistantText, adoptConversationId, model, provider, onSessionStart],
+    [isStreaming, token, projectId, queryClient, setAssistantText, adoptConversationId, model, provider, onSessionStart, subscribeToStream],
   );
 
   /**

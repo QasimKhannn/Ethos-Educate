@@ -367,6 +367,7 @@ function RoutineRow({ projectId, routine }: { projectId: string; routine: TCowor
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showRuns, setShowRuns] = useState(false);
+  const [showFullPrompt, setShowFullPrompt] = useState(false);
   const isRunning = runMutation.isLoading && runMutation.variables === routine._id;
 
   const toggleEnabled = () => {
@@ -378,10 +379,10 @@ function RoutineRow({ projectId, routine }: { projectId: string; routine: TCowor
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-text-primary">{routine.name}</div>
-          <div className="mt-0.5 flex items-center gap-2 text-xs text-text-tertiary">
-            <span className="flex items-center gap-1">
-              <Clock className="size-3" />
-              {describeSchedule(routine.cronExpression)}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
+            <span className="flex min-w-0 items-center gap-1">
+              <Clock className="size-3 flex-none" />
+              <span className="break-words">{describeSchedule(routine.cronExpression)}</span>
             </span>
             {routine.deliveryTarget === 'file' && (
               <span className="flex items-center gap-1" title="Each run is also saved as a workspace file">
@@ -442,7 +443,20 @@ function RoutineRow({ projectId, routine }: { projectId: string; routine: TCowor
         </div>
       )}
 
-      <p className="mt-1.5 line-clamp-2 text-xs text-text-secondary">{routine.prompt}</p>
+      <div className="mt-1.5 text-xs text-text-secondary">
+        <p className={showFullPrompt ? 'whitespace-pre-wrap break-words' : 'line-clamp-2'}>
+          {routine.prompt}
+        </p>
+        {routine.prompt.length > 120 && (
+          <button
+            type="button"
+            onClick={() => setShowFullPrompt((v) => !v)}
+            className="mt-0.5 font-medium text-text-tertiary hover:text-text-primary"
+          >
+            {showFullPrompt ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">

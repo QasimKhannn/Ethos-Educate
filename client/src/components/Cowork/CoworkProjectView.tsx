@@ -20,6 +20,7 @@ import { useCoworkProjectsQuery } from '~/data-provider';
 import { useUpdateCoworkProjectMutation } from '~/data-provider/Cowork/mutations';
 import CoworkWorkspacePanel from '~/components/SidePanel/Cowork/CoworkWorkspacePanel';
 import CoworkChat from './CoworkChat';
+import CoworkChatList from './CoworkChatList';
 import CoworkTracePanel from './CoworkTracePanel';
 import CoworkSkillsPanel from './CoworkSkillsPanel';
 import CoworkMemoryPanel from './CoworkMemoryPanel';
@@ -134,9 +135,6 @@ export default function CoworkProjectView() {
   const project = projects.find((p) => p._id === projectId);
   const updateMutation = useUpdateCoworkProjectMutation(projectId);
 
-  // The last persisted conversation on the project doc (used as default).
-  const latestConvoId = project?.conversationIds?.[project.conversationIds.length - 1];
-
   // ?convo= — set by sidebar when the user picks a specific conversation.
   const convoParam = searchParams.get('convo');
   // ?new= — timestamp set by "New chat" to force a fresh mount even without a convo param.
@@ -164,13 +162,20 @@ export default function CoworkProjectView() {
     }
   }, [tabParam]);
 
-  // Which conversation to load:
-  // - ?convo=<id>  → that specific conversation
-  // - ?new=<ts>    → new conversation (undefined = blank slate)
-  // - neither      → the latest linked conversation on the project
-  const effectiveConvoId = newParam
-    ? undefined
-    : (convoParam ?? latestConvoId);
+  // cowork — let the onboarding tour open the right-panel drawer on small screens so it can
+  // spotlight the panel tabs. No effect on desktop, where the panel is always visible.
+  useEffect(() => {
+    const openPanel = () => setPanelOpen(true);
+    window.addEventListener('cowork-tour-open-panel', openPanel);
+    return () => window.removeEventListener('cowork-tour-open-panel', openPanel);
+  }, []);
+
+  // What the center pane shows:
+  // - ?convo=<id>  → that specific conversation (chat)
+  // - ?new=<ts>    → a fresh conversation (chat, blank slate)
+  // - neither      → the project's chat-list overview (no chat auto-opened)
+  const showChatList = !convoParam && !newParam;
+  const effectiveConvoId = newParam ? undefined : (convoParam ?? undefined);
 
   // Mount key: changes whenever convo selection or new-chat param changes,
   // force-remounting CoworkChat with the right initial state.
@@ -222,11 +227,13 @@ export default function CoworkProjectView() {
 
           {/* Model picker */}
           {project && (
-            <ModelPicker
-              currentModel={activeModel}
-              onSelect={handleModelSelect}
-              disabled={sessionStarted}
-            />
+            <div data-tour-id="cowork-model-picker">
+              <ModelPicker
+                currentModel={activeModel}
+                onSelect={handleModelSelect}
+                disabled={sessionStarted}
+              />
+            </div>
           )}
 
           <button
@@ -251,16 +258,20 @@ export default function CoworkProjectView() {
           </button>
         </header>
 
-        <div className="min-h-0 flex-1">
-          <CoworkChat
-            key={chatMountKey}
-            projectId={projectId}
-            initialConversationId={effectiveConvoId}
-            onTraceChange={setTrace}
-            model={lockedModel}
-            provider={lockedProvider}
-            onSessionStart={() => setSessionStarted(true)}
-          />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {showChatList ? (
+            <CoworkChatList projectId={projectId} />
+          ) : (
+            <CoworkChat
+              key={chatMountKey}
+              projectId={projectId}
+              initialConversationId={effectiveConvoId}
+              onTraceChange={setTrace}
+              model={lockedModel}
+              provider={lockedProvider}
+              onSessionStart={() => setSessionStarted(true)}
+            />
+          )}
         </div>
       </div>
 
@@ -286,6 +297,7 @@ export default function CoworkProjectView() {
               <button
                 key={t.id}
                 type="button"
+                data-tour-id={`cowork-tab-${t.id}`}
                 onClick={() => setTab(t.id)}
                 title={t.label}
                 aria-label={t.label}

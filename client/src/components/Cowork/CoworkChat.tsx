@@ -10,7 +10,7 @@ import {
   type UIEvent,
 } from 'react';
 import { useRecoilValue } from 'recoil';
-import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil, Paperclip } from 'lucide-react';
+import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil, Paperclip, Copy, Check } from 'lucide-react';
 import { FileUpload, TooltipAnchor, AttachmentIcon } from '@librechat/client';
 import { EModelEndpoint, Constants, dataService } from 'librechat-data-provider';
 import type { TConversation } from 'librechat-data-provider';
@@ -237,6 +237,26 @@ export default function CoworkChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const restoreRef = useRef<{ height: number; top: number } | null>(null);
+  // Whether the view is "pinned" to the bottom. While true, new content auto-scrolls into
+  // view; once the user scrolls up (e.g. to read a long, still-streaming reply) we stop
+  // following so their position isn't yanked back down on every token.
+  const stickRef = useRef(true);
+  // Per-message "copied" feedback for the copy-to-clipboard action.
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyMessage = (id: string, text: string) => {
+    if (!text) {
+      return;
+    }
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => {
+        setCopiedId(id);
+        window.setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+      })
+      .catch(() => {
+        /* clipboard unavailable (e.g. insecure context) — silently ignore */
+      });
+  };
 
   /** Grow/shrink the textarea to fit its content. */
   const resizeTextarea = () => {
@@ -254,15 +274,20 @@ export default function CoworkChat({
       return;
     }
     if (restoreRef.current) {
+      // Restoring scroll position after older messages were prepended.
       el.scrollTop = el.scrollHeight - restoreRef.current.height + restoreRef.current.top;
       restoreRef.current = null;
-    } else {
+    } else if (stickRef.current) {
+      // Only auto-follow to the bottom when the user is already there.
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
 
   const onScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
+    // Pinned when within 80px of the bottom; scrolling up unsticks auto-follow so the user
+    // can read back through a long message without being dragged down again.
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     if (isLoadingOlder || !hasMore) {
       return;
     }
@@ -289,6 +314,8 @@ export default function CoworkChat({
     if ((!text && uploaded.length === 0) || isStreaming || filesLoading) {
       return;
     }
+    // Sending always snaps back to the latest message.
+    stickRef.current = true;
     send(text, mode, uploaded);
     setInput('');
     setFiles(new Map());
@@ -355,9 +382,9 @@ export default function CoworkChat({
         }
       `}</style>
 
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         {/* ── message list ── */}
-        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-4 py-6">
+        <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-text-secondary">
               <Feather className="size-8 text-text-info" />
@@ -465,12 +492,26 @@ export default function CoworkChat({
                         >
                           <Pencil className="size-3.5" />
                         </button>
+                        {m.text && (
+                          <button
+                            type="button"
+                            title={copiedId === m.id ? 'Copied' : 'Copy message'}
+                            onClick={() => copyMessage(m.id, m.text)}
+                            className="absolute -left-7 top-9 hidden rounded p-1 text-text-tertiary hover:text-text-secondary group-hover:block"
+                          >
+                            {copiedId === m.id ? (
+                              <Check className="size-3.5 text-green-500" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
                 ) : (
                   // Agent reply — left-aligned, icon + prose.
-                  <div key={m.id} className="flex gap-3">
+                  <div key={m.id} className="group flex gap-3">
                     <div className="mt-0.5 flex size-6 flex-none items-center justify-center rounded-full bg-surface-tertiary">
                       <Feather className="size-3.5 text-text-info" />
                     </div>
@@ -528,6 +569,22 @@ export default function CoworkChat({
                           );
                         })()
                       )}
+                      {m.text && !(isStreaming && m.id === lastId) && (
+                        <div className="mt-1.5 hidden group-hover:flex">
+                          <button
+                            type="button"
+                            title={copiedId === m.id ? 'Copied' : 'Copy message'}
+                            onClick={() => copyMessage(m.id, m.text)}
+                            className="flex items-center gap-1 rounded p-1 text-text-tertiary hover:text-text-secondary"
+                          >
+                            {copiedId === m.id ? (
+                              <Check className="size-3.5 text-green-500" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ),
@@ -543,7 +600,10 @@ export default function CoworkChat({
         <div className="px-4 pb-5 pt-2">
           <div className="mx-auto max-w-2xl">
             {/* Mode toggle — Ask / Plan / Agent (applies to the next message) */}
-            <div className="mb-2 inline-flex rounded-lg border border-border-medium bg-surface-secondary p-0.5 text-xs">
+            <div
+              data-tour-id="cowork-mode-toggle"
+              className="mb-2 inline-flex rounded-lg border border-border-medium bg-surface-secondary p-0.5 text-xs"
+            >
               {MODES.map((m) => (
                 <button
                   key={m.id}
@@ -611,7 +671,7 @@ export default function CoworkChat({
                   placeholder="Message Cowork agent… (Shift+Enter for new line)"
                   readOnly={isStreaming}
                   className="w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed text-text-primary outline-none focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
-                  style={{ overflow: 'hidden' }}
+                  style={{ overflowY: 'auto' }}
                 />
                 {speechEnabled && (
                   <CoworkAudioRecorder

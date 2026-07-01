@@ -2,6 +2,7 @@
 // for a Cowork project. Enabled skills are injected into the agent's system prompt
 // at run time so the agent knows how to produce each file type.
 import { useQueryClient } from '@tanstack/react-query';
+import { Puzzle, X } from 'lucide-react';
 import { QueryKeys } from 'librechat-data-provider';
 import type { TCoworkSkill } from 'librechat-data-provider';
 import { useCoworkSkillsQuery } from '~/data-provider';
@@ -129,6 +130,50 @@ export default function CoworkSkillsPanel({ projectId }: { projectId: string }) 
         {skills.length === 0 && (
           <p className="text-center text-sm text-text-tertiary">No skills available.</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+// cowork — Skills as a modal overlay (opened from the left rail), mirroring the Connectors
+// modal so opening Skills doesn't navigate/remount the chat. Reuses the same panel body.
+export function CoworkSkillsModal({
+  projectId,
+  onClose,
+}: {
+  projectId: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border-medium bg-surface-primary shadow-xl">
+        <div className="flex flex-none items-center justify-between border-b border-border-medium px-4 py-3">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-text-primary">
+              <Puzzle className="size-4 text-text-info" /> Skills
+            </p>
+            <p className="mt-0.5 text-xs text-text-tertiary">
+              Toggle skills the coworker can use in this project (Agent mode).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-none rounded-md p-1.5 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <CoworkSkillsPanel projectId={projectId} />
+        </div>
       </div>
     </div>
   );
