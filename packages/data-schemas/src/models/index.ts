@@ -17,6 +17,7 @@ import { createProjectModel } from './project';
 import { createCoworkProjectModel } from './coworkProject'; // cowork
 import { createCoworkRoutineModel } from './coworkRoutine'; // cowork
 import { createCoworkRoutineRunModel } from './coworkRoutineRun'; // cowork
+import { createCoworkSkillModel } from './coworkSkill'; // cowork
 import { createKeyModel } from './key';
 import { createPluginAuthModel } from './pluginAuth';
 import { createTransactionModel } from './transaction';
@@ -55,6 +56,7 @@ export function createModels(mongoose: typeof import('mongoose')) {
     CoworkProject: createCoworkProjectModel(mongoose), // cowork
     CoworkRoutine: createCoworkRoutineModel(mongoose), // cowork
     CoworkRoutineRun: createCoworkRoutineRunModel(mongoose), // cowork
+    CoworkSkill: createCoworkSkillModel(mongoose), // cowork
     Key: createKeyModel(mongoose),
     PluginAuth: createPluginAuthModel(mongoose),
     Transaction: createTransactionModel(mongoose),

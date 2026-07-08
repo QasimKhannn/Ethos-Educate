@@ -42,6 +42,11 @@ const {
   deleteCoworkRoutine,
 } = require('~/models/CoworkRoutine');
 const { getRoutineRuns, deleteRoutineRuns } = require('~/models/CoworkRoutineRun');
+const {
+  createCoworkSkill,
+  getUserCoworkSkills,
+  deleteCoworkSkill,
+} = require('~/models/CoworkSkill');
 const { runRoutine } = require('~/server/services/Cowork/CoworkRoutineRunner');
 const { getCoworkAccessPolicy, canUseCowork } = require('~/server/services/AdminConfigService');
 const paths = require('~/config/paths');
@@ -249,13 +254,65 @@ router.get('/projects/:projectId/skills', async (req, res) => {
     const enabledSet = new Set(Array.isArray(project.enabledSkills) ? project.enabledSkills : []);
     const allSkills = await listBuiltinSkills(skillsRoot);
     // Exclude the meta skill-creator from the user-facing panel.
-    const userSkills = allSkills
+    const builtinItems = allSkills
       .filter((s) => s.id !== 'skill-creator')
       .map((s) => ({ ...s, enabled: enabledSet.has(s.id) }));
-    res.status(200).json(userSkills);
+    // A2: append this user's custom skills. Enabled per-project via the id form
+    // `custom:<_id>` stored in the project's enabledSkills.
+    const customSkills = await getUserCoworkSkills({ user: req.user.id });
+    const customItems = customSkills.map((s) => {
+      const id = `custom:${String(s._id)}`;
+      return {
+        id,
+        skillId: String(s._id),
+        name: s.name,
+        description: s.description || '',
+        source: 'custom',
+        enabled: enabledSet.has(id),
+      };
+    });
+    res.status(200).json([...builtinItems, ...customItems]);
   } catch (error) {
     logger.error('[/cowork skills] Error', error);
     res.status(500).json({ message: 'Error listing skills' });
+  }
+});
+
+/**
+ * POST /api/cowork/skills
+ * Create a per-user CUSTOM skill (markdown instructions the coworker follows). User-scoped;
+ * not tied to a project. Enable it per-project from the Skills tab (stores `custom:<id>`).
+ */
+router.post('/skills', async (req, res) => {
+  try {
+    const skill = await createCoworkSkill({
+      user: req.user.id,
+      name: req.body?.name,
+      description: req.body?.description,
+      content: req.body?.content,
+    });
+    res.status(201).json(skill);
+  } catch (error) {
+    logger.error('[/cowork skills create] Error', error);
+    res.status(400).json({ message: error.message || 'Error creating skill' });
+  }
+});
+
+/**
+ * DELETE /api/cowork/skills/:skillId
+ * Delete one of the caller's custom skills. Ownership-scoped. A project still referencing
+ * it via `custom:<id>` simply ignores the missing skill at run time (fails safe).
+ */
+router.delete('/skills/:skillId', async (req, res) => {
+  try {
+    const deleted = await deleteCoworkSkill({ user: req.user.id, skillId: req.params.skillId });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Skill not found' });
+    }
+    res.status(200).json({ deleted: String(deleted._id) });
+  } catch (error) {
+    logger.error('[/cowork skills delete] Error', error);
+    res.status(500).json({ message: 'Error deleting skill' });
   }
 });
 

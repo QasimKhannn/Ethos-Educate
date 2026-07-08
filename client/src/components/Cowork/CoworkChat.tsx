@@ -10,7 +10,7 @@ import {
   type UIEvent,
 } from 'react';
 import { useRecoilValue } from 'recoil';
-import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil, Paperclip, Copy, Check } from 'lucide-react';
+import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil, Paperclip, Copy, Check, Eye } from 'lucide-react';
 import { FileUpload, TooltipAnchor, AttachmentIcon } from '@librechat/client';
 import { EModelEndpoint, Constants, dataService } from 'librechat-data-provider';
 import type { TConversation } from 'librechat-data-provider';
@@ -21,6 +21,7 @@ import {
   type CoworkTraceEntry,
   type CoworkMode,
   type CoworkFile,
+  type CoworkMessage,
 } from './useCoworkChat';
 import { TraceRow } from './CoworkTracePanel';
 import CoworkPlanCard from './CoworkPlanCard';
@@ -29,6 +30,7 @@ import CoworkActionCard, { extractAction } from './CoworkActionCard';
 import CoworkAudioRecorder from './CoworkAudioRecorder';
 import FileRow from '~/components/Chat/Input/Files/FileRow';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
+import { stripArtifactBlocks } from '~/hooks/Cowork/useCoworkLatestArtifact';
 import { useAttachmentLink } from '~/components/Chat/Messages/Content/Parts/LogLink';
 import { useFileHandlingNoChatContext } from '~/hooks/Files/useFileHandling';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -197,6 +199,8 @@ export default function CoworkChat({
   model,
   provider,
   onSessionStart,
+  onMessagesChange,
+  onOpenPreview,
 }: {
   projectId: string;
   initialConversationId?: string;
@@ -204,9 +208,19 @@ export default function CoworkChat({
   model?: string;
   provider?: string;
   onSessionStart?: () => void;
+  onMessagesChange?: (messages: CoworkMessage[]) => void;
+  onOpenPreview?: () => void;
 }) {
   const { messages, isStreaming, error, send, stop, removeFrom, loadOlder, hasMore, isLoadingOlder, trace } =
-    useCoworkChat(projectId, initialConversationId, onTraceChange, model, provider, onSessionStart);
+    useCoworkChat(
+      projectId,
+      initialConversationId,
+      onTraceChange,
+      model,
+      provider,
+      onSessionStart,
+      onMessagesChange,
+    );
   const [input, setInput] = useState('');
   const localize = useLocalize();
   const { user } = useAuthContext();
@@ -541,13 +555,28 @@ export default function CoworkChat({
                       ) : (
                         (() => {
                           const { email, rest: afterEmail } = extractEmail(m.text);
-                          const { action, rest } = extractAction(afterEmail);
+                          const { action, rest: afterAction } = extractAction(afterEmail);
+                          // Cowork A1: pull artifact markup out of the chat display and
+                          // surface a chip that opens the Preview tab instead.
+                          const { hadArtifact, rest } = stripArtifactBlocks(afterAction);
                           return (
                             <>
                               {rest && (
                                 <div className="prose prose-sm dark:prose-invert max-w-none">
                                   <MarkdownLite content={rest} />
                                 </div>
+                              )}
+                              {hadArtifact && (
+                                <button
+                                  type="button"
+                                  onClick={onOpenPreview}
+                                  className={`inline-flex items-center gap-1.5 rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary ${
+                                    rest ? 'mt-2' : ''
+                                  }`}
+                                >
+                                  <Eye className="size-3.5" />
+                                  Live preview ready — open the Preview tab
+                                </button>
                               )}
                               {email && (
                                 <div className={rest ? 'mt-3' : ''}>

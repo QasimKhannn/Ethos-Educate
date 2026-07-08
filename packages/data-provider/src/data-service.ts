@@ -924,15 +924,47 @@ export function deleteCoworkFile(
 /* cowork — skills */
 
 export type TCoworkSkill = {
+  /** Enable-key: builtin skill dir name, or `custom:<_id>` for a custom skill. */
   id: string;
   name: string;
   description: string;
   enabled: boolean;
+  /** Provenance — 'builtin' (on disk) or 'custom' (per-user). */
+  source?: 'builtin' | 'custom';
+  /** Raw skill id for custom skills (used for delete). Absent for builtins. */
+  skillId?: string;
 };
 
-/** List available builtin skills for a project, with enabled flag from the project's enabledSkills. */
+/** A stored custom-skill document returned by create. */
+export type TCoworkCustomSkill = {
+  _id: string;
+  user: string;
+  name: string;
+  description: string;
+  content: string;
+  source: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** List available skills for a project (builtins + the user's custom skills) with enabled flags. */
 export function listCoworkSkills(projectId: string): Promise<TCoworkSkill[]> {
   return request.get<TCoworkSkill[]>(endpoints.coworkSkills(projectId));
+}
+
+/** Create a per-user custom skill (markdown instructions). */
+export function createCoworkSkill(payload: {
+  name: string;
+  description?: string;
+  content: string;
+}): Promise<TCoworkCustomSkill> {
+  // Note: request.post is non-generic (returns any); the return annotation enforces the shape.
+  return request.post(endpoints.coworkSkillCreate(), payload);
+}
+
+/** Delete one of the user's custom skills. */
+export function deleteCoworkSkill(skillId: string): Promise<{ deleted: string }> {
+  return request.delete<{ deleted: string }>(endpoints.coworkSkillDelete(skillId));
 }
 
 /* cowork — edit review (staged changes + undo checkpoints) */

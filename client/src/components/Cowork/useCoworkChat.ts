@@ -192,6 +192,8 @@ export function useCoworkChat(
   provider?: string,
   /** Called once when this session becomes active (history loaded or first message sent). */
   onSessionStart?: () => void,
+  /** Cowork A1: lift messages up so the Preview tab can render the latest artifact. */
+  onMessagesChange?: (messages: CoworkMessage[]) => void,
 ) {
   const { token } = useAuthContext();
   const queryClient = useQueryClient();
@@ -207,6 +209,12 @@ export function useCoworkChat(
   useEffect(() => {
     onTraceChange?.(trace);
   }, [trace, onTraceChange]);
+
+  // Cowork A1: push message updates to the parent (for the Preview tab). Cheap —
+  // fires on message changes only; the parent memoizes artifact parsing.
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
 
   const conversationIdRef = useRef<string | null>(null);
   const lastMessageIdRef = useRef<string>(Constants.NO_PARENT as string);

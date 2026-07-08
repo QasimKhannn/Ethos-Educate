@@ -151,6 +151,30 @@ export const COWORK_CONNECTORS: CoworkConnectorDef[] = [
     // the run-time injection grants every tool the server exposes (see initialize.js).
     status: 'available',
   },
+  // cowork A3 — GitHub connector (read scope). Points at GitHub's official remote MCP server
+  // (does its own OAuth, like Monday), read-only endpoint. Write scope (issues/PRs, workspace
+  // push) arrives in Phase C behind the enforced write gate. No mcpTools listed → run-time
+  // injection grants the whole (read-only) server toolset.
+  {
+    id: 'github',
+    label: 'GitHub',
+    description: 'Search and read your GitHub repositories, issues, and pull requests.',
+    auth: 'oauth',
+    mcpServer: 'github',
+    hasWriteActions: false,
+    help: {
+      summary:
+        'Click Connect and sign in to GitHub once, then choose which repositories or organizations to expose. Nothing is stored except the secure connection.',
+      steps: [
+        'Click "Connect".',
+        'Sign in to GitHub in the popup and review the requested access.',
+        'Choose the repositories or organizations the coworker may read.',
+        'Approve — you are connected. Disconnect any time from this tab.',
+      ],
+      url: 'https://docs.github.com/en/copilot/customizing-copilot/using-model-context-protocol/using-the-github-mcp-server',
+    },
+    status: 'available',
+  },
   // Google Workspace — hidden for now. Uncomment to show it in the Connectors tab once a Workspace
   // MCP server is deployed and reachable (set `mcpServer` + `status: 'available'` then). Until then
   // it stays out of the list so there's no dead "Connect" button.

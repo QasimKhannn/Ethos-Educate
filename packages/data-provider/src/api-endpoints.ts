@@ -182,6 +182,12 @@ export const coworkUpload = (projectId: string, subdir?: string) =>
 
 export const coworkSkills = (projectId: string) => `${coworkProject(projectId)}/skills`;
 
+// cowork A2 — per-user custom skills (create/delete; user-scoped, not project-scoped).
+export const coworkSkillCreate = () => `${coworkRoot}/skills`;
+
+export const coworkSkillDelete = (skillId: string) =>
+  `${coworkRoot}/skills/${encodeURIComponent(skillId)}`;
+
 /* cowork — edit review (staged changes + undo checkpoints) */
 
 export const coworkChanges = (projectId: string) => `${coworkProject(projectId)}/changes`;

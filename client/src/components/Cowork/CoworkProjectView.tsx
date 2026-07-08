@@ -11,6 +11,7 @@ import {
   Puzzle,
   Brain,
   Clock,
+  Eye,
   PanelRight,
   X,
 } from 'lucide-react';
@@ -25,20 +26,22 @@ import CoworkTracePanel from './CoworkTracePanel';
 import CoworkSkillsPanel from './CoworkSkillsPanel';
 import CoworkMemoryPanel from './CoworkMemoryPanel';
 import CoworkRoutinesPanel from './CoworkRoutinesPanel';
+import CoworkPreviewPanel from './CoworkPreviewPanel';
 import { COWORK_MODELS, DEFAULT_COWORK_MODEL, resolveModelLabel } from './CoworkModels';
-import type { CoworkTraceEntry } from './useCoworkChat';
+import type { CoworkTraceEntry, CoworkMessage } from './useCoworkChat';
 
-type PaneTab = 'workspace' | 'trace' | 'skills' | 'memory' | 'routines';
+type PaneTab = 'workspace' | 'preview' | 'trace' | 'skills' | 'memory' | 'routines';
 
 const TABS: { id: PaneTab; label: string; icon: LucideIcon }[] = [
   { id: 'workspace', label: 'Workspace', icon: Folder },
+  { id: 'preview', label: 'Preview', icon: Eye },
   { id: 'trace', label: 'Trace', icon: Activity },
   { id: 'skills', label: 'Skills', icon: Puzzle },
   { id: 'memory', label: 'Memory', icon: Brain },
   { id: 'routines', label: 'Routines', icon: Clock },
 ];
 
-const PANE_TABS: PaneTab[] = ['workspace', 'trace', 'skills', 'memory', 'routines'];
+const PANE_TABS: PaneTab[] = ['workspace', 'preview', 'trace', 'skills', 'memory', 'routines'];
 
 // ---------------------------------------------------------------------------
 // Inline model picker — a small dropdown anchored to the header button.
@@ -148,10 +151,14 @@ export default function CoworkProjectView() {
   // Right panel as a slide-in drawer on small screens (static aside on lg+).
   const [panelOpen, setPanelOpen] = useState(false);
   const [trace, setTrace] = useState<CoworkTraceEntry[]>([]);
+  // Cowork A1: latest run messages, lifted from CoworkChat so the Preview tab can
+  // render the newest artifact.
+  const [messages, setMessages] = useState<CoworkMessage[]>([]);
 
-  // Reset trace when switching projects.
+  // Reset trace + messages when switching projects.
   useEffect(() => {
     setTrace([]);
+    setMessages([]);
   }, [projectId]);
 
   // Sync right-panel tab when ?tab= changes (e.g. sidebar Skills link); also reveal it on mobile.
@@ -183,6 +190,7 @@ export default function CoworkProjectView() {
 
   const newChat = () => {
     setTrace([]);
+    setMessages([]);
     navigate(`/cowork/${projectId}?new=${Date.now()}`);
   };
 
@@ -267,6 +275,11 @@ export default function CoworkProjectView() {
               projectId={projectId}
               initialConversationId={effectiveConvoId}
               onTraceChange={setTrace}
+              onMessagesChange={setMessages}
+              onOpenPreview={() => {
+                setTab('preview');
+                setPanelOpen(true);
+              }}
               model={lockedModel}
               provider={lockedProvider}
               onSessionStart={() => setSessionStarted(true)}
@@ -286,8 +299,8 @@ export default function CoworkProjectView() {
 
       <aside
         className={`fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] flex-none flex-col border-l border-border-medium bg-surface-primary lg:static lg:z-auto lg:max-w-none lg:flex ${
-          panelOpen ? 'flex' : 'hidden'
-        }`}
+          tab === 'preview' ? 'lg:w-[560px]' : 'lg:w-80'
+        } ${panelOpen ? 'flex' : 'hidden'}`}
       >
         <div className="flex items-center gap-1 overflow-x-auto border-b border-border-medium px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TABS.map((t) => {
@@ -326,8 +339,9 @@ export default function CoworkProjectView() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           {tab === 'workspace' && <CoworkWorkspacePanel projectId={projectId} />}
+          {tab === 'preview' && <CoworkPreviewPanel messages={messages} />}
           {tab === 'trace' && <CoworkTracePanel trace={trace} />}
-          {tab === 'skills' && <CoworkSkillsPanel projectId={projectId} />}
+          {tab === 'skills' && <CoworkSkillsPanel projectId={projectId} locked={sessionStarted} />}
           {tab === 'memory' && <CoworkMemoryPanel projectId={projectId} />}
           {tab === 'routines' && <CoworkRoutinesPanel projectId={projectId} />}
         </div>

@@ -389,3 +389,36 @@ export const useDeleteCoworkFileMutation = (
     },
   });
 };
+
+/* skills — per-user custom skills (A2) */
+
+/** Create a custom skill. Refreshes every project's skill list on success. */
+export const useCreateCoworkSkillMutation = (): UseMutationResult<
+  unknown,
+  unknown,
+  { name: string; description?: string; content: string }
+> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkSkillCreate'], {
+    mutationFn: (payload: { name: string; description?: string; content: string }) =>
+      dataService.createCoworkSkill(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkSkills]);
+    },
+  });
+};
+
+/** Delete a custom skill. Refreshes every project's skill list on success. */
+export const useDeleteCoworkSkillMutation = (): UseMutationResult<
+  { deleted: string },
+  unknown,
+  string
+> => {
+  const queryClient = useQueryClient();
+  return useMutation(['coworkSkillDelete'], {
+    mutationFn: (skillId: string) => dataService.deleteCoworkSkill(skillId),
+    onSuccess: () => {
+      queryClient.invalidateQueries([QueryKeys.coworkSkills]);
+    },
+  });
+};

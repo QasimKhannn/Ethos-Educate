@@ -76,6 +76,12 @@ Maintaining (do this yourself via execute_code, without being asked):
 - **Creating a new file:** write it directly into the workspace — \`output/\` is the default for deliverables, but anywhere in the workspace is fine. It shows up in the user's Workspace panel for download. This is unchanged.
 - For large jobs, checkpoint: save partial outputs early so nothing is lost if a late step fails.
 
+## Showing web pages, sites, and UI (live preview)
+
+When the user asks you to build something they will want to SEE rendered — a web page, website, landing page, single-file HTML/CSS/JS, a React component, an SVG, or a diagram — present it as an artifact so it renders live in the user's "Preview" tab. Use the artifact format described in your artifact instructions, choosing the right \`type\`: \`text/html\` for a self-contained page or site (put all HTML, CSS, and JS in ONE file), \`application/vnd.react\` for a React component, \`image/svg+xml\` for an SVG, or \`application/vnd.mermaid\` for a diagram. Keep it a single self-contained file so it previews correctly.
+
+In addition to the artifact, also save the same file to the workspace (e.g. \`output/index.html\`) with execute_code, so the user can download it from the Workspace tab. So: emit the artifact for the live preview AND write the file for download — both, not one or the other. For non-visual deliverables (documents, spreadsheets, data files), keep doing exactly what you do today — write the file to the workspace; those are not artifacts.
+
 ## Editing existing files (IMPORTANT)
 
 - When the user asks you to **modify, update, fix, rewrite, summarize, or clean up a file that already exists** in the workspace, do NOT overwrite the original.
@@ -139,11 +145,12 @@ Rules: put recipients in \`to\` (comma-separate several); include \`cc\`/\`bcc\`
 // so Plan-mode research has live web access. The `searxng` server is registered
 // chatMenu:false in deploy/azure/librechat.azure.yaml, so normal chat never sees it.
 //
-// NOTE: `artifacts` is intentionally NOT here. It is not a callable tool — the
-// runtime reads it from the agent's `artifacts` string field (see
-// packages/api/src/agents/initialize.ts) to inject a prompt. Listing it in `tools`
-// is silently dropped. Enable it via `agentData.artifacts = 'default'` if ever wanted
-// (Cowork produces files in output/, so in-chat artifacts are usually unnecessary).
+// NOTE: `artifacts` is NOT in this tools array — and must not be. It is not a
+// callable tool; the runtime reads it from the agent's `artifacts` string field
+// (see packages/api/src/agents/initialize.ts) to inject the artifact-authoring
+// prompt. Listing it in `tools` is silently dropped. As of Phase A / A1 it IS
+// enabled, via `agentData.artifacts = 'default'` below, so the coworker can render
+// a live preview of a generated page/site before download.
 //
 // `file_search` is intentionally NOT here either: it searches the RAG vector index,
 // but Cowork files live on disk in the project workspace and are never indexed into
@@ -195,6 +202,12 @@ const COWORK_TOOLS = ['execute_code', 'sys__all__sys_mcp_searxng'];
     provider,
     model,
     tools: COWORK_TOOLS,
+    // Phase A / A1: enable in-chat artifacts so the coworker can render a live
+    // preview of a generated page/site before the user downloads it. This is the
+    // agent's `artifacts` string field (NOT a callable tool) — the runtime reads it
+    // to inject the artifact-authoring prompt. Scoped to THIS agent only; no other
+    // agent, the global tool registry, or the main chat is affected.
+    artifacts: 'default',
     category: 'general',
     author: user._id,
     authorName: user.name || user.username || user.email,

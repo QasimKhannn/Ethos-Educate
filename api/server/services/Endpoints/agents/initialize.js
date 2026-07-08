@@ -34,6 +34,7 @@ const { getConvoFiles } = require('~/models/Conversation');
 const { processAddedConvo } = require('./addedConvo');
 const { getAgent } = require('~/models/Agent');
 const { getUserCoworkProject } = require('~/models/CoworkProject'); // cowork
+const { getCoworkSkill } = require('~/models/CoworkSkill'); // cowork (A2: custom skills)
 const { logViolation } = require('~/cache');
 const db = require('~/models');
 const paths = require('~/config/paths'); // cowork — skills root
@@ -232,9 +233,29 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
       const project = await getUserCoworkProject({ user: req.user?.id, projectId: coworkProjectId });
       const enabledIds = Array.isArray(project?.enabledSkills) ? project.enabledSkills : [];
       if (enabledIds.length > 0) {
-        const loadedSkills = (
-          await Promise.all(enabledIds.map((id) => loadBuiltinSkill(_coworkSkillsRoot, id)))
-        ).filter(Boolean);
+        // A2: an enabled id is either a builtin skill dir name, or `custom:<mongoId>`
+        // for a per-user custom skill. Custom skills are ownership-scoped to the caller;
+        // a deleted/foreign id resolves to null and is filtered out (fails safe).
+        const resolveSkill = async (id) => {
+          if (typeof id === 'string' && id.startsWith('custom:')) {
+            const custom = await getCoworkSkill({
+              user: req.user?.id,
+              skillId: id.slice('custom:'.length),
+            });
+            if (!custom) {
+              return null;
+            }
+            return {
+              id,
+              name: custom.name,
+              description: custom.description || '',
+              source: 'custom',
+              content: custom.content || '',
+            };
+          }
+          return loadBuiltinSkill(_coworkSkillsRoot, id);
+        };
+        const loadedSkills = (await Promise.all(enabledIds.map(resolveSkill))).filter(Boolean);
         const skillsBlock = buildSkillsPrompt(loadedSkills);
         if (skillsBlock) {
           primaryAgent.instructions = [primaryAgent.instructions ?? '', skillsBlock]

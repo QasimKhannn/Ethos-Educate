@@ -319,7 +319,13 @@ export default function CoworkSidebar({
 
         {showConnectors && <CoworkConnectorsModal onClose={() => setShowConnectors(false)} />}
         {showSkills && projectId && (
-          <CoworkSkillsModal projectId={projectId} onClose={() => setShowSkills(false)} />
+          <CoworkSkillsModal
+            projectId={projectId}
+            onClose={() => setShowSkills(false)}
+            /* Lock skill changes while a saved conversation is open, matching the in-chat
+               Skills tab — skills are injected at run start, so edit them before chatting. */
+            locked={!!activeConvoId}
+          />
         )}
       </aside>
     </>
