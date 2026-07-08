@@ -152,6 +152,10 @@ const plainEnv = compact({
   ),
   CANVA_MCP_URL: envValue('CANVA_MCP_URL', 'https://mcp.canva.com/mcp'),
   CANVA_MCP_REDIRECT_URI: `${appUrl}/api/mcp/canva/oauth/callback`,
+  // cowork A3 — GitHub connector OAuth app. Non-secret id + derived callback here; the secret is
+  // added to secretKeys below. Callback derives from the app's stable FQDN, matching the others.
+  GITHUB_MCP_CLIENT_ID: envValue('GITHUB_MCP_CLIENT_ID'),
+  GITHUB_MCP_REDIRECT_URI: `${appUrl}/api/mcp/github/oauth/callback`,
   AZURE_STORAGE_CONTAINER: envValue('AZURE_STORAGE_CONTAINER', 'filecreation'),
   ENABLE_SECURE_DOWNLOADS: envValue('ENABLE_SECURE_DOWNLOADS', 'true'),
   MIDDLEWARE_BASE_URL: appUrl,
@@ -180,6 +184,7 @@ const secretKeys = [
   'OPENID_SESSION_SECRET',
   'MICROSOFT_CLIENT_SECRET',
   'CANVA_CLIENT_SECRET',
+  'GITHUB_MCP_CLIENT_SECRET', // cowork A3 — GitHub OAuth app secret
   'AZURE_API_KEY',
   'AZURE_OPENAI_API_KEY',
   'AZURE_IMAGE_API_KEY',

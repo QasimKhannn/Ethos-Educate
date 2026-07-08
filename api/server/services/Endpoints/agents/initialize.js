@@ -316,6 +316,30 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     logger.warn('[initializeClient] cowork mode handling failed; continuing in default mode', modeErr);
   }
 
+  // cowork — unattended runs (scheduled routines) have NO human present to answer a clarifying
+  // question, so the base prompt's "clarify before you guess" rule would make the agent stop and
+  // emit a question that the user later opens the routine and sees INSTEAD of a result. For
+  // unattended runs ONLY, override that: proceed on the most reasonable interpretation and always
+  // produce the deliverable.
+  //
+  // Strictly gated on `coworkUnattended`, which is set ONLY by CoworkRoutineRunner (never by the
+  // Cowork chat UI or any normal chat). So interactive Ask/Plan/Agent chats — and every non-Cowork
+  // chat — are completely unaffected and keep asking clarifying questions exactly as before.
+  try {
+    if (req.body?.coworkProjectId && req.body?.coworkUnattended === true) {
+      const unattendedBlock = [
+        '# Unattended run — do not ask questions',
+        'This task is running automatically on a schedule with NO human available to reply. You must NOT ask clarifying questions, request confirmation, or pause to wait for input — any question you ask will go unanswered and the scheduled run will be wasted.',
+        'Instead: choose the most reasonable interpretation of the task, state the key assumptions you are making in one short line at the top of your output, and complete the work end-to-end. Always produce the deliverable (save the file to output/ as usual). If part of the task is genuinely impossible to complete, produce your best partial result and clearly note what was missing — never respond with only a question.',
+      ].join('\n');
+      primaryAgent.instructions = [primaryAgent.instructions ?? '', unattendedBlock]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  } catch (unattendedErr) {
+    logger.warn('[initializeClient] cowork unattended instruction injection failed', unattendedErr);
+  }
+
   // cowork — routines: in Agent mode only, grant the `manage_routines` tool so the coworker can
   // create/list/manage this project's scheduled automations from chat. Gated on coworkProjectId so
   // it never reaches normal chats or other agents. Ask/Plan (read-only) don't get it.

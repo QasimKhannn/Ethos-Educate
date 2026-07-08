@@ -58,8 +58,8 @@ function PreviewContent({ artifact }: { artifact: Artifact }) {
     <div
       className={
         fullscreen
-          ? 'fixed inset-0 z-[70] flex flex-col bg-surface-primary'
-          : 'flex h-full flex-col'
+          ? 'fixed inset-0 z-[70] flex flex-col bg-surface-primary duration-200 animate-in fade-in-0'
+          : 'flex h-full flex-col duration-200 animate-in fade-in-0'
       }
     >
       <div className="flex items-center gap-2 border-b border-border-medium px-3 py-2">

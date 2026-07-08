@@ -42,6 +42,8 @@ mcpSettings:
     - "canva.ai"
     # cowork — SearXNG web-search MCP host (Cowork-only; see the `searxng` server below)
     - "searxng-mcp-1081644116068.us-central1.run.app"
+    # cowork A3 — GitHub official remote MCP server host (Cowork-only GitHub connector)
+    - "api.githubcopilot.com"
 
 mcpServers:
   Image_Generation:
@@ -131,6 +133,37 @@ mcpServers:
 
       **Note:**
       The monday MCP app must be installed in the monday.com account before first use.
+
+  # cowork A3 — GitHub connector. GitHub's official remote MCP server (read-only endpoint). GitHub's
+  # auth server does NOT support dynamic client registration, so an explicit OAuth App is required
+  # (client_id/secret via env, like the Microsoft connectors). chatMenu:false → Cowork-only. Write
+  # scope arrives in Phase C behind the enforced write gate.
+  github:
+    description: "Read GitHub repositories, issues, and pull requests"
+    type: streamable-http
+    url: "https://api.githubcopilot.com/mcp/readonly"
+    timeout: 120000
+    initTimeout: 30000
+    chatMenu: false
+    startup: false
+    requiresOAuth: true
+    oauth:
+      authorization_url: "https://github.com/login/oauth/authorize"
+      token_url: "https://github.com/login/oauth/access_token"
+      client_id: "${GITHUB_MCP_CLIENT_ID}"
+      client_secret: "${GITHUB_MCP_CLIENT_SECRET}"
+      redirect_uri: ${GITHUB_MCP_REDIRECT_URI}
+      # 'repo' is needed to READ private repos (GitHub has no read-only-private scope); the
+      # /readonly MCP endpoint still blocks all writes. Use 'public_repo' for public-only.
+      scope: "repo read:org read:user"
+    serverInstructions: |
+      **GitHub (read-only)**
+
+      Use GitHub to search and read repositories, files, issues, and pull requests that the
+      signed-in user can access.
+
+      **Authentication:** Users connect their GitHub account with OAuth on first use. The connector
+      can only access what the signed-in GitHub user can access, and is read-only.
 
   sharepoint:
     description: "Access SharePoint files"

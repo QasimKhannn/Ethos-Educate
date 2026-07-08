@@ -307,14 +307,14 @@ export function CoworkSkillsModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 duration-200 animate-in fade-in-0"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className="flex h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border-medium bg-surface-primary shadow-xl">
+      <div className="flex h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border-medium bg-surface-primary shadow-xl duration-200 animate-in fade-in-0 zoom-in-95">
         <div className="flex flex-none items-center justify-between border-b border-border-medium px-4 py-3">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-text-primary">

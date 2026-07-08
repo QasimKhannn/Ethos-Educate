@@ -474,7 +474,10 @@ export default function CoworkChat({
                       </div>
                     </div>
                   ) : (
-                    <div key={m.id} className="group flex justify-end">
+                    <div
+                      key={m.id}
+                      className="group flex justify-end duration-300 animate-in fade-in-0 slide-in-from-bottom-1"
+                    >
                       <div className="relative max-w-[80%]">
                         {/* Attached images / files shown in the user's own bubble */}
                         {m.files && m.files.length > 0 && (
@@ -525,7 +528,10 @@ export default function CoworkChat({
                   )
                 ) : (
                   // Agent reply — left-aligned, icon + prose.
-                  <div key={m.id} className="group flex gap-3">
+                  <div
+                    key={m.id}
+                    className="group flex gap-3 duration-300 animate-in fade-in-0 slide-in-from-bottom-1"
+                  >
                     <div className="mt-0.5 flex size-6 flex-none items-center justify-center rounded-full bg-surface-tertiary">
                       <Feather className="size-3.5 text-text-info" />
                     </div>
@@ -570,7 +576,7 @@ export default function CoworkChat({
                                 <button
                                   type="button"
                                   onClick={onOpenPreview}
-                                  className={`inline-flex items-center gap-1.5 rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary ${
+                                  className={`inline-flex items-center gap-1.5 rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 text-xs text-text-secondary transition-colors duration-300 animate-in fade-in-0 hover:bg-surface-tertiary hover:text-text-primary ${
                                     rest ? 'mt-2' : ''
                                   }`}
                                 >
