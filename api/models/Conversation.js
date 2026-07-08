@@ -197,6 +197,10 @@ module.exports = {
     } = {},
   ) => {
     const filters = [{ user }];
+    // cowork — keep Cowork conversations OUT of the normal chat history. They belong to Cowork mode
+    // only (identified by the seeded Cowork agent id) and are surfaced via the Cowork project view.
+    // `$ne` also matches documents with no `agent_id`, so ordinary chats and other agents are unaffected.
+    filters.push({ agent_id: { $ne: 'agent_cowork_default' } });
     if (isArchived) {
       filters.push({ isArchived: true });
     } else {
@@ -316,6 +320,8 @@ module.exports = {
       const results = await Conversation.find({
         user,
         conversationId: { $in: conversationIds },
+        // cowork — exclude Cowork conversations from normal chat search results (see getConvosByCursor).
+        agent_id: { $ne: 'agent_cowork_default' },
         $or: [{ expiredAt: { $exists: false } }, { expiredAt: null }],
       }).lean();
 
