@@ -9,7 +9,7 @@ type AgentSupportContact = {
 };
 
 type AgentContactFields = t.Agent & {
-  support_contact?: AgentSupportContact | null ;
+  support_contact?: AgentSupportContact | null;
   authorName?: string | null;
 };
 
@@ -83,7 +83,9 @@ const getAgentNameSlug = (name: string | null | undefined): string | null => {
 };
 
 export const normalizeAgentBrandText = (value: string | null | undefined): string => {
-  return value?.replace(/\bEduChat\b/gi, 'Ethos') ?? '';
+  return (
+    value?.replace(/\bLibreChat\b/gi, 'Ethos Enterprise').replace(/\bEduChat\b/gi, 'Ethos') ?? ''
+  );
 };
 
 export const getAgentDisplayName = (agent: t.Agent | null | undefined): string => {
@@ -102,7 +104,7 @@ export const getStaticAgentIconUrlForName = (name: string | null | undefined): s
 
 export const getAgentAvatarImageUrl = (agent: t.Agent | null | undefined): string | null => {
   return (
-    normalizeAgentAvatarUrl(getAgentAvatarUrl(agent)) ?? getStaticAgentIconUrlForName(agent?.name)
+    getStaticAgentIconUrlForName(agent?.name) ?? normalizeAgentAvatarUrl(getAgentAvatarUrl(agent))
   );
 };
 

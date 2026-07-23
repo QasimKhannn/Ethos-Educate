@@ -11,8 +11,11 @@ import {
 } from 'react';
 import { useRecoilValue } from 'recoil';
 import { motion } from 'framer-motion';
-import { Skeleton, useMediaQuery } from '@librechat/client';
-import { PermissionTypes, Permissions } from 'librechat-data-provider';
+import { Link, useLocation } from 'react-router-dom';
+import { Briefcase, LayoutGrid, MessageSquareText, PanelLeftOpen, SquarePen } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Avatar, Button, Skeleton, TooltipAnchor, useMediaQuery } from '@librechat/client';
+import { PermissionTypes, Permissions, QueryKeys } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { List } from 'react-virtualized';
@@ -22,21 +25,29 @@ import {
   useAuthContext,
   useLocalStorage,
   useNavScrolling,
+  useNewConvo,
 } from '~/hooks';
-import { useConversationsInfiniteQuery, useTitleGeneration } from '~/data-provider';
+import {
+  useConversationsInfiniteQuery,
+  useCoworkAccessQuery,
+  useTitleGeneration,
+} from '~/data-provider';
 import { Conversations } from '~/components/Conversations';
 import { ProjectsNav } from '~/components/Projects';
 import CoworkNavLink from '~/components/Cowork/CoworkNavLink'; // cowork
 import FavoritesList from './Favorites/FavoritesList';
+import HelpAndFaqButton from './HelpAndFaqButton';
 import SearchBar from './SearchBar';
 import NewChat from './NewChat';
 import {
+  SIDEBAR_FOCUS_DELAY_MS,
   SIDEBAR_ANIMATION_MS,
   SIDEBAR_ANIMATION_SECONDS,
   SIDEBAR_EASE_CSS,
   SIDEBAR_MOTION_EASE,
 } from './sidebarMotion';
-import { cn } from '~/utils';
+import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
+import { clearMessagesCache, cn } from '~/utils';
 import store from '~/store';
 
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
@@ -45,7 +56,181 @@ const AccountSettings = lazy(() => import('./AccountSettings'));
 export const NAV_WIDTH = {
   MOBILE: 320,
   DESKTOP: 260,
+  RAIL: 72,
 } as const;
+
+const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
+  const localize = useLocalize();
+  const { user } = useAuthContext();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const { newConversation } = useNewConvo();
+  const { data: coworkAccess } = useCoworkAccessQuery();
+  const conversation = useRecoilValue(store.conversationByIndex(0));
+
+  const handleNewChat: React.MouseEventHandler<HTMLButtonElement> = useCallback(
+    (event) => {
+      if (event.button === 0 && (event.ctrlKey || event.metaKey)) {
+        window.open('/c/new', '_blank');
+        return;
+      }
+
+      clearMessagesCache(queryClient, conversation?.conversationId);
+      queryClient.invalidateQueries([QueryKeys.messages]);
+      newConversation();
+    },
+    [conversation?.conversationId, newConversation, queryClient],
+  );
+
+  const actionClassName = (active = false) =>
+    cn(
+      'inline-flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-[#DCE7FF] outline-none transition-all duration-200',
+      'hover:border-white/10 hover:bg-white/10 hover:text-[#E8C37F] focus-visible:ring-2 focus-visible:ring-[#DAAC60]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#102A68]',
+      active &&
+        'border-white/55 bg-white text-[#10224A] shadow-[0_8px_22px_rgba(4,17,51,0.22)] hover:border-white hover:bg-white hover:text-[#B47D26]',
+    );
+
+  const openAndFocusSidebar = () => {
+    openSidebar();
+    setTimeout(() => {
+      document.getElementById(CLOSE_SIDEBAR_ID)?.focus();
+    }, SIDEBAR_FOCUS_DELAY_MS);
+  };
+
+  return (
+    <nav
+      aria-label={`${localize('com_ui_chat_history')} compact navigation`}
+      className="flex h-full flex-col items-center px-2.5 py-4"
+    >
+      <div className="relative mb-4 h-8 w-11 overflow-hidden" aria-hidden="true">
+        <img
+          src="/assets/ethos-rays.png"
+          alt=""
+          className="absolute left-0 top-0 h-11 w-11 max-w-none object-contain"
+        />
+        <img
+          src="/assets/ethos-arc.png"
+          alt=""
+          className="absolute left-0 top-0 h-11 w-11 max-w-none object-contain"
+        />
+      </div>
+
+      <div className="flex flex-col items-center gap-2">
+        <TooltipAnchor
+          description={localize('com_ui_new_chat')}
+          render={
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              data-testid="compact-nav-new-chat-button"
+              aria-label={localize('com_ui_new_chat')}
+              className={actionClassName(location.pathname === '/c/new')}
+              onClick={handleNewChat}
+            >
+              <SquarePen className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          }
+        />
+
+        <div className="my-1 h-px w-7 bg-white/10" aria-hidden="true" />
+
+        <TooltipAnchor
+          description="Ethos Tools"
+          render={
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              aria-label="Ethos Tools"
+              className={actionClassName(location.pathname.startsWith('/agents'))}
+            >
+              <Link to="/agents">
+                <LayoutGrid className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            </Button>
+          }
+        />
+
+        {coworkAccess?.allowed !== false && (
+          <TooltipAnchor
+            description={localize('com_sidepanel_cowork_label')}
+            render={
+              <Button
+                asChild
+                size="icon"
+                variant="ghost"
+                aria-label={localize('com_sidepanel_cowork_label')}
+                className={actionClassName(location.pathname.startsWith('/cowork'))}
+              >
+                <Link to="/cowork">
+                  <Briefcase className="h-5 w-5 text-[#DAAC60]" aria-hidden="true" />
+                </Link>
+              </Button>
+            }
+          />
+        )}
+
+        <TooltipAnchor
+          description={localize('com_ui_chat_history')}
+          render={
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={localize('com_ui_chat_history')}
+              className={actionClassName(
+                location.pathname.startsWith('/c/') && location.pathname !== '/c/new',
+              )}
+              onClick={openAndFocusSidebar}
+            >
+              <MessageSquareText className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          }
+        />
+      </div>
+
+      <div className="mt-auto flex flex-col items-center gap-3">
+        <HelpAndFaqButton compact className={actionClassName()} />
+        <TooltipAnchor
+          description={localize('com_nav_open_sidebar')}
+          render={
+            <Button
+              id={OPEN_SIDEBAR_ID}
+              type="button"
+              size="icon"
+              variant="ghost"
+              data-testid="open-sidebar-button"
+              aria-label={localize('com_nav_open_sidebar')}
+              aria-expanded={false}
+              aria-controls="chat-history-nav"
+              className={actionClassName()}
+              onClick={openAndFocusSidebar}
+            >
+              <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          }
+        />
+        <div className="h-px w-7 bg-white/10" aria-hidden="true" />
+        <TooltipAnchor
+          description={localize('com_nav_account_settings')}
+          render={
+            <button
+              type="button"
+              aria-label={localize('com_nav_account_settings')}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-xs font-semibold text-white transition-colors hover:border-[#DAAC60]/60 hover:text-[#E8C37F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DAAC60]/70"
+              onClick={openAndFocusSidebar}
+            >
+              <Avatar user={user} size={32} />
+            </button>
+          }
+        />
+      </div>
+    </nav>
+  );
+});
+
+CompactNav.displayName = 'CompactNav';
 
 const NavMask = memo(
   ({
@@ -155,12 +340,6 @@ const Nav = memo(
       });
     }, [newUser, setNavVisible, setNewUser]);
 
-    const itemToggleNav = useCallback(() => {
-      if (isSmallScreen) {
-        toggleNavVisible();
-      }
-    }, [isSmallScreen, toggleNavVisible]);
-
     useEffect(() => {
       if (isSmallScreen) {
         const savedNavVisible = localStorage.getItem('navVisible');
@@ -262,19 +441,14 @@ const Nav = memo(
           {...{ inert: !navVisible ? '' : undefined }}
         >
           <div className="flex flex-1 flex-col overflow-hidden" ref={outerContainerRef}>
-            <MemoNewChat
-              toggleNav={toggleNavVisible}
-              headerButtons={headerButtons}
-              isSmallScreen={isSmallScreen}
-            />
-            <FavoritesList isSmallScreen={isSmallScreen} toggleNav={itemToggleNav} />
-            <CoworkNavLink toggleNav={itemToggleNav} />
-            <ProjectsNav toggleNav={itemToggleNav} />
+            <MemoNewChat toggleNav={toggleNavVisible} headerButtons={headerButtons} />
+            <FavoritesList />
+            <CoworkNavLink />
+            <ProjectsNav />
             <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
               <Conversations
                 conversations={conversations}
                 moveToTop={moveToTop}
-                toggleNav={itemToggleNav}
                 containerRef={conversationsRef}
                 loadMoreConversations={loadMoreConversations}
                 isLoading={isFetchingNextPage || showLoading || isLoading}
@@ -285,6 +459,7 @@ const Nav = memo(
               />
             </div>
           </div>
+          <HelpAndFaqButton />
           <Suspense fallback={<Skeleton className="mt-1 h-12 w-full rounded-xl" />}>
             <AccountSettings />
           </Suspense>
@@ -324,9 +499,9 @@ const Nav = memo(
     // Desktop: Inline sidebar with width transition
     return (
       <div
-        className="flex-shrink-0 overflow-hidden"
+        className="relative flex-shrink-0 overflow-hidden"
         style={{
-          width: navVisible ? sidebarWidth : 0,
+          width: navVisible ? sidebarWidth : NAV_WIDTH.RAIL,
           transition: `width ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
           willChange: 'width',
         }}
@@ -345,6 +520,20 @@ const Nav = memo(
           transition={{ duration: SIDEBAR_ANIMATION_SECONDS, ease: SIDEBAR_MOTION_EASE }}
         >
           {sidebarContent}
+        </motion.div>
+        <motion.div
+          data-testid="compact-nav"
+          className="sidebar-rail sidebar-shell-divider absolute left-0 top-0 h-full bg-surface-primary-alt"
+          style={{ width: NAV_WIDTH.RAIL }}
+          initial={false}
+          animate={{
+            x: navVisible ? -NAV_WIDTH.RAIL : 0,
+          }}
+          transition={{ duration: SIDEBAR_ANIMATION_SECONDS, ease: SIDEBAR_MOTION_EASE }}
+          aria-hidden={navVisible}
+          {...{ inert: navVisible ? '' : undefined }}
+        >
+          <CompactNav openSidebar={toggleNavVisible} />
         </motion.div>
       </div>
     );

@@ -3,6 +3,7 @@ import { getEndpointField } from 'librechat-data-provider';
 import type { Assistant, Agent } from 'librechat-data-provider';
 import type { TMessageIcon } from '~/common';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
+import EthosModelMark, { isEthosModelName } from '~/components/Endpoints/EthosModelMark';
 import { useGetEndpointsQuery } from '~/data-provider';
 import {
   getAgentAvatarImageUrl,
@@ -74,6 +75,10 @@ const MessageIcon = memo(
           agentName={agentName}
         />
       );
+    }
+
+    if (isEthosModelName(iconData?.modelLabel)) {
+      return <EthosModelMark />;
     }
 
     return (

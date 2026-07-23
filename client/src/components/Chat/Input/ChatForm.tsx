@@ -35,6 +35,8 @@ import BadgeRow from './BadgeRow';
 import Mention from './Mention';
 import store from '~/store';
 
+const mobileKeyboardHint = { enterKeyHint: 'enter' as const };
+
 const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const submitButtonRef = useRef<HTMLButtonElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -285,6 +287,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                       onCompositionEnd={handleCompositionEnd}
                       id={mainTextareaId}
                       tabIndex={0}
+                      {...mobileKeyboardHint}
                       data-testid="text-input"
                       rows={1}
                       onFocus={() => {
@@ -319,10 +322,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                 )}
               >
                 <div className={`${isRTL ? 'mr-2' : 'ml-2'}`}>
-                  <AttachFileChat
-                    conversation={conversation}
-                    disableInputs={disableInputs}
-                  />
+                  <AttachFileChat conversation={conversation} disableInputs={disableInputs} />
                 </div>
                 <BadgeRow
                   showEphemeralBadges={
@@ -353,12 +353,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                       <SendButton
                         ref={submitButtonRef}
                         control={methods.control}
-                        disabled={
-                          filesLoading ||
-                          isSubmitting ||
-                          disableInputs ||
-                          isNotAppendable
-                        }
+                        disabled={filesLoading || isSubmitting || disableInputs || isNotAppendable}
                       />
                     )
                   )}

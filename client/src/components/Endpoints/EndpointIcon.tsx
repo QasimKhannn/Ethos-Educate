@@ -6,6 +6,7 @@ import type {
   TEndpointsConfig,
 } from 'librechat-data-provider';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
+import EthosModelMark, { isEthosModelName } from '~/components/Endpoints/EthosModelMark';
 import MinimalIcon from '~/components/Endpoints/MinimalIcon';
 import { getIconEndpoint, isAgentAvatarImageUrl, normalizeAgentAvatarUrl } from '~/utils';
 
@@ -52,20 +53,28 @@ export default function EndpointIcon({
         assistantName={assistantName ?? ''}
       />
     );
-  } else {
-    return (
-      <MinimalIcon
-        size={20}
-        iconURL={endpointIconURL}
-        endpoint={endpoint}
-        endpointType={endpointType}
-        model={conversation?.model}
-        error={false}
-        className={className}
-        isCreatedByUser={false}
-        chatGptLabel={undefined}
-        modelLabel={undefined}
-      />
-    );
   }
+
+  if (
+    isEthosModelName(conversation?.spec) ||
+    isEthosModelName(conversation?.modelLabel) ||
+    isEthosModelName(conversation?.chatGptLabel)
+  ) {
+    return <EthosModelMark />;
+  }
+
+  return (
+    <MinimalIcon
+      size={20}
+      iconURL={endpointIconURL}
+      endpoint={endpoint}
+      endpointType={endpointType}
+      model={conversation?.model}
+      error={false}
+      className={className}
+      isCreatedByUser={false}
+      chatGptLabel={undefined}
+      modelLabel={undefined}
+    />
+  );
 }

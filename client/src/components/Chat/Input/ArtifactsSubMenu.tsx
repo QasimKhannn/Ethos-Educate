@@ -13,6 +13,7 @@ interface ArtifactsSubMenuProps {
   handleArtifactsToggle: () => void;
   handleShadcnToggle: () => void;
   handleCustomToggle: () => void;
+  showDeveloperOptions: boolean;
 }
 
 const ArtifactsSubMenu = React.forwardRef<HTMLDivElement, ArtifactsSubMenuProps>(
@@ -24,6 +25,7 @@ const ArtifactsSubMenu = React.forwardRef<HTMLDivElement, ArtifactsSubMenuProps>
       handleArtifactsToggle,
       handleShadcnToggle,
       handleCustomToggle,
+      showDeveloperOptions,
       ...props
     },
     ref,
@@ -99,26 +101,27 @@ const ArtifactsSubMenu = React.forwardRef<HTMLDivElement, ArtifactsSubMenuProps>
                   {localize('com_ui_artifacts_options')}
                 </div>
 
-                {/* Include shadcn/ui Option */}
-                <Ariakit.MenuItem
-                  hideOnClick={false}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleShadcnToggle();
-                  }}
-                  className={cn(
-                    'mb-1 flex items-center justify-between gap-2 rounded-lg px-2 py-2',
-                    'cursor-pointer bg-surface-secondary text-text-primary outline-none transition-colors',
-                    'hover:bg-surface-hover data-[active-item]:bg-surface-hover',
-                    isShadcnEnabled && 'bg-surface-active',
-                  )}
-                >
-                  <span className="text-sm">{localize('com_ui_include_shadcnui' as any)}</span>
-                  <div className="ml-auto flex items-center">
-                    <Ariakit.MenuItemCheck checked={isShadcnEnabled} />
-                  </div>
-                </Ariakit.MenuItem>
+                {showDeveloperOptions && (
+                  <Ariakit.MenuItem
+                    hideOnClick={false}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleShadcnToggle();
+                    }}
+                    className={cn(
+                      'mb-1 flex items-center justify-between gap-2 rounded-lg px-2 py-2',
+                      'cursor-pointer bg-surface-secondary text-text-primary outline-none transition-colors',
+                      'hover:bg-surface-hover data-[active-item]:bg-surface-hover',
+                      isShadcnEnabled && 'bg-surface-active',
+                    )}
+                  >
+                    <span className="text-sm">{localize('com_ui_include_shadcnui')}</span>
+                    <div className="ml-auto flex items-center">
+                      <Ariakit.MenuItemCheck checked={isShadcnEnabled} />
+                    </div>
+                  </Ariakit.MenuItem>
+                )}
 
                 {/* Custom Prompt Mode Option */}
                 <Ariakit.MenuItem
@@ -135,7 +138,7 @@ const ArtifactsSubMenu = React.forwardRef<HTMLDivElement, ArtifactsSubMenuProps>
                     isCustomEnabled && 'bg-surface-active',
                   )}
                 >
-                  <span className="text-sm">{localize('com_ui_custom_prompt_mode' as any)}</span>
+                  <span className="text-sm">{localize('com_ui_custom_prompt_mode')}</span>
                   <div className="ml-auto flex items-center">
                     <Ariakit.MenuItemCheck checked={isCustomEnabled} />
                   </div>

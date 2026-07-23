@@ -136,6 +136,11 @@ describe('Agent Utilities', () => {
       expect(normalizeAgentBrandText('EduChat Support Assistant')).toBe('Ethos Support Assistant');
       expect(normalizeAgentBrandText('by educhat')).toBe('by Ethos');
     });
+
+    it('should replace LibreChat branding with Ethos Enterprise', () => {
+      expect(normalizeAgentBrandText('Welcome to LibreChat!')).toBe('Welcome to Ethos Enterprise!');
+      expect(normalizeAgentBrandText('LIBRECHAT workspace')).toBe('Ethos Enterprise workspace');
+    });
   });
 
   describe('getAgentDisplayName', () => {

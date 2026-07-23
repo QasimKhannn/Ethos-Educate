@@ -8,6 +8,7 @@ import type { TSpecialVarLabel } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
 import { cn, defaultTextProps, removeFocusOutlines } from '~/utils';
 import { useLocalize } from '~/hooks';
+import AgentFieldLabel from './AgentFieldLabel';
 
 const inputClass = cn(
   defaultTextProps,
@@ -44,9 +45,13 @@ export default function Instructions() {
   return (
     <div className="mb-4">
       <div className="mb-2 flex items-center">
-        <label className="text-token-text-primary flex-grow font-medium" htmlFor="instructions">
-          {localize('com_ui_instructions')}
-        </label>
+        <AgentFieldLabel
+          className="mb-0 flex-grow"
+          htmlFor="instructions"
+          label={localize('com_ui_instructions')}
+          description={localize('com_ui_agent_instructions_help')}
+          required
+        />
         <div className="ml-auto" title="Add variables to instructions">
           <DropdownPopup
             portal={true}

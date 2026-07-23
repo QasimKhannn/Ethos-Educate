@@ -125,6 +125,7 @@ export type AgentIconMapProps = IconMapProps & { agentName?: string };
 
 export type NavLink = {
   title: TranslationKeys;
+  description?: TranslationKeys;
   label?: string;
   icon: LucideIcon | React.FC;
   Component?: React.ComponentType;

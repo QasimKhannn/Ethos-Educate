@@ -62,13 +62,13 @@ export default function PromptsView() {
 
   return (
     <PromptGroupsProvider>
-      <div className="flex h-screen w-full flex-col bg-surface-primary p-0 lg:p-2">
+      <div className="prompts-dashboard-shell flex h-screen w-full flex-col p-0">
         <DashBreadcrumb
           showToggle={isSmallerScreen && isDetailView}
           onToggle={togglePanel}
           openPanelRef={openPanelRef}
         />
-        <div className="flex w-full flex-grow flex-row overflow-hidden">
+        <div className="prompts-dashboard-workspace flex w-full flex-grow flex-row overflow-hidden">
           {isSmallerScreen && panelVisible && isDetailView && (
             <div
               className="fixed inset-0 z-40 bg-black/50 transition-opacity"
@@ -89,10 +89,11 @@ export default function PromptsView() {
               )}
             >
               <GroupSidePanel
+                className="prompts-library-panel"
                 closePanelRef={closePanelRef}
                 onClose={isSmallerScreen && isDetailView ? togglePanel : undefined}
               >
-                <div className="mt-1 flex flex-row items-center justify-between px-2 md:px-2">
+                <div className="prompts-library-filter flex flex-row items-center justify-between">
                   <FilterPrompts dropdownClassName="z-[100]" />
                 </div>
               </GroupSidePanel>
@@ -101,7 +102,7 @@ export default function PromptsView() {
 
           <div
             className={cn(
-              'scrollbar-gutter-stable w-full overflow-y-auto lg:w-3/4 xl:w-3/4',
+              'prompts-dashboard-main scrollbar-gutter-stable w-full overflow-y-auto lg:w-3/4 xl:w-3/4',
               isDetailView ? 'block' : 'hidden md:block',
             )}
           >

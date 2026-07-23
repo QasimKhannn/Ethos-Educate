@@ -103,7 +103,10 @@ function AuthLayout({
         <div className="mx-auto sm:max-w-sm">
           <ErrorMessage>
             {localize('com_auth_error_invalid_reset_token')}{' '}
-            <a className="font-semibold text-green-600 hover:underline" href="/forgot-password">
+            <a
+              className="font-semibold text-[#9A671E] hover:underline dark:text-[#DAAC60]"
+              href="/forgot-password"
+            >
               {localize('com_auth_click_here')}
             </a>{' '}
             {localize('com_auth_to_try_again')}
@@ -134,14 +137,14 @@ function AuthLayout({
           <BlinkAnimation active={isFetching}>
             <div className="mb-8 flex justify-center text-center">
               <img
-                src="/assets/ethos-enterprise-logo-light.png"
+                src="/assets/ethos-educate-logo-light.svg"
                 className="h-20 w-auto max-w-[200px] object-contain dark:hidden sm:h-24"
-                alt={localize('com_ui_logo', { 0: 'Ethos Enterprise' })}
+                alt={localize('com_ui_logo', { 0: 'Ethos Educate' })}
               />
               <img
-                src="/assets/ethos-enterprise-logo.png"
+                src="/assets/ethos-educate-logo-dark.svg"
                 className="hidden h-20 w-auto max-w-[200px] object-contain dark:block sm:h-24"
-                alt={localize('com_ui_logo', { 0: 'Ethos Enterprise' })}
+                alt={localize('com_ui_logo', { 0: 'Ethos Educate' })}
               />
             </div>
           </BlinkAnimation>

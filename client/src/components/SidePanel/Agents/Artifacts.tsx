@@ -1,5 +1,5 @@
 import { useFormContext } from 'react-hook-form';
-import { ArtifactModes, AgentCapabilities } from 'librechat-data-provider';
+import { ArtifactModes, AgentCapabilities, SystemRoles } from 'librechat-data-provider';
 import {
   Switch,
   HoverCard,
@@ -9,11 +9,12 @@ import {
   CircleHelpIcon,
 } from '@librechat/client';
 import type { AgentForm } from '~/common';
-import { useLocalize } from '~/hooks';
+import { useAuthContext, useLocalize } from '~/hooks';
 import { ESide } from '~/common';
 
 export default function Artifacts() {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const methods = useFormContext<AgentForm>();
   const { setValue, watch } = methods;
 
@@ -58,14 +59,16 @@ export default function Artifacts() {
           onCheckedChange={handleArtifactsChange}
           hoverCardText={localize('com_nav_info_code_artifacts_agent')}
         />
-        <SwitchItem
-          id="includeShadcnui"
-          label={localize('com_ui_include_shadcnui')}
-          checked={isShadcnEnabled}
-          onCheckedChange={handleShadcnuiChange}
-          hoverCardText={localize('com_nav_info_include_shadcnui')}
-          disabled={!isEnabled || isCustomEnabled}
-        />
+        {user?.role === SystemRoles.ADMIN && (
+          <SwitchItem
+            id="includeShadcnui"
+            label={localize('com_ui_include_shadcnui')}
+            checked={isShadcnEnabled}
+            onCheckedChange={handleShadcnuiChange}
+            hoverCardText={localize('com_nav_info_include_shadcnui')}
+            disabled={!isEnabled || isCustomEnabled}
+          />
+        )}
         <SwitchItem
           id="customPromptMode"
           label={localize('com_ui_custom_prompt_mode')}

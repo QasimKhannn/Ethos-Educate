@@ -4,25 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { TooltipAnchor, Button } from '@librechat/client';
 import { useLocalize, useShowMarketplace } from '~/hooks';
 
-interface AgentMarketplaceButtonProps {
-  isSmallScreen?: boolean;
-  toggleNav: () => void;
-}
-
-export default function AgentMarketplaceButton({
-  isSmallScreen,
-  toggleNav,
-}: AgentMarketplaceButtonProps) {
+export default function AgentMarketplaceButton() {
   const navigate = useNavigate();
   const localize = useLocalize();
   const showAgentMarketplace = useShowMarketplace();
 
   const handleAgentMarketplace = useCallback(() => {
     navigate('/agents');
-    if (isSmallScreen) {
-      toggleNav();
-    }
-  }, [navigate, isSmallScreen, toggleNav]);
+  }, [navigate]);
 
   if (!showAgentMarketplace) {
     return null;

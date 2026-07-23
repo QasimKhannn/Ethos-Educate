@@ -8,9 +8,10 @@ import {
   Permissions,
   ArtifactModes,
   PermissionTypes,
+  SystemRoles,
   defaultAgentCapabilities,
 } from 'librechat-data-provider';
-import { useLocalize, useHasAccess, useAgentCapabilities } from '~/hooks';
+import { useAuthContext, useLocalize, useHasAccess, useAgentCapabilities } from '~/hooks';
 import ArtifactsSubMenu from '~/components/Chat/Input/ArtifactsSubMenu';
 import MCPSubMenu from '~/components/Chat/Input/MCPSubMenu';
 import ToolFeatureIcon from '~/components/Chat/Input/ToolFeatureIcon';
@@ -24,6 +25,8 @@ interface ToolsDropdownProps {
 
 const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
   const localize = useLocalize();
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === SystemRoles.ADMIN;
   const isDisabled = disabled ?? false;
   const [isPopoverActive, setIsPopoverActive] = useState(false);
   const {
@@ -221,7 +224,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     });
   }
 
-  if (canRunCode && codeEnabled) {
+  if (isAdmin && canRunCode && codeEnabled) {
     dropdownItems.push({
       onClick: handleCodeInterpreterToggle,
       hideOnClick: false,
@@ -287,13 +290,14 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
           handleArtifactsToggle={handleArtifactsToggle}
           handleShadcnToggle={handleShadcnToggle}
           handleCustomToggle={handleCustomToggle}
+          showDeveloperOptions={isAdmin}
         />
       ),
     });
   }
 
   const { availableMCPServers } = mcpServerManager;
-  if (canUseMcp && availableMCPServers && availableMCPServers.length > 0) {
+  if (isAdmin && canUseMcp && availableMCPServers && availableMCPServers.length > 0) {
     dropdownItems.push({
       hideOnClick: false,
       render: (props) => <MCPSubMenu {...props} placeholder={mcpPlaceholder} />,

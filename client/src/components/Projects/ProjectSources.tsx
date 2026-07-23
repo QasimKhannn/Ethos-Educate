@@ -11,6 +11,7 @@ import {
   useRemoveProjectFileMutation,
 } from '~/data-provider';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
 
 const formatBytes = (bytes?: number) => {
   if (!bytes) {
@@ -30,6 +31,7 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToastContext();
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const { data: files = [], isLoading } = useProjectFilesQuery(projectId);
   const uploadFile = useUploadFileMutation();
   const addProjectFiles = useAddProjectFilesMutation();
@@ -83,23 +85,55 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
   return (
     <div className="w-full max-w-5xl space-y-5">
       <div
-        className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-light bg-surface-primary px-6 text-center"
-        onDragOver={(event) => event.preventDefault()}
+        className={cn(
+          'relative isolate flex min-h-[300px] flex-col items-center justify-center overflow-hidden px-6 py-12 text-center transition-colors duration-200',
+          isDragging && 'bg-[#DAAC60]/[0.07]',
+        )}
+        aria-busy={isUploading}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+          setIsDragging(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setIsDragging(false);
+          }
+        }}
         onDrop={(event) => {
           event.preventDefault();
+          setIsDragging(false);
           handleFiles(event.dataTransfer.files);
         }}
       >
-        <div className="mb-5 flex -space-x-2">
-          <div className="rounded-xl border border-border-light bg-surface-secondary p-3">
-            <Paperclip className="h-5 w-5" />
+        <div
+          className="pointer-events-none absolute inset-x-16 top-10 -z-10 h-32 rounded-full bg-[#DAAC60]/10 blur-3xl dark:bg-[#DAAC60]/[0.07]"
+          aria-hidden="true"
+        />
+        <div className="relative mb-6" aria-hidden="true">
+          <div
+            className={cn(
+              'flex h-16 w-16 items-center justify-center rounded-full border border-[#DAAC60]/45 bg-[#DAAC60]/10 text-[#B47D26] shadow-[0_14px_34px_rgba(98,63,9,0.12)] transition-transform duration-200 dark:text-[#E8C37F]',
+              isDragging && 'scale-110',
+            )}
+          >
+            <UploadCloud className="h-7 w-7" />
           </div>
-          <div className="rounded-xl border border-border-light bg-surface-secondary p-3">
-            <UploadCloud className="h-5 w-5" />
+          <div className="absolute -bottom-1 -right-2 flex h-8 w-8 items-center justify-center rounded-full border border-border-light bg-surface-primary text-text-secondary shadow-sm">
+            <Paperclip className="h-4 w-4" />
           </div>
         </div>
-        <h2 className="text-lg font-semibold">{localize('com_projects_sources_title')}</h2>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">
+        <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-[#B47D26] dark:text-[#E8C37F]">
+          {localize('com_projects_sources_eyebrow')}
+        </div>
+        <h2 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+          {localize('com_projects_sources_title')}
+        </h2>
+        <p className="mt-2.5 max-w-lg text-sm leading-6 text-text-secondary">
           {localize('com_projects_sources_description')}
         </p>
         <input
@@ -112,7 +146,7 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
         <Button
           type="button"
           disabled={isUploading}
-          className="mt-6 rounded-full"
+          className="mt-6 min-w-[156px] rounded-full bg-[#DAAC60] px-6 text-[#10224A] shadow-[0_8px_22px_rgba(98,63,9,0.18)] hover:bg-[#E8C37F] focus-visible:ring-2 focus-visible:ring-[#DAAC60]/50 disabled:bg-[#DAAC60]/55 disabled:text-[#10224A]/65"
           onClick={() => inputRef.current?.click()}
         >
           {isUploading ? (
@@ -122,6 +156,11 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
           )}
           {localize('com_projects_add_sources')}
         </Button>
+        <p className="mt-4 text-xs font-medium text-text-secondary">
+          {localize(
+            isDragging ? 'com_projects_sources_drop_now' : 'com_projects_sources_drop_hint',
+          )}
+        </p>
       </div>
 
       {isLoading ? (

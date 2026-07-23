@@ -103,85 +103,92 @@ const CreatePromptForm = ({
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmit)} className="w-full px-4 py-2">
-        <h1 className="sr-only">{localize('com_ui_create_prompt_page')}</h1>
-        <div className="mb-1 flex flex-col items-center justify-between font-bold sm:text-xl md:mb-0 md:text-2xl">
-          <div className="flex w-full flex-col items-center justify-between sm:flex-row">
+      <form onSubmit={handleSubmit(onSubmit)} className="prompts-create-form w-full">
+        <div className="prompts-create-form-heading">
+          <h1>{localize('com_ui_create_prompt_page')}</h1>
+          <span>{localize('com_ui_prompt_create_description')}</span>
+        </div>
+        <div className="prompts-create-fields">
+          <Controller
+            name="name"
+            control={control}
+            rules={{ required: localize('com_ui_prompt_name_required') }}
+            render={({ field }) => (
+              <div className="prompts-create-name-field">
+                <Input
+                  {...field}
+                  id="prompt-name"
+                  type="text"
+                  className="peer w-full border border-border-medium p-3 text-base text-text-primary"
+                  placeholder=" "
+                  tabIndex={0}
+                  aria-label={localize('com_ui_prompt_name')}
+                />
+                <label
+                  htmlFor="prompt-name"
+                  className="pointer-events-none absolute -top-1 left-3 origin-[0] translate-y-3 scale-100 rounded bg-white px-1 text-base text-text-secondary transition-transform duration-200 peer-placeholder-shown:translate-y-3 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 peer-focus:text-text-primary peer-[:not(:placeholder-shown)]:-translate-y-2 peer-[:not(:placeholder-shown)]:scale-75 dark:bg-gray-850"
+                >
+                  {localize('com_ui_prompt_name')}*
+                </label>
+                <div
+                  className={cn(
+                    'mt-1 text-sm text-red-500',
+                    errors.name ? 'visible h-auto' : 'invisible h-0',
+                  )}
+                >
+                  {errors.name ? errors.name.message : ' '}
+                </div>
+              </div>
+            )}
+          />
+          <div className="prompts-create-instruction-field">
+            <label htmlFor="prompt-instruction">
+              {localize('com_ui_prompt_instruction_label')}*
+            </label>
             <Controller
-              name="name"
+              name="prompt"
               control={control}
-              rules={{ required: localize('com_ui_prompt_name_required') }}
+              rules={{ required: localize('com_ui_prompt_text_required') }}
               render={({ field }) => (
-                <div className="relative mb-1 flex flex-col md:mb-0">
-                  <Input
+                <div>
+                  <TextareaAutosize
                     {...field}
-                    id="prompt-name"
-                    type="text"
-                    className="peer mr-2 w-full border border-border-medium p-2 text-2xl text-text-primary"
-                    placeholder=" "
+                    id="prompt-instruction"
+                    className="prompts-create-instruction-input"
+                    minRows={7}
                     tabIndex={0}
-                    aria-label={localize('com_ui_prompt_name')}
+                    aria-label={localize('com_ui_prompt_input_field')}
                   />
-                  <label
-                    htmlFor="prompt-name"
-                    className="pointer-events-none absolute -top-1 left-3 origin-[0] translate-y-3 scale-100 rounded bg-white px-1 text-base text-text-secondary transition-transform duration-200 peer-placeholder-shown:translate-y-3 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 peer-focus:text-text-primary peer-[:not(:placeholder-shown)]:-translate-y-2 peer-[:not(:placeholder-shown)]:scale-75 dark:bg-gray-850"
-                  >
-                    {localize('com_ui_prompt_name')}*
-                  </label>
                   <div
-                    className={cn(
-                      'mt-1 w-56 text-sm text-red-500',
-                      errors.name ? 'visible h-auto' : 'invisible h-0',
-                    )}
+                    className={`mt-1 text-sm text-red-500 ${
+                      errors.prompt ? 'visible h-auto' : 'invisible h-0'
+                    }`}
                   >
-                    {errors.name ? errors.name.message : ' '}
+                    {errors.prompt ? errors.prompt.message : ' '}
                   </div>
                 </div>
               )}
             />
-            <CategorySelector />
           </div>
-        </div>
-        <div className="flex w-full flex-col gap-4 md:mt-[1.075rem]">
-          <div>
-            <h2 className="flex items-center justify-between rounded-t-lg border border-border-medium py-2 pl-4 pr-1 text-base font-semibold dark:text-gray-200">
-              <span>{localize('com_ui_prompt_text')}*</span>
-              <VariablesDropdown fieldName="prompt" className="mr-2" />
-            </h2>
-            <div className="min-h-32 rounded-b-lg border border-border-medium p-4 transition-all duration-150">
-              <Controller
-                name="prompt"
-                control={control}
-                rules={{ required: localize('com_ui_prompt_text_required') }}
-                render={({ field }) => (
-                  <div>
-                    <TextareaAutosize
-                      {...field}
-                      className="w-full rounded border border-border-medium px-2 py-1 focus:outline-none dark:bg-transparent dark:text-gray-200"
-                      minRows={6}
-                      tabIndex={0}
-                      aria-label={localize('com_ui_prompt_input_field')}
-                    />
-                    <div
-                      className={`mt-1 text-sm text-red-500 ${
-                        errors.prompt ? 'visible h-auto' : 'invisible h-0'
-                      }`}
-                    >
-                      {errors.prompt ? errors.prompt.message : ' '}
-                    </div>
-                  </div>
-                )}
+          <details className="prompts-create-optional-tools">
+            <summary>{localize('com_ui_prompt_optional_tools')}</summary>
+            <p>{localize('com_ui_prompt_optional_tools_description')}</p>
+            <div>
+              <div className="prompts-create-optional-actions">
+                <CategorySelector />
+                <VariablesDropdown fieldName="prompt" />
+              </div>
+              <PromptVariables promptText={promptText} />
+              <Description
+                onValueChange={(value) => methods.setValue('oneliner', value)}
+                tabIndex={0}
               />
+              <Command onValueChange={(value) => methods.setValue('command', value)} tabIndex={0} />
             </div>
-          </div>
-          <PromptVariables promptText={promptText} />
-          <Description
-            onValueChange={(value) => methods.setValue('oneliner', value)}
-            tabIndex={0}
-          />
-          <Command onValueChange={(value) => methods.setValue('command', value)} tabIndex={0} />
-          <div className="mt-4 flex justify-end">
+          </details>
+          <div className="flex justify-end">
             <Button
+              className="prompts-create-submit"
               aria-label={localize('com_ui_create_prompt')}
               tabIndex={0}
               type="submit"

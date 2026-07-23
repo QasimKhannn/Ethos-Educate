@@ -56,6 +56,14 @@ export default function GroupSidePanel({
         </div>
       )}
       <div className="flex flex-1 flex-col gap-2 overflow-visible">
+        {!isChatRoute && (
+          <div className="prompts-library-panel-heading">
+            <h2>{localize('com_ui_prompt_library_sidebar_title')}</h2>
+            <span className="prompts-library-count" aria-label={`${promptGroups.length}`}>
+              {promptGroups.length}
+            </span>
+          </div>
+        )}
         {children}
         <div className={cn('relative flex h-full flex-col', isChatRoute ? '' : 'px-2 md:px-0')}>
           <List

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { gsap } from 'gsap';
-import { ChevronRight, Search } from 'lucide-react';
+import { ChevronRight, RotateCw, Search, X } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
@@ -26,6 +26,8 @@ interface AgentGridProps {
   sortOption?: AgentSortOption;
   viewMode?: MarketplaceViewMode;
   onSelectAgent: (agent: t.Agent) => void;
+  onClearSearch?: () => void;
+  onViewAll?: () => void;
   scrollElementRef?: React.RefObject<HTMLElement>;
 }
 
@@ -44,6 +46,8 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   sortOption = 'featured',
   viewMode = 'compact',
   onSelectAgent,
+  onClearSearch,
+  onViewAll,
   scrollElementRef,
 }) => {
   const localize = useLocalize();
@@ -53,6 +57,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const [detailAgent, setDetailAgent] = useState<t.Agent | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isTourDetailOpen, setIsTourDetailOpen] = useState(false);
+  const emptyStateHeadingId = useId();
   const storefrontScrollRef = useRef<HTMLDivElement>(null);
   const { categories } = useAgentCategories();
   const shouldUseBackendDateSort = sortOption === 'newest' || sortOption === 'oldest';
@@ -311,7 +316,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     ? localize('com_agents_search_empty_heading')
     : localize('com_agents_empty_state_heading');
 
-  let emptyStateMessage = localize('com_agents_all_description');
+  let emptyStateMessage = localize('com_agents_empty_state_message');
   if (searchQuery) {
     emptyStateMessage = localize('com_agents_search_no_results', { query: searchQuery });
   } else if (category !== 'all' && category !== 'promoted') {
@@ -320,6 +325,26 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     });
   } else if (category === 'promoted') {
     emptyStateMessage = localize('com_agents_recommended');
+  }
+
+  let emptyStateAction = {
+    label: localize('com_agents_view_all'),
+    onClick: onViewAll,
+  };
+  let EmptyStateActionIcon = ChevronRight;
+
+  if (searchQuery) {
+    emptyStateAction = {
+      label: localize('com_agents_clear_search'),
+      onClick: onClearSearch,
+    };
+    EmptyStateActionIcon = X;
+  } else if (category === 'all') {
+    emptyStateAction = {
+      label: localize('com_agents_refresh_library'),
+      onClick: () => refetch(),
+    };
+    EmptyStateActionIcon = RotateCw;
   }
 
   const handleOpenAgent = (agent: t.Agent) => {
@@ -344,25 +369,35 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
   if ((!currentAgents || currentAgents.length === 0) && !isLoading && !isFetching) {
     return (
-      <div
+      <section
         className="agents-marketplace-empty"
         role="status"
         aria-live="polite"
-        aria-label={emptyStateHeading}
+        aria-labelledby={emptyStateHeadingId}
       >
         <motion.div
           initial={shouldReduceMotion ? false : 'hidden'}
           animate="visible"
           variants={softRevealVariants}
-          className="mx-auto flex max-w-md flex-col items-center text-center"
+          className="agents-marketplace-empty-content"
         >
-          <div className="bg-primary-tint mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border-light text-primary">
-            <Search className="h-5 w-5" aria-hidden="true" />
+          <div className="agents-marketplace-empty-icon" aria-hidden="true">
+            <Search className="h-6 w-6" />
           </div>
-          <h3 className="text-xl font-semibold text-text-primary">{emptyStateHeading}</h3>
-          <p className="mt-2 text-sm leading-6 text-text-secondary">{emptyStateMessage}</p>
+          <h3 id={emptyStateHeadingId}>{emptyStateHeading}</h3>
+          <p>{emptyStateMessage}</p>
+          {emptyStateAction.onClick && (
+            <button
+              type="button"
+              className="agents-marketplace-empty-action"
+              onClick={emptyStateAction.onClick}
+            >
+              <EmptyStateActionIcon className="h-4 w-4" aria-hidden="true" />
+              {emptyStateAction.label}
+            </button>
+          )}
         </motion.div>
-      </div>
+      </section>
     );
   }
 

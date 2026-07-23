@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, memo, useRef } from 'react';
 import * as Menu from '@ariakit/react/menu';
 import { ChevronDown, FileText, LogOut } from 'lucide-react';
-import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
+import { GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { MyFilesModal } from '~/components/Chat/Input/Files/MyFilesModal';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -18,33 +18,7 @@ function AccountSettings() {
   const [showSettings, setShowSettings] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [accountMenuWidth, setAccountMenuWidth] = useState<number | null>(null);
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
-  const accountMenu = Menu.useMenuStore({ open: isAccountMenuOpen, setOpen: setIsAccountMenuOpen });
-
-  const feedbackFormUrl = import.meta.env.VITE_FEEDBACK_FORM_URL;
-
-  useEffect(() => {
-    const button = accountSettingsButtonRef.current;
-
-    if (!button) {
-      return;
-    }
-
-    const syncWidth = () => setAccountMenuWidth(button.offsetWidth);
-
-    syncWidth();
-
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(() => syncWidth());
-
-    resizeObserver.observe(button);
-
-    return () => resizeObserver.disconnect();
-  }, []);
 
   const closeAccountTourMenu = useCallback(() => {
     setIsAccountMenuOpen(false);
@@ -63,7 +37,11 @@ function AccountSettings() {
   }, [closeAccountTourMenu]);
 
   return (
-    <Menu.MenuProvider store={accountMenu}>
+    <Menu.MenuProvider
+      open={isAccountMenuOpen}
+      setOpen={setIsAccountMenuOpen}
+      placement="top-start"
+    >
       <Menu.MenuButton
         ref={accountSettingsButtonRef}
         aria-label={localize('com_nav_account_settings')}
@@ -92,14 +70,16 @@ function AccountSettings() {
         />
       </Menu.MenuButton>
       <Menu.Menu
+        fixed
+        gutter={6}
+        sameWidth
         data-tour-id="nav-account-menu"
         data-tour-padding="-8"
         data-tour-radius="18"
         className="account-settings-popover popover-ui z-[125] rounded-2xl"
         style={{
           transformOrigin: 'bottom',
-          translate: '0 -4px',
-          width: accountMenuWidth != null ? `${accountMenuWidth}px` : undefined,
+          margin: 0,
           maxWidth: 'calc(100vw - 1rem)',
         }}
       >
@@ -119,22 +99,6 @@ function AccountSettings() {
         <Menu.MenuItem onClick={() => setShowFiles(true)} className="select-item text-sm">
           <FileText className="icon-md" aria-hidden="true" />
           {localize('com_nav_my_files')}
-        </Menu.MenuItem>
-        {startupConfig?.helpAndFaqURL !== '/' && (
-          <Menu.MenuItem
-            onClick={() => window.open(startupConfig?.helpAndFaqURL, '_blank')}
-            className="select-item text-sm"
-          >
-            <LinkIcon aria-hidden="true" />
-            {localize('com_nav_help_faq')}
-          </Menu.MenuItem>
-        )}
-        <Menu.MenuItem
-          onClick={() => window.open(feedbackFormUrl, '_blank')}
-          className="select-item text-sm"
-        >
-          <LinkIcon aria-hidden="true" />
-          {localize('com_nav_educhat_feedback')}
         </Menu.MenuItem>
         <Menu.MenuItem onClick={() => setShowSettings(true)} className="select-item text-sm">
           <GearIcon className="icon-md" aria-hidden="true" />

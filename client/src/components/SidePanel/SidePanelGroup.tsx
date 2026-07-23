@@ -5,6 +5,7 @@ import { getConfigDefaults } from 'librechat-data-provider';
 import { ResizablePanel, ResizablePanelGroup, useMediaQuery } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
+import { clearStoredActivePanel } from '~/Providers';
 import ArtifactsPanel from './ArtifactsPanel';
 import { normalizeLayout, cn } from '~/utils';
 import SidePanel from './SidePanel';
@@ -81,6 +82,7 @@ const SidePanelGroup = memo(
 
     useEffect(() => {
       if (isSmallScreen) {
+        clearStoredActivePanel();
         setIsCollapsed(true);
         setCollapsedSize(0);
         setMinSize(defaultMinSize);
@@ -92,6 +94,7 @@ const SidePanelGroup = memo(
       setFullCollapse(fullPanelCollapse);
 
       if (fullPanelCollapse) {
+        clearStoredActivePanel();
         setIsCollapsed(true);
         setCollapsedSize(0);
         setMinSize(0);
@@ -112,6 +115,7 @@ const SidePanelGroup = memo(
 
     /** Memoized close button handler to prevent re-creating it */
     const handleClosePanel = useCallback(() => {
+      clearStoredActivePanel();
       setIsCollapsed(() => {
         if (clickAwayCollapseMode === 'rail') {
           localStorage.setItem('fullPanelCollapse', 'false');

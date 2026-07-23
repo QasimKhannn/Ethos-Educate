@@ -25,7 +25,6 @@ export type MeasuredCellParent = {
 interface ConversationsProps {
   conversations: Array<TConversation | null>;
   moveToTop: () => void;
-  toggleNav: () => void;
   containerRef: React.RefObject<List>;
   loadMoreConversations: () => void;
   isLoading: boolean;
@@ -124,21 +123,14 @@ const MemoizedConvo = memo(
   ({
     conversation,
     retainView,
-    toggleNav,
     isGenerating,
   }: {
     conversation: TConversation;
     retainView: () => void;
-    toggleNav: () => void;
     isGenerating: boolean;
   }) => {
     return (
-      <Convo
-        conversation={conversation}
-        retainView={retainView}
-        toggleNav={toggleNav}
-        isGenerating={isGenerating}
-      />
+      <Convo conversation={conversation} retainView={retainView} isGenerating={isGenerating} />
     );
   },
   (prevProps, nextProps) => {
@@ -154,7 +146,6 @@ const MemoizedConvo = memo(
 const Conversations: FC<ConversationsProps> = ({
   conversations: rawConversations,
   moveToTop,
-  toggleNav,
   containerRef,
   loadMoreConversations,
   isLoading,
@@ -284,11 +275,7 @@ const Conversations: FC<ConversationsProps> = ({
       if (item.type === 'favorites') {
         return (
           <MeasuredRow key={key} {...rowProps}>
-            <FavoritesList
-              isSmallScreen={isSmallScreen}
-              toggleNav={toggleNav}
-              onHeightChange={clearFavoritesCache}
-            />
+            <FavoritesList onHeightChange={clearFavoritesCache} />
           </MeasuredRow>
         );
       }
@@ -306,8 +293,8 @@ const Conversations: FC<ConversationsProps> = ({
 
       if (item.type === 'header') {
         // First date header index depends on whether favorites row is included
-        // With favorites: [favorites, chats-header, first-header] → index 2
-        // Without favorites: [chats-header, first-header] → index 1
+        // With favorites: [favorites, chats-header, first-header] â†’ index 2
+        // Without favorites: [chats-header, first-header] â†’ index 1
         const firstHeaderIndex = shouldShowFavorites ? 2 : 1;
         return (
           <MeasuredRow key={key} {...rowProps}>
@@ -323,7 +310,6 @@ const Conversations: FC<ConversationsProps> = ({
             <MemoizedConvo
               conversation={item.convo}
               retainView={moveToTop}
-              toggleNav={toggleNav}
               isGenerating={isGenerating}
             />
           </MeasuredRow>
@@ -336,9 +322,7 @@ const Conversations: FC<ConversationsProps> = ({
       cache,
       flattenedItems,
       moveToTop,
-      toggleNav,
       clearFavoritesCache,
-      isSmallScreen,
       isChatsExpanded,
       setIsChatsExpanded,
       shouldShowFavorites,

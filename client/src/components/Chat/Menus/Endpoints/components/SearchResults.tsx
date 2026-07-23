@@ -6,6 +6,7 @@ import type { TModelSpec } from 'librechat-data-provider';
 import type { Endpoint } from '~/common';
 import { useModelSelectorContext } from '../ModelSelectorContext';
 import { CustomMenuItem as MenuItem } from '../CustomMenu';
+import ModelSpecTooltip from './ModelSpecTooltip';
 import SpecIcon from './SpecIcon';
 import { cn } from '~/utils';
 
@@ -57,9 +58,8 @@ export function SearchResults({ results, localize, searchValue }: SearchResultsP
         if ('name' in item && 'label' in item) {
           // Render model spec
           const spec = item as TModelSpec;
-          return (
+          const menuItem = (
             <MenuItem
-              key={spec.name}
               onClick={() => handleSelectSpec(spec)}
               aria-selected={selectedSpec === spec.name || undefined}
               className={cn(
@@ -98,6 +98,12 @@ export function SearchResults({ results, localize, searchValue }: SearchResultsP
                 </>
               )}
             </MenuItem>
+          );
+
+          return (
+            <ModelSpecTooltip key={spec.name} spec={spec}>
+              {menuItem}
+            </ModelSpecTooltip>
           );
         } else {
           // For an endpoint item

@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useMemo, useEffect } from 'react';
-import { LayoutGrid, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Skeleton } from '@librechat/client';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -116,15 +116,7 @@ const DraggableFavoriteItem = ({
   );
 };
 
-export default function FavoritesList({
-  isSmallScreen,
-  toggleNav,
-  onHeightChange,
-}: {
-  isSmallScreen?: boolean;
-  toggleNav?: () => void;
-  onHeightChange?: () => void;
-}) {
+export default function FavoritesList({ onHeightChange }: { onHeightChange?: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const localize = useLocalize();
@@ -155,21 +147,13 @@ export default function FavoritesList({
   const isMarketplaceActive = location.pathname.startsWith('/agents');
   const isAdminActive = location.pathname.startsWith('/admin');
 
-  const closeMobileNavIfNeeded = useCallback(() => {
-    if (isSmallScreen && toggleNav) {
-      toggleNav();
-    }
-  }, [isSmallScreen, toggleNav]);
-
   const handleAgentMarketplace = useCallback(() => {
     navigate('/agents');
-    closeMobileNavIfNeeded();
-  }, [navigate, closeMobileNavIfNeeded]);
+  }, [navigate]);
 
   const handleAdminConsole = useCallback(() => {
     navigate('/admin');
-    closeMobileNavIfNeeded();
-  }, [navigate, closeMobileNavIfNeeded]);
+  }, [navigate]);
 
   const handleRemoveFocus = useCallback(() => {
     if (marketplaceRef.current) {
@@ -282,7 +266,12 @@ export default function FavoritesList({
     return null;
   }
 
-  if (!isFavoritesLoading && safeFavorites.length === 0 && !showAgentMarketplace && !showAdminConsole) {
+  if (
+    !isFavoritesLoading &&
+    safeFavorites.length === 0 &&
+    !showAgentMarketplace &&
+    !showAdminConsole
+  ) {
     return null;
   }
 
@@ -336,7 +325,18 @@ export default function FavoritesList({
               >
                 <div className="flex flex-1 items-center gap-3 truncate pr-6">
                   <div className="sidebar-marketplace-icon sidebar-utility-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl">
-                    <LayoutGrid className="h-[18px] w-[18px]" />
+                    <span className="relative block h-8 w-8 overflow-hidden" aria-hidden="true">
+                      <img
+                        src="/assets/ethos-rays.png"
+                        alt=""
+                        className="absolute left-1/2 top-[-4px] h-10 w-10 max-w-none -translate-x-1/2 object-contain"
+                      />
+                      <img
+                        src="/assets/ethos-arc.png"
+                        alt=""
+                        className="absolute left-1/2 top-[-4px] h-10 w-10 max-w-none -translate-x-1/2 object-contain"
+                      />
+                    </span>
                   </div>
                   <span className="sidebar-marketplace-label truncate text-[0.95rem] font-medium tracking-[-0.014em]">
                     {localize('com_agents_marketplace')}
@@ -349,7 +349,7 @@ export default function FavoritesList({
                 ref={adminRef}
                 role="button"
                 tabIndex={0}
-                aria-label="Admin Console"
+                aria-label={localize('com_nav_admin_console')}
                 className={`sidebar-utility-item group relative flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white ${
                   isAdminActive ? 'sidebar-utility-item-active' : ''
                 }`}
@@ -367,7 +367,7 @@ export default function FavoritesList({
                     <Shield className="h-[18px] w-[18px]" />
                   </div>
                   <span className="truncate text-[0.95rem] font-medium tracking-[-0.014em]">
-                    Admin Console
+                    {localize('com_nav_admin_console')}
                   </span>
                 </div>
               </div>

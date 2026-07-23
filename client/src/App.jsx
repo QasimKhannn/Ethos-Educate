@@ -51,7 +51,7 @@ const App = () => {
           <ThemeProvider
             // Only pass initialTheme and themeRGB if environment theme exists
             // This allows localStorage values to persist when no env theme is set
-            {...(envTheme && { initialTheme: 'system', themeRGB: envTheme })}
+            {...(envTheme && { initialTheme: 'light', themeRGB: envTheme })}
           >
             {/* The ThemeProvider will automatically:
                 1. Apply dark/light mode classes

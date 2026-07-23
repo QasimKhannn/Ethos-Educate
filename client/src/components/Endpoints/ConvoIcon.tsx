@@ -9,6 +9,7 @@ import {
   normalizeAgentAvatarUrl,
 } from '~/utils';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
+import EthosModelMark, { isEthosModelName } from '~/components/Endpoints/EthosModelMark';
 import { icons } from '~/hooks/Endpoint/Icons';
 
 export default function ConvoIcon({
@@ -55,6 +56,27 @@ export default function ConvoIcon({
   const endpointIconURL = getEndpointField(endpointsConfig, endpoint, 'iconURL');
   const iconKey = getIconKey({ endpoint, endpointsConfig, endpointIconURL });
   const Icon = icons[iconKey] ?? null;
+
+  if (
+    isEthosModelName(conversation?.spec) ||
+    isEthosModelName(conversation?.modelLabel) ||
+    isEthosModelName(conversation?.chatGptLabel)
+  ) {
+    const ethosContainerClassName =
+      context === 'landing'
+        ? `${containerClassName} chat-landing-mark-shell-ethos`
+        : containerClassName;
+
+    return (
+      <div className={ethosContainerClassName}>
+        <EthosModelMark
+          size={size}
+          className={`${className} object-contain`}
+          containerClassName="flex h-full w-full items-center justify-center"
+        />
+      </div>
+    );
+  }
 
   return (
     <>

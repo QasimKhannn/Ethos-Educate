@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { useQueryClient } from '@tanstack/react-query';
-import { useSearchParams, useOutletContext, useParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
-import { TooltipAnchor, Button, NewChatIcon, useMediaQuery } from '@librechat/client';
+import { useMediaQuery } from '@librechat/client';
 import {
   Constants,
   EModelEndpoint,
   PermissionTypes,
   Permissions,
-  QueryKeys,
+  SystemRoles,
   getDefaultParamsEndpoint,
   getEndpointField,
   isAgentsEndpoint,
@@ -17,17 +16,16 @@ import {
 } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import type { AgentSortOption, MarketplaceViewMode } from './AgentGrid';
-import type { ContextType } from '~/common';
 import {
   useDocumentTitle,
   useHasAccess,
   useLocalize,
   TranslationKeys,
+  useAuthContext,
   useLocalStorage,
 } from '~/hooks';
 import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
 import { SidePanelProvider, useChatContext } from '~/Providers';
-import { OpenSidebar } from '~/components/Chat/Menus';
 import ChatBackgroundLights from '~/components/Chat/ChatBackgroundLights';
 import { SidePanelGroup } from '~/components/SidePanel';
 import {
@@ -36,7 +34,7 @@ import {
   marketplaceSurfaceRevealVariants,
   sectionStaggerVariants,
 } from '~/utils/motion';
-import { cn, clearMessagesCache, getDefaultEndpoint } from '~/utils';
+import { cn, getDefaultEndpoint } from '~/utils';
 import CategoryTabs from './CategoryTabs';
 import SearchBar from './SearchBar';
 import AgentGrid from './AgentGrid';
@@ -104,15 +102,14 @@ const resolveMarketplaceSidePanelContext = ({
  */
 const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) => {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
   const { category } = useParams();
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { conversation, newConversation, setConversation } = useChatContext();
+  const { conversation, setConversation } = useChatContext();
 
   const isSmallScreen = useMediaQuery('(max-width: 767px)');
   const shouldReduceMotion = useReducedMotion();
-  const { navVisible, setNavVisible } = useOutletContext<ContextType>();
 
   // Get URL parameters
   const searchQuery = searchParams.get('q') || '';
@@ -151,15 +148,25 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     refetchOnMount: false,
   });
   const categories = useMemo(() => {
-    const nextCategories = Array.isArray(categoriesQuery.data) ? [...categoriesQuery.data] : [];
-    const allCategoryIndex = nextCategories.findIndex((item) => item.value === 'all');
-
-    if (allCategoryIndex <= 0) {
-      return nextCategories;
+    if (!Array.isArray(categoriesQuery.data)) {
+      return [];
     }
 
-    const [allCategory] = nextCategories.splice(allCategoryIndex, 1);
-    return allCategory != null ? [allCategory, ...nextCategories] : nextCategories;
+    let allCategory: t.TMarketplaceCategory | undefined;
+    const populatedCategories: t.TMarketplaceCategory[] = [];
+
+    for (const item of categoriesQuery.data) {
+      if (item.value === 'all') {
+        allCategory = item;
+        continue;
+      }
+
+      if (item.count > 0) {
+        populatedCategories.push(item);
+      }
+    }
+
+    return allCategory != null ? [allCategory, ...populatedCategories] : populatedCategories;
   }, [categoriesQuery.data]);
   const marketplaceSidePanelContext = useMemo(
     () => resolveMarketplaceSidePanelContext({ conversation, endpointsConfig }),
@@ -376,20 +383,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
    * Handle new chat button click
    */
 
-  const handleNewChat = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
-      window.open('/c/new', '_blank');
-      return;
-    }
-    clearMessagesCache(queryClient, conversation?.conversationId);
-    queryClient.invalidateQueries([QueryKeys.messages]);
-    newConversation();
-  };
-
   const surfaceShellClassName =
     'agents-marketplace-shell w-full min-w-0 px-5 md:px-8 xl:px-12 2xl:px-16';
   const canvasClassName = 'agents-marketplace-canvas relative flex min-h-full min-w-0 flex-col';
-  const shouldShowMarketplaceTopbar = !isSmallScreen && !navVisible;
   const getCategoryMeta = (value: string | null) => {
     if (value === 'promoted') {
       return {
@@ -425,13 +421,14 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     };
   };
 
-  const hasAccessToAgents = useHasAccess({
-    permissionType: PermissionTypes.AGENTS,
+  const hasAccessToMarketplace = useHasAccess({
+    permissionType: PermissionTypes.MARKETPLACE,
     permission: Permissions.USE,
   });
+  const canManageMarketplace = user?.role === SystemRoles.ADMIN;
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
-    if (!hasAccessToAgents) {
+    if (!hasAccessToMarketplace && !canManageMarketplace) {
       timeoutId = setTimeout(() => {
         navigate('/c/new');
       }, 1000);
@@ -439,9 +436,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [hasAccessToAgents, navigate]);
+  }, [hasAccessToMarketplace, canManageMarketplace, navigate]);
 
-  if (!hasAccessToAgents) {
+  if (!hasAccessToMarketplace && !canManageMarketplace) {
     return null;
   }
 
@@ -458,11 +455,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   const activeSortLabel =
     sortOptions.find((option) => option.value === sortOption)?.label ??
     localize('com_agents_sort_featured');
-  const marketplaceSignals = [
-    localize('com_agents_marketplace_signal_curated'),
-    localize('com_agents_marketplace_signal_guided'),
-    localize('com_agents_marketplace_signal_classroom'),
-  ];
   const sortControl = (
     <div className="agents-marketplace-sort-control" ref={sortMenuRef}>
       <button
@@ -538,35 +530,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       role="main"
     >
       <div className={canvasClassName}>
-        {shouldShowMarketplaceTopbar && (
-          <div className="agents-marketplace-topbar sticky top-0 z-20">
-            <div className="agents-marketplace-topbar-inner flex h-14 items-center px-4 md:px-5">
-              <div className="flex items-center gap-2">
-                <div className="agents-marketplace-quick-actions">
-                  <OpenSidebar
-                    setNavVisible={setNavVisible}
-                    className="agents-marketplace-topbar-button"
-                  />
-                  <TooltipAnchor
-                    description={localize('com_ui_new_chat')}
-                    render={
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        data-testid="agents-new-chat-button"
-                        aria-label={localize('com_ui_new_chat')}
-                        className="agents-marketplace-topbar-button max-md:hidden"
-                        onClick={handleNewChat}
-                      >
-                        <NewChatIcon />
-                      </Button>
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
         <motion.header
           initial={shouldReduceMotion ? false : 'hidden'}
           animate="visible"
@@ -593,32 +556,30 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                     {localize('com_agents_marketplace_subtitle')}
                   </p>
                 </motion.div>
-                <motion.div
-                  className="agents-marketplace-page-signals agents-marketplace-page-signals--hero"
-                  aria-label={localize('com_agents_marketplace_signals_label')}
-                  variants={marketplaceHeroItemVariants}
-                >
-                  {marketplaceSignals.map((signal) => (
-                    <span key={signal}>{signal}</span>
-                  ))}
-                </motion.div>
               </div>
-              {isSmallScreen && (
-                <motion.div
-                  className="agents-marketplace-header-actions"
-                  variants={marketplaceHeroItemVariants}
-                >
+              <motion.div
+                className="agents-marketplace-header-actions"
+                variants={marketplaceHeroItemVariants}
+              >
+                <div className="agents-marketplace-control-card">
+                  <div className="agents-marketplace-control-card-copy">
+                    <span className="agents-marketplace-control-card-title">
+                      {localize('com_agents_marketplace_control_title')}
+                    </span>
+                    <p className="agents-marketplace-control-card-description">
+                      {localize('com_agents_marketplace_control_description')}
+                    </p>
+                  </div>
                   <MarketplaceControlPanel className="agents-marketplace-panel-trigger--hero" />
-                </motion.div>
-              )}
+                </div>
+              </motion.div>
             </div>
           </motion.div>
         </motion.header>
         <div
           className={cn(
             'agents-marketplace-filter-stack sticky z-10 pb-4 pt-0 md:pb-5 md:pt-1',
-            shouldShowMarketplaceTopbar && 'agents-marketplace-filter-stack--nav-collapsed',
-            shouldShowMarketplaceTopbar ? 'top-14' : 'top-0',
+            'top-0',
           )}
         >
           <div className={surfaceShellClassName}>
@@ -626,9 +587,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
               variants={sectionStaggerVariants}
               initial={shouldReduceMotion ? false : 'hidden'}
               animate="visible"
-              transition={
-                shouldReduceMotion ? { duration: 0 } : { delay: 0.02, duration: 0.24 }
-              }
+              transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.02, duration: 0.24 }}
               className="agents-marketplace-toolbar px-4 pb-4 pt-4 md:px-5 md:pb-4 md:pt-4"
             >
               <motion.div
@@ -657,21 +616,12 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
             </motion.div>
           </div>
         </div>
-        <div
-          className={cn(
-            surfaceShellClassName,
-            isSmallScreen ? 'pb-8' : 'pb-10',
-            shouldShowMarketplaceTopbar && 'agents-marketplace-results-shell--nav-collapsed',
-          )}
-        >
+        <div className={cn(surfaceShellClassName, isSmallScreen ? 'pb-8' : 'pb-10')}>
           <motion.section
             variants={sectionStaggerVariants}
             initial={shouldReduceMotion ? false : 'hidden'}
             animate="visible"
-            className={cn(
-              'agents-marketplace-results relative overflow-hidden',
-              shouldShowMarketplaceTopbar && 'agents-marketplace-results--nav-collapsed',
-            )}
+            className="agents-marketplace-results relative overflow-hidden"
           >
             <motion.div
               className={cn(
@@ -709,6 +659,8 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   sortOption={sortOption}
                   viewMode={viewMode}
                   onSelectAgent={handleAgentSelect}
+                  onClearSearch={() => handleSearch('')}
+                  onViewAll={() => handleTabChange('all')}
                   scrollElementRef={scrollContainerRef}
                 />
               </div>
@@ -751,6 +703,8 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                     sortOption={sortOption}
                     viewMode={viewMode}
                     onSelectAgent={handleAgentSelect}
+                    onClearSearch={() => handleSearch('')}
+                    onViewAll={() => handleTabChange('all')}
                     scrollElementRef={scrollContainerRef}
                   />
                 </div>
@@ -795,4 +749,3 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 };
 
 export default AgentMarketplace;
-
