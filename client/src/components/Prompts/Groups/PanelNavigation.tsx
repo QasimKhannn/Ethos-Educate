@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Button, ThemeSelector } from '@librechat/client';
+import { Button } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 
 function PanelNavigation({
@@ -8,7 +8,6 @@ function PanelNavigation({
   hasNextPage,
   hasPreviousPage,
   isLoading,
-  isChatRoute,
   children,
 }: {
   onPrevious: () => void;
@@ -16,17 +15,13 @@ function PanelNavigation({
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   isLoading?: boolean;
-  isChatRoute: boolean;
   children?: React.ReactNode;
 }) {
   const localize = useLocalize();
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex gap-2 pl-1">
-        {!isChatRoute && <ThemeSelector returnThemeOnly={true} />}
-        {children}
-      </div>
+      <div className="flex gap-2 pl-1">{children}</div>
       <div className="flex items-center gap-2" role="navigation" aria-label="Pagination">
         <Button
           variant="outline"

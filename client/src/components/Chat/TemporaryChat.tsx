@@ -30,7 +30,7 @@ export function TemporaryChat() {
   return (
     <div className="relative flex flex-wrap items-center gap-2">
       <TooltipAnchor
-        description={localize('com_ui_temporary')}
+        description={localize('com_ui_tooltip_temporary_chat')}
         render={
           <button
             onClick={handleBadgeToggle}

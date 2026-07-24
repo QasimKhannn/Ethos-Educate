@@ -10,7 +10,20 @@ import {
   type UIEvent,
 } from 'react';
 import { useRecoilValue } from 'recoil';
-import { Feather, ArrowUp, Loader2, Code2, Globe, Wrench, Square, Pencil, Paperclip, Copy, Check, Eye } from 'lucide-react';
+import {
+  Feather,
+  ArrowUp,
+  Loader2,
+  Code2,
+  Globe,
+  Wrench,
+  Square,
+  Pencil,
+  Paperclip,
+  Copy,
+  Check,
+  Eye,
+} from 'lucide-react';
 import { FileUpload, TooltipAnchor, AttachmentIcon } from '@librechat/client';
 import { EModelEndpoint, Constants, dataService } from 'librechat-data-provider';
 import type { TConversation } from 'librechat-data-provider';
@@ -135,7 +148,11 @@ function toolLabel(name: string): { label: string; Icon: typeof Wrench } {
   }
 }
 
-function LiveStatus({ trace, isStreaming, hasText }: {
+function LiveStatus({
+  trace,
+  isStreaming,
+  hasText,
+}: {
   trace: CoworkTraceEntry[];
   isStreaming: boolean;
   hasText: boolean;
@@ -155,7 +172,7 @@ function LiveStatus({ trace, isStreaming, hasText }: {
     const { label, Icon } = toolLabel(running.name);
     return (
       <div className="mb-2 flex items-center gap-2 text-sm text-text-secondary">
-        <Icon className="size-4 shrink-0 animate-pulse text-text-info" />
+        <Icon className="text-text-info size-4 shrink-0 animate-pulse" />
         <span>{label}…</span>
       </div>
     );
@@ -211,16 +228,26 @@ export default function CoworkChat({
   onMessagesChange?: (messages: CoworkMessage[]) => void;
   onOpenPreview?: () => void;
 }) {
-  const { messages, isStreaming, error, send, stop, removeFrom, loadOlder, hasMore, isLoadingOlder, trace } =
-    useCoworkChat(
-      projectId,
-      initialConversationId,
-      onTraceChange,
-      model,
-      provider,
-      onSessionStart,
-      onMessagesChange,
-    );
+  const {
+    messages,
+    isStreaming,
+    error,
+    send,
+    stop,
+    removeFrom,
+    loadOlder,
+    hasMore,
+    isLoadingOlder,
+    trace,
+  } = useCoworkChat(
+    projectId,
+    initialConversationId,
+    onTraceChange,
+    model,
+    provider,
+    onSessionStart,
+    onMessagesChange,
+  );
   const [input, setInput] = useState('');
   const localize = useLocalize();
   const { user } = useAuthContext();
@@ -398,12 +425,18 @@ export default function CoworkChat({
 
       <div className="flex min-h-0 flex-1 flex-col">
         {/* ── message list ── */}
-        <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-6"
+        >
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-text-secondary">
-              <Feather className="size-8 text-text-info" />
+              <Feather className="text-text-info size-8" />
               <div>
-                <p className="text-sm font-medium text-text-primary">Give the Cowork agent a goal.</p>
+                <p className="text-sm font-medium text-text-primary">
+                  Give the Cowork agent a goal.
+                </p>
                 <p className="mt-1 text-xs text-text-tertiary">
                   It can read your workspace files and write deliverables back.
                 </p>
@@ -442,7 +475,10 @@ export default function CoworkChat({
                         }}
                         onChange={(e) => setEditText(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Escape') { setEditingId(null); setEditText(''); }
+                          if (e.key === 'Escape') {
+                            setEditingId(null);
+                            setEditText('');
+                          }
                         }}
                         rows={4}
                         className="w-full resize-none rounded-xl border border-border-heavy bg-surface-secondary px-4 py-3 text-sm leading-relaxed text-text-primary outline-none focus:outline-none focus:ring-0"
@@ -450,7 +486,10 @@ export default function CoworkChat({
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => { setEditingId(null); setEditText(''); }}
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditText('');
+                          }}
                           className="rounded-md px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary"
                         >
                           Cancel
@@ -504,7 +543,10 @@ export default function CoworkChat({
                         <button
                           type="button"
                           title="Edit message"
-                          onClick={() => { setEditingId(m.id); setEditText(m.text); }}
+                          onClick={() => {
+                            setEditingId(m.id);
+                            setEditText(m.text);
+                          }}
                           className="absolute -left-7 top-2 hidden rounded p-1 text-text-tertiary hover:text-text-secondary group-hover:block"
                         >
                           <Pencil className="size-3.5" />
@@ -533,7 +575,7 @@ export default function CoworkChat({
                     className="group flex gap-3 duration-300 animate-in fade-in-0 slide-in-from-bottom-1"
                   >
                     <div className="mt-0.5 flex size-6 flex-none items-center justify-center rounded-full bg-surface-tertiary">
-                      <Feather className="size-3.5 text-text-info" />
+                      <Feather className="text-text-info size-3.5" />
                     </div>
                     <div className="min-w-0 flex-1 pt-0.5">
                       {/* Inline trace rows for the current run */}
@@ -676,7 +718,7 @@ export default function CoworkChat({
                 {/* Attach image / file */}
                 <FileUpload ref={fileInputRef} handleFileChange={handleFileChange}>
                   <TooltipAnchor
-                    description={localize('com_sidepanel_attach_files')}
+                    description={localize('com_ui_tooltip_attach_files')}
                     render={
                       <button
                         type="button"
@@ -700,12 +742,15 @@ export default function CoworkChat({
                   ref={textareaRef}
                   rows={1}
                   value={input}
-                  onChange={(e) => { setInput(e.target.value); resizeTextarea(); }}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    resizeTextarea();
+                  }}
                   onKeyDown={onKeyDown}
                   onPaste={onPaste}
                   placeholder="Message Cowork agent… (Shift+Enter for new line)"
                   readOnly={isStreaming}
-                  className="w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed text-text-primary outline-none focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
+                  className="w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed text-text-primary outline-none placeholder:text-text-tertiary focus:outline-none focus:ring-0"
                   style={{ overflowY: 'auto' }}
                 />
                 {speechEnabled && (

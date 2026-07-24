@@ -53,7 +53,7 @@ export default function NewChat({
     <div className="chat-sidebar-top">
       <div className="sidebar-toolbar flex items-center justify-between px-0.5 py-1.5 md:py-1">
         <TooltipAnchor
-          description={localize('com_nav_close_sidebar')}
+          description={localize('com_nav_tooltip_close_sidebar')}
           render={
             <Button
               id={CLOSE_SIDEBAR_ID}

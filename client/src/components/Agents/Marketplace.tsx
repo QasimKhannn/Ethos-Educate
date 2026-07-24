@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import {
   Constants,
@@ -15,14 +15,13 @@ import {
   isParamEndpoint,
 } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
-import type { AgentSortOption, MarketplaceViewMode } from './AgentGrid';
+import type { AgentSortOption } from './AgentGrid';
 import {
   useDocumentTitle,
   useHasAccess,
   useLocalize,
   TranslationKeys,
   useAuthContext,
-  useLocalStorage,
 } from '~/hooks';
 import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
 import { SidePanelProvider, useChatContext } from '~/Providers';
@@ -125,10 +124,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   const [sortOption, setSortOption] = useState<AgentSortOption>('featured');
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isMarketplacePanelOpen, setIsMarketplacePanelOpen] = useState(false);
-  const [viewMode, setViewMode] = useLocalStorage<MarketplaceViewMode>(
-    'agents-marketplace:view-mode',
-    'compact',
-  );
 
   // Ref for the scrollable container to enable infinite scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -465,8 +460,13 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
         className="agents-marketplace-sort-trigger"
         onClick={() => setIsSortMenuOpen((currentValue) => !currentValue)}
       >
-        <span className="agents-marketplace-sort-label">{localize('com_agents_sort_by')}</span>
-        <span className="agents-marketplace-sort-value">{activeSortLabel}</span>
+        <span className="agents-marketplace-sort-icon" aria-hidden="true">
+          <ArrowUpDown />
+        </span>
+        <span className="agents-marketplace-sort-copy">
+          <span className="agents-marketplace-sort-label">{localize('com_agents_sort_by')}</span>
+          <span className="agents-marketplace-sort-value">{activeSortLabel}</span>
+        </span>
         <ChevronDown aria-hidden="true" className="agents-marketplace-sort-chevron" />
       </button>
       {isSortMenuOpen && (
@@ -490,38 +490,8 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       )}
     </div>
   );
-  const viewOptions: Array<{ value: MarketplaceViewMode; label: string }> = [
-    { value: 'compact', label: localize('com_agents_view_compact') },
-    { value: 'large', label: localize('com_agents_view_large') },
-  ];
-  const viewControl = (
-    <div
-      className="agents-marketplace-view-control"
-      role="group"
-      aria-label={localize('com_agents_view')}
-    >
-      <span className="agents-marketplace-view-label">{localize('com_agents_view')}</span>
-      <div className="agents-marketplace-view-switch">
-        {viewOptions.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            className="agents-marketplace-view-option"
-            data-active={viewMode === option.value ? 'true' : 'false'}
-            aria-pressed={viewMode === option.value}
-            onClick={() => setViewMode(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
   const renderResultsControls = () => (
-    <div className="agents-marketplace-results-controls">
-      {viewControl}
-      {sortControl}
-    </div>
+    <div className="agents-marketplace-results-controls">{sortControl}</div>
   );
   const marketplaceMainContent = (
     <main
@@ -549,12 +519,15 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   className="agents-marketplace-heading"
                   variants={marketplaceHeroItemVariants}
                 >
-                  <h1 className="agents-marketplace-page-title text-text-primary">
-                    {localize('com_agents_marketplace')}
-                  </h1>
-                  <p className="agents-marketplace-page-subtitle max-w-3xl text-text-secondary">
-                    {localize('com_agents_marketplace_subtitle')}
-                  </p>
+                  <div className="agents-marketplace-title-lockup">
+                    <span className="agents-marketplace-title-mark" aria-hidden="true">
+                      <img src="/assets/ethos-rays.png" alt="" />
+                      <img src="/assets/ethos-arc.png" alt="" />
+                    </span>
+                    <h1 className="agents-marketplace-page-title text-text-primary">
+                      {localize('com_agents_marketplace')}
+                    </h1>
+                  </div>
                 </motion.div>
               </div>
               <motion.div
@@ -566,9 +539,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                     <span className="agents-marketplace-control-card-title">
                       {localize('com_agents_marketplace_control_title')}
                     </span>
-                    <p className="agents-marketplace-control-card-description">
-                      {localize('com_agents_marketplace_control_description')}
-                    </p>
                   </div>
                   <MarketplaceControlPanel className="agents-marketplace-panel-trigger--hero" />
                 </div>
@@ -578,7 +548,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
         </motion.header>
         <div
           className={cn(
-            'agents-marketplace-filter-stack sticky z-10 pb-4 pt-0 md:pb-5 md:pt-1',
+            'agents-marketplace-filter-stack sticky z-10 pb-0 pt-0 md:pb-1 md:pt-1',
             'top-0',
           )}
         >
@@ -588,7 +558,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
               initial={shouldReduceMotion ? false : 'hidden'}
               animate="visible"
               transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.02, duration: 0.24 }}
-              className="agents-marketplace-toolbar px-4 pb-4 pt-4 md:px-5 md:pb-4 md:pt-4"
+              className="agents-marketplace-toolbar px-4 pb-2 pt-4 md:px-5 md:pb-2 md:pt-4"
             >
               <motion.div
                 className="agents-marketplace-toolbar-row items-start"
@@ -657,7 +627,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   category={displayCategory}
                   searchQuery={searchQuery}
                   sortOption={sortOption}
-                  viewMode={viewMode}
+                  viewMode="large"
                   onSelectAgent={handleAgentSelect}
                   onClearSearch={() => handleSearch('')}
                   onViewAll={() => handleTabChange('all')}
@@ -701,7 +671,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                     category={nextCategory}
                     searchQuery={searchQuery}
                     sortOption={sortOption}
-                    viewMode={viewMode}
+                    viewMode="large"
                     onSelectAgent={handleAgentSelect}
                     onClearSearch={() => handleSearch('')}
                     onViewAll={() => handleTabChange('all')}

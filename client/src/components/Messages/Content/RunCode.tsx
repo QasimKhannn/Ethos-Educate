@@ -112,7 +112,7 @@ const RunCode: React.FC<CodeBarProps & { iconOnly?: boolean }> = React.memo(
     return (
       <>
         {iconOnly ? (
-          <TooltipAnchor description={localize('com_ui_run_code')} render={button} />
+          <TooltipAnchor description={localize('com_ui_tooltip_run_code')} render={button} />
         ) : (
           button
         )}

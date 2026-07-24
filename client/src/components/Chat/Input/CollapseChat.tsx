@@ -19,8 +19,8 @@ const CollapseChat = ({
   }
 
   const description = isCollapsed
-    ? localize('com_ui_expand_chat')
-    : localize('com_ui_collapse_chat');
+    ? localize('com_ui_tooltip_expand_chat')
+    : localize('com_ui_tooltip_collapse_chat');
 
   return (
     <div className="relative ml-auto items-end justify-end">

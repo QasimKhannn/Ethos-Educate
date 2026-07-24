@@ -171,7 +171,7 @@ const EditMessage = ({
       </div>
       <div className="mt-2 flex w-full justify-center text-center">
         <TooltipAnchor
-          description="Ctrl + Enter / ⌘ + Enter"
+          description={localize('com_ui_tooltip_submit_edit')}
           render={
             <button
               ref={submitButtonRef}
@@ -184,7 +184,7 @@ const EditMessage = ({
           }
         />
         <TooltipAnchor
-          description="Shift + Enter"
+          description={localize('com_ui_tooltip_add_new_line')}
           render={
             <button
               ref={saveButtonRef}
@@ -197,7 +197,7 @@ const EditMessage = ({
           }
         />
         <TooltipAnchor
-          description="Esc"
+          description={localize('com_ui_tooltip_cancel_edit')}
           render={
             <button className="btn btn-neutral relative" onClick={() => enterEdit(true)}>
               {localize('com_ui_cancel')}

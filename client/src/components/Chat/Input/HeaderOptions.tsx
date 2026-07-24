@@ -51,7 +51,7 @@ export default function HeaderOptions({
                 <TooltipAnchor
                   id="parameters-button"
                   aria-label={localize('com_ui_model_parameters')}
-                  description={localize('com_ui_model_parameters')}
+                  description={localize('com_ui_tooltip_model_parameters')}
                   tabIndex={0}
                   role="button"
                   onClick={triggerAdvancedMode}

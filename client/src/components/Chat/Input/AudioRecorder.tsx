@@ -104,7 +104,7 @@ export default function AudioRecorder({
 
   return (
     <TooltipAnchor
-      description={localize('com_ui_use_micrphone')}
+      description={localize('com_ui_tooltip_use_microphone')}
       render={
         <button
           id="audio-recorder"

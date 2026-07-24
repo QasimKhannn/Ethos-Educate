@@ -1,8 +1,18 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useRecoilState } from 'recoil';
 import { FileImageIcon } from 'lucide-react';
-import { AttachmentIcon, DropdownPopup, FileUpload, SharePointIcon, TooltipAnchor } from '@librechat/client';
-import { EToolResources, defaultAgentCapabilities, bedrockDocumentExtensions } from 'librechat-data-provider';
+import {
+  AttachmentIcon,
+  DropdownPopup,
+  FileUpload,
+  SharePointIcon,
+  TooltipAnchor,
+} from '@librechat/client';
+import {
+  EToolResources,
+  defaultAgentCapabilities,
+  bedrockDocumentExtensions,
+} from 'librechat-data-provider';
 import type { EndpointFileConfig } from 'librechat-data-provider';
 import {
   useAgentCapabilities,
@@ -187,7 +197,7 @@ const AttachFileMenu = ({
         </button>
       }
       id="attach-file-menu-button"
-      description={localize('com_sidepanel_attach_files')}
+      description={localize('com_ui_tooltip_attach_files')}
       disabled={isUploadDisabled}
     />
   );

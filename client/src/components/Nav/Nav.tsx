@@ -117,7 +117,8 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
 
       <div className="flex flex-col items-center gap-2">
         <TooltipAnchor
-          description={localize('com_ui_new_chat')}
+          description={localize('com_nav_tooltip_new_chat')}
+          side="right"
           render={
             <Button
               type="button"
@@ -136,13 +137,14 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
         <div className="my-1 h-px w-7 bg-white/10" aria-hidden="true" />
 
         <TooltipAnchor
-          description="Ethos Tools"
+          description={localize('com_nav_tooltip_marketplace')}
+          side="right"
           render={
             <Button
               asChild
               size="icon"
               variant="ghost"
-              aria-label="Ethos Tools"
+              aria-label={localize('com_agents_marketplace')}
               className={actionClassName(location.pathname.startsWith('/agents'))}
             >
               <Link to="/agents">
@@ -154,17 +156,21 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
 
         {coworkAccess?.allowed !== false && (
           <TooltipAnchor
-            description={localize('com_sidepanel_cowork_label')}
+            description={localize('com_nav_tooltip_cowork')}
+            side="right"
             render={
               <Button
                 asChild
                 size="icon"
                 variant="ghost"
                 aria-label={localize('com_sidepanel_cowork_label')}
-                className={actionClassName(location.pathname.startsWith('/cowork'))}
+                className={cn(actionClassName(location.pathname.startsWith('/cowork')), 'group')}
               >
                 <Link to="/cowork">
-                  <Briefcase className="h-5 w-5 text-[#DAAC60]" aria-hidden="true" />
+                  <Briefcase
+                    className="h-5 w-5 text-white transition-colors duration-200 group-hover:text-[#DAAC60]"
+                    aria-hidden="true"
+                  />
                 </Link>
               </Button>
             }
@@ -172,7 +178,8 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
         )}
 
         <TooltipAnchor
-          description={localize('com_ui_chat_history')}
+          description={localize('com_nav_tooltip_chat_history')}
+          side="right"
           render={
             <Button
               type="button"
@@ -193,7 +200,8 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
       <div className="mt-auto flex flex-col items-center gap-3">
         <HelpAndFaqButton compact className={actionClassName()} />
         <TooltipAnchor
-          description={localize('com_nav_open_sidebar')}
+          description={localize('com_nav_tooltip_open_sidebar')}
+          side="right"
           render={
             <Button
               id={OPEN_SIDEBAR_ID}
@@ -213,7 +221,8 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
         />
         <div className="h-px w-7 bg-white/10" aria-hidden="true" />
         <TooltipAnchor
-          description={localize('com_nav_account_settings')}
+          description={localize('com_nav_tooltip_account_settings')}
+          side="right"
           render={
             <button
               type="button"
@@ -499,7 +508,10 @@ const Nav = memo(
     // Desktop: Inline sidebar with width transition
     return (
       <div
-        className="relative flex-shrink-0 overflow-hidden"
+        className={cn(
+          'relative flex-shrink-0',
+          navVisible ? 'overflow-hidden' : 'overflow-visible',
+        )}
         style={{
           width: navVisible ? sidebarWidth : NAV_WIDTH.RAIL,
           transition: `width ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,

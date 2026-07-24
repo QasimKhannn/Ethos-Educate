@@ -326,7 +326,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
         </Ariakit.MenuButton>
       }
       id="tools-dropdown-button"
-      description={localize('com_ui_tools')}
+      description={localize('com_ui_tooltip_tools')}
       disabled={isDisabled}
     />
   );

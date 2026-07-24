@@ -61,7 +61,7 @@ export default function MemoryCardActions({ memory }: MemoryCardActionsProps) {
       >
         <OGDialogTrigger asChild>
           <TooltipAnchor
-            description={localize('com_ui_edit_memory')}
+            description={localize('com_ui_tooltip_edit_memory')}
             side="top"
             render={
               <button
@@ -81,7 +81,7 @@ export default function MemoryCardActions({ memory }: MemoryCardActionsProps) {
       <OGDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <OGDialogTrigger asChild>
           <TooltipAnchor
-            description={localize('com_ui_delete_memory')}
+            description={localize('com_ui_tooltip_delete_memory')}
             side="top"
             render={
               <button

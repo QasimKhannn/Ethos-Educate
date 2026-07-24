@@ -174,7 +174,7 @@ export default function SharedLinks() {
           }
           return (
             <TooltipAnchor
-              description={localize('com_ui_name_sort')}
+              description={localize('com_ui_tooltip_sort_by_name')}
               side="top"
               render={
                 <Button
@@ -232,7 +232,7 @@ export default function SharedLinks() {
           }
           return (
             <TooltipAnchor
-              description={localize('com_ui_date_sort')}
+              description={localize('com_ui_tooltip_sort_by_date')}
               side="top"
               render={
                 <Button
@@ -270,7 +270,7 @@ export default function SharedLinks() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <TooltipAnchor
-              description={localize('com_ui_open_source_chat_new_tab')}
+              description={localize('com_ui_tooltip_open_source_chat')}
               render={
                 <a
                   href={`/c/${row.original.conversationId}`}
@@ -286,7 +286,7 @@ export default function SharedLinks() {
               }
             />
             <TooltipAnchor
-              description={localize('com_ui_delete_shared_link_heading')}
+              description={localize('com_ui_tooltip_delete_shared_link')}
               render={
                 <Button
                   variant="ghost"

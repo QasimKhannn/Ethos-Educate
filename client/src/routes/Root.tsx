@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { useMediaQuery } from '@librechat/client';
 import type { ContextType } from '~/common';
 import {
   useSearchEnabled,
@@ -17,12 +16,11 @@ import {
   FileMapContext,
 } from '~/Providers';
 import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
-import { Nav, MobileNav, NAV_WIDTH } from '~/components/Nav';
+import { Nav, MobileNav } from '~/components/Nav';
 import FirstLoginTour from '~/components/Onboarding/FirstLoginTour';
 import { TermsAndConditionsModal } from '~/components/ui';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
-import { SIDEBAR_ANIMATION_MS, SIDEBAR_EASE_CSS } from '~/components/Nav/sidebarMotion';
 
 export default function Root() {
   const [showTerms, setShowTerms] = useState(false);
@@ -34,7 +32,6 @@ export default function Root() {
 
   const { user, isAuthenticated, logout } = useAuthContext();
   const backendQueriesEnabled = isAuthenticated;
-  const isSmallScreen = useMediaQuery('(max-width: 768px)');
   // cowork — the dedicated Cowork section renders its own rail, so hide the chat
   // sidebar ONLY for /cowork routes. All other routes are unaffected.
   const isCoworkRoute = useLocation().pathname.startsWith('/cowork');
@@ -91,25 +88,7 @@ export default function Root() {
               <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
                 <div className="relative z-0 flex h-full w-full overflow-hidden">
                   {!isCoworkRoute && <Nav navVisible={navVisible} setNavVisible={setNavVisible} />}
-                  <div
-                    className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden"
-                    style={
-                      // cowork — Cowork hides the chat Nav/MobileNav, so the mobile nav offset would
-                      // shove (and `inert`) the Cowork content with no way to undo it. Skip the
-                      // offset on Cowork routes; Cowork has its own hamburger drawer. Other routes
-                      // are unchanged.
-                      isSmallScreen && !isCoworkRoute
-                        ? {
-                            transform: navVisible
-                              ? `translateX(${NAV_WIDTH.MOBILE}px)`
-                              : 'translateX(0)',
-                            transition: `transform ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
-                            willChange: 'transform',
-                          }
-                        : undefined
-                    }
-                    {...{ inert: navVisible && isSmallScreen && !isCoworkRoute ? '' : undefined }}
-                  >
+                  <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
                     {!isCoworkRoute && (
                       <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
                     )}

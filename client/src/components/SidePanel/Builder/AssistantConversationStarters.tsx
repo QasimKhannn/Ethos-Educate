@@ -112,7 +112,7 @@ const AssistantConversationStarters: React.FC<AssistantConversationStartersProps
               >
                 <TooltipAnchor
                   side="top"
-                  description={addConversationStarterLabel}
+                  description={localize('com_ui_tooltip_add_conversation_starter')}
                   aria-label={addConversationStarterLabel}
                   className="flex size-7 items-center justify-center rounded-lg transition-colors duration-200 hover:bg-surface-hover"
                   onClick={handleAddStarter}
@@ -140,7 +140,7 @@ const AssistantConversationStarters: React.FC<AssistantConversationStartersProps
             />
             <TooltipAnchor
               side="top"
-              description={localize('com_ui_delete')}
+              description={localize('com_ui_tooltip_delete_conversation_starter')}
               aria-label={localize('com_ui_delete')}
               className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-lg transition-colors duration-200 hover:bg-surface-hover"
               onClick={() => handleDeleteStarter(index)}

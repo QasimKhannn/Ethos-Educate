@@ -37,7 +37,7 @@ export default function GroupSidePanel({
       {onClose && (
         <div className="flex items-center justify-between px-2 py-[2px] md:py-2">
           <TooltipAnchor
-            description={localize('com_nav_close_sidebar')}
+            description={localize('com_nav_tooltip_close_sidebar')}
             render={
               <Button
                 ref={closePanelRef}
@@ -80,7 +80,6 @@ export default function GroupSidePanel({
           hasNextPage={hasNextPage}
           hasPreviousPage={hasPreviousPage}
           isLoading={groupsQuery.isFetching}
-          isChatRoute={isChatRoute}
         >
           {isChatRoute && <ManagePrompts className="select-none" />}
         </PanelNavigation>
