@@ -6,10 +6,12 @@ import type { TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
 import { useLocalStorage, useLocalize } from '~/hooks';
 import { useGetEndpointsQuery } from '~/data-provider';
+import MarketplaceAdminSettings from '~/components/Agents/MarketplaceAdminSettings';
 import NavToggle from '~/components/Nav/NavToggle';
 import { ACTIVE_PANEL_STORAGE_KEY, clearStoredActivePanel, useSidePanelContext } from '~/Providers';
 import { cn } from '~/utils';
 import Nav from './Nav';
+import { OPEN_CONTROL_PANEL_EVENT } from './events';
 
 const defaultMinSize = 20;
 
@@ -176,13 +178,22 @@ const SidePanel = ({
 
       collapsePanel();
     };
+    const handleOpenControlPanel = () => {
+      if (isSmallScreen) {
+        return;
+      }
+
+      expandPanel();
+    };
 
     window.addEventListener('sidepanel-tour-open', handleTourOpen as EventListener);
     window.addEventListener('sidepanel-tour-close', handleTourClose as EventListener);
+    window.addEventListener(OPEN_CONTROL_PANEL_EVENT, handleOpenControlPanel);
 
     return () => {
       window.removeEventListener('sidepanel-tour-open', handleTourOpen as EventListener);
       window.removeEventListener('sidepanel-tour-close', handleTourClose as EventListener);
+      window.removeEventListener(OPEN_CONTROL_PANEL_EVENT, handleOpenControlPanel);
     };
   }, [collapsePanel, expandPanel, isCollapsed, isSmallScreen, shouldHidePanel]);
 
@@ -204,10 +215,14 @@ const SidePanel = ({
           className={cn('sidepanel-shell sidepanel-overlay hide-scrollbar', sidePanelOverlayClass)}
         >
           {!isSmallScreen && !isCollapsed && (
-            <div className="border-b border-white/10 px-4 pb-3 pt-4">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 pb-3 pt-4">
               <h2 className="truncate text-xl font-semibold tracking-[-0.02em] text-text-primary">
                 {localize('com_nav_control_panel')}
               </h2>
+              <MarketplaceAdminSettings
+                triggerClassName="marketplace-controlpanel-admin-trigger sidepanel-admin-trigger"
+                tourId="admin-settings"
+              />
             </div>
           )}
           {isSmallScreen && (

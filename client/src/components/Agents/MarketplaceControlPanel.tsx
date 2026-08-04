@@ -3,25 +3,31 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { PanelRightOpen, X } from 'lucide-react';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { Button, useMediaQuery } from '@librechat/client';
-import { getConfigDefaults } from 'librechat-data-provider';
+import { getConfigDefaults, SystemRoles } from 'librechat-data-provider';
 import type { TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import { useSidePanelContext } from '~/Providers';
-import { useLocalize } from '~/hooks';
+import { useAuthContext, useLocalize } from '~/hooks';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
 import { cn } from '~/utils';
+import { requestOpenControlPanel } from '~/components/SidePanel/events';
 import ControlPanelTour from './ControlPanelTour';
 import MarketplaceAdminSettings from './MarketplaceAdminSettings';
 import Nav from '~/components/SidePanel/Nav';
 
 interface MarketplaceControlPanelProps {
   className?: string;
+  isOpen?: boolean;
 }
 
 const defaultInterface = getConfigDefaults().interface;
 
-const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProps) => {
+const MarketplaceControlPanel = ({
+  className = '',
+  isOpen = false,
+}: MarketplaceControlPanelProps) => {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const { endpoint } = useSidePanelContext();
   const { data: startupConfig } = useGetStartupConfig();
   const { data: endpointsConfig = {} as TEndpointsConfig } = useGetEndpointsQuery();
@@ -54,18 +60,32 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
   const openPanel = useCallback(() => {
     setIsTourMode(false);
     setIsControlPanelTourActive(false);
-    setOpen(true);
-  }, []);
+
+    if (isSmallScreen) {
+      setOpen(true);
+      return;
+    }
+
+    requestOpenControlPanel();
+  }, [isSmallScreen]);
   const openPanelForTour = useCallback(() => {
+    if (!isSmallScreen) {
+      return;
+    }
+
     setIsTourMode(true);
     setIsControlPanelTourActive(false);
     setOpen(true);
-  }, []);
+  }, [isSmallScreen]);
   const finishControlPanelTour = useCallback(() => {
     setIsControlPanelTourActive(false);
   }, []);
 
   useEffect(() => {
+    if (!isSmallScreen) {
+      return;
+    }
+
     window.addEventListener('sidepanel-tour-open', openPanelForTour);
     window.addEventListener('sidepanel-tour-close', closePanel);
 
@@ -73,7 +93,7 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
       window.removeEventListener('sidepanel-tour-open', openPanelForTour);
       window.removeEventListener('sidepanel-tour-close', closePanel);
     };
-  }, [closePanel, openPanelForTour]);
+  }, [closePanel, isSmallScreen, openPanelForTour]);
 
   const sideNavLinks = useSideNavLinks({
     collapsePanel: closePanel,
@@ -89,9 +109,29 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
     () => sideNavLinks.filter((link) => link.id !== 'hide-panel'),
     [sideNavLinks],
   );
+  const isAdmin = user?.role === SystemRoles.ADMIN;
 
-  if (interfaceConfig.sidePanel !== true || links.length === 0) {
+  if (interfaceConfig.sidePanel !== true || (links.length === 0 && !isAdmin)) {
     return null;
+  }
+
+  if (!isSmallScreen) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        aria-controls="controls-nav"
+        aria-expanded={isOpen}
+        data-tour-id="sidepanel-controls"
+        data-tour-padding="-2"
+        data-tour-radius="18"
+        className={cn('agents-marketplace-panel-trigger', className)}
+        onClick={openPanel}
+      >
+        <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
+        <span>{localize('com_nav_control_panel')}</span>
+      </Button>
+    );
   }
 
   return (

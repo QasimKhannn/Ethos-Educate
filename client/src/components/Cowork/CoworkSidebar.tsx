@@ -2,6 +2,14 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
+  Button,
+  OGDialog,
+  OGDialogContent,
+  OGDialogHeader,
+  OGDialogTitle,
+} from '@librechat/client';
+import type { TCoworkProject } from 'librechat-data-provider';
+import {
   Plus,
   Folder,
   Briefcase,
@@ -16,11 +24,66 @@ import {
 } from 'lucide-react';
 import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-provider';
 import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
-import { useDeleteCoworkConversationMutation } from '~/data-provider/Cowork/mutations';
+import {
+  useDeleteCoworkConversationMutation,
+  useDeleteCoworkProjectMutation,
+} from '~/data-provider/Cowork/mutations';
 import { useLocalize } from '~/hooks';
 import CoworkConnectorsModal from './CoworkConnectorsPanel';
 import { CoworkSkillsModal } from './CoworkSkillsPanel';
 import AccountSettings from '~/components/Nav/AccountSettings';
+
+function DeleteCoworkProjectDialog({
+  project,
+  isDeleting,
+  error,
+  onOpenChange,
+  onConfirm,
+}: {
+  project: TCoworkProject | null;
+  isDeleting: boolean;
+  error: string | null;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}) {
+  const localize = useLocalize();
+  const open = project != null;
+
+  return (
+    <OGDialog open={open} onOpenChange={(nextOpen) => !isDeleting && onOpenChange(nextOpen)}>
+      <OGDialogContent
+        title={localize('com_cowork_delete_project')}
+        className="w-11/12 max-w-md"
+        showCloseButton={false}
+      >
+        <OGDialogHeader>
+          <OGDialogTitle>{localize('com_cowork_delete_project')}</OGDialogTitle>
+        </OGDialogHeader>
+        <div className="space-y-3 text-sm text-text-primary">
+          <p>{localize('com_cowork_delete_project_confirm')}</p>
+          {project?.name && (
+            <p className="truncate rounded-md border border-border-medium bg-surface-secondary px-3 py-2 font-medium">
+              {project.name}
+            </p>
+          )}
+          <p className="text-xs text-text-secondary">
+            {localize('com_cowork_delete_project_details')}
+          </p>
+          {error && <p className="text-xs font-medium text-red-400">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-3 pt-5">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
+            {localize('com_ui_cancel')}
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isDeleting}>
+            {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {localize('com_ui_delete')}
+          </Button>
+        </div>
+      </OGDialogContent>
+    </OGDialog>
+  );
+}
 
 function ProjectConversations({
   projectId,
@@ -137,10 +200,13 @@ export default function CoworkSidebar({
 
   const { data: projects = [] } = useCoworkProjectsQuery();
   const createMutation = useCreateCoworkProjectMutation();
+  const deleteProjectMutation = useDeleteCoworkProjectMutation();
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showConnectors, setShowConnectors] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<TCoworkProject | null>(null);
+  const [deleteProjectError, setDeleteProjectError] = useState<string | null>(null);
   const projectNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -171,6 +237,34 @@ export default function CoworkSidebar({
         },
       },
     );
+  };
+
+  const closeDeleteProjectDialog = () => {
+    if (deleteProjectMutation.isLoading) {
+      return;
+    }
+    setProjectToDelete(null);
+    setDeleteProjectError(null);
+  };
+
+  const confirmDeleteProject = () => {
+    if (!projectToDelete) {
+      return;
+    }
+
+    const deletedProjectId = projectToDelete._id;
+    deleteProjectMutation.mutate(deletedProjectId, {
+      onSuccess: () => {
+        setProjectToDelete(null);
+        setDeleteProjectError(null);
+        if (projectId === deletedProjectId) {
+          go('/cowork');
+        }
+      },
+      onError: () => {
+        setDeleteProjectError(localize('com_cowork_delete_project_error'));
+      },
+    });
   };
 
   return (
@@ -255,11 +349,15 @@ export default function CoworkSidebar({
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           {projects.map((p) => {
             const active = p._id === projectId;
+            const isDeletingProject =
+              deleteProjectMutation.isLoading && deleteProjectMutation.variables === p._id;
             return (
               <div key={p._id}>
                 {/* Project row */}
                 <div
-                  className={`flex items-center gap-1 rounded-md ${active ? 'bg-surface-tertiary' : ''}`}
+                  className={`group flex items-center gap-1 rounded-md ${
+                    active ? 'bg-surface-tertiary' : ''
+                  } ${isDeletingProject ? 'opacity-60' : ''}`}
                 >
                   <button
                     type="button"
@@ -283,6 +381,28 @@ export default function CoworkSidebar({
                       <SquarePen className="size-3.5" />
                     </button>
                   )}
+                  <button
+                    type="button"
+                    title={localize('com_cowork_delete_project')}
+                    aria-label={localize('com_cowork_delete_project')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteProjectError(null);
+                      setProjectToDelete(p);
+                    }}
+                    disabled={isDeletingProject}
+                    className={`mr-1 flex-none rounded p-1 text-text-tertiary transition-opacity hover:text-red-400 focus:opacity-100 disabled:pointer-events-none ${
+                      active
+                        ? 'opacity-100'
+                        : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+                    }`}
+                  >
+                    {isDeletingProject ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-3.5" />
+                    )}
+                  </button>
                 </div>
 
                 {/* Conversation sub-list — only for the active project */}
@@ -355,6 +475,17 @@ export default function CoworkSidebar({
             locked={!!activeConvoId}
           />
         )}
+        <DeleteCoworkProjectDialog
+          project={projectToDelete}
+          isDeleting={deleteProjectMutation.isLoading}
+          error={deleteProjectError}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeDeleteProjectDialog();
+            }
+          }}
+          onConfirm={confirmDeleteProject}
+        />
       </aside>
     </>
   );
