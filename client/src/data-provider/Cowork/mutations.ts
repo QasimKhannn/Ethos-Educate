@@ -74,15 +74,25 @@ export const useUpdateCoworkProjectMutation = (
 };
 
 export const useDeleteCoworkProjectMutation = (): UseMutationResult<
-  { deleted: string },
+  { deleted: string; conversationsDeleted?: number; messagesDeleted?: number },
   unknown,
   string
 > => {
   const queryClient = useQueryClient();
   return useMutation(['coworkProjectDelete'], {
     mutationFn: (projectId: string) => dataService.deleteCoworkProject(projectId),
-    onSuccess: () => {
+    onSuccess: (_result, projectId) => {
       queryClient.invalidateQueries([QueryKeys.coworkProjects]);
+      queryClient.invalidateQueries([QueryKeys.allConversations]);
+      queryClient.invalidateQueries([QueryKeys.archivedConversations]);
+      queryClient.invalidateQueries([QueryKeys.searchConversations]);
+      queryClient.removeQueries([QueryKeys.coworkConversations, projectId]);
+      queryClient.removeQueries([QueryKeys.coworkWorkspace, projectId]);
+      queryClient.removeQueries([QueryKeys.coworkSkills, projectId]);
+      queryClient.removeQueries([QueryKeys.coworkChanges, projectId]);
+      queryClient.removeQueries([QueryKeys.coworkCheckpoints, projectId]);
+      queryClient.removeQueries([QueryKeys.coworkMemory, projectId]);
+      queryClient.removeQueries([QueryKeys.coworkRoutines, projectId]);
     },
   });
 };

@@ -540,7 +540,10 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                       {localize('com_agents_marketplace_control_title')}
                     </span>
                   </div>
-                  <MarketplaceControlPanel className="agents-marketplace-panel-trigger--hero" />
+                  <MarketplaceControlPanel
+                    className="agents-marketplace-panel-trigger--hero"
+                    isOpen={isMarketplacePanelOpen}
+                  />
                 </div>
               </motion.div>
             </div>

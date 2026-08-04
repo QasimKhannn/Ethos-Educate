@@ -164,6 +164,49 @@ function isIgnoredPath(rel) {
   return IGNORE_FILES.has(parts[parts.length - 1]);
 }
 
+async function deleteCoworkConversationDocuments({ userId, conversationIds }) {
+  const ids = [
+    ...new Set(
+      (Array.isArray(conversationIds) ? conversationIds : []).filter(
+        (id) => typeof id === 'string' && id.trim(),
+      ),
+    ),
+  ];
+
+  if (ids.length === 0) {
+    return { messagesDeleted: 0, conversationsDeleted: 0 };
+  }
+
+  const CHUNK = 500;
+  let messagesDeleted = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const docs = await Message.find({ user: userId, conversationId: { $in: ids } })
+      .select('_id')
+      .limit(CHUNK)
+      .lean();
+
+    if (docs.length === 0) {
+      break;
+    }
+
+    const result = await Message.deleteMany({ _id: { $in: docs.map((d) => d._id) } });
+    messagesDeleted += result.deletedCount || 0;
+    hasMore = docs.length === CHUNK;
+  }
+
+  const conversationsResult = await Conversation.deleteMany({
+    user: userId,
+    conversationId: { $in: ids },
+  });
+
+  return {
+    messagesDeleted,
+    conversationsDeleted: conversationsResult.deletedCount || 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Cowork project CRUD. Defined BEFORE the workspace routes so the literal
 // "/projects" path is matched ahead of any other patterns.
@@ -228,13 +271,32 @@ router.patch('/projects/:projectId', async (req, res) => {
 });
 
 router.delete('/projects/:projectId', async (req, res) => {
+  const userId = req.user.id;
+  const { projectId } = req.params;
+
   try {
-    const project = await deleteCoworkProject({ user: req.user.id, projectId: req.params.projectId });
+    const project = await getUserCoworkProject({ user: userId, projectId });
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
-    res.status(200).json({ deleted: project._id });
-  } catch {
+
+    const cleanup = await deleteCoworkConversationDocuments({
+      userId,
+      conversationIds: project.conversationIds,
+    });
+
+    const deletedProject = await deleteCoworkProject({ user: userId, projectId });
+    if (!deletedProject) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.status(200).json({
+      deleted: String(deletedProject._id),
+      conversationsDeleted: cleanup.conversationsDeleted,
+      messagesDeleted: cleanup.messagesDeleted,
+    });
+  } catch (error) {
+    logger.error('[/cowork/projects] delete error', error);
     res.status(500).json({ message: 'Error deleting project' });
   }
 });

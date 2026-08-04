@@ -851,8 +851,16 @@ export function updateCoworkProject(
   return request.patch(endpoints.coworkProject(projectId), payload);
 }
 
-export function deleteCoworkProject(projectId: string): Promise<{ deleted: string }> {
-  return request.delete<{ deleted: string }>(endpoints.coworkProject(projectId));
+export function deleteCoworkProject(projectId: string): Promise<{
+  deleted: string;
+  conversationsDeleted?: number;
+  messagesDeleted?: number;
+}> {
+  return request.delete<{
+    deleted: string;
+    conversationsDeleted?: number;
+    messagesDeleted?: number;
+  }>(endpoints.coworkProject(projectId));
 }
 
 /** Link a chat conversation to a Cowork project (so the executor can resolve the workspace). */

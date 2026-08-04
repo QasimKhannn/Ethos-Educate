@@ -3658,6 +3658,26 @@ samp,
   isolation: isolate;
 }
 
+.project-route-shell {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .project-route-shell {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .project-route-content {
+    min-height: max-content;
+  }
+
+  .project-route-card {
+    overflow: visible;
+  }
+}
+
 .chat-view-shell > :not(.chat-background-lights) {
   position: relative;
   z-index: 1;
@@ -9575,6 +9595,22 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   border-color: rgba(183, 199, 231, 0.96) !important;
   background: rgba(242, 246, 253, 0.96) !important;
   color: rgba(24, 37, 65, 0.98) !important;
+}
+
+.sidepanel-admin-trigger {
+  width: 2.75rem !important;
+  min-width: 2.75rem !important;
+  padding-inline: 0 !important;
+  flex-shrink: 0;
+  gap: 0 !important;
+  overflow: hidden;
+  font-size: 0 !important;
+}
+
+.sidepanel-admin-trigger svg {
+  height: 1.25rem;
+  width: 1.25rem;
+  flex-shrink: 0;
 }
 
 .marketplace-controlpanel-body {

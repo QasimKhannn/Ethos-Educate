@@ -86,8 +86,8 @@ export default function ProjectRoute() {
   const project = projectQuery.data;
 
   return (
-    <div className="chat-view-shell relative flex h-full flex-col overflow-y-auto bg-surface-primary text-text-primary">
-      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-5 py-6 sm:px-8 md:px-10 md:py-10">
+    <div className="chat-view-shell project-route-shell relative flex h-full min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-surface-primary text-text-primary">
+      <div className="project-route-content mx-auto flex min-h-full w-full max-w-6xl flex-none flex-col px-5 py-6 sm:px-8 md:px-10 md:py-10">
         <header className="flex items-center gap-3">
           <div className="bg-surface-secondary/80 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border-light backdrop-blur-sm">
             <Folder className="h-6 w-6" />
@@ -97,7 +97,7 @@ export default function ProjectRoute() {
           </h1>
         </header>
 
-        <section className="bg-surface-primary/80 mt-7 overflow-hidden rounded-2xl border border-border-light shadow-sm backdrop-blur-xl md:mt-8">
+        <section className="project-route-card bg-surface-primary/80 mt-7 overflow-hidden rounded-2xl border border-border-light shadow-sm backdrop-blur-xl md:mt-8">
           <form
             className="bg-surface-secondary/75 flex h-16 w-full items-center border-b border-border-light px-4 sm:px-5"
             onSubmit={startChat}
