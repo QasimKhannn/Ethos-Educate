@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { useToastContext } from '@librechat/client';
+import React, { useState, useMemo } from 'react';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
-import { EModelEndpoint, getEndpointField } from 'librechat-data-provider';
+import { EModelEndpoint, SystemRoles, getEndpointField } from 'librechat-data-provider';
 import type { AgentForm, IconComponentTypes } from '~/common';
 import {
   removeFocusOutlines,
@@ -13,13 +12,12 @@ import {
   getIconKey,
   cn,
 } from '~/utils';
-import { ToolSelectDialog, MCPToolSelectDialog } from '~/components/Tools';
+import { MCPToolSelectDialog } from '~/components/Tools';
 import useAgentCapabilities from '~/hooks/Agents/useAgentCapabilities';
 import { useFileMapContext, useAgentPanelContext } from '~/Providers';
 import AgentCategorySelector from './AgentCategorySelector';
-import Action from '~/components/SidePanel/Builder/Action';
-import { useLocalize, useVisibleTools } from '~/hooks';
-import { Panel, isEphemeralAgent } from '~/common';
+import { useAuthContext, useLocalize, useVisibleTools } from '~/hooks';
+import { Panel } from '~/common';
 import { useGetAgentFiles } from '~/data-provider';
 import { icons } from '~/hooks/Endpoint/Icons';
 import Instructions from './Instructions';
@@ -28,11 +26,10 @@ import FileContext from './FileContext';
 import SearchForm from './Search/Form';
 import FileSearch from './FileSearch';
 import Artifacts from './Artifacts';
-import AgentTool from './AgentTool';
 import CodeForm from './Code/Form';
 import MCPTools from './MCPTools';
+import AgentFieldLabel from './AgentFieldLabel';
 
-const labelClass = 'mb-2 text-token-text-primary block font-medium';
 const inputClass = cn(
   defaultTextProps,
   'flex w-full px-3 py-2 border-border-light bg-surface-secondary focus-visible:ring-2 focus-visible:ring-ring-primary',
@@ -41,14 +38,11 @@ const inputClass = cn(
 
 export default function AgentConfig() {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const fileMap = useFileMapContext();
-  const { showToast } = useToastContext();
   const methods = useFormContext<AgentForm>();
-  const [showToolDialog, setShowToolDialog] = useState(false);
   const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
   const {
-    actions,
-    setAction,
     regularTools,
     agentsConfig,
     availableMCPServers,
@@ -79,15 +73,12 @@ export default function AgentConfig() {
     return newFileMap;
   }, [fileMap, agentFiles]);
 
-  const {
-    codeEnabled,
-    toolsEnabled,
-    contextEnabled,
-    actionsEnabled,
-    artifactsEnabled,
-    webSearchEnabled,
-    fileSearchEnabled,
-  } = useAgentCapabilities(agentsConfig?.capabilities);
+  const { codeEnabled, contextEnabled, artifactsEnabled, webSearchEnabled, fileSearchEnabled } =
+    useAgentCapabilities(agentsConfig?.capabilities);
+  const showDeveloperControls = user?.role === SystemRoles.ADMIN;
+  const showCodeControls = showDeveloperControls && codeEnabled;
+  const showMCPControls =
+    showDeveloperControls && availableMCPServers != null && availableMCPServers.length > 0;
 
   const context_files = useMemo(() => {
     if (typeof agent === 'string') {
@@ -149,17 +140,6 @@ export default function AgentConfig() {
     return _agent.code_files ?? [];
   }, [agent, agent_id, mergedFileMap]);
 
-  const handleAddActions = useCallback(() => {
-    if (isEphemeralAgent(agent_id)) {
-      showToast({
-        message: localize('com_assistants_actions_disabled'),
-        status: 'warning',
-      });
-      return;
-    }
-    setActivePanel(Panel.actions);
-  }, [agent_id, setActivePanel, showToast, localize]);
-
   const providerValue = typeof provider === 'string' ? provider : provider?.value;
   const providerLabel = getAgentBuilderProviderLabel(providerValue ?? '');
   const modelLabel = getAgentBuilderModelLabel(model);
@@ -180,18 +160,30 @@ export default function AgentConfig() {
     Icon = icons[iconKey];
   }
 
-  const { toolIds, mcpServerNames } = useVisibleTools(tools, regularTools, mcpServersMap);
+  const { mcpServerNames } = useVisibleTools(tools, regularTools, mcpServersMap);
+  let modelSelectionLabel = localize('com_ui_select_model');
+  if (modelLabel) {
+    modelSelectionLabel = modelLabel;
+    if (providerLabel) {
+      modelSelectionLabel = `${providerLabel} - ${modelLabel}`;
+    }
+  }
 
   return (
     <>
-      <div className="h-auto bg-white px-4 pt-3 dark:bg-transparent">
-        {/* Avatar & Name */}
+      <div className="agent-builder-form h-auto bg-white px-4 pt-3 dark:bg-transparent">
+        <div className="agent-builder-intro">
+          <h3>{localize('com_ui_agent_builder_intro_title')}</h3>
+          <p>{localize('com_ui_agent_builder_intro_description')}</p>
+        </div>
+        {/* Name */}
         <div className="mb-4">
-          <AgentAvatar avatar={agent?.['avatar'] ?? null} />
-          <label className={labelClass} htmlFor="name">
-            {localize('com_ui_name')}
-            <span className="text-red-500">*</span>
-          </label>
+          <AgentFieldLabel
+            htmlFor="name"
+            label={localize('com_ui_name')}
+            description={localize('com_ui_agent_name_help')}
+            required
+          />
           <Controller
             name="name"
             rules={{ required: localize('com_ui_agent_name_is_required') }}
@@ -232,9 +224,11 @@ export default function AgentConfig() {
         </div>
         {/* Description */}
         <div className="mb-4">
-          <label className={labelClass} htmlFor="description">
-            {localize('com_ui_description')}
-          </label>
+          <AgentFieldLabel
+            htmlFor="description"
+            label={localize('com_ui_description')}
+            description={localize('com_ui_agent_description_help')}
+          />
           <Controller
             name="description"
             control={control}
@@ -254,18 +248,24 @@ export default function AgentConfig() {
         </div>
         {/* Category */}
         <div className="mb-4">
-          <label className={labelClass} htmlFor="category-selector">
-            {localize('com_ui_category')} <span className="text-red-500">*</span>
-          </label>
+          <AgentFieldLabel
+            htmlFor="category-selector"
+            label={localize('com_ui_category')}
+            description={localize('com_ui_agent_category_help')}
+            required
+          />
           <AgentCategorySelector className="w-full" />
         </div>
         {/* Instructions */}
         <Instructions />
         {/* Model and Provider */}
         <div className="mb-4">
-          <label className={labelClass} htmlFor="provider">
-            {localize('com_ui_model')} <span className="text-red-500">*</span>
-          </label>
+          <AgentFieldLabel
+            htmlFor="provider"
+            label={localize('com_ui_model')}
+            description={localize('com_ui_agent_model_help')}
+            required
+          />
           <button
             type="button"
             onClick={() => setActivePanel(Panel.model)}
@@ -284,225 +284,157 @@ export default function AgentConfig() {
                   />
                 </div>
               )}
-              <span>
-                {modelLabel
-                  ? providerLabel
-                    ? `${providerLabel} - ${modelLabel}`
-                    : modelLabel
-                  : localize('com_ui_select_model')}
-              </span>
+              <span>{modelSelectionLabel}</span>
             </div>
           </button>
         </div>
-        {(codeEnabled ||
-          fileSearchEnabled ||
-          artifactsEnabled ||
-          contextEnabled ||
-          webSearchEnabled) && (
-          <div className="mb-4 flex w-full flex-col items-start gap-3">
-            <label className="text-token-text-primary block font-medium">
-              {localize('com_assistants_capabilities')}
-            </label>
-            {/* Code Execution */}
-            {codeEnabled && <CodeForm agent_id={agent_id} files={code_files} />}
-            {/* Web Search */}
-            {webSearchEnabled && <SearchForm />}
-            {/* File Context */}
-            {contextEnabled && <FileContext agent_id={agent_id} files={context_files} />}
-            {/* Artifacts */}
-            {artifactsEnabled && <Artifacts />}
-            {/* File Search */}
-            {fileSearchEnabled && <FileSearch agent_id={agent_id} files={knowledge_files} />}
-          </div>
-        )}
-        {/* MCP Section */}
-        {availableMCPServers != null && availableMCPServers.length > 0 && (
-          <MCPTools
-            agentId={agent_id}
-            mcpServerNames={mcpServerNames}
-            setShowMCPToolDialog={setShowMCPToolDialog}
-          />
-        )}
-
-        {/* Agent Tools & Actions */}
-        {/* <div className="mb-4">
-          <label className={labelClass}>
-            {(() => {
-              if (toolsEnabled === true && actionsEnabled === true) {
-                return localize('com_ui_tools_and_actions');
-              }
-              if (toolsEnabled === true) {
-                return localize('com_ui_tools');
-              }
-              if (actionsEnabled === true) {
-                return localize('com_assistants_actions');
-              }
-              return '';
-            })()}
-          </label>
-          <div>
-            <div className="mb-1">
-              {toolIds.map((toolId, i) => {
-                const tool = regularTools?.find((t) => t.pluginKey === toolId);
-                if (!tool) return null;
-                return (
-                  <AgentTool
-                    key={`${toolId}-${i}-${agent_id}`}
-                    tool={toolId}
-                    regularTools={regularTools}
-                    agent_id={agent_id}
-                  />
-                );
-              })}
+        <details className="agent-builder-optional-settings">
+          <summary>
+            <span>{localize('com_ui_agent_optional_settings')}</span>
+            <small>{localize('com_ui_agent_optional_settings_description')}</small>
+          </summary>
+          <div className="agent-builder-optional-settings-body">
+            <div className="agent-builder-avatar-setting">
+              <AgentFieldLabel
+                label={localize('com_ui_agent_avatar')}
+                description={localize('com_ui_agent_avatar_help')}
+              />
+              <AgentAvatar avatar={agent?.['avatar'] ?? null} />
             </div>
-            <div className="flex flex-col gap-1">
-              {(actions ?? [])
-                .filter((action) => action.agent_id === agent_id)
-                .map((action, i) => (
-                  <Action
-                    key={i}
-                    action={action}
-                    onClick={() => {
-                      setAction(action);
-                      setActivePanel(Panel.actions);
+            {(showCodeControls ||
+              fileSearchEnabled ||
+              artifactsEnabled ||
+              contextEnabled ||
+              webSearchEnabled) && (
+              <div className="flex w-full flex-col items-start gap-3">
+                <AgentFieldLabel
+                  label={localize('com_assistants_capabilities')}
+                  description={localize('com_ui_agent_capabilities_help')}
+                />
+                {/* Code Execution */}
+                {showCodeControls && <CodeForm agent_id={agent_id} files={code_files} />}
+                {/* Web Search */}
+                {webSearchEnabled && <SearchForm />}
+                {/* File Context */}
+                {contextEnabled && <FileContext agent_id={agent_id} files={context_files} />}
+                {/* Artifacts */}
+                {artifactsEnabled && <Artifacts />}
+                {/* File Search */}
+                {fileSearchEnabled && <FileSearch agent_id={agent_id} files={knowledge_files} />}
+              </div>
+            )}
+            {/* MCP Section */}
+            {showMCPControls && (
+              <MCPTools
+                agentId={agent_id}
+                mcpServerNames={mcpServerNames}
+                setShowMCPToolDialog={setShowMCPToolDialog}
+              />
+            )}
+            {/* Support Contact (Optional) */}
+            <div>
+              <AgentFieldLabel
+                label={localize('com_ui_support_contact')}
+                description={localize('com_ui_agent_support_contact_help')}
+              />
+              <div className="space-y-3">
+                {/* Support Contact Name */}
+                <div className="flex flex-col">
+                  <label
+                    className="mb-1 flex items-center justify-between"
+                    htmlFor="support-contact-name"
+                  >
+                    <span className="text-sm">{localize('com_ui_support_contact_name')}</span>
+                  </label>
+                  <Controller
+                    name="support_contact.name"
+                    control={control}
+                    rules={{
+                      minLength: {
+                        value: 3,
+                        message: localize('com_ui_support_contact_name_min_length', {
+                          minLength: 3,
+                        }),
+                      },
                     }}
+                    render={({ field, fieldState: { error } }) => (
+                      <>
+                        <input
+                          {...field}
+                          value={field.value ?? ''}
+                          className={cn(inputClass, error ? 'border-2 border-red-500' : '')}
+                          id="support-contact-name"
+                          type="text"
+                          placeholder={localize('com_ui_support_contact_name_placeholder')}
+                          aria-label="Support contact name"
+                          aria-invalid={error ? 'true' : 'false'}
+                          aria-describedby={error ? 'support-contact-name-error' : undefined}
+                        />
+                        {error && (
+                          <span
+                            id="support-contact-name-error"
+                            className="text-sm text-red-500 transition duration-300 ease-in-out"
+                            role="alert"
+                            aria-live="polite"
+                          >
+                            {error.message}
+                          </span>
+                        )}
+                      </>
+                    )}
                   />
-                ))}
-            </div>
-            <div className="mt-2 flex space-x-2">
-              {(toolsEnabled ?? false) && (
-                <button
-                  type="button"
-                  onClick={() => setShowToolDialog(true)}
-                  className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
-                  aria-haspopup="dialog"
-                >
-                  <div className="flex w-full items-center justify-center gap-2">
-                    {localize('com_assistants_add_tools')}
-                  </div>
-                </button>
-              )}
-              {(actionsEnabled ?? false) && (
-                <button
-                  type="button"
-                  disabled={isEphemeralAgent(agent_id)}
-                  onClick={handleAddActions}
-                  className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
-                  aria-haspopup="dialog"
-                >
-                  <div className="flex w-full items-center justify-center gap-2">
-                    {localize('com_assistants_add_actions')}
-                  </div>
-                </button>
-              )}
-            </div>
-          </div>
-        </div> */}
-        {/* Support Contact (Optional) */}
-        <div className="mb-4">
-          <div className="mb-1.5 flex items-center gap-2">
-            <span>
-              <label className="text-token-text-primary block font-medium">
-                {localize('com_ui_support_contact')}
-              </label>
-            </span>
-          </div>
-          <div className="space-y-3">
-            {/* Support Contact Name */}
-            <div className="flex flex-col">
-              <label
-                className="mb-1 flex items-center justify-between"
-                htmlFor="support-contact-name"
-              >
-                <span className="text-sm">{localize('com_ui_support_contact_name')}</span>
-              </label>
-              <Controller
-                name="support_contact.name"
-                control={control}
-                rules={{
-                  minLength: {
-                    value: 3,
-                    message: localize('com_ui_support_contact_name_min_length', { minLength: 3 }),
-                  },
-                }}
-                render={({ field, fieldState: { error } }) => (
-                  <>
-                    <input
-                      {...field}
-                      value={field.value ?? ''}
-                      className={cn(inputClass, error ? 'border-2 border-red-500' : '')}
-                      id="support-contact-name"
-                      type="text"
-                      placeholder={localize('com_ui_support_contact_name_placeholder')}
-                      aria-label="Support contact name"
-                      aria-invalid={error ? 'true' : 'false'}
-                      aria-describedby={error ? 'support-contact-name-error' : undefined}
-                    />
-                    {error && (
-                      <span
-                        id="support-contact-name-error"
-                        className="text-sm text-red-500 transition duration-300 ease-in-out"
-                        role="alert"
-                        aria-live="polite"
-                      >
-                        {error.message}
-                      </span>
+                </div>
+                {/* Support Contact Email */}
+                <div className="flex flex-col">
+                  <label
+                    className="mb-1 flex items-center justify-between"
+                    htmlFor="support-contact-email"
+                  >
+                    <span className="text-sm">{localize('com_ui_support_contact_email')}</span>
+                  </label>
+                  <Controller
+                    name="support_contact.email"
+                    control={control}
+                    rules={{
+                      validate: (value) =>
+                        validateEmail(
+                          value ?? '',
+                          localize('com_ui_support_contact_email_invalid'),
+                        ),
+                    }}
+                    render={({ field, fieldState: { error } }) => (
+                      <>
+                        <input
+                          {...field}
+                          value={field.value ?? ''}
+                          className={cn(inputClass, error ? 'border-2 border-red-500' : '')}
+                          id="support-contact-email"
+                          type="email"
+                          placeholder={localize('com_ui_support_contact_email_placeholder')}
+                          aria-label="Support contact email"
+                          aria-invalid={error ? 'true' : 'false'}
+                          aria-describedby={error ? 'support-contact-email-error' : undefined}
+                        />
+                        {error && (
+                          <span
+                            id="support-contact-email-error"
+                            className="text-sm text-red-500 transition duration-300 ease-in-out"
+                            role="alert"
+                            aria-live="polite"
+                          >
+                            {error.message}
+                          </span>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              />
-            </div>
-            {/* Support Contact Email */}
-            <div className="flex flex-col">
-              <label
-                className="mb-1 flex items-center justify-between"
-                htmlFor="support-contact-email"
-              >
-                <span className="text-sm">{localize('com_ui_support_contact_email')}</span>
-              </label>
-              <Controller
-                name="support_contact.email"
-                control={control}
-                rules={{
-                  validate: (value) =>
-                    validateEmail(value ?? '', localize('com_ui_support_contact_email_invalid')),
-                }}
-                render={({ field, fieldState: { error } }) => (
-                  <>
-                    <input
-                      {...field}
-                      value={field.value ?? ''}
-                      className={cn(inputClass, error ? 'border-2 border-red-500' : '')}
-                      id="support-contact-email"
-                      type="email"
-                      placeholder={localize('com_ui_support_contact_email_placeholder')}
-                      aria-label="Support contact email"
-                      aria-invalid={error ? 'true' : 'false'}
-                      aria-describedby={error ? 'support-contact-email-error' : undefined}
-                    />
-                    {error && (
-                      <span
-                        id="support-contact-email-error"
-                        className="text-sm text-red-500 transition duration-300 ease-in-out"
-                        role="alert"
-                        aria-live="polite"
-                      >
-                        {error.message}
-                      </span>
-                    )}
-                  </>
-                )}
-              />
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </details>
       </div>
-      <ToolSelectDialog
-        isOpen={showToolDialog}
-        setIsOpen={setShowToolDialog}
-        endpoint={EModelEndpoint.agents}
-      />
-      {availableMCPServers != null && availableMCPServers.length > 0 && (
+      {showMCPControls && (
         <MCPToolSelectDialog
           agentId={agent_id}
           isOpen={showMCPToolDialog}

@@ -28,12 +28,12 @@ export default function List({
 
   return (
     <div className="flex h-full flex-col">
-      {hasCreateAccess && (
+      {hasCreateAccess && (isChatRoute || groups.length > 0) && (
         <div className="flex w-full justify-end">
           <Button
             asChild
             variant="outline"
-            className={cn('w-full bg-transparent', !isChatRoute && 'mx-2')}
+            className={cn('w-full bg-transparent', !isChatRoute && 'prompts-library-create-button')}
             aria-label={localize('com_ui_create_prompt')}
           >
             <Link to="/d/prompts/new">
@@ -53,13 +53,8 @@ export default function List({
             Array.from({ length: 10 }).map((_, index: number) => (
               <Skeleton key={index} className="w-100 mx-2 my-2 flex h-14 rounded-lg border-0 p-4" />
             ))}
-          {!isLoading && groups.length === 0 && (
-            <div
-              className={cn(
-                'flex flex-col items-center justify-center rounded-lg border border-border-light bg-transparent p-6 text-center',
-                isChatRoute ? 'my-2' : 'mx-2 my-4',
-              )}
-            >
+          {!isLoading && groups.length === 0 && isChatRoute && (
+            <div className="my-2 flex flex-col items-center justify-center rounded-lg border border-border-light bg-transparent p-6 text-center">
               <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-surface-tertiary">
                 <FileText className="size-5 text-text-secondary" aria-hidden="true" />
               </div>
@@ -70,6 +65,9 @@ export default function List({
                 {localize('com_ui_add_first_prompt')}
               </p>
             </div>
+          )}
+          {!isLoading && groups.length === 0 && !isChatRoute && (
+            <p className="prompts-library-empty-message">{localize('com_ui_no_prompts_title')}</p>
           )}
           {groups.map((group) => {
             if (isChatRoute) {

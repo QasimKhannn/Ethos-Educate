@@ -174,7 +174,7 @@ const BookmarkMenu: FC = () => {
         keyPrefix={`${conversationId}-bookmark-`}
         trigger={
           <TooltipAnchor
-            description={localize('com_ui_bookmarks_add')}
+            description={localize('com_ui_tooltip_add_bookmark')}
             render={
               <Ariakit.MenuButton
                 id="bookmark-menu-button"

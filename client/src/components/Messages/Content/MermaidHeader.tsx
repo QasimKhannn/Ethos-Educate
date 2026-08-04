@@ -55,7 +55,7 @@ const MermaidHeader: React.FC<MermaidHeaderProps> = memo(
       >
         {showExpandButton && onExpand && (
           <TooltipAnchor
-            description={localize('com_ui_expand')}
+            description={localize('com_ui_tooltip_expand_diagram')}
             render={
               <button
                 ref={expandButtonRef}
@@ -70,7 +70,11 @@ const MermaidHeader: React.FC<MermaidHeaderProps> = memo(
           />
         )}
         <TooltipAnchor
-          description={showCode ? localize('com_ui_hide_code') : localize('com_ui_show_code')}
+          description={
+            showCode
+              ? localize('com_ui_tooltip_hide_diagram_code')
+              : localize('com_ui_tooltip_show_diagram_code')
+          }
           render={
             <button
               ref={showCodeButtonRef}
@@ -84,7 +88,7 @@ const MermaidHeader: React.FC<MermaidHeaderProps> = memo(
           }
         />
         <TooltipAnchor
-          description={isCopied ? localize('com_ui_copied') : localize('com_ui_copy_code')}
+          description={isCopied ? localize('com_ui_copied') : localize('com_ui_tooltip_copy_code')}
           render={
             <button
               ref={copyButtonRef}

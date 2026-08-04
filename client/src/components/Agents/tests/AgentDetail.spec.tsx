@@ -20,6 +20,7 @@ jest.mock('react-router-dom', () => ({
 jest.mock('~/hooks', () => ({
   useMediaQuery: jest.fn(() => false), // Mock as desktop by default
   useLocalize: jest.fn(),
+  useAgentCategories: jest.fn(() => ({ categories: [] })),
   useDefaultConvo: jest.fn(),
   useFavorites: jest.fn(() => ({
     favorites: [],
@@ -46,6 +47,9 @@ jest.mock('@librechat/client', () => ({
 }));
 
 jest.mock('~/utils/agents', () => ({
+  getAgentAvatarImageUrl: jest.fn(() => undefined),
+  getAgentDisplayName: jest.fn((agent) => agent?.name ?? ''),
+  normalizeAgentBrandText: jest.fn((value) => value ?? ''),
   renderAgentAvatar: jest.fn((agent, options) => (
     <div data-testid="agent-avatar" data-size={options?.size} />
   )),
@@ -182,10 +186,33 @@ describe('AgentDetail', () => {
       expect(screen.getByTestId('agent-avatar')).toHaveAttribute('data-size', 'xl');
     });
 
+    it('should explain the agent purpose, required input, expected output, and starter prompts', () => {
+      const onboardingAgent = {
+        ...mockAgent,
+        conversation_starters: ['Create a weekly lesson plan from these standards.'],
+      };
+
+      renderWithProviders(<AgentDetail {...defaultProps} agent={onboardingAgent} />);
+
+      expect(screen.getByTestId('agent-onboarding-overview')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'com_agents_modal_purpose' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'com_agents_modal_you_provide' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'com_agents_modal_you_receive' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'com_agents_modal_try_asking' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Create a weekly lesson plan from these standards.'),
+      ).toBeInTheDocument();
+    });
+
     it('should render contact information when available', () => {
       renderWithProviders(<AgentDetail {...defaultProps} />);
 
-      expect(screen.getByText('com_agents_contact:')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Support Team' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Support Team' })).toHaveAttribute(
         'href',
@@ -199,7 +226,8 @@ describe('AgentDetail', () => {
 
       renderWithProviders(<AgentDetail {...defaultProps} agent={agentWithoutContact} />);
 
-      expect(screen.queryByText('com_agents_contact:')).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Support Team' })).not.toBeInTheDocument();
+      expect(screen.getByText('Ethos Intelligence')).toBeInTheDocument();
     });
 
     it('should render loading state when agent is null', () => {

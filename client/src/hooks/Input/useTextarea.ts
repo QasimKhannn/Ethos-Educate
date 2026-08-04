@@ -1,6 +1,7 @@
 import debounce from 'lodash/debounce';
 import { useEffect, useRef, useCallback } from 'react';
 import { useRecoilValue, useRecoilState } from 'recoil';
+import { useMediaQuery } from '@librechat/client';
 import type { TEndpointOption } from 'librechat-data-provider';
 import type { KeyboardEvent } from 'react';
 import {
@@ -18,6 +19,7 @@ import { useInteractionHealthCheck } from '~/data-provider';
 import { useChatContext } from '~/Providers/ChatContext';
 import { globalAudioId } from '~/common';
 import { useLocalize } from '~/hooks';
+import { shouldInsertNewlineOnEnter } from './textareaKeyBehavior';
 import store from '~/store';
 
 type KeyEvent = KeyboardEvent<HTMLTextAreaElement>;
@@ -41,6 +43,7 @@ export default function useTextarea({
   const assistantMap = useAssistantsMapContext();
   const checkHealth = useInteractionHealthCheck();
   const enterToSend = useRecoilValue(store.enterToSend);
+  const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
   const { index, conversation, isSubmitting, filesLoading, setFilesLoading } = useChatContext();
   const latestMessage = useRecoilValue(store.latestMessageFamily(index));
@@ -152,6 +155,15 @@ export default function useTextarea({
 
       const isNonShiftEnter = e.key === 'Enter' && !e.shiftKey;
       const isCtrlEnter = e.key === 'Enter' && (e.ctrlKey || e.metaKey);
+      const shouldInsertNewline =
+        e.key === 'Enter' &&
+        shouldInsertNewlineOnEnter({
+          ctrlKey: e.ctrlKey,
+          enterToSend,
+          isSmallScreen,
+          metaKey: e.metaKey,
+          shiftKey: e.shiftKey,
+        });
 
       // NOTE: isComposing and e.key behave differently in Safari compared to other browsers, forcing us to use e.keyCode instead
       const isComposingInput = isComposing.current || e.key === 'Process' || e.keyCode === 229;
@@ -164,13 +176,7 @@ export default function useTextarea({
         e.preventDefault();
       }
 
-      if (
-        e.key === 'Enter' &&
-        !enterToSend &&
-        !isCtrlEnter &&
-        textAreaRef.current &&
-        !isComposingInput
-      ) {
+      if (shouldInsertNewline && textAreaRef.current && !isComposingInput) {
         e.preventDefault();
         insertTextAtCursor(textAreaRef.current, '\n');
         forceResize(textAreaRef.current);
@@ -191,6 +197,7 @@ export default function useTextarea({
       checkHealth,
       filesLoading,
       enterToSend,
+      isSmallScreen,
       setIsScrollable,
       textAreaRef,
       submitButtonRef,

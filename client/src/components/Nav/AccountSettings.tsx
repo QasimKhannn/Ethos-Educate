@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useState, memo, useRef } from 'react';
+import { useCallback, useContext, useEffect, useState, memo, useRef } from 'react';
 import * as Menu from '@ariakit/react/menu';
-import { ChevronDown, FileText, LogOut } from 'lucide-react';
-import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
+import { ChevronDown, FileText, LogOut, Moon, Sun } from 'lucide-react';
+import {
+  GearIcon,
+  DropdownMenuSeparator,
+  Avatar,
+  isDark,
+  Switch,
+  ThemeContext,
+} from '@librechat/client';
 import { MyFilesModal } from '~/components/Chat/Input/Files/MyFilesModal';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -11,6 +18,7 @@ import Settings from './Settings';
 function AccountSettings() {
   const localize = useLocalize();
   const { user, isAuthenticated, logout } = useAuthContext();
+  const { theme, setTheme } = useContext(ThemeContext);
   const { data: startupConfig } = useGetStartupConfig();
   const balanceQuery = useGetUserBalance({
     enabled: !!isAuthenticated && startupConfig?.balance?.enabled,
@@ -18,33 +26,15 @@ function AccountSettings() {
   const [showSettings, setShowSettings] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [accountMenuWidth, setAccountMenuWidth] = useState<number | null>(null);
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
-  const accountMenu = Menu.useMenuStore({ open: isAccountMenuOpen, setOpen: setIsAccountMenuOpen });
+  const isDarkMode = isDark(theme);
 
-  const feedbackFormUrl = import.meta.env.VITE_FEEDBACK_FORM_URL;
-
-  useEffect(() => {
-    const button = accountSettingsButtonRef.current;
-
-    if (!button) {
-      return;
-    }
-
-    const syncWidth = () => setAccountMenuWidth(button.offsetWidth);
-
-    syncWidth();
-
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(() => syncWidth());
-
-    resizeObserver.observe(button);
-
-    return () => resizeObserver.disconnect();
-  }, []);
+  const changeTheme = useCallback(
+    (enabled: boolean) => {
+      setTheme(enabled ? 'dark' : 'light');
+    },
+    [setTheme],
+  );
 
   const closeAccountTourMenu = useCallback(() => {
     setIsAccountMenuOpen(false);
@@ -63,7 +53,11 @@ function AccountSettings() {
   }, [closeAccountTourMenu]);
 
   return (
-    <Menu.MenuProvider store={accountMenu}>
+    <Menu.MenuProvider
+      open={isAccountMenuOpen}
+      setOpen={setIsAccountMenuOpen}
+      placement="top-start"
+    >
       <Menu.MenuButton
         ref={accountSettingsButtonRef}
         aria-label={localize('com_nav_account_settings')}
@@ -92,14 +86,16 @@ function AccountSettings() {
         />
       </Menu.MenuButton>
       <Menu.Menu
+        fixed
+        gutter={6}
+        sameWidth
         data-tour-id="nav-account-menu"
         data-tour-padding="-8"
         data-tour-radius="18"
         className="account-settings-popover popover-ui z-[125] rounded-2xl"
         style={{
           transformOrigin: 'bottom',
-          translate: '0 -4px',
-          width: accountMenuWidth != null ? `${accountMenuWidth}px` : undefined,
+          margin: 0,
           maxWidth: 'calc(100vw - 1rem)',
         }}
       >
@@ -120,26 +116,25 @@ function AccountSettings() {
           <FileText className="icon-md" aria-hidden="true" />
           {localize('com_nav_my_files')}
         </Menu.MenuItem>
-        {startupConfig?.helpAndFaqURL !== '/' && (
-          <Menu.MenuItem
-            onClick={() => window.open(startupConfig?.helpAndFaqURL, '_blank')}
-            className="select-item text-sm"
-          >
-            <LinkIcon aria-hidden="true" />
-            {localize('com_nav_help_faq')}
-          </Menu.MenuItem>
-        )}
-        <Menu.MenuItem
-          onClick={() => window.open(feedbackFormUrl, '_blank')}
-          className="select-item text-sm"
-        >
-          <LinkIcon aria-hidden="true" />
-          {localize('com_nav_educhat_feedback')}
-        </Menu.MenuItem>
         <Menu.MenuItem onClick={() => setShowSettings(true)} className="select-item text-sm">
           <GearIcon className="icon-md" aria-hidden="true" />
           {localize('com_nav_settings')}
         </Menu.MenuItem>
+        <div className="flex items-center gap-3 px-3 py-2 text-sm text-text-primary">
+          {isDarkMode ? (
+            <Moon className="icon-md" aria-hidden="true" />
+          ) : (
+            <Sun className="icon-md" aria-hidden="true" />
+          )}
+          <span id="account-theme-label" className="flex-1">
+            {localize('com_nav_dark_mode')}
+          </span>
+          <Switch
+            aria-labelledby="account-theme-label"
+            checked={isDarkMode}
+            onCheckedChange={changeTheme}
+          />
+        </div>
         <DropdownMenuSeparator />
         <Menu.MenuItem onClick={() => logout()} className="select-item text-sm">
           <LogOut className="icon-md" aria-hidden="true" />

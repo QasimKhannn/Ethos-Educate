@@ -1,4 +1,5 @@
 import { useLocalize } from '~/hooks';
+import { getBrandedLegalUrl } from '~/utils';
 import { TStartupConfig } from 'librechat-data-provider';
 
 function Footer({ startupConfig }: { startupConfig: TStartupConfig | null | undefined }) {
@@ -8,11 +9,13 @@ function Footer({ startupConfig }: { startupConfig: TStartupConfig | null | unde
   }
   const privacyPolicy = startupConfig.interface?.privacyPolicy;
   const termsOfService = startupConfig.interface?.termsOfService;
+  const privacyPolicyUrl = getBrandedLegalUrl(privacyPolicy?.externalUrl, 'privacy');
+  const termsOfServiceUrl = getBrandedLegalUrl(termsOfService?.externalUrl, 'terms');
 
-  const privacyPolicyRender = privacyPolicy?.externalUrl && (
+  const privacyPolicyRender = privacyPolicyUrl && (
     <a
-      className="text-sm text-green-600 underline decoration-transparent transition-all duration-200 hover:text-green-700 hover:decoration-green-700 focus:text-green-700 focus:decoration-green-700 dark:text-green-500 dark:hover:text-green-400 dark:hover:decoration-green-400 dark:focus:text-green-400 dark:focus:decoration-green-400"
-      href={privacyPolicy.externalUrl}
+      className="text-sm text-[#9A671E] underline decoration-transparent transition-all duration-200 hover:text-[#7D5116] hover:decoration-[#7D5116] focus:text-[#7D5116] focus:decoration-[#7D5116] dark:text-[#DAAC60] dark:hover:text-[#E8C37F] dark:hover:decoration-[#E8C37F] dark:focus:text-[#E8C37F] dark:focus:decoration-[#E8C37F]"
+      href={privacyPolicyUrl}
       // Removed for WCAG compliance
       // target={privacyPolicy.openNewTab ? '_blank' : undefined}
       rel="noreferrer"
@@ -21,10 +24,10 @@ function Footer({ startupConfig }: { startupConfig: TStartupConfig | null | unde
     </a>
   );
 
-  const termsOfServiceRender = termsOfService?.externalUrl && (
+  const termsOfServiceRender = termsOfServiceUrl && (
     <a
-      className="text-sm text-green-600 underline decoration-transparent transition-all duration-200 hover:text-green-700 hover:decoration-green-700 focus:text-green-700 focus:decoration-green-700 dark:text-green-500 dark:hover:text-green-400 dark:hover:decoration-green-400 dark:focus:text-green-400 dark:focus:decoration-green-400"
-      href={termsOfService.externalUrl}
+      className="text-sm text-[#9A671E] underline decoration-transparent transition-all duration-200 hover:text-[#7D5116] hover:decoration-[#7D5116] focus:text-[#7D5116] focus:decoration-[#7D5116] dark:text-[#DAAC60] dark:hover:text-[#E8C37F] dark:hover:decoration-[#E8C37F] dark:focus:text-[#E8C37F] dark:focus:decoration-[#E8C37F]"
+      href={termsOfServiceUrl}
       // Removed for WCAG compliance
       // target={termsOfService.openNewTab ? '_blank' : undefined}
       rel="noreferrer"

@@ -272,7 +272,7 @@ export default function DialogImage({
           {/* Close button - top left */}
           <div className="absolute left-4 top-4 z-20">
             <TooltipAnchor
-              description={localize('com_ui_close')}
+              description={localize('com_ui_tooltip_close_image')}
               render={
                 <Button
                   ref={closeButtonRef}
@@ -293,7 +293,7 @@ export default function DialogImage({
           >
             {zoom > 1 && (
               <TooltipAnchor
-                description={localize('com_ui_reset_zoom')}
+                description={localize('com_ui_tooltip_reset_zoom')}
                 render={
                   <Button
                     onClick={resetZoom}
@@ -307,7 +307,7 @@ export default function DialogImage({
               />
             )}
             <TooltipAnchor
-              description={localize('com_ui_download')}
+              description={localize('com_ui_tooltip_download_image')}
               render={
                 <Button
                   onClick={() => downloadImage()}
@@ -320,7 +320,7 @@ export default function DialogImage({
               }
             />
             <TooltipAnchor
-              description={imageDetailsLabel}
+              description={localize('com_ui_tooltip_image_details')}
               render={
                 <Button
                   onClick={() => setIsPromptOpen(!isPromptOpen)}

@@ -47,7 +47,7 @@ const DeleteBookmarkButton: FC<{
       <OGDialog open={open} onOpenChange={setOpen}>
         <OGDialogTrigger asChild>
           <TooltipAnchor
-            description={localize('com_ui_delete')}
+            description={localize('com_ui_tooltip_delete_bookmark')}
             render={
               <Button
                 variant="ghost"

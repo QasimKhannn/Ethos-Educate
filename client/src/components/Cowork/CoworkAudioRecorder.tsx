@@ -84,7 +84,7 @@ export default function CoworkAudioRecorder({
 
   return (
     <TooltipAnchor
-      description={localize('com_ui_use_micrphone')}
+      description={localize('com_ui_tooltip_use_microphone')}
       render={
         <button
           type="button"

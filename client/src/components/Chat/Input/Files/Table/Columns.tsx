@@ -34,7 +34,7 @@ export const columns: ColumnDef<TFile>[] = [
       const localize = useLocalize();
       return (
         <TooltipAnchor
-          description={localize('com_ui_select_all')}
+          description={localize('com_ui_tooltip_select_all')}
           side="top"
           role="checkbox"
           render={
@@ -84,7 +84,7 @@ export const columns: ColumnDef<TFile>[] = [
       }
       return (
         <TooltipAnchor
-          description={localize('com_ui_name_sort')}
+          description={localize('com_ui_tooltip_sort_by_name')}
           side="top"
           render={
             <Button
@@ -143,7 +143,7 @@ export const columns: ColumnDef<TFile>[] = [
       }
       return (
         <TooltipAnchor
-          description={localize('com_ui_date_sort')}
+          description={localize('com_ui_tooltip_sort_by_date')}
           side="top"
           render={
             <Button
@@ -262,7 +262,7 @@ export const columns: ColumnDef<TFile>[] = [
       }
       return (
         <TooltipAnchor
-          description={localize('com_ui_size_sort')}
+          description={localize('com_ui_tooltip_sort_by_size')}
           side="top"
           render={
             <Button

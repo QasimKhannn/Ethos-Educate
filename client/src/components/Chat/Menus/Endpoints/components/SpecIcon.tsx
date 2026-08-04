@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { getEndpointField } from 'librechat-data-provider';
 import type { TModelSpec, TEndpointsConfig } from 'librechat-data-provider';
 import type { IconMapProps } from '~/common';
+import EthosModelMark, { isEthosModelName } from '~/components/Endpoints/EthosModelMark';
 import { getModelSpecIconURL, getIconKey } from '~/utils';
 import { URLIcon } from '~/components/Endpoints/URLIcon';
 import { icons } from '~/hooks/Endpoint/Icons';
@@ -14,6 +15,10 @@ interface SpecIconProps {
 type IconType = (props: IconMapProps) => React.JSX.Element;
 
 const SpecIcon: React.FC<SpecIconProps> = ({ currentSpec, endpointsConfig }) => {
+  if (isEthosModelName(currentSpec.name)) {
+    return <EthosModelMark showBadge />;
+  }
+
   const iconURL = getModelSpecIconURL(currentSpec);
   const { endpoint } = currentSpec.preset;
   const endpointIconURL = getEndpointField(endpointsConfig, endpoint, 'iconURL');

@@ -1,0 +1,260 @@
+NAVIGATION
+
+New Chat: starts a fresh conversation with a clean chat workspace.
+
+Ethos Toolkit: opens the library of specialized AI agents available in this workspace.
+
+Cowork: opens the automation and collaborative workspace area.
+
+Chat History: opens your previous conversations so you can search or continue them.
+
+Search Chats: searches your available conversation history.
+
+Bookmarks: opens the conversations you have saved for later.
+
+New Project: creates a workspace for organizing related chats, files, and instructions.
+
+Projects: displays the projects available in your workspace.
+
+Feedback & Help Desk: opens help resources and allows you to share feedback.
+
+Open Sidebar: expands the navigation panel and displays your chat history.
+
+Close Sidebar: collapses the navigation panel to create more room for the current page.
+
+Account Settings: opens your profile, preferences, and account controls.
+
+
+CHAT
+
+Select a Model: opens the list of AI models currently available for the conversation.
+
+Add Conversation: adds another model or conversation to the multi-conversation workspace.
+
+Temporary Chat: creates a conversation that will not appear in your saved chat history.
+
+Attach Files: uploads a document, image, or other supported file to the conversation.
+
+Tools Options: opens the tools currently available for the selected model and conversation.
+
+Model Parameters: opens controls for adjusting how the selected model responds.
+
+Use Microphone: records audio for voice input.
+
+Send Message: submits the current message to the selected AI.
+
+Stop Generating: stops the response currently being generated.
+
+Open Control Panel: opens Agent Builder, Prompts, Memories, Attach Files, and Bookmarks.
+
+Close Control Panel: closes the additional conversation options panel.
+
+Collapse Control Panel: reduces the Control Panel to its compact navigation.
+
+Expand Chat: expands a collapsed conversation workspace.
+
+Collapse Chat: collapses a conversation workspace to create more room.
+
+
+CONTROL PANEL
+
+Agent Builder: opens controls for creating or editing a reusable AI agent.
+
+Prompts: opens your reusable prompt library.
+
+Memories: opens information that the AI can remember across conversations.
+
+Files: opens files attached to the current conversation.
+
+Bookmarks Panel: opens saved bookmark collections and conversations.
+
+
+AGENT BUILDER
+
+Agent Name Help: explains how the agent name will appear in Ethos Toolkit and conversations.
+
+Agent Description Help: explains how to summarize what the agent does.
+
+Agent Category Help: explains where the agent will appear within Ethos Toolkit.
+
+Agent Model Help: explains how to choose the AI model that powers the agent.
+
+Agent Image Help: explains how the uploaded image helps users recognize the agent.
+
+Agent Capabilities Help: explains when to enable files, search, artifacts, or other abilities.
+
+Agent Support Contact Help: explains how users can contact the agent owner for support.
+
+Agent Instructions Help: explains how to define the agent's role, tasks, rules, and response style.
+
+Add Conversation Starter: adds a suggested prompt that users can select to begin a conversation.
+
+Delete Conversation Starter: removes a suggested starter from the agent.
+
+
+PROMPTS
+
+Create Prompt: opens the form for creating a reusable prompt.
+
+Manage Prompts: opens the full prompt-management workspace.
+
+Edit Prompt: opens a saved prompt so its content can be changed.
+
+Delete Prompt: permanently removes the selected prompt.
+
+Latest Production Version: identifies the newest prompt version currently used in production.
+
+Prompt Version Status: explains whether a prompt version is current, production, or outdated.
+
+Previous Prompt Page: displays the previous page of prompt results.
+
+Next Prompt Page: displays the next page of prompt results.
+
+
+MEMORIES
+
+Create Memory: adds information that the AI should remember.
+
+Edit Memory: changes the content of an existing memory.
+
+Delete Memory: permanently removes a saved memory.
+
+Memory Usage: shows how much of the available memory capacity is currently used.
+
+
+FILES
+
+Select All Files: selects every visible file.
+
+Sort Files by Name: sorts the file list alphabetically.
+
+Sort Files by Date: sorts files by their upload or modification date.
+
+Sort Files by Size: sorts files according to file size.
+
+Filter Files: limits the file list using the selected column or value.
+
+
+BOOKMARKS
+
+Create Bookmark: creates a collection for organizing saved conversations.
+
+Edit Bookmark: changes a bookmark's name, description, or settings.
+
+Delete Bookmark: permanently removes the selected bookmark.
+
+Bookmark Conversation Count: shows how many conversations are stored in a bookmark.
+
+Add Conversation to Bookmark: saves the current conversation to a bookmark.
+
+
+ETHOS TOOLKIT
+
+Control Panel: opens workspace controls for creating and configuring agents.
+
+Search Agents: searches agents by their name, task, or description.
+
+All Agents: displays every agent available in Ethos Toolkit.
+
+Top Picks: displays the recommended agents.
+
+General Category: displays general-purpose agents.
+
+Sort Agents: changes the order of the displayed agents.
+
+Open Agent: opens the selected agent's purpose, requirements, and expected output.
+
+Pin Agent: keeps the selected agent available for quick access.
+
+Unpin Agent: removes the selected agent from quick access.
+
+Copy Agent Link: copies a direct link to the selected agent.
+
+Start Agent Chat: begins a conversation with the selected agent.
+
+Close Agent Details: closes the selected agent's information panel.
+
+
+COWORK
+
+Back to Chat: returns from Cowork to the main chat workspace.
+
+New Cowork Project: creates a Cowork project for files, instructions, and conversations.
+
+Create Project: creates the first project when the Cowork workspace is empty.
+
+Project List: displays the Cowork projects available to you.
+
+Skills: opens reusable Cowork skills available for project work.
+
+Connectors: opens the services that can be connected to Cowork.
+
+Take a Tour: starts the guided Cowork workspace tour.
+
+Locked Cowork Model: explains that the model cannot be changed after a Cowork session begins.
+
+
+MESSAGE CONTENT
+
+Submit Edited Message: saves an edited message using Ctrl or Command plus Enter.
+
+Add Line While Editing: adds a new line using Shift plus Enter.
+
+Cancel Message Edit: exits message editing using Escape.
+
+Copy Message: copies message content to the clipboard.
+
+Show Thinking: expands the AI reasoning section.
+
+Hide Thinking: collapses the AI reasoning section.
+
+Copy Thinking: copies the visible reasoning content.
+
+Run Code: executes generated code in the available code environment.
+
+Copy Code: copies a code block to the clipboard.
+
+Expand Diagram: opens a Mermaid diagram in a larger viewer.
+
+Show Diagram Code: displays the source used to generate a Mermaid diagram.
+
+Hide Diagram Code: hides the Mermaid diagram source.
+
+
+IMAGE VIEWER
+
+Close Image: closes the expanded image viewer.
+
+Reset Image Zoom: returns the image to its original zoom and position.
+
+Download Image: downloads the displayed image.
+
+Image Details: displays the image dimensions and file information.
+
+
+SHARING AND ARCHIVES
+
+Export and Share: opens options for exporting or sharing the current conversation.
+
+Refresh Shared Link: replaces the existing public conversation link with a new link.
+
+Show QR Code: displays a QR code for opening the shared conversation.
+
+Delete Shared Link: disables and removes the public conversation link.
+
+Open Source Chat: opens the conversation associated with a shared link.
+
+Unarchive Conversation: restores an archived conversation to chat history.
+
+Delete Conversation: permanently removes the selected conversation.
+
+
+ACCOUNT AND SECURITY
+
+Dark Mode: switches the interface between light and dark appearance.
+
+Show Backup Code: reveals a hidden two-factor authentication backup code.
+
+Hide Backup Code: conceals a visible two-factor authentication backup code.
+
+Copy Backup Code: copies a two-factor authentication backup code.

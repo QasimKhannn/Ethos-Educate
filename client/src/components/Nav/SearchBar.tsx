@@ -299,7 +299,7 @@ const SearchBar = forwardRef(
     return (
       <div ref={ref}>
         <TooltipAnchor
-          description={localize('com_nav_search_placeholder')}
+          description={localize('com_nav_tooltip_search_chats')}
           render={
             <Button
               type="button"

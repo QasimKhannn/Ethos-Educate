@@ -3,8 +3,10 @@
 import { Link } from 'react-router-dom';
 import { Briefcase, ChevronRight } from 'lucide-react';
 import { useCoworkAccessQuery } from '~/data-provider';
+import { useLocalize } from '~/hooks';
 
 export default function CoworkNavLink({ toggleNav }: { toggleNav?: () => void }) {
+  const localize = useLocalize();
   const { data: access } = useCoworkAccessQuery();
   // Hide the entry for users the admin hasn't granted Cowork access (the API enforces it too).
   if (access && !access.allowed) {
@@ -17,13 +19,15 @@ export default function CoworkNavLink({ toggleNav }: { toggleNav?: () => void })
       aria-label="Open Cowork"
       className="group flex items-center gap-2.5 rounded-lg border border-border-medium bg-surface-secondary px-2.5 py-2 transition-colors hover:bg-surface-tertiary"
     >
-      <span className="flex size-7 flex-none items-center justify-center rounded-md bg-blue-500/10 text-blue-500">
+      <span className="flex size-7 flex-none items-center justify-center rounded-md bg-[#DAAC60]/15 text-[#DAAC60] transition-colors group-hover:bg-[#DAAC60]/20 group-hover:text-[#E8C37F]">
         <Briefcase className="size-4" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-sm font-semibold leading-tight text-text-primary">Cowork</span>
+        <span className="text-sm font-semibold leading-tight text-text-primary">
+          {localize('com_sidepanel_cowork_label')}
+        </span>
         <span className="truncate text-xs leading-tight text-text-tertiary">
-          Automations &amp; workspace
+          {localize('com_sidepanel_cowork_description')}
         </span>
       </span>
       <ChevronRight className="size-4 flex-none text-text-tertiary transition-transform group-hover:translate-x-0.5" />

@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getConfigDefaults, PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { ContextType } from '~/common';
-import { PresetsMenu, HeaderNewChat, OpenSidebar } from './Menus';
+import { PresetsMenu, HeaderNewChat } from './Menus';
 import ModelSelector from './Menus/Endpoints/ModelSelector';
 import { useGetStartupConfig } from '~/data-provider';
 import ExportAndShareMenu from './ExportAndShareMenu';
@@ -18,7 +18,7 @@ const defaultInterface = getConfigDefaults().interface;
 
 function Header() {
   const { data: startupConfig } = useGetStartupConfig();
-  const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+  const { navVisible } = useOutletContext<ContextType>();
 
   const interfaceConfig = useMemo(
     () => startupConfig?.interface ?? defaultInterface,
@@ -44,28 +44,12 @@ function Header() {
 
   return (
     <div className="absolute inset-x-0 top-0 z-20 px-2 pt-2 md:px-4 md:pt-4">
-      <AnimatePresence initial={false}>
-        {!navVisible && !isSmallScreen && (
-          <motion.div
-            className="chat-sidebar-reveal"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
-            transition={{ duration: 0.18 }}
-          >
-            <OpenSidebar
-              setNavVisible={setNavVisible}
-              className="chat-sidebar-reveal-button chat-header-icon-control size-9"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
       <div className="chat-header-row">
         <div className="chat-header-shell px-1.5 py-1.5 md:px-2 md:py-1.5">
           <div className="hide-scrollbar chat-header-toolbar">
             <div className="chat-header-group">
               <AnimatePresence initial={false}>
-                {!navVisible && (
+                {!navVisible && isSmallScreen && (
                   <motion.div
                     className="chat-header-group chat-header-primary-group"
                     initial={{ opacity: 0 }}
@@ -83,7 +67,6 @@ function Header() {
                   className={cn(
                     'chat-header-group chat-header-actions-group',
                     !isSmallScreen ? 'transition-all duration-200 ease-in-out' : '',
-                    !navVisible && !isSmallScreen ? 'pl-0.5' : '',
                   )}
                 >
                   <ModelSelector startupConfig={startupConfig} />

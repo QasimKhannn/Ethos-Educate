@@ -37,7 +37,7 @@ export default function GroupSidePanel({
       {onClose && (
         <div className="flex items-center justify-between px-2 py-[2px] md:py-2">
           <TooltipAnchor
-            description={localize('com_nav_close_sidebar')}
+            description={localize('com_nav_tooltip_close_sidebar')}
             render={
               <Button
                 ref={closePanelRef}
@@ -56,6 +56,14 @@ export default function GroupSidePanel({
         </div>
       )}
       <div className="flex flex-1 flex-col gap-2 overflow-visible">
+        {!isChatRoute && (
+          <div className="prompts-library-panel-heading">
+            <h2>{localize('com_ui_prompt_library_sidebar_title')}</h2>
+            <span className="prompts-library-count" aria-label={`${promptGroups.length}`}>
+              {promptGroups.length}
+            </span>
+          </div>
+        )}
         {children}
         <div className={cn('relative flex h-full flex-col', isChatRoute ? '' : 'px-2 md:px-0')}>
           <List
@@ -72,7 +80,6 @@ export default function GroupSidePanel({
           hasNextPage={hasNextPage}
           hasPreviousPage={hasPreviousPage}
           isLoading={groupsQuery.isFetching}
-          isChatRoute={isChatRoute}
         >
           {isChatRoute && <ManagePrompts className="select-none" />}
         </PanelNavigation>

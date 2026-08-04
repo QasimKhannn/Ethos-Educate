@@ -156,7 +156,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
-      const customWelcome = startupConfig.interface.customWelcome;
+      const customWelcome = normalizeAgentBrandText(startupConfig.interface.customWelcome);
       // Replace {{user.name}} with actual user name if available
       if (user?.name && customWelcome.includes('{{user.name}}')) {
         return customWelcome.replace(/{{user.name}}/g, user.name);

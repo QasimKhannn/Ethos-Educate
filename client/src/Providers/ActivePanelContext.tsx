@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
+import type { ReactNode } from 'react';
+
+export const ACTIVE_PANEL_STORAGE_KEY = 'side:active-panel';
+
+export const clearStoredActivePanel = (): void => {
+  localStorage.setItem(ACTIVE_PANEL_STORAGE_KEY, '');
+};
 
 interface ActivePanelContextType {
   active: string | undefined;
@@ -16,10 +23,10 @@ export function ActivePanelProvider({
 }) {
   const [active, _setActive] = useState<string | undefined>(defaultActive);
 
-  const setActive = (id: string) => {
-    localStorage.setItem('side:active-panel', id);
+  const setActive = useCallback((id: string) => {
+    localStorage.setItem(ACTIVE_PANEL_STORAGE_KEY, id);
     _setActive(id);
-  };
+  }, []);
 
   return (
     <ActivePanelContext.Provider value={{ active, setActive }}>

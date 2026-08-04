@@ -76,7 +76,7 @@ export default function ExportAndShareMenu({
         setIsOpen={setIsPopoverActive}
         trigger={
           <TooltipAnchor
-            description={localize('com_endpoint_export_share')}
+            description={localize('com_ui_tooltip_export_share')}
             render={
               <Ariakit.MenuButton
                 id="export-menu-button"

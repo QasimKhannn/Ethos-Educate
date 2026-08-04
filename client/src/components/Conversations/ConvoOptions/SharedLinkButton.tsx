@@ -141,7 +141,7 @@ export default function SharedLinkButton({
         {shareId && (
           <div className="flex items-center gap-2">
             <TooltipAnchor
-              description={localize('com_ui_refresh_link')}
+              description={localize('com_ui_tooltip_refresh_shared_link')}
               render={(props) => (
                 <>
                   <span className="sr-only" aria-live="polite" aria-atomic="true">
@@ -165,7 +165,7 @@ export default function SharedLinkButton({
             />
 
             <TooltipAnchor
-              description={qrCodeLabel}
+              description={localize('com_ui_tooltip_show_qr_code')}
               render={(props) => (
                 <Button
                   {...props}
@@ -179,7 +179,7 @@ export default function SharedLinkButton({
             />
 
             <TooltipAnchor
-              description={localize('com_ui_delete')}
+              description={localize('com_ui_tooltip_delete_shared_link')}
               render={(props) => (
                 <Button
                   {...props}

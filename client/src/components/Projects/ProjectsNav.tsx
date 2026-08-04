@@ -9,10 +9,6 @@ import store from '~/store';
 import { flattenUniqueConversations } from './utils';
 import ProjectCreateDialog from './ProjectCreateDialog';
 
-type ProjectsNavProps = {
-  toggleNav: () => void;
-};
-
 type ProjectConversation = {
   conversationId?: string | null;
   endpoint?: string | null;
@@ -58,7 +54,7 @@ const ProjectRow = memo(
 
       if (conversations.length === 0) {
         return (
-          <div className="px-2 py-1.5 text-xs text-text-secondary">
+          <div className="px-2 py-1.5 text-xs font-medium text-white">
             {localize('com_projects_no_chats')}
           </div>
         );
@@ -117,11 +113,7 @@ const ProjectRow = memo(
             <span className="truncate font-medium">{project.name}</span>
           </button>
         </div>
-        {expanded ? (
-          <div className="ml-5 space-y-1 border-l border-border-light pl-2">
-            {renderConversationList()}
-          </div>
-        ) : null}
+        {expanded ? <div className="ml-5 space-y-1 pl-2">{renderConversationList()}</div> : null}
       </div>
     );
   },
@@ -129,7 +121,7 @@ const ProjectRow = memo(
 
 ProjectRow.displayName = 'ProjectRow';
 
-function ProjectsNav({ toggleNav }: ProjectsNavProps) {
+function ProjectsNav() {
   const localize = useLocalize();
   const navigate = useNavigate();
   const params = useParams();
@@ -178,17 +170,15 @@ function ProjectsNav({ toggleNav }: ProjectsNavProps) {
       return next;
     });
     navigate(`/projects/${projectId}?tab=chats`);
-    toggleNav();
   };
 
   const handleConversationClick = (projectId: string, conversationId: string) => {
     navigate(`/c/${conversationId}?projectId=${projectId}`, { state: { focusChat: true } });
-    toggleNav();
   };
 
   return (
-    <div className="sidebar-utility-section mt-2 pt-2">
-      <div className="sidebar-section-heading px-3 pb-1 text-xs">
+    <div className="sidebar-utility-section mt-1 gap-1.5 pt-2">
+      <div className="sidebar-section-heading px-2 pb-0.5 text-xs">
         {localize('com_projects_projects')}
       </div>
       <button

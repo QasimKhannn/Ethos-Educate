@@ -6,6 +6,7 @@ import { CustomMenuItem as MenuItem } from '../CustomMenu';
 import { useModelSelectorContext } from '../ModelSelectorContext';
 import { useLocalize } from '~/hooks';
 import SpecIcon from './SpecIcon';
+import ModelSpecTooltip from './ModelSpecTooltip';
 import { cn } from '~/utils';
 
 interface ModelSpecItemProps {
@@ -17,7 +18,7 @@ export function ModelSpecItem({ spec, isSelected }: ModelSpecItemProps) {
   const localize = useLocalize();
   const { handleSelectSpec, endpointsConfig } = useModelSelectorContext();
   const { showIconInMenu = true } = spec;
-  return (
+  const menuItem = (
     <MenuItem
       key={spec.name}
       onClick={() => handleSelectSpec(spec)}
@@ -55,6 +56,8 @@ export function ModelSpecItem({ spec, isSelected }: ModelSpecItemProps) {
       )}
     </MenuItem>
   );
+
+  return <ModelSpecTooltip spec={spec}>{menuItem}</ModelSpecTooltip>;
 }
 
 export function renderModelSpecs(specs: TModelSpec[], selectedSpec: string) {

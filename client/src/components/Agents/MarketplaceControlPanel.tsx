@@ -3,8 +3,8 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { PanelRightOpen, X } from 'lucide-react';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { Button, useMediaQuery } from '@librechat/client';
-import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
-import type { EModelEndpoint, TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider';
+import { getConfigDefaults } from 'librechat-data-provider';
+import type { TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import { useSidePanelContext } from '~/Providers';
 import { useLocalize } from '~/hooks';
@@ -22,7 +22,7 @@ const defaultInterface = getConfigDefaults().interface;
 
 const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProps) => {
   const localize = useLocalize();
-  const { endpoint, endpointType: contextEndpointType } = useSidePanelContext();
+  const { endpoint } = useSidePanelContext();
   const { data: startupConfig } = useGetStartupConfig();
   const { data: endpointsConfig = {} as TEndpointsConfig } = useGetEndpointsQuery();
   const { data: keyExpiry = { expiresAt: undefined } } = useUserKeyQuery(endpoint ?? '');
@@ -36,13 +36,6 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
   const interfaceConfig = useMemo<Partial<TInterfaceConfig>>(
     () => startupConfig?.interface ?? defaultInterface,
     [startupConfig],
-  );
-  const endpointType = useMemo(
-    () =>
-      contextEndpointType ??
-      (getEndpointField(endpointsConfig, endpoint, 'type') as EModelEndpoint | null) ??
-      null,
-    [contextEndpointType, endpoint, endpointsConfig],
   );
   const userProvidesKey = useMemo(
     () => !!(endpointsConfig?.[endpoint ?? '']?.userProvide ?? false),
@@ -89,8 +82,6 @@ const MarketplaceControlPanel = ({ className = '' }: MarketplaceControlPanelProp
     isSmallScreen,
     keyProvided,
     endpoint,
-    endpointType,
-    interfaceConfig,
     endpointsConfig,
   });
 

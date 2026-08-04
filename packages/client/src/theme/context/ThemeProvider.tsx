@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useMemo, useCallback, useState, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useCallback,
+  useState,
+  useRef,
+} from 'react';
 import { IThemeRGB } from '../types';
 import applyTheme from '../utils/applyTheme';
 
@@ -18,7 +26,7 @@ type ThemeContextType = {
 
 // Export ThemeContext so it can be imported from hooks
 export const ThemeContext = createContext<ThemeContextType>({
-  theme: 'system',
+  theme: 'light',
   setTheme: () => undefined,
   setThemeRGB: () => undefined,
   setThemeName: () => undefined,
@@ -59,10 +67,10 @@ const isValidThemeColors = (value: unknown): value is IThemeRGB => {
 };
 
 /**
- * Get initial theme from localStorage or default to 'system'
+ * Get initial theme from localStorage or default to 'light'
  */
 const getInitialTheme = (): string => {
-  if (typeof window === 'undefined') return 'system';
+  if (typeof window === 'undefined') return 'light';
   try {
     const stored = localStorage.getItem(THEME_KEY);
     if (stored && ['light', 'dark', 'system'].includes(stored)) {
@@ -71,7 +79,7 @@ const getInitialTheme = (): string => {
   } catch {
     // localStorage not available
   }
-  return 'system';
+  return 'light';
 };
 
 /**
@@ -218,7 +226,7 @@ export function ThemeProvider({
 
   // Reset theme function
   const resetTheme = useCallback(() => {
-    setTheme('system');
+    setTheme('light');
     setThemeRGB(undefined);
     setThemeName(undefined);
     // Remove any custom CSS variables

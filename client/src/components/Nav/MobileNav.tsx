@@ -67,7 +67,17 @@ export default function MobileNav({
         data-marketplace={isMarketplaceRoute ? 'true' : 'false'}
         aria-live="polite"
       >
-        {mobileTitle}
+        {isMarketplaceRoute ? (
+          <span className="mobile-marketplace-title-lockup">
+            <span className="mobile-marketplace-title-mark" aria-hidden="true">
+              <img src="/assets/ethos-rays.png" alt="" />
+              <img src="/assets/ethos-arc.png" alt="" />
+            </span>
+            <span>{mobileTitle}</span>
+          </span>
+        ) : (
+          mobileTitle
+        )}
       </div>
       <button
         type="button"

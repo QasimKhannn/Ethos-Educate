@@ -22,11 +22,6 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags }: BookmarkNavProps) 
   const [isTourPreview, setIsTourPreview] = useState(false);
   const { data } = useGetConversationTags();
 
-  const label = useMemo(
-    () => (tags.length > 0 ? tags.join(', ') : localize('com_ui_bookmarks')),
-    [tags, localize],
-  );
-
   const buttonAriaLabel = useMemo(() => {
     if (tags.length === 0) {
       return localize('com_ui_bookmarks');
@@ -127,7 +122,7 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags }: BookmarkNavProps) 
       className={isTourPreview ? 'z-[1001]' : 'z-[125]'}
       trigger={
         <TooltipAnchor
-          description={label}
+          description={localize('com_nav_tooltip_bookmarks')}
           render={
             <Ariakit.MenuButton
               id="bookmark-nav-menu-button"

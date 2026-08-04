@@ -23,7 +23,7 @@ const EditBookmarkButton: FC<{
     >
       <OGDialogTrigger asChild>
         <TooltipAnchor
-          description={localize('com_ui_edit')}
+          description={localize('com_ui_tooltip_edit_bookmark')}
           render={
             <Button
               variant="ghost"

@@ -128,7 +128,9 @@ const FloatingCodeBar: React.FC<FloatingCodeBarProps> = React.memo(function Floa
             <RunCode lang={lang} codeRef={codeRef} blockIndex={blockIndex} iconOnly />
           )}
           <TooltipAnchor
-            description={isCopied ? localize('com_ui_copied') : localize('com_ui_copy_code')}
+            description={
+              isCopied ? localize('com_ui_copied') : localize('com_ui_tooltip_copy_code')
+            }
             render={
               <button
                 ref={copyButtonRef}

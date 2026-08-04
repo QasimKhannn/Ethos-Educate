@@ -136,7 +136,7 @@ export default function MemoryPanel() {
             <MemoryCreateDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <OGDialogTrigger asChild>
                 <TooltipAnchor
-                  description={localize('com_ui_create_memory')}
+                  description={localize('com_ui_tooltip_create_memory')}
                   side="bottom"
                   render={
                     <Button

@@ -21,6 +21,7 @@ import {
   getAgentDisplayName,
   normalizeAgentBrandText,
 } from '~/utils';
+import AgentOnboardingOverview from './AgentOnboardingOverview';
 
 interface SupportContact {
   name?: string;
@@ -196,7 +197,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
         data-tour-id="marketplace-agent-detail"
         data-tour-padding="-6"
         data-tour-radius="24"
-        className="agent-detail-dialog max-h-[90vh] w-[min(92vw,42rem)] overflow-y-auto p-0"
+        className="agent-detail-dialog max-h-[90vh] w-[min(94vw,48rem)] overflow-y-auto p-0"
       >
         <div className="agent-detail-sheet">
           <div className="agent-detail-header">
@@ -222,23 +223,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
           </div>
 
           <div className="agent-detail-body">
-            <section className="agent-detail-section agent-detail-section--overview">
-              <h3 className="agent-detail-section-title">
-                {localize('com_agents_modal_overview')}
-              </h3>
-              <div className="agent-detail-description whitespace-pre-wrap">
-                {agent?.description}
-              </div>
-            </section>
-
-            {categoryDescription ? (
-              <section className="agent-detail-section agent-detail-section--supporting">
-                <h3 className="agent-detail-section-title">
-                  {localize('com_agents_modal_best_for')}
-                </h3>
-                <p className="agent-detail-supporting-note">{categoryDescription}</p>
-              </section>
-            ) : null}
+            <AgentOnboardingOverview agent={agent} supportingNote={categoryDescription} />
           </div>
 
           <div className="agent-detail-actions">

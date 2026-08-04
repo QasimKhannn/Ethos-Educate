@@ -7,7 +7,7 @@ export default function StopButton({ stop, setShowStopButton }) {
 
   return (
     <TooltipAnchor
-      description={localize('com_nav_stop_generating')}
+      description={localize('com_ui_tooltip_stop_generating')}
       render={
         <button
           type="button"

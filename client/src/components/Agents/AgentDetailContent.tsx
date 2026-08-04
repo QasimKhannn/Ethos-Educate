@@ -20,6 +20,7 @@ import {
   getAgentDisplayName,
   normalizeAgentBrandText,
 } from '~/utils';
+import AgentOnboardingOverview from './AgentOnboardingOverview';
 
 interface SupportContact {
   name?: string;
@@ -158,53 +159,56 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const authorName = normalizeAgentBrandText(agent?.authorName) || 'Ethos Intelligence';
 
   return (
-    <OGDialogContent className="max-h-[90vh] w-11/12 max-w-lg overflow-y-auto">
-      {/* Agent avatar */}
-      <div className="mt-6 flex justify-center">{renderAgentAvatar(agent, { size: 'xl' })}</div>
-
-      {/* Agent name */}
-      <div className="mt-3 text-center">
-        <div className="agent-detail-title-row justify-center">
-          <h2 className="text-2xl font-bold text-text-primary">
-            {agentDisplayName || localize('com_agents_loading')}
-          </h2>
-          {agent && (
-            <p className="agent-detail-title-byline">
-              <span>{byLabel}</span>
-              {contactNode ?? <span>{authorName}</span>}
-            </p>
-          )}
+    <OGDialogContent className="agent-detail-dialog max-h-[90vh] w-[min(94vw,48rem)] overflow-y-auto p-0">
+      <div className="agent-detail-sheet">
+        <div className="agent-detail-header">
+          <div className="agent-detail-avatar">{renderAgentAvatar(agent, { size: 'xl' })}</div>
+          <div className="agent-detail-heading">
+            <div className="agent-detail-title-row">
+              <h2 className="agent-detail-title">
+                {agentDisplayName || localize('com_agents_loading')}
+              </h2>
+              {agent ? (
+                <p className="agent-detail-title-byline">
+                  <span>{byLabel}</span>
+                  {contactNode ?? <span>{authorName}</span>}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Agent description */}
-      <div className="mt-4 whitespace-pre-wrap px-6 text-center text-base text-text-primary">
-        {agent?.description}
-      </div>
+        <div className="agent-detail-body">
+          <AgentOnboardingOverview agent={agent} />
+        </div>
 
-      {/* Action button */}
-      <div className="mb-4 mt-6 flex justify-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleFavoriteClick}
-          title={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-          aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-        >
-          {isFavorite ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleCopyLink}
-          title={localize('com_agents_copy_link')}
-          aria-label={localize('com_agents_copy_link')}
-        >
-          <Link className="h-4 w-4" aria-hidden="true" />
-        </Button>
-        <Button className="w-full max-w-xs" onClick={handleStartChat} disabled={!agent}>
-          {localize('com_agents_start_chat')}
-        </Button>
+        <div className="agent-detail-actions">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleFavoriteClick}
+            title={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
+            aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
+          >
+            {isFavorite ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleCopyLink}
+            title={localize('com_agents_copy_link')}
+            aria-label={localize('com_agents_copy_link')}
+          >
+            <Link className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
+            onClick={handleStartChat}
+            disabled={!agent}
+          >
+            {localize('com_agents_start_chat')}
+          </Button>
+        </div>
       </div>
     </OGDialogContent>
   );

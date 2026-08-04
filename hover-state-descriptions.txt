@@ -1,0 +1,222 @@
+NAVIGATION
+
+New Chat: starts a fresh conversation with a clean chat workspace.
+
+Ethos Toolkit: allows you to browse specialized AI tools and agents for different tasks.
+
+Cowork: opens automations and collaborative workspaces.
+
+Chat History: opens your previous conversations so you can search or continue them.
+
+Projects: organizes related chats, files, and instructions in one workspace.
+
+Search Chats: finds a previous conversation by its title or content.
+
+Bookmarks: opens conversations and items you have saved for later.
+
+Feedback & Help Desk: opens help resources and allows you to share feedback.
+
+Open Sidebar: expands the navigation panel and displays your chat history.
+
+Close Sidebar: collapses the navigation panel to create more workspace.
+
+Account Settings: opens your profile, preferences, and account settings.
+
+
+CHAT AND COMPOSER
+
+Select Model: opens the model selector so you can choose the AI used for the conversation.
+
+Model Information: explains the capabilities and limitations of the selected model.
+
+Model Parameters: opens advanced response controls for the selected AI model.
+
+Presets: opens saved model and instruction configurations.
+
+Preset Endpoint: shows the endpoint used by a preset.
+
+Edit Preset: opens a preset so its settings can be changed.
+
+Delete Preset: permanently removes a saved preset.
+
+Tools: opens the available tools and integrations for the conversation.
+
+MCP Tools: selects tools supplied by connected MCP servers.
+
+Attach Files: uploads documents, images, or other files to the conversation.
+
+Use Microphone: records audio for voice input.
+
+Send Message: submits the current message to the selected AI.
+
+Stop Generating: stops the response that is currently being generated.
+
+Temporary Chat: starts or identifies a conversation that will not be saved to chat history.
+
+Add Conversation: adds another conversation to the multi-conversation workspace.
+
+Collapse Chat: collapses a conversation panel to create more workspace.
+
+Expand Chat: expands a collapsed conversation panel.
+
+Export and Share: opens options for exporting or sharing the current conversation.
+
+Add Bookmark: saves the current conversation to a bookmark.
+
+Birthday Message: displays the celebratory birthday message.
+
+Locked Model: explains that the model cannot be changed after a Cowork session has started.
+
+
+MESSAGE ACTIONS
+
+Submit Edit: saves an edited message. The keyboard shortcut is Ctrl or Command plus Enter.
+
+Add New Line: adds a new line while editing a message. The keyboard shortcut is Shift plus Enter.
+
+Cancel Edit: cancels message editing. The keyboard shortcut is Escape.
+
+Copy: copies the selected message, reasoning, diagram, or code to the clipboard.
+
+Copied: confirms that the selected content was copied successfully.
+
+Show Thinking: expands the AI reasoning section.
+
+Hide Thinking: collapses the AI reasoning section.
+
+Run Code: executes the generated code in the configured code environment.
+
+Copy Code: copies a code block to the clipboard.
+
+Expand Diagram: opens a Mermaid diagram in a larger viewer.
+
+Show Diagram Code: displays the source code used to create a Mermaid diagram.
+
+Hide Diagram Code: hides the Mermaid diagram source code.
+
+Change Artifact Version: switches between saved versions of an artifact.
+
+
+IMAGE VIEWER
+
+Close Image: closes the expanded image viewer.
+
+Reset Zoom: returns the image to its original zoom level and position.
+
+Download Image: downloads the displayed image to your device.
+
+Image Details: displays information about the image, including its dimensions and file details.
+
+
+FILES AND TABLES
+
+Select All: selects every visible file or table row.
+
+Sort by Name: sorts the current list alphabetically by name.
+
+Sort by Date: sorts the current list by its creation or modification date.
+
+Sort by Size: sorts files according to their file size.
+
+Filter Column: filters the table using the selected column and value.
+
+
+SHARING AND ARCHIVED CHATS
+
+Refresh Shared Link: replaces the current public link with a newly generated link.
+
+Show QR Code: displays a QR code for opening the shared conversation.
+
+Delete Shared Link: disables and removes the public conversation link.
+
+Open Source Chat: opens the original conversation associated with a shared link in a new tab.
+
+Unarchive Conversation: restores an archived conversation to chat history.
+
+Delete Conversation: permanently removes the selected conversation.
+
+
+BOOKMARKS
+
+New Bookmark: creates a new bookmark for organizing saved conversations.
+
+Edit Bookmark: changes a bookmark's name, description, or settings.
+
+Delete Bookmark: permanently removes the selected bookmark.
+
+Bookmark Conversation Count: shows how many conversations are stored in a bookmark.
+
+
+MEMORIES
+
+Create Memory: adds a new saved memory for information the AI should remember.
+
+Edit Memory: changes the content of an existing saved memory.
+
+Delete Memory: permanently removes a saved memory.
+
+Memory Usage: shows how much of the available memory capacity is currently being used.
+
+
+AGENTS
+
+Agent Name Help: explains how the agent name appears to people using the agent.
+
+Agent Description Help: explains how to summarize the agent's purpose and value.
+
+Agent Category Help: explains where the agent appears within the Ethos Toolkit.
+
+Agent Model Help: explains how to select the model that powers the agent.
+
+Agent Image Help: explains how the uploaded image helps people recognize the agent.
+
+Agent Capabilities Help: explains when to enable files, search, artifacts, or other abilities.
+
+Agent Support Contact Help: explains how to provide contact information for agent support.
+
+Agent Instructions Help: explains how to define the agent's role, tasks, rules, and response style.
+
+Add Conversation Starter: adds a suggested prompt that people can use to begin a chat with the agent.
+
+Delete Conversation Starter: removes a suggested starter from the agent.
+
+View Endpoint: opens the selected endpoint or provider details.
+
+
+MCP SERVERS AND TOOLS
+
+Add MCP Server: opens the form for connecting a new MCP server.
+
+Edit MCP Server: opens an MCP server so its details can be changed.
+
+Cancel MCP Edit: discards changes currently being made to an MCP server.
+
+Connect MCP Server: authorizes and connects the selected MCP server.
+
+Configure MCP Server: opens configuration options for the selected MCP server.
+
+Reconnect MCP Server: reconnects an MCP server whose session has expired or disconnected.
+
+Revoke MCP Access: removes the application's authorization to use the selected MCP server.
+
+MCP Tool Information: explains what an MCP tool does and whether it is available or selected.
+
+
+PROMPTS AND VERSIONS
+
+Latest Production Version: identifies the newest prompt version currently marked for production.
+
+Prompt Version Status: explains whether a prompt version is current, production, or outdated.
+
+Previous Page: loads the previous page of prompts.
+
+Next Page: loads the next page of prompts.
+
+
+ACCOUNT SECURITY
+
+Show Backup Code: reveals a hidden two-factor authentication backup code.
+
+Hide Backup Code: conceals a visible two-factor authentication backup code.
+
+Copy Backup Code: copies a two-factor authentication backup code to the clipboard.

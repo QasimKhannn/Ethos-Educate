@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { X } from 'lucide-react';
-import { getEndpointField } from 'librechat-data-provider';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { useMediaQuery } from '@librechat/client';
 import type { TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider';
@@ -8,7 +7,7 @@ import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
 import { useLocalStorage, useLocalize } from '~/hooks';
 import { useGetEndpointsQuery } from '~/data-provider';
 import NavToggle from '~/components/Nav/NavToggle';
-import { useSidePanelContext } from '~/Providers';
+import { ACTIVE_PANEL_STORAGE_KEY, clearStoredActivePanel, useSidePanelContext } from '~/Providers';
 import { cn } from '~/utils';
 import Nav from './Nav';
 
@@ -24,7 +23,6 @@ const SidePanel = ({
   setIsCollapsed,
   fullCollapse,
   setFullCollapse,
-  interfaceConfig,
 }: {
   navCollapsedSize?: number;
   minSize: number;
@@ -38,7 +36,7 @@ const SidePanel = ({
   interfaceConfig: TInterfaceConfig;
 }) => {
   const localize = useLocalize();
-  const { endpoint, endpointType: contextEndpointType } = useSidePanelContext();
+  const { endpoint } = useSidePanelContext();
   const [isHovering, setIsHovering] = useState(false);
   const [newUser, setNewUser] = useLocalStorage('newUser', true);
   const { data: endpointsConfig = {} as TEndpointsConfig } = useGetEndpointsQuery();
@@ -48,14 +46,13 @@ const SidePanel = ({
   const { data: keyExpiry = { expiresAt: undefined } } = useUserKeyQuery(endpoint ?? '');
 
   const defaultActive = useMemo(() => {
-    const activePanel = localStorage.getItem('side:active-panel');
-    return typeof activePanel === 'string' ? activePanel : undefined;
-  }, []);
+    if (isCollapsed) {
+      return '';
+    }
 
-  const endpointType = useMemo(
-    () => contextEndpointType ?? getEndpointField(endpointsConfig, endpoint, 'type'),
-    [contextEndpointType, endpoint, endpointsConfig],
-  );
+    const activePanel = localStorage.getItem(ACTIVE_PANEL_STORAGE_KEY);
+    return typeof activePanel === 'string' ? activePanel : undefined;
+  }, [isCollapsed]);
 
   const userProvidesKey = useMemo(
     () => !!(endpointsConfig?.[endpoint ?? '']?.userProvide ?? false),
@@ -67,6 +64,8 @@ const SidePanel = ({
   );
 
   const collapsePanel = useCallback(() => {
+    clearStoredActivePanel();
+
     if (isSmallScreen) {
       setIsCollapsed(true);
       setCollapsedSize(0);
@@ -108,8 +107,6 @@ const SidePanel = ({
     isCollapsed,
     isSmallScreen,
     keyProvided,
-    endpointType,
-    interfaceConfig,
     endpointsConfig,
   });
 

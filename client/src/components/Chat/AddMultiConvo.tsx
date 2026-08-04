@@ -38,7 +38,7 @@ function AddMultiConvo() {
 
   return (
     <TooltipAnchor
-      description={localize('com_ui_add_multi_conversation')}
+      description={localize('com_ui_tooltip_add_conversation')}
       role="button"
       tabIndex={0}
       aria-label={localize('com_ui_add_multi_conversation')}

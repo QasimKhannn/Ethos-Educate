@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Constants } from 'librechat-data-provider';
 import { useGetStartupConfig } from '~/data-provider';
 import { useLocalize } from '~/hooks';
+import { getBrandedLegalUrl } from '~/utils';
 
 function Footer({ className }: { className?: string }) {
   const { data: config } = useGetStartupConfig();
@@ -11,15 +12,17 @@ function Footer({ className }: { className?: string }) {
 
   const privacyPolicy = config?.interface?.privacyPolicy;
   const termsOfService = config?.interface?.termsOfService;
+  const privacyPolicyUrl = getBrandedLegalUrl(privacyPolicy?.externalUrl, 'privacy');
+  const termsOfServiceUrl = getBrandedLegalUrl(termsOfService?.externalUrl, 'terms');
 
-  const privacyPolicyRender = privacyPolicy?.externalUrl != null && (
-    <a className="text-text-secondary underline" href={privacyPolicy.externalUrl} rel="noreferrer">
+  const privacyPolicyRender = privacyPolicyUrl != null && (
+    <a className="text-text-secondary underline" href={privacyPolicyUrl} rel="noreferrer">
       {localize('com_ui_privacy_policy')}
     </a>
   );
 
-  const termsOfServiceRender = termsOfService?.externalUrl != null && (
-    <a className="text-text-secondary underline" href={termsOfService.externalUrl} rel="noreferrer">
+  const termsOfServiceRender = termsOfServiceUrl != null && (
+    <a className="text-text-secondary underline" href={termsOfServiceUrl} rel="noreferrer">
       {localize('com_ui_terms_of_service')}
     </a>
   );
@@ -27,10 +30,7 @@ function Footer({ className }: { className?: string }) {
   const mainContentParts = (
     typeof config?.customFooter === 'string'
       ? config.customFooter
-      : 'Ethos ' +
-        Constants.VERSION +
-        ' - ' +
-        localize('com_ui_latest_footer')
+      : 'Ethos ' + Constants.VERSION + ' - ' + localize('com_ui_latest_footer')
   ).split('|');
 
   useEffect(() => {

@@ -3,7 +3,6 @@ import { Blocks, MCPIcon, AttachmentIcon } from '@librechat/client';
 import {
   Database,
   Bookmark,
-  Settings2,
   ArrowLeftFromLine,
   ArrowRightToLine,
   MessageSquareQuote,
@@ -12,21 +11,19 @@ import {
   Permissions,
   EModelEndpoint,
   PermissionTypes,
-  isParamEndpoint,
-  isAgentsEndpoint,
+  SystemRoles,
   isAssistantsEndpoint,
 } from 'librechat-data-provider';
-import type { TInterfaceConfig, TEndpointsConfig } from 'librechat-data-provider';
+import type { TEndpointsConfig } from 'librechat-data-provider';
 import MCPBuilderPanel from '~/components/SidePanel/MCPBuilder/MCPBuilderPanel';
 import type { NavLink } from '~/common';
 import AgentPanelSwitch from '~/components/SidePanel/Agents/AgentPanelSwitch';
 import BookmarkPanel from '~/components/SidePanel/Bookmarks/BookmarkPanel';
 import PanelSwitch from '~/components/SidePanel/Builder/PanelSwitch';
 import PromptsAccordion from '~/components/Prompts/PromptsAccordion';
-import Parameters from '~/components/SidePanel/Parameters/Panel';
 import { MemoryPanel } from '~/components/SidePanel/Memories';
 import FilesPanel from '~/components/SidePanel/Files/Panel';
-import { useHasAccess, useMCPServerManager } from '~/hooks';
+import { useAuthContext, useHasAccess, useMCPServerManager } from '~/hooks';
 
 export default function useSideNavLinks({
   hidePanel,
@@ -36,8 +33,6 @@ export default function useSideNavLinks({
   isSmallScreen = false,
   keyProvided,
   endpoint,
-  endpointType,
-  interfaceConfig,
   endpointsConfig,
 }: {
   hidePanel?: () => void;
@@ -47,10 +42,10 @@ export default function useSideNavLinks({
   isSmallScreen?: boolean;
   keyProvided: boolean;
   endpoint?: EModelEndpoint | null;
-  endpointType?: EModelEndpoint | null;
-  interfaceConfig: Partial<TInterfaceConfig>;
   endpointsConfig: TEndpointsConfig;
 }) {
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === SystemRoles.ADMIN;
   const hasAccessToPrompts = useHasAccess({
     permissionType: PermissionTypes.PROMPTS,
     permission: Permissions.USE,
@@ -116,6 +111,7 @@ export default function useSideNavLinks({
     ) {
       links.push({
         title: 'com_sidepanel_agent_builder',
+        description: 'com_sidepanel_agent_help',
         label: '',
         icon: Blocks,
         id: EModelEndpoint.agents,
@@ -126,6 +122,7 @@ export default function useSideNavLinks({
     if (hasAccessToPrompts) {
       links.push({
         title: 'com_ui_prompts',
+        description: 'com_sidepanel_prompt_help',
         label: '',
         icon: MessageSquareQuote,
         id: 'prompts',
@@ -136,25 +133,11 @@ export default function useSideNavLinks({
     if (hasAccessToMemories && hasAccessToReadMemories) {
       links.push({
         title: 'com_ui_memories',
+        description: 'com_sidepanel_memory_help',
         label: '',
         icon: Database,
         id: 'memories',
         Component: MemoryPanel,
-      });
-    }
-
-    if (
-      interfaceConfig.parameters === true &&
-      isParamEndpoint(endpoint ?? '', endpointType ?? '') === true &&
-      !isAgentsEndpoint(endpoint) &&
-      keyProvided
-    ) {
-      links.push({
-        title: 'com_sidepanel_parameters',
-        label: '',
-        icon: Settings2,
-        id: 'parameters',
-        Component: Parameters,
       });
     }
 
@@ -177,8 +160,9 @@ export default function useSideNavLinks({
     }
 
     if (
-      (hasAccessToUseMCPSettings && availableMCPServers && availableMCPServers.length > 0) ||
-      hasAccessToCreateMCP
+      isAdmin &&
+      ((hasAccessToUseMCPSettings && availableMCPServers && availableMCPServers.length > 0) ||
+        hasAccessToCreateMCP)
     ) {
       links.push({
         title: 'com_nav_setting_mcp',
@@ -209,12 +193,11 @@ export default function useSideNavLinks({
     hasAccessToPrompts,
     hasAccessToMemories,
     hasAccessToReadMemories,
-    interfaceConfig.parameters,
-    endpointType,
     hasAccessToBookmarks,
     availableMCPServers,
     hasAccessToUseMCPSettings,
     hasAccessToCreateMCP,
+    isAdmin,
     isCollapsed,
     isSmallScreen,
     collapsePanel,

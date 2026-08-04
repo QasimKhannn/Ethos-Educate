@@ -68,7 +68,7 @@ const BookmarkTable = () => {
           <BookmarkEditDialog context="BookmarkTable" open={createOpen} setOpen={setCreateOpen}>
             <OGDialogTrigger asChild>
               <TooltipAnchor
-                description={localize('com_ui_bookmarks_new')}
+                description={localize('com_ui_tooltip_new_bookmark')}
                 side="bottom"
                 render={
                   <Button

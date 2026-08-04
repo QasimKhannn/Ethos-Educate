@@ -35,10 +35,11 @@ export default function MemoryUsageBadge({
   const current = tooltipCurrent ?? totalTokens;
   const max = tooltipMax ?? tokenLimit;
 
-  const tooltipText =
+  const usageDetails =
     current !== undefined
       ? `${current.toLocaleString()} / ${max.toLocaleString()} ${tokenLabel}`
       : `${max.toLocaleString()} ${tokenLabel}`;
+  const tooltipText = `${localize('com_ui_tooltip_memory_usage')} ${usageDetails}`;
 
   return (
     <TooltipAnchor

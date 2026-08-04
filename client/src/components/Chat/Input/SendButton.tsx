@@ -15,7 +15,7 @@ const SubmitButton = React.memo(
     const localize = useLocalize();
     return (
       <TooltipAnchor
-        description={localize('com_nav_send_message')}
+        description={localize('com_ui_tooltip_send_message')}
         render={
           <button
             ref={ref}

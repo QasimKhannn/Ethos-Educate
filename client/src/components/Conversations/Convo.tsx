@@ -18,14 +18,12 @@ import store from '~/store';
 interface ConversationProps {
   conversation: TConversation;
   retainView: () => void;
-  toggleNav: () => void;
   isGenerating?: boolean;
 }
 
 export default function Conversation({
   conversation,
   retainView,
-  toggleNav,
   isGenerating = false,
 }: ConversationProps) {
   const params = useParams();
@@ -143,7 +141,6 @@ export default function Conversation({
 
   const handleNavigation = (ctrlOrMetaKey: boolean) => {
     if (ctrlOrMetaKey) {
-      toggleNav();
       const baseUrl = window.location.origin;
       const projectSearch = conversation.projectId
         ? `?projectId=${encodeURIComponent(conversation.projectId)}`
@@ -156,8 +153,6 @@ export default function Conversation({
     if (currentConvoId === conversationId || isPopoverActive) {
       return;
     }
-
-    toggleNav();
 
     if (typeof title === 'string' && title.length > 0) {
       document.title = title;

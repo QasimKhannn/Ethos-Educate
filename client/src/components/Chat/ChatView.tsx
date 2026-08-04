@@ -14,7 +14,6 @@ import { useGetMessagesByConvoId } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
 import ChatForm from './Input/ChatForm';
-import ChatBackgroundLights from './ChatBackgroundLights';
 import Landing from './Landing';
 import Header from './Header';
 import Footer from './Footer';
@@ -86,7 +85,6 @@ function ChatView({ index = 0 }: { index?: number }) {
         <AddedChatContext.Provider value={addedChatHelpers}>
           <Presentation>
             <div className="chat-view-shell relative flex h-full w-full flex-col">
-              <ChatBackgroundLights />
               {!isLoading && <Header />}
               <>
                 <div

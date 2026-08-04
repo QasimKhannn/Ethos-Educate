@@ -14,12 +14,10 @@ export default function NewChat({
   index = 0,
   toggleNav,
   subHeaders,
-  isSmallScreen,
   headerButtons,
 }: {
   index?: number;
   toggleNav: () => void;
-  isSmallScreen?: boolean;
   subHeaders?: React.ReactNode;
   headerButtons?: React.ReactNode;
 }) {
@@ -47,18 +45,15 @@ export default function NewChat({
       clearMessagesCache(queryClient, conversation?.conversationId);
       queryClient.invalidateQueries([QueryKeys.messages]);
       newConvo();
-      if (isSmallScreen) {
-        toggleNav();
-      }
     },
-    [queryClient, conversation, newConvo, toggleNav, isSmallScreen],
+    [queryClient, conversation, newConvo],
   );
 
   return (
     <div className="chat-sidebar-top">
-      <div className="sidebar-toolbar flex items-center justify-between px-0.5 py-1 md:py-0.5">
+      <div className="sidebar-toolbar flex items-center justify-between px-0.5 py-1.5 md:py-1">
         <TooltipAnchor
-          description={localize('com_nav_close_sidebar')}
+          description={localize('com_nav_tooltip_close_sidebar')}
           render={
             <Button
               id={CLOSE_SIDEBAR_ID}
