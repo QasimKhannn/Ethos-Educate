@@ -224,7 +224,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     });
   }
 
-  if (isAdmin && canRunCode && codeEnabled) {
+  if (canRunCode && codeEnabled) {
     dropdownItems.push({
       onClick: handleCodeInterpreterToggle,
       hideOnClick: false,
@@ -278,7 +278,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     });
   }
 
-  if (artifactsEnabled) {
+  if (isAdmin && artifactsEnabled) {
     dropdownItems.push({
       hideOnClick: false,
       render: (props) => (
@@ -297,7 +297,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
   }
 
   const { availableMCPServers } = mcpServerManager;
-  if (isAdmin && canUseMcp && availableMCPServers && availableMCPServers.length > 0) {
+  if (canUseMcp && availableMCPServers && availableMCPServers.length > 0) {
     dropdownItems.push({
       hideOnClick: false,
       render: (props) => <MCPSubMenu {...props} placeholder={mcpPlaceholder} />,

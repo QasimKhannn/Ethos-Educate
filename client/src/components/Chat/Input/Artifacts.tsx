@@ -15,6 +15,7 @@ interface ArtifactsToggleState {
 function Artifacts() {
   const localize = useLocalize();
   const { user } = useAuthContext();
+  const isAdmin = user?.role === SystemRoles.ADMIN;
   const { artifacts } = useBadgeRowContext();
   const { toggleState, debouncedChange, isPinned } = artifacts;
 
@@ -71,7 +72,7 @@ function Artifacts() {
     }
   }, [isCustomEnabled, debouncedChange]);
 
-  if (!isEnabled && !isPinned) {
+  if (!isAdmin || (!isEnabled && !isPinned)) {
     return null;
   }
 
@@ -119,7 +120,7 @@ function Artifacts() {
                 {localize('com_ui_artifacts_options')}
               </div>
 
-              {user?.role === SystemRoles.ADMIN && (
+              {isAdmin && (
                 <Ariakit.MenuItem
                   hideOnClick={false}
                   onClick={(event) => {

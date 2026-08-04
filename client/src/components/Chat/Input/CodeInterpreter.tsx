@@ -1,13 +1,12 @@
 import React, { memo } from 'react';
 import { TerminalSquareIcon } from 'lucide-react';
 import { CheckboxButton } from '@librechat/client';
-import { PermissionTypes, Permissions, SystemRoles } from 'librechat-data-provider';
-import { useAuthContext, useLocalize, useHasAccess } from '~/hooks';
+import { PermissionTypes, Permissions } from 'librechat-data-provider';
+import { useLocalize, useHasAccess } from '~/hooks';
 import { useBadgeRowContext } from '~/Providers';
 
 function CodeInterpreter() {
   const localize = useLocalize();
-  const { user } = useAuthContext();
   const { codeInterpreter, codeApiKeyForm } = useBadgeRowContext();
   const { toggleState: runCode, debouncedChange, isPinned } = codeInterpreter;
   const { badgeTriggerRef } = codeApiKeyForm;
@@ -17,7 +16,7 @@ function CodeInterpreter() {
     permission: Permissions.USE,
   });
 
-  if (user?.role !== SystemRoles.ADMIN || !canRunCode) {
+  if (!canRunCode) {
     return null;
   }
 

@@ -1,14 +1,14 @@
 import React, { memo, useMemo, useCallback, useRef } from 'react';
 import * as Ariakit from '@ariakit/react';
 import { ChevronDown } from 'lucide-react';
-import { PermissionTypes, Permissions, SystemRoles } from 'librechat-data-provider';
+import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import { TooltipAnchor } from '@librechat/client';
 import MCPServerMenuItem from '~/components/MCP/MCPServerMenuItem';
 import MCPConfigDialog from '~/components/MCP/MCPConfigDialog';
 import StackedMCPIcons from '~/components/MCP/StackedMCPIcons';
 import { getMCPServerDisplayName } from '~/components/MCP/mcpServerUtils';
 import { useBadgeRowContext } from '~/Providers';
-import { useAuthContext, useHasAccess } from '~/hooks';
+import { useHasAccess } from '~/hooks';
 import { cn } from '~/utils';
 
 const normalizeServerName = (value: string): string => value.trim().toLowerCase();
@@ -157,7 +157,6 @@ function MCPSelectContent() {
 }
 
 function MCPSelect() {
-  const { user } = useAuthContext();
   const { mcpServerManager } = useBadgeRowContext();
   const { selectableServers } = mcpServerManager;
   const canUseMcp = useHasAccess({
@@ -171,7 +170,6 @@ function MCPSelect() {
   );
 
   if (
-    user?.role !== SystemRoles.ADMIN ||
     !canUseMcp ||
     !selectableServers ||
     selectableServers.length === 0 ||
