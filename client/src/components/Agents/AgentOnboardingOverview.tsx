@@ -48,28 +48,6 @@ const AgentOnboardingOverview: React.FC<AgentOnboardingOverviewProps> = ({
         <p className="agent-detail-description whitespace-pre-wrap">{description}</p>
       </section>
 
-      <div className="agent-onboarding-contract">
-        <section className="agent-onboarding-contract-card">
-          <div className="agent-onboarding-contract-heading">
-            <span className="agent-onboarding-contract-index" aria-hidden="true">
-              01
-            </span>
-            <h3>{localize('com_agents_modal_required_inputs')}</h3>
-          </div>
-          <p>{requiredInputs}</p>
-        </section>
-
-        <section className="agent-onboarding-contract-card">
-          <div className="agent-onboarding-contract-heading">
-            <span className="agent-onboarding-contract-index" aria-hidden="true">
-              02
-            </span>
-            <h3>{localize('com_agents_modal_expected_output')}</h3>
-          </div>
-          <p>{expectedOutput}</p>
-        </section>
-      </div>
-
       {supportingNote ? (
         <section className="agent-detail-section agent-onboarding-supporting">
           <h3 className="agent-detail-section-title">{localize('com_agents_modal_best_for')}</h3>

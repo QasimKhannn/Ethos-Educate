@@ -94,6 +94,10 @@ export const getAgentDisplayName = (agent: t.Agent | null | undefined): string =
   return normalizeAgentBrandText(agent?.name);
 };
 
+export const getAgentToolkitDescription = (agent: t.Agent | null | undefined): string => {
+  return agent?.toolkit_description?.trim() || agent?.description?.trim() || '';
+};
+
 export const getStaticAgentIconUrlForName = (name: string | null | undefined): string | null => {
   const slug = getAgentNameSlug(name);
   if (!slug) {

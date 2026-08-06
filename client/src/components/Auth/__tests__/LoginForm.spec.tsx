@@ -1,4 +1,4 @@
-import { render, getByTestId } from 'test/layout-test-utils';
+import { render, getByTestId, screen } from 'test/layout-test-utils';
 import userEvent from '@testing-library/user-event';
 import type { TStartupConfig } from 'librechat-data-provider';
 import * as endpointQueries from '~/data-provider/Endpoints/queries';
@@ -109,15 +109,15 @@ test('renders login form', () => {
     <Login onSubmit={mockLogin} startupConfig={mockStartupConfig} />,
   );
   expect(getByLabelText(/email/i)).toBeInTheDocument();
-  expect(getByLabelText(/password/i)).toBeInTheDocument();
+  expect(getByLabelText(/^password$/i)).toBeInTheDocument();
 });
 
 test('submits login form', async () => {
-  const { getByLabelText, getByRole } = render(
+  const { getByLabelText } = render(
     <Login onSubmit={mockLogin} startupConfig={mockStartupConfig} />,
   );
   const emailInput = getByLabelText(/email/i);
-  const passwordInput = getByLabelText(/password/i);
+  const passwordInput = getByLabelText(/^password$/i);
   const submitButton = getByTestId(document.body, 'login-button');
 
   await userEvent.type(emailInput, 'test@example.com');
@@ -127,18 +127,33 @@ test('submits login form', async () => {
   expect(mockLogin).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
 });
 
-test('displays validation error messages', async () => {
-  const { getByLabelText, getByRole, getByText } = render(
+test('does not display password policy hints on login', async () => {
+  const { getByLabelText, queryByText } = render(
     <Login onSubmit={mockLogin} startupConfig={mockStartupConfig} />,
   );
   const emailInput = getByLabelText(/email/i);
-  const passwordInput = getByLabelText(/password/i);
+  const passwordInput = getByLabelText(/^password$/i);
   const submitButton = getByTestId(document.body, 'login-button');
 
-  await userEvent.type(emailInput, 'test');
+  await userEvent.type(emailInput, 'test@example.com');
   await userEvent.type(passwordInput, 'pass');
   await userEvent.click(submitButton);
 
-  expect(getByText(/You must enter a valid email address/i)).toBeInTheDocument();
-  expect(getByText(/Password must be at least 8 characters/i)).toBeInTheDocument();
+  expect(queryByText(/Password must be at least 8 characters/i)).not.toBeInTheDocument();
+  expect(mockLogin).toHaveBeenCalledWith({ email: 'test@example.com', password: 'pass' });
+});
+
+test('toggles password visibility', async () => {
+  const { getByLabelText } = render(
+    <Login onSubmit={mockLogin} startupConfig={mockStartupConfig} />,
+  );
+  const passwordInput = getByLabelText(/^password$/i);
+
+  expect(passwordInput).toHaveAttribute('type', 'password');
+
+  await userEvent.click(screen.getByRole('button', { name: /show password/i }));
+  expect(passwordInput).toHaveAttribute('type', 'text');
+
+  await userEvent.click(screen.getByRole('button', { name: /hide password/i }));
+  expect(passwordInput).toHaveAttribute('type', 'password');
 });

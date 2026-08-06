@@ -135,6 +135,11 @@ export function checkVariables() {
  * Logs information or warning based on the API's availability and response.
  */
 export async function checkHealth() {
+  if (!process.env.RAG_API_URL) {
+    logger.debug('RAG_API_URL is not configured; skipping RAG API health check.');
+    return;
+  }
+
   try {
     const response = await fetch(`${process.env.RAG_API_URL}/health`);
     if (response?.ok && response?.status === 200) {

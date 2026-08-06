@@ -728,6 +728,7 @@ const getListAgentsByAccess = async ({
     author: 1,
     projectIds: 1,
     description: 1,
+    toolkit_description: 1,
     createdAt: 1,
     updatedAt: 1,
     category: 1,

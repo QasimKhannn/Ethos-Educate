@@ -41,6 +41,7 @@ export default function VersionPanel() {
     return {
       name: agentWithVersions.name,
       description: agentWithVersions.description,
+      toolkit_description: agentWithVersions.toolkit_description,
       instructions: agentWithVersions.instructions,
       artifacts: agentWithVersions.artifacts,
       capabilities: agentWithVersions.capabilities,

@@ -156,6 +156,29 @@ test('renders registration form', () => {
   );
 });
 
+test('toggles password visibility on registration', async () => {
+  const { getByTestId, getAllByRole } = setup();
+  const passwordInput = getByTestId('password');
+  const confirmPasswordInput = getByTestId('confirm_password');
+
+  expect(passwordInput).toHaveAttribute('type', 'password');
+  expect(confirmPasswordInput).toHaveAttribute('type', 'password');
+
+  const showPasswordButtons = getAllByRole('button', { name: /show password/i });
+  await userEvent.click(showPasswordButtons[0]);
+  await userEvent.click(showPasswordButtons[1]);
+
+  expect(passwordInput).toHaveAttribute('type', 'text');
+  expect(confirmPasswordInput).toHaveAttribute('type', 'text');
+
+  const hidePasswordButtons = getAllByRole('button', { name: /hide password/i });
+  await userEvent.click(hidePasswordButtons[0]);
+  await userEvent.click(hidePasswordButtons[1]);
+
+  expect(passwordInput).toHaveAttribute('type', 'password');
+  expect(confirmPasswordInput).toHaveAttribute('type', 'password');
+});
+
 // test('calls registerUser.mutate on registration', async () => {
 //   const mutate = jest.fn();
 //   const { getByTestId, getByRole, history } = setup({

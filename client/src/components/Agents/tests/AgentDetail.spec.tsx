@@ -186,7 +186,7 @@ describe('AgentDetail', () => {
       expect(screen.getByTestId('agent-avatar')).toHaveAttribute('data-size', 'xl');
     });
 
-    it('should explain the agent purpose, required input, expected output, and starter prompts', () => {
+    it('should explain the agent purpose and starter prompts without step cards', () => {
       const onboardingAgent = {
         ...mockAgent,
         conversation_starters: ['Create a weekly lesson plan from these standards.'],
@@ -197,11 +197,11 @@ describe('AgentDetail', () => {
       expect(screen.getByTestId('agent-onboarding-overview')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'com_agents_modal_purpose' })).toBeInTheDocument();
       expect(
-        screen.getByRole('heading', { name: 'com_agents_modal_you_provide' }),
-      ).toBeInTheDocument();
+        screen.queryByRole('heading', { name: 'com_agents_modal_you_provide' }),
+      ).not.toBeInTheDocument();
       expect(
-        screen.getByRole('heading', { name: 'com_agents_modal_you_receive' }),
-      ).toBeInTheDocument();
+        screen.queryByRole('heading', { name: 'com_agents_modal_you_receive' }),
+      ).not.toBeInTheDocument();
       expect(
         screen.getByRole('heading', { name: 'com_agents_modal_try_asking' }),
       ).toBeInTheDocument();

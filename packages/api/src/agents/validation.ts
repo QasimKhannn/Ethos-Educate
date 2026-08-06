@@ -64,6 +64,7 @@ export const agentToolOptionsSchema = z.record(z.string(), toolOptionsSchema).op
 export const agentBaseSchema = z.object({
   name: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
+  toolkit_description: z.string().nullable().optional(),
   instructions: z.string().nullable().optional(),
   avatar: agentAvatarSchema.nullable().optional(),
   model_parameters: z.record(z.unknown()).optional(),

@@ -62,6 +62,7 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
   const {
     name,
     artifacts,
+    toolkit_description,
     description,
     instructions,
     model: _model,
@@ -88,6 +89,7 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
     payload: {
       name,
       artifacts,
+      toolkit_description,
       description,
       instructions,
       model,

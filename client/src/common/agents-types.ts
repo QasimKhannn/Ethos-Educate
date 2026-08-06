@@ -31,6 +31,7 @@ export type AgentForm = {
   agent?: TAgentOption;
   id: string;
   name: string | null;
+  toolkit_description?: string | null;
   description: string | null;
   instructions: string | null;
   model: string | null;

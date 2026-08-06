@@ -3,6 +3,7 @@ export type VersionRecord = Record<string, any>;
 export type AgentState = {
   name: string | null;
   description: string | null;
+  toolkit_description?: string | null;
   instructions: string | null;
   artifacts?: string | null;
   capabilities?: string[];
@@ -27,6 +28,7 @@ export type VersionContext = {
 export interface AgentWithVersions {
   name: string;
   description: string | null;
+  toolkit_description?: string | null;
   instructions: string | null;
   artifacts?: string | null;
   capabilities?: string[];
