@@ -6,6 +6,7 @@ import { useToastContext, useMediaQuery } from '@librechat/client';
 import type { TConversation } from 'librechat-data-provider';
 import { useUpdateConversationMutation } from '~/data-provider';
 import EndpointIcon from '~/components/Endpoints/EndpointIcon';
+import { isMockNavigationConversation } from '~/components/Nav/mockNavigation';
 import { useNavigateToConvo, useLocalize, useShiftKey } from '~/hooks';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { NotificationSeverity } from '~/common';
@@ -19,12 +20,14 @@ interface ConversationProps {
   conversation: TConversation;
   retainView: () => void;
   isGenerating?: boolean;
+  onMockSelect?: (conversation: TConversation) => void;
 }
 
 export default function Conversation({
   conversation,
   retainView,
   isGenerating = false,
+  onMockSelect,
 }: ConversationProps) {
   const params = useParams();
   const localize = useLocalize();
@@ -37,6 +40,7 @@ export default function Conversation({
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const isShiftHeld = useShiftKey();
   const { conversationId, title = '' } = conversation;
+  const isMockConversation = isMockNavigationConversation(conversationId);
 
   const [titleInput, setTitleInput] = useState(title || '');
   const [renaming, setRenaming] = useState(false);
@@ -140,6 +144,11 @@ export default function Conversation({
   }, []);
 
   const handleNavigation = (ctrlOrMetaKey: boolean) => {
+    if (isMockConversation && onMockSelect) {
+      onMockSelect(conversation);
+      return;
+    }
+
     if (ctrlOrMetaKey) {
       const baseUrl = window.location.origin;
       const projectSearch = conversation.projectId
@@ -229,6 +238,7 @@ export default function Conversation({
           title={title}
           onRename={handleRename}
           isSmallScreen={isSmallScreen}
+          useThreadMarker={isMockConversation && !isGenerating}
           localize={localize}
         >
           {isGenerating ? (
@@ -276,7 +286,9 @@ export default function Conversation({
         // aria-hidden={!(isPopoverActive || isActiveConvo)}
       >
         {/* Only render ConvoOptions when user interacts (hover/focus) or for active conversation */}
-        {!renaming && (hasInteracted || isActiveConvo) && <ConvoOptions {...convoOptionsProps} />}
+        {!renaming && !isMockConversation && (hasInteracted || isActiveConvo) && (
+          <ConvoOptions {...convoOptionsProps} />
+        )}
       </div>
     </div>
   );

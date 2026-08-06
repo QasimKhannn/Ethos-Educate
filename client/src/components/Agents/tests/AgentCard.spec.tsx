@@ -211,7 +211,7 @@ describe('AgentCard', () => {
 
     const avatarImg = screen.getByAltText('Test Agent avatar');
     expect(avatarImg).toBeInTheDocument();
-    expect(avatarImg).toHaveAttribute('src', '/assets/agent-icons/default-agent.svg');
+    expect(avatarImg).toHaveAttribute('src', '/assets/agent-icons/style-c/default-agent.svg');
   });
 
   it('card is clickable and has dialog trigger', () => {

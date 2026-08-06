@@ -83,11 +83,11 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="w-full max-w-5xl space-y-5">
+    <div className="project-route-sources">
       <div
         className={cn(
-          'relative isolate flex min-h-[300px] flex-col items-center justify-center overflow-hidden px-6 py-12 text-center transition-colors duration-200',
-          isDragging && 'bg-[#DAAC60]/[0.07]',
+          'project-route-source-dropzone',
+          isDragging && 'project-route-source-dropzone-active',
         )}
         aria-busy={isUploading}
         onDragEnter={(event) => {
@@ -110,30 +110,19 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
           handleFiles(event.dataTransfer.files);
         }}
       >
-        <div
-          className="pointer-events-none absolute inset-x-16 top-10 -z-10 h-32 rounded-full bg-[#DAAC60]/10 blur-3xl dark:bg-[#DAAC60]/[0.07]"
-          aria-hidden="true"
-        />
         <div className="relative mb-6" aria-hidden="true">
-          <div
-            className={cn(
-              'flex h-16 w-16 items-center justify-center rounded-full border border-[#DAAC60]/45 bg-[#DAAC60]/10 text-[#B47D26] shadow-[0_14px_34px_rgba(98,63,9,0.12)] transition-transform duration-200 dark:text-[#E8C37F]',
-              isDragging && 'scale-110',
-            )}
-          >
+          <div className={cn('project-route-source-icon', isDragging && 'scale-110')}>
             <UploadCloud className="h-7 w-7" />
           </div>
-          <div className="absolute -bottom-1 -right-2 flex h-8 w-8 items-center justify-center rounded-full border border-border-light bg-surface-primary text-text-secondary shadow-sm">
+          <div className="project-route-source-paperclip">
             <Paperclip className="h-4 w-4" />
           </div>
         </div>
-        <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-[#B47D26] dark:text-[#E8C37F]">
+        <div className="project-route-source-eyebrow">
           {localize('com_projects_sources_eyebrow')}
         </div>
-        <h2 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-          {localize('com_projects_sources_title')}
-        </h2>
-        <p className="mt-2.5 max-w-lg text-sm leading-6 text-text-secondary">
+        <h2 className="project-route-source-title">{localize('com_projects_sources_title')}</h2>
+        <p className="project-route-source-description">
           {localize('com_projects_sources_description')}
         </p>
         <input
@@ -146,7 +135,7 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
         <Button
           type="button"
           disabled={isUploading}
-          className="mt-6 min-w-[156px] rounded-full bg-[#DAAC60] px-6 text-[#10224A] shadow-[0_8px_22px_rgba(98,63,9,0.18)] hover:bg-[#E8C37F] focus-visible:ring-2 focus-visible:ring-[#DAAC60]/50 disabled:bg-[#DAAC60]/55 disabled:text-[#10224A]/65"
+          className="project-route-source-upload"
           onClick={() => inputRef.current?.click()}
         >
           {isUploading ? (
@@ -156,7 +145,7 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
           )}
           {localize('com_projects_add_sources')}
         </Button>
-        <p className="mt-4 text-xs font-medium text-text-secondary">
+        <p className="project-route-source-hint">
           {localize(
             isDragging ? 'com_projects_sources_drop_now' : 'com_projects_sources_drop_hint',
           )}
@@ -169,10 +158,7 @@ export default function ProjectSources({ projectId }: { projectId: string }) {
         </div>
       ) : (
         files.map((file) => (
-          <div
-            key={file.file_id}
-            className="flex items-center justify-between rounded-xl border border-border-light bg-surface-primary px-4 py-3"
-          >
+          <div key={file.file_id} className="project-route-source-file">
             <div className="flex min-w-0 items-center gap-3">
               <FileText className="h-5 w-5 flex-shrink-0 text-text-secondary" />
               <div className="min-w-0">

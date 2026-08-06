@@ -1,12 +1,16 @@
-import { useMemo, memo, type FC, useCallback, useEffect, useRef } from 'react';
+import { useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import throttle from 'lodash/throttle';
 import { ChevronDown } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Spinner, useMediaQuery } from '@librechat/client';
 import { List, AutoSizer, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
+import type { CSSProperties, FC, LegacyRef, ReactNode, RefObject } from 'react';
 import type { TConversation } from 'librechat-data-provider';
-import { useLocalize, TranslationKeys, useFavorites, useShowMarketplace } from '~/hooks';
+import type { TranslationKeys } from '~/hooks';
+import { useLocalize, useFavorites, useShowMarketplace } from '~/hooks';
 import FavoritesList from '~/components/Nav/Favorites/FavoritesList';
+import { isMockNavigationConversation } from '~/components/Nav/mockNavigation';
 import { useActiveJobs } from '~/data-provider';
 import { groupConversationsByDate, cn } from '~/utils';
 import Convo from './Convo';
@@ -25,7 +29,7 @@ export type MeasuredCellParent = {
 interface ConversationsProps {
   conversations: Array<TConversation | null>;
   moveToTop: () => void;
-  containerRef: React.RefObject<List>;
+  containerRef: RefObject<List>;
   loadMoreConversations: () => void;
   isLoading: boolean;
   isSearchLoading: boolean;
@@ -39,8 +43,8 @@ interface MeasuredRowProps {
   rowKey: string;
   parent: MeasuredCellParent;
   index: number;
-  style: React.CSSProperties;
-  children: React.ReactNode;
+  style: CSSProperties;
+  children: ReactNode;
 }
 
 /** Reusable wrapper for virtualized row measurement */
@@ -48,7 +52,7 @@ const MeasuredRow: FC<MeasuredRowProps> = memo(
   ({ cache, rowKey, parent, index, style, children }) => (
     <CellMeasurer cache={cache} columnIndex={0} key={rowKey} parent={parent} rowIndex={index}>
       {({ registerChild }) => (
-        <div ref={registerChild as React.LegacyRef<HTMLDivElement>} style={style}>
+        <div ref={registerChild as LegacyRef<HTMLDivElement>} style={style}>
           {children}
         </div>
       )}
@@ -74,10 +78,11 @@ LoadingSpinner.displayName = 'LoadingSpinner';
 interface ChatsHeaderProps {
   isExpanded: boolean;
   onToggle: () => void;
+  count: number;
 }
 
 /** Collapsible header for the Chats section */
-const ChatsHeader: FC<ChatsHeaderProps> = memo(({ isExpanded, onToggle }) => {
+const ChatsHeader: FC<ChatsHeaderProps> = memo(({ isExpanded, onToggle, count }) => {
   const localize = useLocalize();
   return (
     <button
@@ -86,10 +91,20 @@ const ChatsHeader: FC<ChatsHeaderProps> = memo(({ isExpanded, onToggle }) => {
       type="button"
       aria-expanded={isExpanded}
     >
-      <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
-      <ChevronDown
-        className={cn('h-3 w-3 transition-transform duration-200', isExpanded ? 'rotate-180' : '')}
-      />
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
+        <span className="sidebar-section-total" aria-hidden="true">
+          {count}
+        </span>
+      </span>
+      <span className="sidebar-section-toggle-icon flex h-5 w-5 items-center justify-center rounded-md">
+        <ChevronDown
+          className={cn(
+            'h-3 w-3 transition-transform duration-200',
+            isExpanded ? 'rotate-180' : '',
+          )}
+        />
+      </span>
     </button>
   );
 });
@@ -114,7 +129,6 @@ DateLabel.displayName = 'DateLabel';
 
 type FlattenedItem =
   | { type: 'favorites' }
-  | { type: 'chats-header' }
   | { type: 'header'; groupName: string }
   | { type: 'convo'; convo: TConversation }
   | { type: 'loading' };
@@ -124,13 +138,20 @@ const MemoizedConvo = memo(
     conversation,
     retainView,
     isGenerating,
+    onMockSelect,
   }: {
     conversation: TConversation;
     retainView: () => void;
     isGenerating: boolean;
+    onMockSelect: (conversation: TConversation) => void;
   }) => {
     return (
-      <Convo conversation={conversation} retainView={retainView} isGenerating={isGenerating} />
+      <Convo
+        conversation={conversation}
+        retainView={retainView}
+        isGenerating={isGenerating}
+        onMockSelect={onMockSelect}
+      />
     );
   },
   (prevProps, nextProps) => {
@@ -138,7 +159,8 @@ const MemoizedConvo = memo(
       prevProps.conversation.conversationId === nextProps.conversation.conversationId &&
       prevProps.conversation.title === nextProps.conversation.title &&
       prevProps.conversation.endpoint === nextProps.conversation.endpoint &&
-      prevProps.isGenerating === nextProps.isGenerating
+      prevProps.isGenerating === nextProps.isGenerating &&
+      prevProps.onMockSelect === nextProps.onMockSelect
     );
   },
 );
@@ -155,6 +177,8 @@ const Conversations: FC<ConversationsProps> = ({
   setIsChatsExpanded,
 }) => {
   const localize = useLocalize();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const search = useRecoilValue(store.search);
   const { favorites, isLoading: isFavoritesLoading } = useFavorites();
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
@@ -166,6 +190,30 @@ const Conversations: FC<ConversationsProps> = ({
   const activeJobIds = useMemo(
     () => new Set(activeJobsData?.activeJobIds ?? []),
     [activeJobsData?.activeJobIds],
+  );
+
+  const handleMockConversationSelect = useCallback(
+    (conversation: TConversation) => {
+      if (!isMockNavigationConversation(conversation.conversationId)) {
+        return;
+      }
+      const conversationId = conversation.conversationId;
+      if (!conversationId) {
+        return;
+      }
+
+      const nextSearchParams = new URLSearchParams(searchParams);
+      if (conversation.projectId) {
+        nextSearchParams.set('projectId', conversation.projectId);
+      } else {
+        nextSearchParams.delete('projectId');
+      }
+      const queryString = nextSearchParams.toString();
+      const path = `/c/${encodeURIComponent(conversationId)}${queryString ? `?${queryString}` : ''}`;
+      document.title = conversation.title || localize('com_ui_new_chat');
+      navigate(path, { state: { focusChat: true } });
+    },
+    [localize, navigate, searchParams],
   );
 
   // Determine if FavoritesList will render content
@@ -190,8 +238,6 @@ const Conversations: FC<ConversationsProps> = ({
     if (shouldShowFavorites) {
       items.push({ type: 'favorites' });
     }
-    items.push({ type: 'chats-header' });
-
     if (isChatsExpanded) {
       groupedConversations.forEach(([groupName, convos]) => {
         items.push({ type: 'header', groupName });
@@ -199,7 +245,7 @@ const Conversations: FC<ConversationsProps> = ({
       });
 
       if (isLoading) {
-        items.push({ type: 'loading' } as any);
+        items.push({ type: 'loading' });
       }
     }
     return items;
@@ -222,9 +268,6 @@ const Conversations: FC<ConversationsProps> = ({
           }
           if (item.type === 'favorites') {
             return 'favorites';
-          }
-          if (item.type === 'chats-header') {
-            return 'chats-header';
           }
           if (item.type === 'header') {
             return `header-${item.groupName}`;
@@ -280,22 +323,8 @@ const Conversations: FC<ConversationsProps> = ({
         );
       }
 
-      if (item.type === 'chats-header') {
-        return (
-          <MeasuredRow key={key} {...rowProps}>
-            <ChatsHeader
-              isExpanded={isChatsExpanded}
-              onToggle={() => setIsChatsExpanded(!isChatsExpanded)}
-            />
-          </MeasuredRow>
-        );
-      }
-
       if (item.type === 'header') {
-        // First date header index depends on whether favorites row is included
-        // With favorites: [favorites, chats-header, first-header] â†’ index 2
-        // Without favorites: [chats-header, first-header] â†’ index 1
-        const firstHeaderIndex = shouldShowFavorites ? 2 : 1;
+        const firstHeaderIndex = shouldShowFavorites ? 1 : 0;
         return (
           <MeasuredRow key={key} {...rowProps}>
             <DateLabel groupName={item.groupName} isFirst={index === firstHeaderIndex} />
@@ -311,6 +340,7 @@ const Conversations: FC<ConversationsProps> = ({
               conversation={item.convo}
               retainView={moveToTop}
               isGenerating={isGenerating}
+              onMockSelect={handleMockConversationSelect}
             />
           </MeasuredRow>
         );
@@ -323,10 +353,9 @@ const Conversations: FC<ConversationsProps> = ({
       flattenedItems,
       moveToTop,
       clearFavoritesCache,
-      isChatsExpanded,
-      setIsChatsExpanded,
       shouldShowFavorites,
       activeJobIds,
+      handleMockConversationSelect,
     ],
   );
 
@@ -351,6 +380,11 @@ const Conversations: FC<ConversationsProps> = ({
 
   return (
     <div className="chat-sidebar-list relative flex h-full min-h-0 flex-col pb-2 text-sm text-text-primary">
+      <ChatsHeader
+        isExpanded={isChatsExpanded}
+        onToggle={() => setIsChatsExpanded(!isChatsExpanded)}
+        count={filteredConversations.length}
+      />
       {isSearchLoading ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner className="text-text-primary" />
@@ -374,7 +408,7 @@ const Conversations: FC<ConversationsProps> = ({
                 aria-label={localize('com_ui_chat_history')}
                 onRowsRendered={handleRowsRendered}
                 tabIndex={-1}
-                style={{ outline: 'none', scrollbarGutter: 'stable' }}
+                style={{ outline: 'none' }}
                 containerRole="rowgroup"
               />
             )}

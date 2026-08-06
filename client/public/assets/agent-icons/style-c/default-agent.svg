@@ -1,0 +1,14 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet">
+  <rect width="256" height="256" fill="#4B70E8"/>
+  <g transform="matrix(0.169922 0 0 0.169922 41 41)" color="#FFFDF7" fill="none" stroke="currentColor">
+<rect x="218" y="284" width="588" height="420" rx="96" stroke="currentColor" stroke-width="36"/>
+  <path d="M512 284V200" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <circle cx="512" cy="172" r="38" fill="currentColor"/>
+  <circle cx="382" cy="480" r="42" fill="currentColor"/>
+  <circle cx="642" cy="480" r="42" fill="currentColor"/>
+  <path d="M396 606C456 652 568 652 628 606" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M218 438H164" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M860 438H806" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M338 768H686" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  </g>
+</svg>

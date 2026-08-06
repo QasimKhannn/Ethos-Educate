@@ -34,7 +34,8 @@ export default function Root() {
   const backendQueriesEnabled = isAuthenticated;
   // cowork — the dedicated Cowork section renders its own rail, so hide the chat
   // sidebar ONLY for /cowork routes. All other routes are unaffected.
-  const isCoworkRoute = useLocation().pathname.startsWith('/cowork');
+  const location = useLocation();
+  const isCoworkRoute = location.pathname.startsWith('/cowork');
   const onboardingStorageKey = useMemo(() => {
     const identifier = user?.id ?? user?.email ?? user?.username;
 
@@ -65,6 +66,20 @@ export default function Root() {
     }
   }, [termsData]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isCoworkRoute || root.dataset.routeTransition !== 'cowork-to-chat') {
+      return;
+    }
+
+    const clearRouteTransition = () => {
+      delete root.dataset.routeTransition;
+    };
+    const timeout = window.setTimeout(clearRouteTransition, 180);
+
+    return () => window.clearTimeout(timeout);
+  }, [isCoworkRoute, location.key]);
+
   const handleAcceptTerms = () => {
     setShowTerms(false);
   };
@@ -86,7 +101,11 @@ export default function Root() {
             <PromptGroupsProvider>
               <Banner onHeightChange={setBannerHeight} />
               <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
-                <div className="relative z-0 flex h-full w-full overflow-hidden">
+                <div
+                  className={`app-route-shell relative z-0 flex h-full w-full overflow-hidden ${
+                    isCoworkRoute ? 'app-route-shell-cowork' : 'app-route-shell-chat'
+                  }`}
+                >
                   {!isCoworkRoute && <Nav navVisible={navVisible} setNavVisible={setNavVisible} />}
                   <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
                     {!isCoworkRoute && (

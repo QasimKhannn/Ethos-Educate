@@ -1,119 +1,89 @@
-import { memo, useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Folder, FolderPlus, MessageSquare } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, Folder, FolderPlus, LibraryBig } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TProject } from 'librechat-data-provider';
-import { useConversationsInfiniteQuery, useProjectsQuery } from '~/data-provider';
-import { useLocalize } from '~/hooks';
+import type { MockProjectAccent } from '~/components/Nav/mockNavigation';
+import { getMockNavigationProjects, isMockNavigationUser } from '~/components/Nav/mockNavigation';
+import { useProjectsQuery } from '~/data-provider';
+import { useAuthContext, useLocalize, useLocalStorage } from '~/hooks';
 import { cn } from '~/utils';
 import store from '~/store';
-import { flattenUniqueConversations } from './utils';
+import type { ProjectConversation } from './ProjectChatsPanel';
+import type { ProjectLibraryItem } from './ProjectsLibraryDialog';
 import ProjectCreateDialog from './ProjectCreateDialog';
+import ProjectChatsPanel from './ProjectChatsPanel';
+import ProjectsLibraryDialog from './ProjectsLibraryDialog';
+import { rankProjects } from './projectNavigation';
 
-type ProjectConversation = {
-  conversationId?: string | null;
-  endpoint?: string | null;
-  title?: string | null;
+type NavigationProject = {
+  accent?: MockProjectAccent;
+  demoConversations?: ProjectConversation[];
+  isFavorite: boolean;
+  lastWorkedAt?: string;
+  project: TProject;
 };
+
+const sidebarProjectLimit = 4;
 
 const ProjectRow = memo(
   ({
     project,
     active,
-    expanded,
-    activeConversationId,
-    onToggle,
-    onProjectClick,
-    onConversationClick,
+    selected,
+    accent,
+    conversationCount,
+    onOpen,
   }: {
     project: TProject;
     active: boolean;
-    expanded: boolean;
-    activeConversationId: string;
-    onToggle: () => void;
-    onProjectClick: () => void;
-    onConversationClick: (conversationId: string) => void;
+    selected: boolean;
+    accent?: MockProjectAccent;
+    conversationCount: number;
+    onOpen: (trigger: HTMLButtonElement) => void;
   }) => {
     const localize = useLocalize();
-    const conversationsQuery = useConversationsInfiniteQuery(
-      { projectId: project._id },
-      { enabled: expanded },
-    );
-    const conversations = useMemo<ProjectConversation[]>(
-      () => flattenUniqueConversations(conversationsQuery.data?.pages),
-      [conversationsQuery.data],
-    );
-
-    const renderConversationList = () => {
-      if (conversationsQuery.isLoading) {
-        return (
-          <div className="px-2 py-1.5 text-xs text-text-secondary">
-            {localize('com_ui_loading')}
-          </div>
-        );
-      }
-
-      if (conversations.length === 0) {
-        return (
-          <div className="px-2 py-1.5 text-xs font-medium text-white">
-            {localize('com_projects_no_chats')}
-          </div>
-        );
-      }
-
-      return conversations.map((conversation) => {
-        const conversationId = conversation.conversationId;
-        if (!conversationId) {
-          return null;
-        }
-        const isActive = activeConversationId === conversationId;
-        return (
-          <button
-            key={conversationId}
-            type="button"
-            className={cn(
-              'sidebar-convo-row flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-sm outline-none transition-colors',
-              isActive
-                ? 'sidebar-convo-row-active text-text-primary'
-                : 'sidebar-convo-row-idle text-text-secondary hover:text-text-primary',
-            )}
-            onClick={() => onConversationClick(conversationId)}
-          >
-            <MessageSquare className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{conversation.title || localize('com_projects_chat')}</span>
-          </button>
-        );
-      });
-    };
-
     return (
-      <div className="space-y-1">
-        <div
+      <div className="sidebar-project-group">
+        <button
+          type="button"
           className={cn(
-            'sidebar-project-row sidebar-utility-item group flex min-h-10 w-full items-center gap-1 rounded-xl text-sm outline-none transition-colors',
-            active
+            'sidebar-project-row sidebar-utility-item group flex min-h-9 w-full items-center gap-2 rounded-xl px-2 text-left text-sm outline-none transition-colors',
+            selected && 'sidebar-project-row-selected',
+            active || selected
               ? 'sidebar-utility-item-active text-text-primary'
               : 'text-text-primary hover:bg-surface-hover',
           )}
+          aria-controls={selected ? `project-chats-panel-${project._id}` : undefined}
+          aria-expanded={selected}
+          aria-label={localize(
+            selected ? 'com_projects_close_project_chats' : 'com_projects_toggle_chats',
+            { name: project.name },
+          )}
+          onClick={(event) => onOpen(event.currentTarget)}
+          title={project.name}
         >
-          <button
-            type="button"
-            className="flex h-9 w-8 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary"
-            aria-label={localize('com_projects_toggle_chats', { name: project.name })}
-            aria-expanded={expanded}
-            onClick={onToggle}
+          <span
+            className={cn(
+              'sidebar-utility-icon sidebar-project-icon flex flex-shrink-0 items-center justify-center',
+              accent && `sidebar-project-icon-${accent}`,
+            )}
           >
-            <ChevronRight className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
-          </button>
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center gap-3 self-stretch pr-2 text-left"
-            onClick={onProjectClick}
-          >
-            <Folder className="sidebar-utility-icon h-4 w-4 flex-shrink-0" />
-            <span className="truncate font-medium">{project.name}</span>
-          </button>
-        </div>
-        {expanded ? <div className="ml-5 space-y-1 pl-2">{renderConversationList()}</div> : null}
+            <Folder className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
+          {conversationCount > 0 ? (
+            <span className="sidebar-project-count flex-shrink-0" aria-hidden="true">
+              {conversationCount}
+            </span>
+          ) : null}
+          <ChevronRight
+            className={cn(
+              'sidebar-project-open-icon h-3.5 w-3.5 flex-shrink-0',
+              selected && 'sidebar-project-open-icon-active',
+            )}
+            aria-hidden="true"
+          />
+        </button>
       </div>
     );
   },
@@ -121,93 +91,239 @@ const ProjectRow = memo(
 
 ProjectRow.displayName = 'ProjectRow';
 
-function ProjectsNav() {
+type ProjectsNavProps = {
+  isSmallScreen?: boolean;
+  navVisible?: boolean;
+  onNavigate?: () => void;
+};
+
+function ProjectsNav({ isSmallScreen = false, navVisible = true, onNavigate }: ProjectsNavProps) {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(new Set());
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [panelAnchorTop, setPanelAnchorTop] = useState(112);
+  const projectTriggerRef = useRef<HTMLButtonElement | null>(null);
   const { conversation } = store.useCreateConversationAtom(0);
   const { data: projects = [] } = useProjectsQuery();
+  const mockNavigationProjects = useMemo(
+    () => (isMockNavigationUser(user) ? getMockNavigationProjects(localize) : []),
+    [localize, user],
+  );
+  const defaultFavoriteProjectIds = useMemo(
+    () =>
+      mockNavigationProjects
+        .filter(({ isFavorite }) => isFavorite)
+        .map(({ project }) => project._id),
+    [mockNavigationProjects],
+  );
+  const storageIdentity = user?.username ?? user?.name ?? 'guest';
+  const [favoriteProjectIds, setFavoriteProjectIds] = useLocalStorage<string[]>(
+    `ethos-project-favorites:${storageIdentity}`,
+    defaultFavoriteProjectIds,
+  );
+  const [projectActivity, setProjectActivity] = useLocalStorage<Record<string, string>>(
+    `ethos-project-activity:${storageIdentity}`,
+    {},
+  );
+  const favoriteProjectIdSet = useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
+  const navigationProjects = useMemo<NavigationProject[]>(() => {
+    const realProjects = projects.map((project) => ({
+      isFavorite: favoriteProjectIdSet.has(project._id),
+      lastWorkedAt: projectActivity[project._id] ?? project.updatedAt ?? project.createdAt,
+      project,
+    }));
+    const availableSlots = Math.max(0, 5 - realProjects.length);
+    const mockProjects = mockNavigationProjects.slice(0, availableSlots).map((item) => ({
+      project: item.project,
+      accent: item.accent,
+      demoConversations: item.conversations,
+      isFavorite: favoriteProjectIdSet.has(item.project._id),
+      lastWorkedAt: projectActivity[item.project._id] ?? item.lastWorkedAt,
+    }));
+    return [...realProjects, ...mockProjects];
+  }, [favoriteProjectIdSet, mockNavigationProjects, projectActivity, projects]);
+  const rankedNavigationProjects = useMemo(
+    () => rankProjects(navigationProjects),
+    [navigationProjects],
+  );
+  const visibleNavigationProjects = useMemo(
+    () => rankedNavigationProjects.slice(0, sidebarProjectLimit),
+    [rankedNavigationProjects],
+  );
+  const libraryProjects = useMemo<ProjectLibraryItem[]>(
+    () =>
+      rankedNavigationProjects.map(
+        ({ accent, demoConversations, isFavorite, lastWorkedAt, project }) => ({
+          accent,
+          conversationCount: demoConversations?.length ?? project.conversationIds?.length ?? 0,
+          isDemo: demoConversations != null,
+          isFavorite,
+          lastWorkedAt,
+          project,
+        }),
+      ),
+    [rankedNavigationProjects],
+  );
   const activeProjectId =
     params.projectId || searchParams.get('projectId') || conversation?.projectId || '';
   const activeConversationId = params.conversationId || conversation?.conversationId || '';
+  const selectedNavigationProject = useMemo(
+    () => rankedNavigationProjects.find(({ project }) => project._id === selectedProjectId),
+    [rankedNavigationProjects, selectedProjectId],
+  );
+
+  const closeProjectPanel = useCallback(() => {
+    setSelectedProjectId(null);
+    requestAnimationFrame(() => projectTriggerRef.current?.focus());
+  }, []);
 
   useEffect(() => {
-    if (!activeProjectId) {
+    if (navVisible) {
       return;
     }
-    setExpandedProjectIds((current) => {
-      if (current.has(activeProjectId)) {
-        return current;
-      }
-      const next = new Set(current);
-      next.add(activeProjectId);
-      return next;
-    });
-  }, [activeProjectId]);
+    setSelectedProjectId(null);
+  }, [navVisible]);
 
-  const toggleProject = (projectId: string) => {
-    setExpandedProjectIds((current) => {
-      const next = new Set(current);
-      if (next.has(projectId)) {
-        next.delete(projectId);
-      } else {
-        next.add(projectId);
-      }
-      return next;
+  const markProjectActivity = (projectId: string) => {
+    setProjectActivity({
+      ...projectActivity,
+      [projectId]: new Date().toISOString(),
     });
   };
 
-  const handleProjectClick = (projectId: string) => {
-    setExpandedProjectIds((current) => {
-      if (current.has(projectId)) {
-        return current;
-      }
-      const next = new Set(current);
-      next.add(projectId);
-      return next;
-    });
+  const toggleFavoriteProject = (projectId: string) => {
+    const nextFavoriteProjectIds = favoriteProjectIdSet.has(projectId)
+      ? favoriteProjectIds.filter((favoriteProjectId) => favoriteProjectId !== projectId)
+      : [...favoriteProjectIds, projectId];
+    setFavoriteProjectIds(nextFavoriteProjectIds);
+  };
+
+  const handleProjectClick = (projectId: string, trigger?: HTMLButtonElement) => {
+    if (selectedProjectId === projectId && trigger) {
+      closeProjectPanel();
+      return;
+    }
+
+    markProjectActivity(projectId);
+    projectTriggerRef.current = trigger ?? null;
+    if (trigger && !isSmallScreen) {
+      const triggerTop = trigger.getBoundingClientRect().top - 8;
+      const maximumTop = Math.max(80, window.innerHeight - 432);
+      setPanelAnchorTop(Math.min(Math.max(triggerTop, 80), maximumTop));
+    }
+    setSelectedProjectId(projectId);
+  };
+
+  const handleOpenProject = (projectId: string) => {
+    markProjectActivity(projectId);
+    setSelectedProjectId(null);
     navigate(`/projects/${projectId}?tab=chats`);
+    if (isSmallScreen) {
+      onNavigate?.();
+    }
   };
 
   const handleConversationClick = (projectId: string, conversationId: string) => {
+    markProjectActivity(projectId);
     navigate(`/c/${conversationId}?projectId=${projectId}`, { state: { focusChat: true } });
+    if (isSmallScreen) {
+      setSelectedProjectId(null);
+      onNavigate?.();
+    }
+  };
+
+  const dismissMobileNavigation = () => {
+    setSelectedProjectId(null);
+    onNavigate?.();
   };
 
   return (
-    <div className="sidebar-utility-section mt-1 gap-1.5 pt-2">
-      <div className="sidebar-section-heading px-2 pb-0.5 text-xs">
-        {localize('com_projects_projects')}
+    <div className="sidebar-projects-section sidebar-utility-section mt-1 pt-2">
+      <div className="sidebar-projects-header flex items-center justify-between px-2 pb-0.5">
+        <span className="sidebar-section-heading text-xs">{localize('com_projects_projects')}</span>
+        <span className="sidebar-section-total" aria-hidden="true">
+          {rankedNavigationProjects.length}
+        </span>
       </div>
       <button
         type="button"
-        className="sidebar-project-create-button sidebar-utility-item flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-text-primary outline-none hover:bg-surface-hover"
+        className="sidebar-project-create-button sidebar-utility-item flex min-h-9 w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-text-primary outline-none hover:bg-surface-hover"
         onClick={() => setDialogOpen(true)}
       >
         <FolderPlus className="sidebar-utility-icon h-4 w-4 flex-shrink-0" />
         <span className="font-medium">{localize('com_projects_new_project')}</span>
       </button>
-      {projects.map((project) => (
-        <ProjectRow
-          key={project._id}
-          project={project}
-          active={activeProjectId === project._id}
-          expanded={expandedProjectIds.has(project._id)}
-          activeConversationId={activeConversationId}
-          onToggle={() => toggleProject(project._id)}
-          onProjectClick={() => handleProjectClick(project._id)}
-          onConversationClick={(conversationId) =>
-            handleConversationClick(project._id, conversationId)
-          }
-        />
-      ))}
+      <div className="sidebar-projects-scroll">
+        {visibleNavigationProjects.map(({ project, accent, demoConversations }) => {
+          const conversationCount =
+            demoConversations?.length ?? project.conversationIds?.length ?? 0;
+          return (
+            <ProjectRow
+              key={project._id}
+              project={project}
+              active={activeProjectId === project._id}
+              selected={selectedProjectId === project._id}
+              accent={accent}
+              conversationCount={conversationCount}
+              onOpen={(trigger) => handleProjectClick(project._id, trigger)}
+            />
+          );
+        })}
+      </div>
+      {rankedNavigationProjects.length > sidebarProjectLimit ? (
+        <button
+          type="button"
+          className="sidebar-projects-view-all"
+          onClick={() => setLibraryOpen(true)}
+        >
+          <LibraryBig className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{localize('com_projects_view_all')}</span>
+          <ChevronRight className="ml-auto h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      ) : null}
       <ProjectCreateDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onCreated={(project) => handleProjectClick(project._id)}
+        onCreated={(project) => handleOpenProject(project._id)}
       />
+      <ProjectsLibraryDialog
+        open={libraryOpen}
+        projects={libraryProjects}
+        onOpenChange={setLibraryOpen}
+        onToggleFavorite={toggleFavoriteProject}
+        onSelect={(item) => {
+          setLibraryOpen(false);
+          handleProjectClick(item.project._id);
+        }}
+      />
+      {selectedNavigationProject ? (
+        <ProjectChatsPanel
+          project={selectedNavigationProject.project}
+          accent={selectedNavigationProject.accent}
+          demoConversations={selectedNavigationProject.demoConversations}
+          activeConversationId={activeConversationId}
+          anchorTop={panelAnchorTop}
+          isMobile={isSmallScreen}
+          onClose={closeProjectPanel}
+          onDismissNavigation={dismissMobileNavigation}
+          onOpenProject={
+            selectedNavigationProject.demoConversations == null
+              ? () => handleOpenProject(selectedNavigationProject.project._id)
+              : undefined
+          }
+          onConversationClick={(projectConversation) => {
+            const conversationId = projectConversation.conversationId;
+            if (conversationId) {
+              handleConversationClick(selectedNavigationProject.project._id, conversationId);
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

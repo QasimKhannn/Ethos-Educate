@@ -1,0 +1,23 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet">
+  <rect width="256" height="256" fill="#1685F8"/>
+  <g transform="matrix(0.169922 0 0 0.169922 41 41)" color="#FFFDF7" fill="none" stroke="currentColor">
+<rect x="274" y="214" width="504" height="596" rx="64" stroke="currentColor" stroke-width="38"/>
+  <path d="M382 214V810" stroke="currentColor" stroke-width="38" stroke-linecap="round"/>
+  <path d="M500 362H662" stroke="currentColor" stroke-width="34" stroke-linecap="round"/>
+  <path d="M500 664H662" stroke="currentColor" stroke-width="34" stroke-linecap="round"/>
+  <path d="M304 330H246" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 430H246" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 530H246" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 630H246" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <path d="M304 730H246" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+  <text
+    x="582"
+    y="566"
+    fill="currentColor"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="126"
+    font-weight="700"
+    text-anchor="middle"
+  >504</text>
+  </g>
+</svg>

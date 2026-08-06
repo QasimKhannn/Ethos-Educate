@@ -1,21 +1,223 @@
-import { useEffect } from 'react';
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import {
-  AccordionContent,
-  AccordionItem,
-  TooltipAnchor,
-  Accordion,
   Button,
+  OGDialog,
+  OGDialogClose,
+  OGDialogContent,
+  OGDialogTitle,
+  TooltipAnchor,
+  useMediaQuery,
 } from '@librechat/client';
 import type { NavLink, NavProps } from '~/common';
 import { ActivePanelProvider, useActivePanel } from '~/Providers';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
-function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActive'>) {
+const getNavSection = (link: NavLink) => {
+  if (link.id === 'hide-panel') {
+    return 'utility';
+  }
+
+  if (link.id === 'files' || link.id === 'bookmarks') {
+    return 'resources';
+  }
+
+  return 'tools';
+};
+
+const getTooltipDescription = (link: NavLink, localize: ReturnType<typeof useLocalize>) => {
+  const title = localize(link.title);
+  const description = localize(link.description ?? link.title);
+
+  return link.description ? `${title}: ${description}` : description;
+};
+
+function CollapsedNavLinks({
+  links,
+  active,
+  setActive,
+  resize,
+  openModal,
+  setTriggerRef,
+  modalLinkId,
+}: {
+  links: NavLink[];
+  active: string | undefined;
+  setActive: (value: string) => void;
+  resize?: (size: number) => void;
+  openModal: (link: NavLink) => void;
+  setTriggerRef: (linkId: string, element: HTMLButtonElement | null) => void;
+  modalLinkId: string | null;
+}) {
   const localize = useLocalize();
+
+  return links.map((link) => {
+    const isUtilityLink = link.id === 'hide-panel';
+    const isActive = link.id === active || link.id === modalLinkId;
+    const navSection = getNavSection(link);
+    const startsSection = link.id === 'files' || isUtilityLink;
+    const title = localize(link.title);
+
+    return (
+      <TooltipAnchor
+        description={getTooltipDescription(link, localize)}
+        side="left"
+        key={link.id}
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'sidepanel-nav-icon-button relative',
+              isActive && 'sidepanel-nav-icon-button-active',
+              isUtilityLink && 'sidepanel-nav-item-utility',
+            )}
+            aria-description={localize(link.description ?? link.title)}
+            aria-label={title}
+            data-control-panel-tour-id={!isUtilityLink ? link.id : undefined}
+            data-nav-section={navSection}
+            data-section-start={startsSection || undefined}
+            ref={link.Component ? (element) => setTriggerRef(link.id, element) : undefined}
+            onClick={(event) => {
+              if (link.Component) {
+                event.preventDefault();
+                setActive('');
+                resize?.(25);
+                openModal(link);
+                return;
+              }
+
+              if (link.onClick) {
+                link.onClick(event);
+                if (!isUtilityLink) {
+                  setActive('');
+                }
+                return;
+              }
+
+              setActive(link.id);
+              resize?.(25);
+            }}
+          >
+            <span className="sidepanel-nav-icon" aria-hidden="true">
+              <link.icon className="h-4 w-4" />
+            </span>
+            <span className="sr-only">{title}</span>
+          </Button>
+        }
+      />
+    );
+  });
+}
+
+function ExpandedNav({
+  links,
+  active,
+  setActive,
+  openModal,
+  setTriggerRef,
+  modalLinkId,
+}: {
+  links: NavLink[];
+  active: string | undefined;
+  setActive: (value: string) => void;
+  openModal: (link: NavLink) => void;
+  setTriggerRef: (linkId: string, element: HTMLButtonElement | null) => void;
+  modalLinkId: string | null;
+}) {
+  const localize = useLocalize();
+  const isSmallScreen = useMediaQuery('(max-width: 767px)');
+  const tools = links.filter((link) => link.id !== 'hide-panel');
+
+  return (
+    <div className="sidepanel-expanded-workspace">
+      <div className="sidepanel-expanded-navigation" aria-label={localize('com_nav_control_panel')}>
+        <div className="sidepanel-expanded-tool-grid" role="toolbar">
+          {tools.map((link) => {
+            const isActive = link.id === active || link.id === modalLinkId;
+            const title = localize(link.title);
+            const description = localize(link.description ?? link.title);
+
+            return (
+              <TooltipAnchor
+                description={getTooltipDescription(link, localize)}
+                side={isSmallScreen ? 'top' : 'left'}
+                key={link.id}
+                render={
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'sidepanel-expanded-tool w-full',
+                      isActive && 'sidepanel-expanded-tool-active',
+                    )}
+                    aria-description={description}
+                    aria-label={title}
+                    aria-pressed={isActive}
+                    data-control-panel-tour-id={link.id}
+                    data-tour-item="sidepanel"
+                    data-nav-section={getNavSection(link)}
+                    ref={link.Component ? (element) => setTriggerRef(link.id, element) : undefined}
+                    onClick={(event) => {
+                      if (link.Component) {
+                        event.preventDefault();
+                        setActive('');
+                        openModal(link);
+                        return;
+                      }
+
+                      if (link.onClick) {
+                        link.onClick(event);
+                        setActive('');
+                        return;
+                      }
+
+                      setActive(link.id);
+                    }}
+                  >
+                    <span
+                      className="sidepanel-nav-icon sidepanel-expanded-tool-icon"
+                      aria-hidden="true"
+                    >
+                      <link.icon className="h-4 w-4" />
+                    </span>
+                    <span className="sidepanel-expanded-tool-label truncate">{title}</span>
+                    {link.label != null && link.label && (
+                      <span className="sidepanel-expanded-tool-meta">{link.label}</span>
+                    )}
+                  </Button>
+                }
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActive'>) {
   const { active, setActive } = useActivePanel();
-  const getVariant = (link: NavLink) => (link.id === active ? 'default' : 'ghost');
+  const localize = useLocalize();
+  const [modalLinkId, setModalLinkId] = useState<string | null>(null);
+  const triggerRefs = useRef(new Map<string, HTMLButtonElement | null>());
+  const modalLink = links.find((link) => link.id === modalLinkId);
+  const ModalComponent = modalLink?.Component;
+
+  const openModal = (link: NavLink) => {
+    setActive('');
+    setModalLinkId(link.id);
+  };
+
+  const setTriggerRef = (linkId: string, element: HTMLButtonElement | null) => {
+    triggerRefs.current.set(linkId, element);
+  };
+
+  const handleModalOpenChange = (open: boolean) => {
+    if (!open) {
+      setModalLinkId(null);
+    }
+  };
 
   useEffect(() => {
     if (!isCollapsed || !active) {
@@ -24,6 +226,12 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
 
     setActive('');
   }, [active, isCollapsed, setActive]);
+
+  useEffect(() => {
+    if (active && links.some((link) => link.id === active && link.Component)) {
+      setActive('');
+    }
+  }, [active, links, setActive]);
 
   return (
     <div
@@ -44,188 +252,62 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
               isCollapsed ? 'items-center gap-2' : 'gap-1.5',
             )}
           >
-            {links.map((link, index) => {
-              const variant = getVariant(link);
-              const isUtilityLink = link.id === 'hide-panel';
-              const controlPanelTourId = !isCollapsed && !isUtilityLink ? link.id : undefined;
-              const description = localize(link.description ?? link.title);
-              if (isCollapsed) {
-                return (
-                  <TooltipAnchor
-                    description={description}
-                    side="left"
-                    key={`nav-link-${index}`}
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          'sidepanel-nav-icon-button sidepanel-nav-animated-item',
-                          variant === 'default' && 'sidepanel-nav-icon-button-active',
-                          isUtilityLink && 'sidepanel-nav-item-utility',
-                        )}
-                        data-control-panel-tour-id={controlPanelTourId}
-                        style={{ animationDelay: `${index * 36}ms` }}
-                        onClick={(e) => {
-                          if (link.onClick) {
-                            link.onClick(e);
-                            if (!isUtilityLink) {
-                              setActive('');
-                            }
-                            return;
-                          }
-                          setActive(link.id);
-                          resize && resize(25);
-                        }}
-                      >
-                        <span className="sidepanel-nav-icon" aria-hidden="true">
-                          <link.icon className="h-4 w-4" />
-                        </span>
-                        <span className="sr-only">{localize(link.title)}</span>
-                      </Button>
-                    }
-                  />
-                );
-              }
-
-              return (
-                <div key={`nav-link-${index}`} data-tour-item="sidepanel" className="w-full">
-                  <ExpandedNavLink
-                    link={link}
-                    index={index}
-                    variant={variant}
-                    controlPanelTourId={controlPanelTourId}
-                    setActive={setActive}
-                  />
-                </div>
-              );
-            })}
+            {isCollapsed ? (
+              <CollapsedNavLinks
+                links={links}
+                active={active}
+                setActive={setActive}
+                resize={resize}
+                openModal={openModal}
+                setTriggerRef={setTriggerRef}
+                modalLinkId={modalLinkId}
+              />
+            ) : (
+              <ExpandedNav
+                links={links}
+                active={active}
+                setActive={setActive}
+                openModal={openModal}
+                setTriggerRef={setTriggerRef}
+                modalLinkId={modalLinkId}
+              />
+            )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ExpandedNavLink({
-  link,
-  index,
-  variant,
-  controlPanelTourId,
-  setActive,
-}: {
-  link: NavLink;
-  index: number;
-  variant: 'default' | 'ghost';
-  controlPanelTourId?: string;
-  setActive: (value: string) => void;
-}) {
-  const localize = useLocalize();
-  const isUtilityLink = link.id === 'hide-panel';
-  const description = link.description ? localize(link.description) : undefined;
-
-  return isUtilityLink ? (
-    <Button
-      variant="outline"
-      className={cn(
-        'sidepanel-nav-item sidepanel-nav-item-expanded sidepanel-nav-animated-item w-full px-3 py-3',
-        'sidepanel-nav-item-utility',
+      {modalLink && ModalComponent && (
+        <OGDialog open={true} onOpenChange={handleModalOpenChange}>
+          <OGDialogContent
+            showCloseButton={false}
+            className="control-panel-dialog flex max-h-[calc(100dvh-2rem)] w-[min(94vw,62rem)] max-w-none flex-col overflow-hidden rounded-xl border border-border-light bg-surface-primary p-0 text-text-primary shadow-lg"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              triggerRefs.current.get(modalLink.id)?.focus();
+            }}
+          >
+            <div className="control-panel-dialog-header flex shrink-0 items-start justify-between gap-4 border-b border-border-light px-5 py-4 sm:px-6">
+              <OGDialogTitle className="min-w-0 text-lg font-semibold tracking-[-0.02em] text-text-primary">
+                {localize(modalLink.title)}
+              </OGDialogTitle>
+              <OGDialogClose asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
+                  aria-label={localize('com_ui_close')}
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </OGDialogClose>
+            </div>
+            <div className="control-panel-dialog-body min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+              <ModalComponent />
+            </div>
+          </OGDialogContent>
+        </OGDialog>
       )}
-      data-control-panel-tour-id={controlPanelTourId}
-      style={{ animationDelay: `${index * 36}ms` }}
-      onClick={(e) => link.onClick?.(e)}
-    >
-      <span className="sidepanel-nav-item-label truncate">{localize(link.title)}</span>
-      <span className="sidepanel-nav-icon sidepanel-nav-item-icon" aria-hidden="true">
-        <link.icon className="h-4 w-4" />
-      </span>
-    </Button>
-  ) : (
-    <Accordion
-      type="single"
-      value={variant === 'default' ? link.id : ''}
-      onValueChange={setActive}
-      collapsible
-      className="sidepanel-nav-animated-item w-full"
-      style={{ animationDelay: `${index * 36}ms` }}
-    >
-      <AccordionItem value={link.id} className="w-full border-none">
-        <AccordionPrimitive.Header className="w-full">
-          {description ? (
-            <TooltipAnchor
-              description={description}
-              side="left"
-              render={
-                <AccordionPrimitive.Trigger asChild>
-                  <Button
-                    variant="outline"
-                    className="sidepanel-nav-item sidepanel-nav-item-expanded w-full px-3 py-3 data-[state=open]:text-text-primary"
-                    data-control-panel-tour-id={controlPanelTourId}
-                    aria-description={description}
-                    onClick={(e) => {
-                      if (link.onClick) {
-                        link.onClick(e);
-                        setActive('');
-                      }
-                    }}
-                  >
-                    <span className="sidepanel-nav-item-label truncate">
-                      {localize(link.title)}
-                    </span>
-                    <span className="sidepanel-nav-icon sidepanel-nav-item-icon" aria-hidden="true">
-                      <link.icon className="h-4 w-4" />
-                    </span>
-                    {link.label != null && link.label && (
-                      <span
-                        className={cn(
-                          'sidepanel-nav-item-meta opacity-100 transition-colors duration-150',
-                          variant === 'default' ? 'text-text-primary' : '',
-                        )}
-                      >
-                        {link.label}
-                      </span>
-                    )}
-                  </Button>
-                </AccordionPrimitive.Trigger>
-              }
-            />
-          ) : (
-            <AccordionPrimitive.Trigger asChild>
-              <Button
-                variant="outline"
-                className="sidepanel-nav-item sidepanel-nav-item-expanded w-full px-3 py-3 data-[state=open]:text-text-primary"
-                data-control-panel-tour-id={controlPanelTourId}
-                onClick={(e) => {
-                  if (link.onClick) {
-                    link.onClick(e);
-                    setActive('');
-                  }
-                }}
-              >
-                <span className="sidepanel-nav-item-label truncate">{localize(link.title)}</span>
-                <span className="sidepanel-nav-icon sidepanel-nav-item-icon" aria-hidden="true">
-                  <link.icon className="h-4 w-4" />
-                </span>
-                {link.label != null && link.label && (
-                  <span
-                    className={cn(
-                      'sidepanel-nav-item-meta opacity-100 transition-colors duration-150',
-                      variant === 'default' ? 'text-text-primary' : '',
-                    )}
-                  >
-                    {link.label}
-                  </span>
-                )}
-              </Button>
-            </AccordionPrimitive.Trigger>
-          )}
-        </AccordionPrimitive.Header>
-
-        <AccordionContent className="sidepanel-nav-content w-full text-text-primary">
-          {link.Component && <link.Component />}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+    </div>
   );
 }
 

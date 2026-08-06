@@ -1,8 +1,8 @@
 // cowork — dedicated layout for the Cowork section: persistent rail + outlet.
 // Sits outside the regular chat shell so Cowork is its own self-contained space.
 // On small screens the rail collapses into a slide-in drawer opened from a top bar.
-import { useState } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { Menu, Briefcase } from 'lucide-react';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { useCoworkAccessQuery } from '~/data-provider';
@@ -10,10 +10,49 @@ import CoworkSidebar from './CoworkSidebar';
 import CoworkTour from './CoworkTour';
 
 export default function CoworkLayout() {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuthContext();
   const localize = useLocalize();
   const { data: access } = useCoworkAccessQuery({ enabled: isAuthenticated });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isLeavingForChat, setIsLeavingForChat] = useState(false);
+  const chatNavigationTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (chatNavigationTimerRef.current !== null) {
+        window.clearTimeout(chatNavigationTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const openMobileProjectCreator = () => {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        setMobileNavOpen(true);
+      }
+    };
+
+    window.addEventListener('cowork-new-project', openMobileProjectCreator);
+    return () => window.removeEventListener('cowork-new-project', openMobileProjectCreator);
+  }, []);
+
+  const navigateToChat = () => {
+    if (isLeavingForChat) {
+      return;
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      navigate('/c/new');
+      return;
+    }
+
+    setIsLeavingForChat(true);
+    chatNavigationTimerRef.current = window.setTimeout(() => {
+      document.documentElement.dataset.routeTransition = 'cowork-to-chat';
+      navigate('/c/new');
+    }, 120);
+  };
 
   if (!isAuthenticated) {
     return null;
@@ -25,8 +64,15 @@ export default function CoworkLayout() {
   }
 
   return (
-    <div className="cowork-refined-shell flex h-full w-full overflow-hidden bg-surface-primary">
-      <CoworkSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+    <div
+      className="cowork-refined-shell flex h-full w-full overflow-hidden bg-surface-primary"
+      data-transitioning-to-chat={isLeavingForChat || undefined}
+    >
+      <CoworkSidebar
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        onBackToChat={navigateToChat}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile top bar — opens the sidebar drawer (hidden on md+ where the rail is persistent). */}
         <div className="flex items-center gap-2 border-b border-border-medium px-3 py-2 md:hidden">

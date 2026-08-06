@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import { X } from 'lucide-react';
+import { ArrowRightToLine, X } from 'lucide-react';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
-import { useMediaQuery } from '@librechat/client';
+import { Button, TooltipAnchor, useMediaQuery } from '@librechat/client';
 import type { TEndpointsConfig, TInterfaceConfig } from 'librechat-data-provider';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
 import { useLocalStorage, useLocalize } from '~/hooks';
@@ -219,10 +219,28 @@ const SidePanel = ({
               <h2 className="truncate text-xl font-semibold tracking-[-0.02em] text-text-primary">
                 {localize('com_nav_control_panel')}
               </h2>
-              <MarketplaceAdminSettings
-                triggerClassName="marketplace-controlpanel-admin-trigger sidepanel-admin-trigger"
-                tourId="admin-settings"
-              />
+              <div className="sidepanel-desktop-header-actions">
+                <TooltipAnchor
+                  description={localize('com_sidepanel_collapse_help')}
+                  side="left"
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="sidepanel-header-collapse"
+                      aria-description={localize('com_sidepanel_collapse_help')}
+                      aria-label={localize('com_ui_collapse')}
+                      onClick={collapsePanel}
+                    >
+                      <ArrowRightToLine className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  }
+                />
+                <MarketplaceAdminSettings
+                  triggerClassName="marketplace-controlpanel-admin-trigger sidepanel-admin-trigger"
+                  tourId="admin-settings"
+                />
+              </div>
             </div>
           )}
           {isSmallScreen && (

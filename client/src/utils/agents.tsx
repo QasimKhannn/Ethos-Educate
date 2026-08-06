@@ -14,7 +14,9 @@ type AgentContactFields = t.Agent & {
 };
 
 const loadedAgentAvatarUrls = new Set<string>();
-const staticAgentIconPath = 'assets/agent-icons/';
+const legacyStaticAgentIconPath = 'assets/agent-icons/';
+const staticAgentIconPath = `${legacyStaticAgentIconPath}style-c/`;
+const staticAgentIconPaths = [staticAgentIconPath, legacyStaticAgentIconPath];
 const defaultAgentIconPath = `${staticAgentIconPath}default-agent.svg`;
 const defaultAgentIconUrl = () => getStaticAgentIconUrl(defaultAgentIconPath);
 
@@ -111,7 +113,8 @@ export const getAgentAvatarImageUrl = (agent: t.Agent | null | undefined): strin
 export const isStaticAgentIconUrl = (url: string) => {
   const pathWithoutParams = url.split(/[?#]/)[0]?.toLowerCase() ?? '';
   return (
-    pathWithoutParams.includes(`/${staticAgentIconPath}`) && pathWithoutParams.endsWith('.svg')
+    staticAgentIconPaths.some((iconPath) => pathWithoutParams.includes(`/${iconPath}`)) &&
+    pathWithoutParams.endsWith('.svg')
   );
 };
 
@@ -141,13 +144,21 @@ export const normalizeAgentAvatarUrl = (url: string | null): string | null => {
     return null;
   }
 
-  const staticIconIndex = trimmedUrl.toLowerCase().indexOf(staticAgentIconPath);
-  if (staticIconIndex === -1) {
+  const normalizedUrl = trimmedUrl.toLowerCase();
+  const matchedStaticIconPath = staticAgentIconPaths.find(
+    (iconPath) => normalizedUrl.indexOf(iconPath) !== -1,
+  );
+  if (!matchedStaticIconPath) {
     return trimmedUrl;
   }
 
-  const staticIconPath = trimmedUrl.slice(staticIconIndex).replace(/^\/+/, '');
-  return getStaticAgentIconUrl(staticIconPath);
+  const staticIconIndex = normalizedUrl.indexOf(matchedStaticIconPath);
+  const staticIconAssetPath = trimmedUrl.slice(staticIconIndex).replace(/^\/+/, '');
+  const typeCStaticIconAssetPath =
+    matchedStaticIconPath === legacyStaticAgentIconPath
+      ? staticIconAssetPath.replace(legacyStaticAgentIconPath, staticAgentIconPath)
+      : staticIconAssetPath;
+  return getStaticAgentIconUrl(typeCStaticIconAssetPath);
 };
 
 export const isAgentAvatarImageUrl = (url: string | null | undefined): boolean => {

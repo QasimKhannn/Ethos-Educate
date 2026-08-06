@@ -32,6 +32,11 @@ import {
   useCoworkAccessQuery,
   useTitleGeneration,
 } from '~/data-provider';
+import {
+  getMockNavigationConversations,
+  isMockNavigationUser,
+  mergeMockNavigationConversations,
+} from './mockNavigation';
 import { Conversations } from '~/components/Conversations';
 import { ProjectsNav } from '~/components/Projects';
 import CoworkNavLink from '~/components/Cowork/CoworkNavLink'; // cowork
@@ -278,7 +283,7 @@ const Nav = memo(
     setNavVisible: React.Dispatch<React.SetStateAction<boolean>>;
   }) => {
     const localize = useLocalize();
-    const { isAuthenticated } = useAuthContext();
+    const { isAuthenticated, user } = useAuthContext();
     useTitleGeneration(isAuthenticated);
 
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
@@ -334,6 +339,18 @@ const Nav = memo(
     const conversations = useMemo(() => {
       return data ? data.pages.flatMap((page) => page.conversations) : [];
     }, [data]);
+
+    const mockNavigationConversations = useMemo(
+      () => (isMockNavigationUser(user) ? getMockNavigationConversations(localize) : []),
+      [localize, user],
+    );
+
+    const displayConversations = useMemo(() => {
+      if (mockNavigationConversations.length === 0 || tags.length > 0 || search.query) {
+        return conversations;
+      }
+      return mergeMockNavigationConversations(conversations, mockNavigationConversations);
+    }, [conversations, mockNavigationConversations, search.query, tags.length]);
 
     const toggleNavVisible = useCallback(() => {
       // Use startTransition to mark this as a non-urgent update
@@ -453,10 +470,14 @@ const Nav = memo(
             <MemoNewChat toggleNav={toggleNavVisible} headerButtons={headerButtons} />
             <FavoritesList />
             <CoworkNavLink />
-            <ProjectsNav />
+            <ProjectsNav
+              isSmallScreen={isSmallScreen}
+              navVisible={navVisible}
+              onNavigate={isSmallScreen ? toggleNavVisible : undefined}
+            />
             <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
               <Conversations
-                conversations={conversations}
+                conversations={displayConversations}
                 moveToTop={moveToTop}
                 containerRef={conversationsRef}
                 loadMoreConversations={loadMoreConversations}

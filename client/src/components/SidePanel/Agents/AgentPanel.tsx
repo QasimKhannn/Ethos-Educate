@@ -500,7 +500,7 @@ export default function AgentPanel() {
         className="scrollbar-gutter-stable h-auto w-full flex-shrink-0 overflow-y-hidden overflow-x-visible"
         aria-label="Agent configuration form"
       >
-        <div className="mx-1 mt-2 flex w-full flex-wrap gap-2">
+        <div className="agent-builder-agent-switcher flex flex-wrap gap-2">
           <div className="w-full">
             <AgentSelect
               createMutation={create}

@@ -15,7 +15,7 @@ import {
   Briefcase,
   Puzzle,
   Plug,
-  MessageSquare,
+  ArrowLeft,
   Loader2,
   SquarePen,
   MessagesSquare,
@@ -180,9 +180,11 @@ function ProjectConversations({
 export default function CoworkSidebar({
   mobileOpen = false,
   onClose,
+  onBackToChat,
 }: {
   mobileOpen?: boolean;
   onClose?: () => void;
+  onBackToChat?: () => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -280,10 +282,10 @@ export default function CoworkSidebar({
       >
         <button
           type="button"
-          onClick={() => go('/c/new')}
+          onClick={onBackToChat ?? (() => go('/c/new'))}
           className="cowork-refined-back mb-3 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
         >
-          <MessageSquare className="size-4" /> {localize('com_cowork_back_to_chat')}
+          <ArrowLeft className="size-4" aria-hidden="true" /> {localize('com_cowork_back_to_chat')}
         </button>
 
         <div className="cowork-refined-brand mb-4 flex items-center gap-2 px-1">

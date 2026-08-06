@@ -21,6 +21,7 @@ import {
   normalizeAgentBrandText,
 } from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
+import { isMockMarketplaceAgent, renderMockMarketplaceAvatar } from './mockAgents';
 
 interface SupportContact {
   name?: string;
@@ -48,6 +49,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const { conversation, newConversation } = useChatContext();
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const isFavorite = isFavoriteAgent(agent?.id);
+  const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
 
   const handleFavoriteClick = () => {
@@ -162,7 +164,10 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
     <OGDialogContent className="agent-detail-dialog max-h-[90vh] w-[min(94vw,48rem)] overflow-y-auto p-0">
       <div className="agent-detail-sheet">
         <div className="agent-detail-header">
-          <div className="agent-detail-avatar">{renderAgentAvatar(agent, { size: 'xl' })}</div>
+          <div className="agent-detail-avatar">
+            {renderMockMarketplaceAvatar(agent, { size: 'xl' }) ??
+              renderAgentAvatar(agent, { size: 'xl' })}
+          </div>
           <div className="agent-detail-heading">
             <div className="agent-detail-title-row">
               <h2 className="agent-detail-title">
@@ -204,9 +209,11 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
           <Button
             className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
             onClick={handleStartChat}
-            disabled={!agent}
+            disabled={!agent || isMockAgent}
           >
-            {localize('com_agents_start_chat')}
+            {isMockAgent
+              ? localize('com_agents_mock_preview_only')
+              : localize('com_agents_start_chat')}
           </Button>
         </div>
       </div>

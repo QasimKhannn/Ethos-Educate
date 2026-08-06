@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import keyBy from 'lodash/keyBy';
 import { ControlCombobox } from '@librechat/client';
-import { ChevronLeft, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronLeft, RotateCcw } from 'lucide-react';
 import { useFormContext, useWatch, Controller } from 'react-hook-form';
 import { componentMapping } from '~/components/SidePanel/Parameters/components';
 import {
@@ -32,6 +32,8 @@ export default function ModelPanel({
   const model = useWatch({ control, name: 'model' });
   const providerOption = useWatch({ control, name: 'provider' });
   const modelParameters = useWatch({ control, name: 'model_parameters' });
+  const hasModelParameters = Object.keys(modelParameters ?? {}).length > 0;
+  const [isParametersOpen, setIsParametersOpen] = useState(hasModelParameters);
 
   const provider = useMemo(() => {
     const value =
@@ -44,10 +46,7 @@ export default function ModelPanel({
     () => (provider ? (modelsData[provider] ?? []) : []),
     [modelsData, provider],
   );
-  const selectedModelDisplay = useMemo(
-    () => getAgentBuilderModelLabel(model),
-    [model],
-  );
+  const selectedModelDisplay = useMemo(() => getAgentBuilderModelLabel(model), [model]);
 
   useEffect(() => {
     const _model = model ?? '';
@@ -65,6 +64,12 @@ export default function ModelPanel({
       setValue('model', models[0] ?? '');
     }
   }, [provider, models, modelsData, setValue, model]);
+
+  useEffect(() => {
+    if (hasModelParameters) {
+      setIsParametersOpen(true);
+    }
+  }, [hasModelParameters]);
 
   const { data: endpointsConfig = {} } = useGetEndpointsQuery();
 
@@ -220,46 +225,60 @@ export default function ModelPanel({
           />
         </div>
       </div>
-      {/* Model Parameters */}
-      {parameters && (
-        <div className="h-auto max-w-full overflow-x-hidden p-2">
-          <div className="grid grid-cols-2 gap-4">
-            {/* This is the parent element containing all settings */}
-            {/* Below is an example of an applied dynamic setting, each be contained by a div with the column span specified */}
-            {parameters.map((setting) => {
-              const Component = componentMapping[setting.component];
-              if (!Component) {
-                return null;
-              }
-              const { key, default: defaultValue, ...rest } = setting;
+      {parameters.length > 0 && (
+        <details
+          className="agent-builder-model-parameters"
+          open={isParametersOpen}
+          onToggle={(event) => setIsParametersOpen(event.currentTarget.open)}
+        >
+          <summary>
+            <span className="agent-builder-model-parameters-summary-copy">
+              <span className="agent-builder-model-parameters-title">
+                {localize('com_ui_model_parameters')}
+              </span>
+              <span className="agent-builder-model-parameters-description">
+                {localize('com_ui_tooltip_model_parameters')}
+              </span>
+            </span>
+            <ChevronDown className="agent-builder-model-parameters-chevron" aria-hidden="true" />
+          </summary>
+          <div className="agent-builder-model-parameters-content">
+            <div className="agent-builder-model-parameters-grid">
+              {parameters.map((setting) => {
+                const Component = componentMapping[setting.component];
+                if (!Component) {
+                  return null;
+                }
+                const { key, default: defaultValue, ...rest } = setting;
 
-              if (key === 'region' && bedrockRegions.length) {
-                rest.options = bedrockRegions;
-              }
+                if (key === 'region' && bedrockRegions.length) {
+                  rest.options = bedrockRegions;
+                }
 
-              return (
-                <Component
-                  key={key}
-                  settingKey={key}
-                  defaultValue={defaultValue}
-                  {...rest}
-                  setOption={setOption as t.TSetOption}
-                  conversation={modelParameters as Partial<t.TConversation>}
-                />
-              );
-            })}
+                return (
+                  <div key={key} className="agent-builder-model-parameter">
+                    <Component
+                      settingKey={key}
+                      defaultValue={defaultValue}
+                      {...rest}
+                      setOption={setOption as t.TSetOption}
+                      conversation={modelParameters as Partial<t.TConversation>}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleResetParameters}
+              className="btn btn-neutral agent-builder-model-parameters-reset flex w-full items-center justify-center gap-2 px-4 py-2 text-sm"
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              {localize('com_ui_reset_var', { 0: localize('com_ui_model_parameters') })}
+            </button>
           </div>
-        </div>
+        </details>
       )}
-      {/* Reset Parameters Button */}
-      <button
-        type="button"
-        onClick={handleResetParameters}
-        className="btn btn-neutral my-1 flex w-full items-center justify-center gap-2 px-4 py-2 text-sm"
-      >
-        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-        {localize('com_ui_reset_var', { 0: localize('com_ui_model_parameters') })}
-      </button>
     </div>
   );
 }

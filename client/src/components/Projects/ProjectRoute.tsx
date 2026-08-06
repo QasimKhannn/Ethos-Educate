@@ -1,10 +1,19 @@
 import { useMemo, useState } from 'react';
-import { FilePlus2, Folder, MessageSquarePlus, Plus } from 'lucide-react';
+import {
+  ArrowRight,
+  FilePlus2,
+  Folder,
+  MessageSquarePlus,
+  MessageSquareText,
+  Paperclip,
+  SendHorizontal,
+} from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Spinner } from '@librechat/client';
 import type { FormEvent } from 'react';
 import { useProjectQuery, useConversationsInfiniteQuery } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { getAgentBuilderProviderLabel } from '~/utils/forms';
 import { cn } from '~/utils';
 import { flattenUniqueConversations } from './utils';
 import ProjectSources from './ProjectSources';
@@ -84,93 +93,117 @@ export default function ProjectRoute() {
   }
 
   const project = projectQuery.data;
+  const conversationCount = conversations.length;
+  const sourceCount = project.fileIds?.length ?? 0;
+  const conversationCountLabel = localize(
+    conversationCount === 1 ? 'com_projects_chat_count_one' : 'com_projects_chat_count_other',
+    { count: conversationCount },
+  );
+  const sourceCountLabel = localize(
+    sourceCount === 1 ? 'com_projects_source_count_one' : 'com_projects_source_count_other',
+    { count: sourceCount },
+  );
 
   return (
     <div className="chat-view-shell project-route-shell relative flex h-full min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-surface-primary text-text-primary">
-      <div className="project-route-content mx-auto flex min-h-full w-full max-w-6xl flex-none flex-col px-5 py-6 sm:px-8 md:px-10 md:py-10">
-        <header className="flex items-center gap-3">
-          <div className="bg-surface-secondary/80 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border-light backdrop-blur-sm">
-            <Folder className="h-6 w-6" />
+      <div className="project-route-content mx-auto flex min-h-full w-full max-w-5xl flex-none flex-col px-5 py-6 sm:px-8 md:py-10">
+        <header className="project-route-overview">
+          <div className="project-route-identity">
+            <div className="project-route-folder" aria-hidden="true">
+              <Folder className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="project-route-eyebrow">{localize('com_projects_workspace')}</p>
+              <h1 className="project-route-title">{project.name}</h1>
+              <p className="project-route-description">
+                {project.description?.trim() || localize('com_projects_workspace_description')}
+              </p>
+            </div>
           </div>
-          <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight md:text-3xl">
-            {project.name}
-          </h1>
+          <div
+            className="project-route-meta"
+            aria-label={localize('com_projects_workspace_summary')}
+          >
+            <span className="project-route-meta-item">
+              <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+              {conversationCountLabel}
+            </span>
+            <span className="project-route-meta-item">
+              <Paperclip className="h-4 w-4" aria-hidden="true" />
+              {sourceCountLabel}
+            </span>
+          </div>
         </header>
 
-        <section className="project-route-card bg-surface-primary/80 mt-7 overflow-hidden rounded-2xl border border-border-light shadow-sm backdrop-blur-xl md:mt-8">
-          <form
-            className="bg-surface-secondary/75 flex h-16 w-full items-center border-b border-border-light px-4 sm:px-5"
-            onSubmit={startChat}
-          >
-            <button
-              type="button"
-              className="mr-3 rounded-xl p-2 transition-colors hover:bg-surface-hover"
-              aria-label={localize('com_projects_new_chat_in_project', { name: project.name })}
-              onClick={() => startChat()}
-            >
-              <Plus className="h-5 w-5" />
-            </button>
+        <form className="project-route-composer" onSubmit={startChat}>
+          <div className="project-route-composer-copy">
+            <span>{localize('com_projects_new_chat_in_project', { name: project.name })}</span>
+            <small>{localize('com_projects_new_chat_description')}</small>
+          </div>
+          <div className="project-route-composer-field">
+            <MessageSquarePlus className="h-5 w-5" aria-hidden="true" />
             <input
               value={prompt}
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-text-secondary sm:text-base"
+              aria-label={localize('com_projects_new_chat_placeholder', { name: project.name })}
               placeholder={localize('com_projects_new_chat_placeholder', { name: project.name })}
               onChange={(event) => setPrompt(event.target.value)}
             />
-          </form>
+            <button
+              type="submit"
+              className="project-route-composer-submit"
+              aria-label={localize('com_projects_start_chat')}
+            >
+              <SendHorizontal className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </form>
 
-          <div
-            role="tablist"
-            aria-label={project.name}
-            className="flex h-14 items-end gap-6 border-b border-border-light px-5 sm:px-6"
-          >
+        <section className="project-route-card">
+          <div role="tablist" aria-label={project.name} className="project-route-tabs">
             {(['chats', 'sources'] as ProjectTab[]).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab}
-                className={cn(
-                  "relative h-full px-1 pt-1 text-sm font-medium transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:rounded-full after:content-['']",
-                  activeTab === tab
-                    ? 'text-text-primary after:bg-text-primary'
-                    : 'text-text-secondary after:bg-transparent hover:text-text-primary',
-                )}
+                className={cn('project-route-tab', activeTab === tab && 'project-route-tab-active')}
                 onClick={() => setTab(tab)}
               >
-                {tab === 'chats'
-                  ? localize('com_projects_chats')
-                  : localize('com_projects_sources')}
+                <span>
+                  {tab === 'chats'
+                    ? localize('com_projects_chats')
+                    : localize('com_projects_sources')}
+                </span>
+                <span className="project-route-tab-count" aria-hidden="true">
+                  {tab === 'chats' ? conversationCount : sourceCount}
+                </span>
               </button>
             ))}
           </div>
 
-          <div className="min-h-[400px] p-4 sm:p-6">
+          <div className="project-route-body">
             {activeTab === 'sources' && <ProjectSources projectId={projectId} />}
 
             {activeTab === 'chats' && conversations.length === 0 && (
-              <div className="relative isolate flex min-h-[350px] flex-col items-center justify-center overflow-hidden px-6 py-12 text-center">
-                <div
-                  className="pointer-events-none absolute inset-x-16 top-8 -z-10 h-36 rounded-full bg-[#DAAC60]/10 blur-3xl dark:bg-[#DAAC60]/[0.07]"
-                  aria-hidden="true"
-                />
+              <div className="project-route-empty">
                 <div className="relative mb-6" aria-hidden="true">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#DAAC60]/45 bg-[#DAAC60]/10 text-[#B47D26] shadow-[0_14px_34px_rgba(98,63,9,0.12)] dark:text-[#E8C37F]">
+                  <div className="project-route-empty-icon">
                     <MessageSquarePlus className="h-7 w-7" />
                   </div>
                 </div>
-                <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-[#B47D26] dark:text-[#E8C37F]">
+                <div className="project-route-empty-eyebrow">
                   {localize('com_projects_empty_chats_eyebrow')}
                 </div>
-                <h2 className="max-w-xl text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+                <h2 className="project-route-empty-title">
                   {localize('com_projects_empty_chats_title', { name: project.name })}
                 </h2>
-                <p className="mt-2.5 max-w-lg text-sm leading-6 text-text-secondary">
+                <p className="project-route-empty-description">
                   {localize('com_projects_empty_chats_description')}
                 </p>
-                <div className="mt-6 flex flex-col items-center gap-2.5 sm:flex-row">
+                <div className="project-route-empty-actions">
                   <button
                     type="button"
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#DAAC60] px-5 py-2 text-sm font-semibold text-[#10224A] shadow-[0_8px_22px_rgba(98,63,9,0.18)] transition-colors hover:bg-[#E8C37F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DAAC60]/50 focus-visible:ring-offset-2 active:scale-[0.97]"
+                    className="project-route-primary-button"
                     onClick={() => startChat()}
                   >
                     <MessageSquarePlus className="h-4 w-4" />
@@ -178,10 +211,10 @@ export default function ProjectRoute() {
                   </button>
                   <button
                     type="button"
-                    className="bg-surface-primary/70 inline-flex min-h-10 items-center gap-2 rounded-full border border-[#3156B9]/70 px-5 py-2 text-sm font-medium text-text-primary transition-colors hover:border-[#3156B9] hover:bg-[#3156B9]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3156B9]/40 focus-visible:ring-offset-2 active:scale-[0.97]"
+                    className="project-route-secondary-button"
                     onClick={() => setTab('sources')}
                   >
-                    <FilePlus2 className="h-4 w-4 text-[#B47D26] dark:text-[#E8C37F]" />
+                    <FilePlus2 className="h-4 w-4" />
                     {localize('com_projects_add_sources')}
                   </button>
                 </div>
@@ -189,35 +222,56 @@ export default function ProjectRoute() {
             )}
 
             {activeTab === 'chats' && conversations.length > 0 && (
-              <div className="divide-y divide-border-light">
-                {conversations.map((conversation) => {
-                  if (!conversation.conversationId) {
-                    return null;
-                  }
-                  return (
-                    <button
-                      key={conversation.conversationId}
-                      type="button"
-                      className="flex w-full items-center justify-between px-4 py-5 text-left transition-colors hover:bg-surface-hover"
-                      onClick={() =>
-                        navigate(`/c/${conversation.conversationId}?projectId=${projectId}`, {
-                          state: { focusChat: true },
-                        })
-                      }
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{conversation.title}</span>
-                        <span className="block truncate text-sm text-text-secondary">
-                          {conversation.endpoint ?? localize('com_projects_chat')}
+              <section aria-labelledby="project-recent-chats-title">
+                <div className="project-route-section-heading">
+                  <div>
+                    <h2 id="project-recent-chats-title">{localize('com_projects_recent_chats')}</h2>
+                    <p>{localize('com_projects_recent_chats_description')}</p>
+                  </div>
+                  <span className="project-route-section-count" aria-hidden="true">
+                    {conversationCount}
+                  </span>
+                </div>
+                <div className="project-route-conversations">
+                  {conversations.map((conversation) => {
+                    if (!conversation.conversationId) {
+                      return null;
+                    }
+                    const conversationDate = getConversationDate(conversation);
+                    return (
+                      <button
+                        key={conversation.conversationId}
+                        type="button"
+                        className="project-route-conversation"
+                        onClick={() =>
+                          navigate(`/c/${conversation.conversationId}?projectId=${projectId}`, {
+                            state: { focusChat: true },
+                          })
+                        }
+                      >
+                        <span className="project-route-conversation-icon" aria-hidden="true">
+                          <MessageSquareText className="h-5 w-5" />
                         </span>
-                      </span>
-                      <span className="ml-4 flex-shrink-0 text-sm text-text-secondary">
-                        {getConversationDate(conversation)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                        <span className="project-route-conversation-copy">
+                          <span className="project-route-conversation-title">
+                            {conversation.title || localize('com_projects_chat')}
+                          </span>
+                          <span className="project-route-conversation-provider">
+                            {getAgentBuilderProviderLabel(conversation.endpoint) ||
+                              localize('com_projects_chat')}
+                          </span>
+                        </span>
+                        <span className="project-route-conversation-end">
+                          {conversationDate ? (
+                            <time dateTime={conversation.updatedAt}>{conversationDate}</time>
+                          ) : null}
+                          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             )}
           </div>
         </section>
