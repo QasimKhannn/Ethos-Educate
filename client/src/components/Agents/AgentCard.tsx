@@ -3,7 +3,13 @@ import { Label, OGDialog, OGDialogTrigger } from '@librechat/client';
 import type t from 'librechat-data-provider';
 
 import { useLocalize, TranslationKeys, useAgentCategories } from '~/hooks';
-import { cn, renderAgentAvatar, getContactDisplayName, getAgentDisplayName } from '~/utils';
+import {
+  cn,
+  renderAgentAvatar,
+  getContactDisplayName,
+  getAgentDisplayName,
+  getAgentToolkitDescription,
+} from '~/utils';
 import AgentDetailContent from './AgentDetailContent';
 
 interface AgentCardProps {
@@ -44,8 +50,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   const displayName = getContactDisplayName(agent);
   const agentDisplayName = getAgentDisplayName(agent);
+  const toolkitDescription = getAgentToolkitDescription(agent);
   const triggerId = `agent-${agent.id}-trigger`;
-  const headerDescriptionId = agent.description ? `agent-${agent.id}-description` : undefined;
+  const headerDescriptionId = toolkitDescription ? `agent-${agent.id}-description` : undefined;
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -72,7 +79,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             className={cn('agent-card-trigger w-full text-left', className)}
             aria-label={localize('com_agents_agent_card_label', {
               name: agentDisplayName,
-              description: agent.description ?? '',
+              description: toolkitDescription,
             })}
             aria-describedby={headerDescriptionId}
             aria-haspopup="dialog"
@@ -102,15 +109,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
                   </span>
                 </div>
               ) : null}
-              {agent.description ? (
+              {toolkitDescription ? (
                 <p
                   id={headerDescriptionId}
                   className="agent-card-description mt-1 text-sm leading-6 text-text-secondary"
                   aria-label={localize('com_agents_description_card', {
-                    description: agent.description,
+                    description: toolkitDescription,
                   })}
                 >
-                  {agent.description}
+                  {toolkitDescription}
                 </p>
               ) : null}
             </div>

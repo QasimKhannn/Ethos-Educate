@@ -56,6 +56,22 @@ describe('isActiveVersion', () => {
     expect(isActiveVersion(version, currentAgent, versions)).toBe(false);
   });
 
+  test('returns false when toolkit descriptions do not match', () => {
+    const version = createVersion({ toolkit_description: 'Short toolkit description' });
+    const currentAgent = createAgentState({ toolkit_description: 'Different short description' });
+    const versions = [version];
+
+    expect(isActiveVersion(version, currentAgent, versions)).toBe(false);
+  });
+
+  test('treats missing and blank toolkit descriptions as matching', () => {
+    const version = createVersion({ toolkit_description: undefined });
+    const currentAgent = createAgentState({ toolkit_description: '' });
+    const versions = [version];
+
+    expect(isActiveVersion(version, currentAgent, versions)).toBe(true);
+  });
+
   test('returns false when instructions do not match', () => {
     const version = createVersion();
     const currentAgent = createAgentState({ instructions: 'Different Instructions' });

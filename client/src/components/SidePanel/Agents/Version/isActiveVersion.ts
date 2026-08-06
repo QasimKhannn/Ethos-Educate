@@ -1,5 +1,7 @@
 import type { AgentState, VersionRecord } from './types';
 
+const normalizeToolkitDescription = (value: string | null | undefined) => value ?? '';
+
 export const isActiveVersion = (
   version: VersionRecord,
   currentAgent: AgentState,
@@ -21,6 +23,9 @@ export const isActiveVersion = (
 
   const matchesName = version.name === currentAgent.name;
   const matchesDescription = version.description === currentAgent.description;
+  const matchesToolkitDescription =
+    normalizeToolkitDescription(version.toolkit_description) ===
+    normalizeToolkitDescription(currentAgent.toolkit_description);
   const matchesInstructions = version.instructions === currentAgent.instructions;
   const matchesArtifacts = version.artifacts === currentAgent.artifacts;
 
@@ -51,6 +56,7 @@ export const isActiveVersion = (
   return (
     matchesName &&
     matchesDescription &&
+    matchesToolkitDescription &&
     matchesInstructions &&
     matchesArtifacts &&
     toolsMatch() &&

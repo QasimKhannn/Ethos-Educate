@@ -222,26 +222,50 @@ export default function AgentConfig() {
             )}
           />
         </div>
-        {/* Description */}
+        {/* Toolkit Description */}
         <div className="mb-4">
           <AgentFieldLabel
-            htmlFor="description"
-            label={localize('com_ui_description')}
-            description={localize('com_ui_agent_description_help')}
+            htmlFor="toolkit_description"
+            label={localize('com_ui_agent_toolkit_description')}
+            description={localize('com_ui_agent_toolkit_description_help')}
           />
           <Controller
-            name="description"
+            name="toolkit_description"
             control={control}
             render={({ field }) => (
               <input
                 {...field}
                 value={field.value ?? ''}
-                maxLength={512}
+                maxLength={180}
                 className={inputClass}
-                id="description"
+                id="toolkit_description"
                 type="text"
+                placeholder={localize('com_agents_toolkit_description_placeholder')}
+                aria-label={localize('com_ui_agent_toolkit_description')}
+              />
+            )}
+          />
+        </div>
+        {/* Description */}
+        <div className="mb-4">
+          <AgentFieldLabel
+            htmlFor="description"
+            label={localize('com_ui_agent_landing_description')}
+            description={localize('com_ui_agent_landing_description_help')}
+          />
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <textarea
+                {...field}
+                value={field.value ?? ''}
+                maxLength={1200}
+                rows={3}
+                className={cn(inputClass, 'min-h-24 resize-y')}
+                id="description"
                 placeholder={localize('com_agents_description_placeholder')}
-                aria-label="Agent description"
+                aria-label={localize('com_ui_agent_landing_description')}
               />
             )}
           />

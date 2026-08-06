@@ -236,6 +236,7 @@ export const defaultAssistantFormValues = {
   assistant: '',
   id: '',
   name: '',
+  toolkit_description: '',
   description: '',
   instructions: '',
   conversation_starters: [],

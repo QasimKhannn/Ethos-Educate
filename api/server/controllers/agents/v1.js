@@ -199,6 +199,7 @@ const getAgentHandler = async (req, res, expandProperties = false) => {
         id: agent.id,
         name: agent.name,
         description: agent.description,
+        toolkit_description: agent.toolkit_description,
         avatar: agent.avatar,
         author: agent.author,
         provider: agent.provider,
@@ -512,7 +513,7 @@ const getListAgentsHandler = async (req, res) => {
     if (search && search.trim() !== '') {
       const safeSearch = escapeRegex(search.trim().slice(0, MAX_SEARCH_LEN));
       const regex = new RegExp(safeSearch, 'i');
-      filter.$or = [{ name: regex }, { description: regex }];
+      filter.$or = [{ name: regex }, { description: regex }, { toolkit_description: regex }];
     }
 
     const validatedSortBy = sortBy === 'createdAt' ? sortBy : undefined;

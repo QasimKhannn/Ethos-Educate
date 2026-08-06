@@ -247,6 +247,7 @@ export type Agent = {
   endpoint?: string | null;
   authorName?: string | null;
   description: string | null;
+  toolkit_description?: string | null;
   created_at: number;
   avatar: AgentAvatar | null;
   instructions?: string | null;
@@ -282,6 +283,7 @@ export type TAgentsMap = Record<string, Agent | undefined>;
 export type AgentCreateParams = {
   name?: string | null;
   description?: string | null;
+  toolkit_description?: string | null;
   avatar?: AgentAvatar | null;
   file_ids?: string[];
   instructions?: string | null;
@@ -305,6 +307,7 @@ export type AgentCreateParams = {
 export type AgentUpdateParams = {
   name?: string | null;
   description?: string | null;
+  toolkit_description?: string | null;
   avatar?: AgentAvatar | null;
   file_ids?: string[];
   instructions?: string | null;

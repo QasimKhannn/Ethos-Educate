@@ -130,6 +130,7 @@ describe('AgentCard', () => {
     id: '1',
     name: 'Test Agent',
     description: 'A test agent for testing purposes',
+    toolkit_description: 'Short toolkit card copy',
     support_contact: {
       name: 'Test Support',
       email: 'test@example.com',
@@ -165,6 +166,22 @@ describe('AgentCard', () => {
     );
 
     expect(screen.getByText('Test Agent')).toBeInTheDocument();
+    expect(screen.getByText('Short toolkit card copy')).toBeInTheDocument();
+    expect(screen.queryByText('A test agent for testing purposes')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the agent description when toolkit description is missing', () => {
+    const agentWithoutToolkitDescription = {
+      ...mockAgent,
+      toolkit_description: undefined,
+    };
+
+    render(
+      <Wrapper>
+        <AgentCard agent={agentWithoutToolkitDescription} onSelect={mockOnSelect} />
+      </Wrapper>,
+    );
+
     expect(screen.getByText('A test agent for testing purposes')).toBeInTheDocument();
   });
 
@@ -289,7 +306,7 @@ describe('AgentCard', () => {
     );
 
     expect(screen.getByText('Test Agent')).toBeInTheDocument();
-    expect(screen.getByText('A test agent for testing purposes')).toBeInTheDocument();
+    expect(screen.getByText('Short toolkit card copy')).toBeInTheDocument();
   });
 
   it('displays authorName when support_contact is missing', () => {
@@ -317,10 +334,7 @@ describe('AgentCard', () => {
 
     const card = screen.getByRole('button');
     expect(card).toHaveAttribute('tabIndex', '0');
-    expect(card).toHaveAttribute(
-      'aria-label',
-      'Test Agent agent. A test agent for testing purposes',
-    );
+    expect(card).toHaveAttribute('aria-label', 'Test Agent agent. Short toolkit card copy');
   });
 
   it('displays localized category label', () => {
