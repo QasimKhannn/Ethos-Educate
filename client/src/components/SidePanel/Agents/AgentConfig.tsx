@@ -231,131 +231,47 @@ export default function AgentConfig() {
           </div>
           <div className="mb-4">
             <AgentFieldLabel
-              htmlFor="description"
-              label={localize('com_ui_description')}
-              description={localize('com_ui_agent_description_help')}
+              htmlFor="toolkit_description"
+              label={localize('com_ui_agent_toolkit_description')}
+              description={localize('com_ui_agent_toolkit_description_help')}
             />
             <Controller
-              name="description"
+              name="toolkit_description"
               control={control}
               render={({ field }) => (
                 <input
                   {...field}
                   value={field.value ?? ''}
-                  maxLength={512}
+                  maxLength={180}
                   className={inputClass}
-                  id="description"
+                  id="toolkit_description"
                   type="text"
-                  placeholder={localize('com_agents_description_placeholder')}
-                  aria-label="Agent description"
+                  placeholder={localize('com_agents_toolkit_description_placeholder')}
+                  aria-label={localize('com_ui_agent_toolkit_description')}
                 />
-                <div
-                  className={cn(
-                    'mt-1 w-56 text-sm text-red-500',
-                    errors.name ? 'visible h-auto' : 'invisible h-0',
-                  )}
-                  role="alert"
-                >
-                  {errors.name ? errors.name.message : ' '}
-                </div>
-              </>
-            )}
-          />
-          <Controller
-            name="id"
-            control={control}
-            render={({ field }) => (
-              <p className="h-3 text-xs italic text-text-secondary" aria-live="polite">
-                {field.value}
-              </p>
-            )}
-          />
-        </div>
-        {/* Toolkit Description */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="toolkit_description"
-            label={localize('com_ui_agent_toolkit_description')}
-            description={localize('com_ui_agent_toolkit_description_help')}
-          />
-          <Controller
-            name="toolkit_description"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                value={field.value ?? ''}
-                maxLength={180}
-                className={inputClass}
-                id="toolkit_description"
-                type="text"
-                placeholder={localize('com_agents_toolkit_description_placeholder')}
-                aria-label={localize('com_ui_agent_toolkit_description')}
-              />
-            )}
-          />
-        </div>
-        {/* Description */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="description"
-            label={localize('com_ui_agent_landing_description')}
-            description={localize('com_ui_agent_landing_description_help')}
-          />
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => (
-              <textarea
-                {...field}
-                value={field.value ?? ''}
-                maxLength={1200}
-                rows={3}
-                className={cn(inputClass, 'min-h-24 resize-y')}
-                id="description"
-                placeholder={localize('com_agents_description_placeholder')}
-                aria-label={localize('com_ui_agent_landing_description')}
-              />
-            )}
-          />
-        </div>
-        {/* Category */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="category-selector"
-            label={localize('com_ui_category')}
-            description={localize('com_ui_agent_category_help')}
-            required
-          />
-          <AgentCategorySelector className="w-full" />
-        </div>
-        {/* Instructions */}
-        <Instructions />
-        {/* Model and Provider */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="provider"
-            label={localize('com_ui_model')}
-            description={localize('com_ui_agent_model_help')}
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setActivePanel(Panel.model)}
-            className="btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium"
-            aria-haspopup="true"
-            aria-expanded="false"
-          >
-            <div className="flex w-full items-center gap-2">
-              {Icon && (
-                <div className="shadow-stroke relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-black dark:bg-white">
-                  <Icon
-                    className="h-2/3 w-2/3"
-                    endpoint={providerValue as string}
-                    endpointType={endpointType}
-                    iconURL={endpointIconURL}
-                  />
-                </div>
+              )}
+            />
+          </div>
+          <div className="mb-4">
+            <AgentFieldLabel
+              htmlFor="description"
+              label={localize('com_ui_agent_landing_description')}
+              description={localize('com_ui_agent_landing_description_help')}
+            />
+            <Controller
+              name="description"
+              control={control}
+              render={({ field }) => (
+                <textarea
+                  {...field}
+                  value={field.value ?? ''}
+                  maxLength={1200}
+                  rows={3}
+                  className={cn(inputClass, 'min-h-24 resize-y')}
+                  id="description"
+                  placeholder={localize('com_agents_description_placeholder')}
+                  aria-label={localize('com_ui_agent_landing_description')}
+                />
               )}
             />
           </div>

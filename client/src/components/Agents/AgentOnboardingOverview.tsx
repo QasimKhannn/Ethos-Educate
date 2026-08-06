@@ -1,7 +1,6 @@
 import React from 'react';
 import type t from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
-import { getMockMarketplaceAgentOnboarding } from './mockAgents';
 
 interface AgentOnboardingOverviewProps {
   agent?: t.Agent | null;
@@ -35,11 +34,6 @@ const AgentOnboardingOverview: React.FC<AgentOnboardingOverviewProps> = ({
   const localize = useLocalize();
   const description = agent?.description?.trim() || localize('com_agents_modal_purpose_fallback');
   const conversationStarters = getConversationStarters(agent);
-  const agentOnboarding = getMockMarketplaceAgentOnboarding(agent, localize);
-  const requiredInputs =
-    agentOnboarding?.inputs ?? localize('com_agents_modal_required_inputs_description');
-  const expectedOutput =
-    agentOnboarding?.output ?? localize('com_agents_modal_expected_output_description');
 
   return (
     <div className="agent-onboarding-overview" data-testid="agent-onboarding-overview">
