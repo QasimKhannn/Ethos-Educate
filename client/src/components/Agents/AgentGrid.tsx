@@ -5,7 +5,6 @@ import { ChevronRight, RotateCw, Search, X } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
-
 import { useMarketplaceAgentsInfiniteQuery } from '~/data-provider/Agents';
 import { TranslationKeys, useAgentCategories, useLocalize } from '~/hooks';
 import {
@@ -19,6 +18,11 @@ import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
 import AgentDetail from './AgentDetail';
 import ErrorDisplay from './ErrorDisplay';
+import {
+  getMockMarketplaceAgents,
+  isMockMarketplaceAgent,
+  renderMockMarketplaceAvatar,
+} from './mockAgents';
 
 interface AgentGridProps {
   category: string;
@@ -142,6 +146,47 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       });
     });
   }, [data?.pages, shouldUseBackendDateSort, sortOption]);
+  const mockAgents = useMemo(() => getMockMarketplaceAgents(localize), [localize]);
+  const fallbackAgents = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+    const matchingAgents = mockAgents.filter((agent) => {
+      const matchesCategory =
+        category === 'all' || category === 'promoted' || agent.category === category;
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        agent.name?.toLocaleLowerCase().includes(normalizedSearch) ||
+        agent.description?.toLocaleLowerCase().includes(normalizedSearch);
+
+      return matchesCategory && matchesSearch;
+    });
+
+    if (sortOption === 'featured') {
+      return matchingAgents;
+    }
+
+    return [...matchingAgents].sort((firstAgent, secondAgent) => {
+      if (sortOption === 'newest') {
+        return secondAgent.created_at - firstAgent.created_at;
+      }
+
+      if (sortOption === 'oldest') {
+        return firstAgent.created_at - secondAgent.created_at;
+      }
+
+      if (sortOption === 'name_desc') {
+        return (secondAgent.name ?? '').localeCompare(firstAgent.name ?? '', undefined, {
+          sensitivity: 'base',
+        });
+      }
+
+      return (firstAgent.name ?? '').localeCompare(secondAgent.name ?? '', undefined, {
+        sensitivity: 'base',
+      });
+    });
+  }, [category, mockAgents, searchQuery, sortOption]);
+  const isUsingMockAgents =
+    currentAgents.length === 0 && !isLoading && !isFetching && error == null;
+  const displayedAgents = isUsingMockAgents ? fallbackAgents : currentAgents;
   const hasData = useHasData(data?.pages?.[0]);
 
   const animateStorefrontCard = useCallback(
@@ -203,13 +248,15 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
   useEffect(() => {
     const handleTourOpen = () => {
-      const firstAgent = currentAgents[0];
+      const firstAgent = displayedAgents[0];
 
       if (firstAgent == null) {
         return;
       }
 
-      onSelectAgent(firstAgent);
+      if (!isMockMarketplaceAgent(firstAgent)) {
+        onSelectAgent(firstAgent);
+      }
       setDetailAgent(firstAgent);
       setIsDetailOpen(true);
       setIsTourDetailOpen(true);
@@ -226,7 +273,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       window.removeEventListener('marketplace-agent-tour-open', handleTourOpen);
       window.removeEventListener('marketplace-agent-tour-close', handleTourClose);
     };
-  }, [currentAgents, onSelectAgent]);
+  }, [displayedAgents, onSelectAgent]);
 
   const fetchMoreAgents = useCallback(() => {
     if (!hasNextPage || isFetchingNextPage) {
@@ -283,7 +330,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       fetchMoreAgents();
     }
   }, [
-    currentAgents.length,
+    displayedAgents.length,
     fetchMoreAgents,
     getStorefrontScrollElement,
     hasNextPage,
@@ -349,7 +396,9 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
   const handleOpenAgent = (agent: t.Agent) => {
     setIsTourDetailOpen(false);
-    onSelectAgent(agent);
+    if (!isMockMarketplaceAgent(agent)) {
+      onSelectAgent(agent);
+    }
     setDetailAgent(agent);
     setIsDetailOpen(true);
   };
@@ -367,7 +416,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     );
   }
 
-  if ((!currentAgents || currentAgents.length === 0) && !isLoading && !isFetching) {
+  if (displayedAgents.length === 0 && !isLoading && !isFetching) {
     return (
       <section
         className="agents-marketplace-empty"
@@ -402,7 +451,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   }
 
   const listAnnouncement = localize('com_agents_grid_announcement', {
-    count: currentAgents.length,
+    count: displayedAgents.length,
     category: getCategoryDisplayName(category),
   });
   const loadingCardIndexes = Array.from(
@@ -463,7 +512,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         <div id="search-results-count" className="sr-only" aria-live="polite" aria-atomic="true">
           {listAnnouncement}
         </div>
-
         <motion.div
           variants={marketplaceCardStackVariants}
           initial={shouldReduceMotion ? false : 'hidden'}
@@ -472,13 +520,17 @@ const AgentGrid: React.FC<AgentGridProps> = ({
           role="grid"
           aria-label={listAnnouncement}
         >
-          {currentAgents.map((agent: t.Agent, index: number) => (
+          {displayedAgents.map((agent: t.Agent, index: number) => (
             <motion.div
               key={`${agent.id}-${index}`}
               role="gridcell"
               variants={marketplaceCardRevealVariants}
             >
-              <AgentCard agent={agent} onSelect={onSelectAgent} viewMode={viewMode} />
+              <AgentCard
+                agent={agent}
+                onSelect={isMockMarketplaceAgent(agent) ? undefined : onSelectAgent}
+                viewMode={viewMode}
+              />
             </motion.div>
           ))}
         </motion.div>
@@ -536,7 +588,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       <div id="search-results-count" className="sr-only" aria-live="polite" aria-atomic="true">
         {listAnnouncement}
       </div>
-
       <motion.div
         ref={storefrontScrollRef}
         variants={marketplaceCardStackVariants}
@@ -552,7 +603,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
             role="list"
             aria-label={listAnnouncement}
           >
-            {currentAgents.map((agent, index) => {
+            {displayedAgents.map((agent, index) => {
               const storefrontCategoryLabel = agent.category
                 ? getCategoryDisplayName(agent.category)
                 : localize('com_agents_all');
@@ -586,14 +637,17 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                   >
                     <div className="agents-marketplace-storefront-icon-wrap" aria-hidden="true">
                       <div className="agents-marketplace-storefront-avatar">
-                        {renderAgentAvatar(agent, {
-                          size: 'fill',
-                          showBorder: false,
-                          fit: 'contain',
-                          shape: 'rounded',
-                          visualScale: 'contained',
+                        {renderMockMarketplaceAvatar(agent, {
                           className: 'agents-marketplace-storefront-art',
-                        })}
+                        }) ??
+                          renderAgentAvatar(agent, {
+                            size: 'fill',
+                            showBorder: false,
+                            fit: 'contain',
+                            shape: 'rounded',
+                            visualScale: 'contained',
+                            className: 'agents-marketplace-storefront-art',
+                          })}
                       </div>
                     </div>
                     <div className="agents-marketplace-storefront-copy">

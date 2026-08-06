@@ -171,123 +171,137 @@ export default function AgentConfig() {
 
   return (
     <>
-      <div className="agent-builder-form h-auto bg-white px-4 pt-3 dark:bg-transparent">
+      <div className="agent-builder-form h-auto dark:bg-transparent">
         <div className="agent-builder-intro">
           <h3>{localize('com_ui_agent_builder_intro_title')}</h3>
           <p>{localize('com_ui_agent_builder_intro_description')}</p>
+          <span className="agent-builder-required-note">
+            <span aria-hidden="true">*</span>
+            {localize('com_ui_agent_builder_required_note')}
+          </span>
         </div>
-        {/* Name */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="name"
-            label={localize('com_ui_name')}
-            description={localize('com_ui_agent_name_help')}
-            required
-          />
-          <Controller
-            name="name"
-            rules={{ required: localize('com_ui_agent_name_is_required') }}
-            control={control}
-            render={({ field }) => (
-              <>
+        <section className="agent-builder-section" aria-labelledby="agent-details-heading">
+          <div className="agent-builder-section-heading">
+            <h4 id="agent-details-heading">{localize('com_ui_agent_builder_details_title')}</h4>
+          </div>
+          <div className="mb-4">
+            <AgentFieldLabel
+              htmlFor="name"
+              label={localize('com_ui_name')}
+              description={localize('com_ui_agent_name_help')}
+              required
+            />
+            <Controller
+              name="name"
+              rules={{ required: localize('com_ui_agent_name_is_required') }}
+              control={control}
+              render={({ field }) => (
+                <>
+                  <input
+                    {...field}
+                    value={field.value ?? ''}
+                    maxLength={256}
+                    className={inputClass}
+                    id="name"
+                    type="text"
+                    placeholder={localize('com_agents_name_placeholder')}
+                    aria-label="Agent name"
+                  />
+                  <div
+                    className={cn(
+                      'mt-1 w-56 text-sm text-red-500',
+                      errors.name ? 'visible h-auto' : 'invisible h-0',
+                    )}
+                    role="alert"
+                  >
+                    {errors.name ? errors.name.message : ' '}
+                  </div>
+                </>
+              )}
+            />
+            <Controller
+              name="id"
+              control={control}
+              render={({ field }) => (
+                <p className="h-3 text-xs italic text-text-secondary" aria-live="polite">
+                  {field.value}
+                </p>
+              )}
+            />
+          </div>
+          <div className="mb-4">
+            <AgentFieldLabel
+              htmlFor="description"
+              label={localize('com_ui_description')}
+              description={localize('com_ui_agent_description_help')}
+            />
+            <Controller
+              name="description"
+              control={control}
+              render={({ field }) => (
                 <input
                   {...field}
                   value={field.value ?? ''}
-                  maxLength={256}
+                  maxLength={512}
                   className={inputClass}
-                  id="name"
+                  id="description"
                   type="text"
-                  placeholder={localize('com_agents_name_placeholder')}
-                  aria-label="Agent name"
+                  placeholder={localize('com_agents_description_placeholder')}
+                  aria-label="Agent description"
                 />
-                <div
-                  className={cn(
-                    'mt-1 w-56 text-sm text-red-500',
-                    errors.name ? 'visible h-auto' : 'invisible h-0',
-                  )}
-                  role="alert"
-                >
-                  {errors.name ? errors.name.message : ' '}
-                </div>
-              </>
-            )}
-          />
-          <Controller
-            name="id"
-            control={control}
-            render={({ field }) => (
-              <p className="h-3 text-xs italic text-text-secondary" aria-live="polite">
-                {field.value}
-              </p>
-            )}
-          />
-        </div>
-        {/* Description */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="description"
-            label={localize('com_ui_description')}
-            description={localize('com_ui_agent_description_help')}
-          />
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                value={field.value ?? ''}
-                maxLength={512}
-                className={inputClass}
-                id="description"
-                type="text"
-                placeholder={localize('com_agents_description_placeholder')}
-                aria-label="Agent description"
-              />
-            )}
-          />
-        </div>
-        {/* Category */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="category-selector"
-            label={localize('com_ui_category')}
-            description={localize('com_ui_agent_category_help')}
-            required
-          />
-          <AgentCategorySelector className="w-full" />
-        </div>
-        {/* Instructions */}
-        <Instructions />
-        {/* Model and Provider */}
-        <div className="mb-4">
-          <AgentFieldLabel
-            htmlFor="provider"
-            label={localize('com_ui_model')}
-            description={localize('com_ui_agent_model_help')}
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setActivePanel(Panel.model)}
-            className="btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium"
-            aria-haspopup="true"
-            aria-expanded="false"
-          >
-            <div className="flex w-full items-center gap-2">
-              {Icon && (
-                <div className="shadow-stroke relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-black dark:bg-white">
-                  <Icon
-                    className="h-2/3 w-2/3"
-                    endpoint={providerValue as string}
-                    endpointType={endpointType}
-                    iconURL={endpointIconURL}
-                  />
-                </div>
               )}
-              <span>{modelSelectionLabel}</span>
-            </div>
-          </button>
-        </div>
+            />
+          </div>
+          <div className="mb-4">
+            <AgentFieldLabel
+              htmlFor="category-selector"
+              label={localize('com_ui_category')}
+              description={localize('com_ui_agent_category_help')}
+              required
+            />
+            <AgentCategorySelector className="w-full" />
+          </div>
+        </section>
+        <section className="agent-builder-section" aria-labelledby="agent-behavior-heading">
+          <div className="agent-builder-section-heading">
+            <h4 id="agent-behavior-heading">{localize('com_ui_agent_builder_behavior_title')}</h4>
+          </div>
+          <Instructions />
+        </section>
+        <section className="agent-builder-section" aria-labelledby="agent-model-heading">
+          <div className="agent-builder-section-heading">
+            <h4 id="agent-model-heading">{localize('com_ui_agent_builder_model_title')}</h4>
+          </div>
+          <div className="mb-4">
+            <AgentFieldLabel
+              htmlFor="provider"
+              label={localize('com_ui_model')}
+              description={localize('com_ui_agent_model_help')}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setActivePanel(Panel.model)}
+              className="agent-builder-model-trigger btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium"
+              aria-haspopup="true"
+              aria-expanded="false"
+            >
+              <div className="flex w-full items-center gap-2">
+                {Icon && (
+                  <div className="shadow-stroke relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-black dark:bg-white">
+                    <Icon
+                      className="h-2/3 w-2/3"
+                      endpoint={providerValue as string}
+                      endpointType={endpointType}
+                      iconURL={endpointIconURL}
+                    />
+                  </div>
+                )}
+                <span>{modelSelectionLabel}</span>
+              </div>
+            </button>
+          </div>
+        </section>
         <details className="agent-builder-optional-settings">
           <summary>
             <span>{localize('com_ui_agent_optional_settings')}</span>

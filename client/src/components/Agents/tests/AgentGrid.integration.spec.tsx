@@ -330,6 +330,38 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       expect(screen.getByText('Test Agent 2')).toBeInTheDocument();
     });
 
+    it('renders temporary agent previews when the shared library is empty', () => {
+      mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue({
+        ...defaultMockQueryResult,
+        data: {
+          pages: [{ data: [] }],
+        },
+      });
+
+      const Wrapper = createWrapper();
+      render(
+        <Wrapper>
+          <AgentGrid category="all" searchQuery="" onSelectAgent={mockOnSelectAgent} />
+        </Wrapper>,
+      );
+
+      expect(
+        screen.getByTestId('agent-card-ethos-mock-agent-lesson-plan-builder'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId('agent-card-ethos-mock-agent-class-newsletter-creator'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId('agent-card-ethos-mock-agent-professional-development-plan-creator'),
+      ).toBeInTheDocument();
+      expect(
+        document.querySelectorAll('[data-testid^="agent-card-ethos-mock-agent-"]'),
+      ).toHaveLength(31);
+
+      fireEvent.click(screen.getByTestId('agent-card-ethos-mock-agent-lesson-plan-builder'));
+      expect(mockOnSelectAgent).not.toHaveBeenCalled();
+    });
+
     it('should call onSelectAgent when agent card is clicked', () => {
       const Wrapper = createWrapper();
       render(

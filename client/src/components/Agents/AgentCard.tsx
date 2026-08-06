@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Label, OGDialog, OGDialogTrigger } from '@librechat/client';
 import type t from 'librechat-data-provider';
-
 import { useLocalize, TranslationKeys, useAgentCategories } from '~/hooks';
 import { cn, renderAgentAvatar, getContactDisplayName, getAgentDisplayName } from '~/utils';
 import AgentDetailContent from './AgentDetailContent';
+import { renderMockMarketplaceAvatar } from './mockAgents';
 
 interface AgentCardProps {
   agent: t.Agent;
@@ -80,14 +80,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
             onClick={handleCardClick}
           >
             <div className="agent-card-avatar-shell flex h-[3.95rem] w-[3.95rem] shrink-0 items-center justify-center rounded-xl border border-border-light bg-surface-secondary">
-              {renderAgentAvatar(agent, {
-                size: 'fill',
-                showBorder: false,
-                fit: 'contain',
-                shape: 'rounded',
-                visualScale: 'contained',
-                className: 'agent-card-art',
-              })}
+              {renderMockMarketplaceAvatar(agent) ??
+                renderAgentAvatar(agent, {
+                  size: 'fill',
+                  showBorder: false,
+                  fit: 'contain',
+                  shape: 'rounded',
+                  visualScale: 'contained',
+                  className: 'agent-card-art',
+                })}
             </div>
             <div className="agent-card-copy min-w-0">
               <div className="agent-card-title-row">

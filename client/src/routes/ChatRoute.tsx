@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRecoilCallback, useRecoilValue } from 'recoil';
 import { Spinner, useToastContext } from '@librechat/client';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Constants, EModelEndpoint } from 'librechat-data-provider';
+import { useQueryClient } from '@tanstack/react-query';
+import { Constants, EModelEndpoint, QueryKeys } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
-import type { TPreset, TConversation } from 'librechat-data-provider';
+import type { TMessage, TPreset, TConversation } from 'librechat-data-provider';
 import {
   useNewConvo,
   useAppStartup,
@@ -27,6 +28,11 @@ import {
 } from '~/utils';
 import { ToolCallsMapProvider } from '~/Providers';
 import ChatView from '~/components/Chat/ChatView';
+import {
+  getMockNavigationConversation,
+  getMockNavigationMessages,
+  isMockNavigationConversation,
+} from '~/components/Nav/mockNavigation';
 import { NotificationSeverity } from '~/common';
 import useAuthRedirect from './useAuthRedirect';
 import temporaryStore from '~/store/temporary';
@@ -52,10 +58,23 @@ export default function ChatRoute() {
   const projectId = searchParams.get('projectId') || undefined;
   const { conversationId = '' } = useParams();
   useIdChangeEffect(conversationId);
-  const { hasSetConversation, conversation } = store.useCreateConversationAtom(index);
+  const queryClient = useQueryClient();
+  const { hasSetConversation, conversation, setConversation } =
+    store.useCreateConversationAtom(index);
   const { newConversation } = useNewConvo();
   const { showToast } = useToastContext();
   const localize = useLocalize();
+  const mockConversation = useMemo(
+    () =>
+      isMockNavigationConversation(conversationId)
+        ? getMockNavigationConversation(conversationId, localize)
+        : undefined,
+    [conversationId, localize],
+  );
+  const mockMessages = useMemo(
+    () => (mockConversation ? getMockNavigationMessages(mockConversation, localize) : []),
+    [localize, mockConversation],
+  );
 
   const modelsQuery = useGetModelsQuery({
     enabled: isAuthenticated,
@@ -68,6 +87,7 @@ export default function ChatRoute() {
     enabled:
       isAuthenticated &&
       !isRouteNewConvo &&
+      mockConversation == null &&
       (!hasSetConversation.current || routeNeedsExistingConversation),
   });
   const endpointsQuery = useGetEndpointsQuery({ enabled: isAuthenticated });
@@ -77,6 +97,29 @@ export default function ChatRoute() {
   const assistantListMap = useAssistantListMap();
 
   const isTemporaryChat = conversation && conversation.expiredAt ? true : false;
+
+  useEffect(() => {
+    if (!mockConversation) {
+      return;
+    }
+
+    hasSetConversation.current = true;
+    queryClient.setQueryData<TConversation>(
+      [QueryKeys.conversation, conversationId],
+      mockConversation,
+    );
+    queryClient.setQueryData<TMessage[]>([QueryKeys.messages, conversationId], mockMessages);
+    setConversation(mockConversation);
+    document.title = mockConversation.title || localize('com_ui_new_chat');
+  }, [
+    conversationId,
+    hasSetConversation,
+    localize,
+    mockConversation,
+    mockMessages,
+    queryClient,
+    setConversation,
+  ]);
 
   useEffect(() => {
     if (conversationId === Constants.NEW_CONVO) {
@@ -109,8 +152,8 @@ export default function ChatRoute() {
       (conversation?.conversationId !== Constants.NEW_CONVO ||
         (projectId == null
           ? (conversation?.projectId || undefined) !== undefined
-          : (!hasBootstrappedCurrentProject &&
-              (conversation?.projectId || undefined) !== projectId)));
+          : !hasBootstrappedCurrentProject &&
+            (conversation?.projectId || undefined) !== projectId));
     const shouldSetConvo =
       (startupConfig &&
         rolesLoaded &&

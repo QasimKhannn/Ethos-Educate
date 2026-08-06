@@ -54,7 +54,7 @@ describe('CategoryTabs', () => {
     expect(screen.getByText('Top Picks')).toBeInTheDocument();
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('General')).toBeInTheDocument();
-    expect(screen.getByText('HR')).toBeInTheDocument();
+    expect(screen.getByText('Human Resources')).toBeInTheDocument();
     expect(screen.getByText('Finance')).toBeInTheDocument();
   });
 
@@ -84,11 +84,8 @@ describe('CategoryTabs', () => {
     );
 
     const generalTab = screen.getByText('General').closest('button');
-    expect(generalTab).toHaveClass('bg-surface-hover');
-
-    // Should have active underline
-    const underline = generalTab?.querySelector('.absolute.bottom-0');
-    expect(underline).toBeInTheDocument();
+    expect(generalTab).toHaveClass('agents-marketplace-category-tab-active');
+    expect(generalTab).toHaveAttribute('aria-selected', 'true');
   });
 
   it('calls onChange when a tab is clicked', async () => {
@@ -101,7 +98,7 @@ describe('CategoryTabs', () => {
       />,
     );
 
-    const hrTab = screen.getByText('HR');
+    const hrTab = screen.getByText('Human Resources');
     await user.click(hrTab);
 
     expect(mockOnChange).toHaveBeenCalledWith('hr');
@@ -150,12 +147,9 @@ describe('CategoryTabs', () => {
     );
 
     const generalTab = screen.getByText('General').closest('button');
-    expect(generalTab).toHaveClass('bg-surface-secondary');
+    expect(generalTab).toHaveClass('agents-marketplace-category-tab');
     expect(generalTab).toHaveClass('text-text-secondary');
-
-    // Should not have active underline
-    const underline = generalTab?.querySelector('.absolute.bottom-0');
-    expect(underline).not.toBeInTheDocument();
+    expect(generalTab).toHaveAttribute('aria-selected', 'false');
   });
 
   it('renders with proper accessibility', () => {
@@ -221,11 +215,11 @@ describe('CategoryTabs', () => {
     );
 
     const tabs = screen.getAllByRole('tab');
-    const tabTexts = tabs.map((tab) => tab.textContent);
+    const tabTexts = tabs.map((tab) => tab.textContent ?? '');
 
     // Check that promoted is first and all is second
-    expect(tabTexts[0]).toBe('Top Picks');
-    expect(tabTexts[1]).toBe('All');
+    expect(tabTexts[0]).toContain('Top Picks');
+    expect(tabTexts[1]).toContain('All');
     expect(tabTexts.length).toBe(5);
   });
 });

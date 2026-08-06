@@ -22,6 +22,7 @@ import {
   normalizeAgentBrandText,
 } from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
+import { isMockMarketplaceAgent, renderMockMarketplaceAvatar } from './mockAgents';
 
 interface SupportContact {
   name?: string;
@@ -51,6 +52,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const { categories } = useAgentCategories();
   const isFavorite = isFavoriteAgent(agent?.id);
+  const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
   const categoryData = categories.find((category) => category.value === agent?.category);
   const byLabel = localize('com_ui_by_author', { 0: '' }).trim();
@@ -201,7 +203,10 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
       >
         <div className="agent-detail-sheet">
           <div className="agent-detail-header">
-            <div className="agent-detail-avatar">{renderAgentAvatar(agent, { size: 'xl' })}</div>
+            <div className="agent-detail-avatar">
+              {renderMockMarketplaceAvatar(agent, { size: 'xl' }) ??
+                renderAgentAvatar(agent, { size: 'xl' })}
+            </div>
             <div className="agent-detail-heading">
               <div className="agent-detail-meta-row">
                 {categoryLabel ? (
@@ -248,9 +253,11 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
             <Button
               className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
               onClick={handleStartChat}
-              disabled={!agent}
+              disabled={!agent || isMockAgent}
             >
-              {localize('com_agents_start_chat')}
+              {isMockAgent
+                ? localize('com_agents_mock_preview_only')
+                : localize('com_agents_start_chat')}
             </Button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import type t from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
+import { getMockMarketplaceAgentOnboarding } from './mockAgents';
 
 interface AgentOnboardingOverviewProps {
   agent?: t.Agent | null;
@@ -34,6 +35,11 @@ const AgentOnboardingOverview: React.FC<AgentOnboardingOverviewProps> = ({
   const localize = useLocalize();
   const description = agent?.description?.trim() || localize('com_agents_modal_purpose_fallback');
   const conversationStarters = getConversationStarters(agent);
+  const agentOnboarding = getMockMarketplaceAgentOnboarding(agent, localize);
+  const requiredInputs =
+    agentOnboarding?.inputs ?? localize('com_agents_modal_required_inputs_description');
+  const expectedOutput =
+    agentOnboarding?.output ?? localize('com_agents_modal_expected_output_description');
 
   return (
     <div className="agent-onboarding-overview" data-testid="agent-onboarding-overview">
@@ -48,9 +54,9 @@ const AgentOnboardingOverview: React.FC<AgentOnboardingOverviewProps> = ({
             <span className="agent-onboarding-contract-index" aria-hidden="true">
               01
             </span>
-            <h3>{localize('com_agents_modal_you_provide')}</h3>
+            <h3>{localize('com_agents_modal_required_inputs')}</h3>
           </div>
-          <p>{localize('com_agents_modal_you_provide_description')}</p>
+          <p>{requiredInputs}</p>
         </section>
 
         <section className="agent-onboarding-contract-card">
@@ -58,9 +64,9 @@ const AgentOnboardingOverview: React.FC<AgentOnboardingOverviewProps> = ({
             <span className="agent-onboarding-contract-index" aria-hidden="true">
               02
             </span>
-            <h3>{localize('com_agents_modal_you_receive')}</h3>
+            <h3>{localize('com_agents_modal_expected_output')}</h3>
           </div>
-          <p>{localize('com_agents_modal_you_receive_description')}</p>
+          <p>{expectedOutput}</p>
         </section>
       </div>
 

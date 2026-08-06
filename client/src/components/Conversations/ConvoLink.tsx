@@ -8,6 +8,7 @@ interface ConvoLinkProps {
   title: string | null;
   onRename: () => void;
   isSmallScreen: boolean;
+  useThreadMarker?: boolean;
   localize: (key: TranslationKeys, options?: Record<string, boolean | number | string>) => string;
   children: React.ReactNode;
 }
@@ -18,25 +19,29 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
   title,
   onRename,
   isSmallScreen,
+  useThreadMarker = false,
   localize,
   children,
 }) => {
   return (
     <div
       className={cn(
-        'sidebar-convo-link flex grow items-center gap-3 overflow-hidden rounded-xl px-3',
+        'sidebar-convo-link flex grow items-center gap-2 overflow-hidden rounded-xl px-2.5',
         isActiveConvo || isPopoverActive ? 'sidebar-convo-link-active' : '',
       )}
       title={title ?? undefined}
       aria-current={isActiveConvo ? 'page' : undefined}
       style={{ width: '100%' }}
     >
-      <div className="sidebar-convo-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl">
-        {children}
+      <div className="sidebar-convo-icon flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg">
+        {useThreadMarker ? (
+          <span className="sidebar-convo-thread-marker" aria-hidden="true" />
+        ) : (
+          children
+        )}
       </div>
       <div
-        className="sidebar-convo-title relative flex-1 grow overflow-hidden whitespace-nowrap"
-        style={{ textOverflow: 'clip' }}
+        className="sidebar-convo-title relative flex-1 grow truncate"
         onDoubleClick={(e) => {
           if (isSmallScreen) {
             return;

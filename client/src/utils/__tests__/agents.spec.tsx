@@ -92,10 +92,13 @@ describe('Agent Utilities', () => {
       document.head.appendChild(baseElement);
 
       expect(normalizeAgentAvatarUrl('assets/agent-icons/survey-builder.svg')).toBe(
-        '/chat/assets/agent-icons/survey-builder.svg',
+        '/chat/assets/agent-icons/style-c/survey-builder.svg',
       );
       expect(normalizeAgentAvatarUrl('/assets/agent-icons/survey-builder.svg?version=1')).toBe(
-        '/chat/assets/agent-icons/survey-builder.svg?version=1',
+        '/chat/assets/agent-icons/style-c/survey-builder.svg?version=1',
+      );
+      expect(normalizeAgentAvatarUrl('/assets/agent-icons/style-c/survey-builder.svg')).toBe(
+        '/chat/assets/agent-icons/style-c/survey-builder.svg',
       );
     });
 
@@ -117,7 +120,9 @@ describe('Agent Utilities', () => {
         },
       } as t.Agent;
 
-      expect(getAgentAvatarImageUrl(agent)).toBe('/assets/agent-icons/youtube-video-finder.svg');
+      expect(getAgentAvatarImageUrl(agent)).toBe(
+        '/assets/agent-icons/style-c/youtube-video-finder.svg',
+      );
     });
 
     it('should use uploaded avatars for unknown agents', () => {
@@ -192,7 +197,7 @@ describe('Agent Utilities', () => {
 
       const img = screen.getByAltText('Test Agent avatar');
       expect(img).toBeInTheDocument();
-      expect(img).toHaveAttribute('src', '/assets/agent-icons/default-agent.svg');
+      expect(img).toHaveAttribute('src', '/assets/agent-icons/style-c/default-agent.svg');
     });
 
     it('should fall back to the default static avatar when an uploaded avatar fails to load', () => {
@@ -206,7 +211,7 @@ describe('Agent Utilities', () => {
       fireEvent.error(screen.getByAltText('Test Agent avatar'));
 
       const img = screen.getByAltText('Test Agent avatar');
-      expect(img).toHaveAttribute('src', '/assets/agent-icons/default-agent.svg');
+      expect(img).toHaveAttribute('src', '/assets/agent-icons/style-c/default-agent.svg');
     });
 
     it('should render Feather icon fallback when the default static avatar fails to load', () => {
