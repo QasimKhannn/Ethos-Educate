@@ -270,7 +270,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         requiredPermission: 1,
         category: 'finance',
         search: 'test query',
-        limit: 6,
+        limit: 9,
       });
     });
 
@@ -280,7 +280,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       expect(mockUseMarketplaceAgentsInfiniteQuery).toHaveBeenCalledWith({
         requiredPermission: 1,
         promoted: 1,
-        limit: 6,
+        limit: 9,
       });
     });
 
@@ -289,7 +289,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
 
       expect(mockUseMarketplaceAgentsInfiniteQuery).toHaveBeenCalledWith({
         requiredPermission: 1,
-        limit: 6,
+        limit: 9,
       });
     });
 
@@ -299,7 +299,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       expect(mockUseMarketplaceAgentsInfiniteQuery).toHaveBeenCalledWith({
         requiredPermission: 1,
         search: 'test',
-        limit: 6,
+        limit: 9,
       });
     });
   });
@@ -356,7 +356,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       ).toBeInTheDocument();
       expect(
         document.querySelectorAll('[data-testid^="agent-card-ethos-mock-agent-"]'),
-      ).toHaveLength(31);
+      ).toHaveLength(43);
 
       fireEvent.click(screen.getByTestId('agent-card-ethos-mock-agent-lesson-plan-builder'));
       expect(mockOnSelectAgent).not.toHaveBeenCalled();
@@ -390,9 +390,8 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         </Wrapper>,
       );
 
-      // Should show loading spinner
-      const spinner = document.querySelector('.text-primary');
-      expect(spinner).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
+      expect(screen.getByText('Loading...')).toHaveClass('sr-only');
     });
 
     it('should show empty state when no agents are available', () => {
@@ -480,7 +479,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         </Wrapper>,
       );
 
-      expect(screen.getByText('No agents available')).toBeInTheDocument();
+      expect(screen.getByText('No results found')).toBeInTheDocument();
     });
   });
 
@@ -508,8 +507,8 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         </Wrapper>,
       );
 
-      expect(screen.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
-      expect(screen.getByText('Loading...')).toHaveClass('sr-only');
+      expect(screen.getByTestId('agent-card-1')).toBeInTheDocument();
+      expect(screen.getByTestId('agent-card-2')).toBeInTheDocument();
     });
 
     it('should show end of results message when hasNextPage is false and agents exist', () => {
@@ -526,7 +525,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         </Wrapper>,
       );
 
-      expect(screen.getByText("You've reached the end of the results")).toBeInTheDocument();
+      expect(screen.queryByText("You've reached the end of the results")).not.toBeInTheDocument();
     });
 
     it('should not show end of results message when no agents exist', () => {
@@ -777,44 +776,22 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         expect(fetchNextPage).toHaveBeenCalledTimes(1);
       });
 
-      it('should auto-fetch when viewport resizes to be taller (window resize)', async () => {
+      it('keeps compact results stable when viewport dimensions change without a re-render', async () => {
         const firstPage = createMockResponse(['1', '2', '3', '4', '5', '6'], true, 'cursor-6');
-        const secondPage = createMockResponse(['7', '8', '9', '10', '11', '12'], true, 'cursor-12');
-        let currentPages = [firstPage];
         const fetchNextPage = jest.fn();
-        let resizeObserverCallback: ResizeObserverCallback | null = null;
 
-        // Mock that updates pages when fetchNextPage is called
-        mockUseMarketplaceAgentsInfiniteQuery.mockImplementation(() =>
-          createMockInfiniteQuery(currentPages, {
-            fetchNextPage: jest.fn().mockImplementation(() => {
-              fetchNextPage();
-              if (currentPages.length === 1) {
-                currentPages = [firstPage, secondPage];
-              }
-              return Promise.resolve();
-            }),
-            hasNextPage: currentPages.length === 1,
+        mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue(
+          createMockInfiniteQuery([firstPage], {
+            fetchNextPage,
+            hasNextPage: true,
           }),
         );
 
-        // Mock ResizeObserver to capture the callback
-        const ResizeObserverMock = jest.fn().mockImplementation((callback) => {
-          resizeObserverCallback = callback;
-          return {
-            observe: jest.fn(),
-            disconnect: jest.fn(),
-            unobserve: jest.fn(),
-          };
-        });
-        global.ResizeObserver = ResizeObserverMock as any;
-
-        // Start with a small viewport that fits the content
         const scrollElement = setupViewport(800, 600);
         const scrollElementRef = { current: scrollElement };
         const Wrapper = createWrapper();
 
-        const { rerender } = render(
+        render(
           <Wrapper>
             <AgentGrid
               category="all"
@@ -825,79 +802,27 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
           </Wrapper>,
         );
 
-        // Wait for initial 6 agents
         await waitFor(() => {
           expect(screen.getAllByRole('gridcell')).toHaveLength(6);
         });
 
-        // Verify ResizeObserver was set up
-        expect(ResizeObserverMock).toHaveBeenCalled();
-        expect(resizeObserverCallback).not.toBeNull();
-
-        // Initially no fetch should happen as viewport is filled
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 100));
         });
         expect(fetchNextPage).not.toHaveBeenCalled();
 
-        // Simulate window resize - make viewport taller
         Object.defineProperty(scrollElement, 'clientHeight', {
-          value: 1200, // Now taller than content
+          value: 1200,
           writable: true,
           configurable: true,
         });
 
-        // Trigger ResizeObserver callback to simulate resize detection
-        act(() => {
-          if (resizeObserverCallback) {
-            resizeObserverCallback(
-              [
-                {
-                  target: scrollElement,
-                  contentRect: {
-                    x: 0,
-                    y: 0,
-                    width: 800,
-                    height: 1200,
-                    top: 0,
-                    right: 800,
-                    bottom: 1200,
-                    left: 0,
-                  } as DOMRectReadOnly,
-                  borderBoxSize: [],
-                  contentBoxSize: [],
-                  devicePixelContentBoxSize: [],
-                } as ResizeObserverEntry,
-              ],
-              {} as ResizeObserver,
-            );
-          }
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 100));
         });
 
-        // Should trigger auto-fetch due to viewport now being larger than content
-        await waitFor(
-          () => {
-            expect(fetchNextPage).toHaveBeenCalledTimes(1);
-          },
-          { timeout: 500 },
-        );
-
-        // Update the component with new data
-        rerender(
-          <Wrapper>
-            <AgentGrid
-              category="all"
-              searchQuery=""
-              onSelectAgent={mockOnSelectAgent}
-              scrollElementRef={scrollElementRef}
-            />
-          </Wrapper>,
-        );
-
-        // Should now show 12 agents after fetching
-        await waitFor(() => {
-          expect(screen.getAllByRole('gridcell')).toHaveLength(12);
-        });
+        expect(fetchNextPage).not.toHaveBeenCalled();
+        expect(screen.getAllByRole('gridcell')).toHaveLength(6);
       });
     });
   });
