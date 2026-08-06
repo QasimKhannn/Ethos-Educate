@@ -473,7 +473,7 @@ const Nav = memo(
             <ProjectsNav
               isSmallScreen={isSmallScreen}
               navVisible={navVisible}
-              onNavigate={isSmallScreen ? toggleNavVisible : undefined}
+              onDismissNavigation={isSmallScreen ? toggleNavVisible : undefined}
             />
             <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
               <Conversations
