@@ -3,7 +3,6 @@ import { ChevronRight, Folder, FolderPlus, LibraryBig } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TProject } from 'librechat-data-provider';
 import type { MockProjectAccent } from '~/components/Nav/mockNavigation';
-import { getMockNavigationProjects, isMockNavigationUser } from '~/components/Nav/mockNavigation';
 import { useProjectsQuery } from '~/data-provider';
 import { useAuthContext, useLocalize, useLocalStorage } from '~/hooks';
 import { cn } from '~/utils';
@@ -94,10 +93,14 @@ ProjectRow.displayName = 'ProjectRow';
 type ProjectsNavProps = {
   isSmallScreen?: boolean;
   navVisible?: boolean;
-  onNavigate?: () => void;
+  onDismissNavigation?: () => void;
 };
 
-function ProjectsNav({ isSmallScreen = false, navVisible = true, onNavigate }: ProjectsNavProps) {
+function ProjectsNav({
+  isSmallScreen = false,
+  navVisible = true,
+  onDismissNavigation,
+}: ProjectsNavProps) {
   const localize = useLocalize();
   const { user } = useAuthContext();
   const navigate = useNavigate();
@@ -110,21 +113,10 @@ function ProjectsNav({ isSmallScreen = false, navVisible = true, onNavigate }: P
   const projectTriggerRef = useRef<HTMLButtonElement | null>(null);
   const { conversation } = store.useCreateConversationAtom(0);
   const { data: projects = [] } = useProjectsQuery();
-  const mockNavigationProjects = useMemo(
-    () => (isMockNavigationUser(user) ? getMockNavigationProjects(localize) : []),
-    [localize, user],
-  );
-  const defaultFavoriteProjectIds = useMemo(
-    () =>
-      mockNavigationProjects
-        .filter(({ isFavorite }) => isFavorite)
-        .map(({ project }) => project._id),
-    [mockNavigationProjects],
-  );
   const storageIdentity = user?.username ?? user?.name ?? 'guest';
   const [favoriteProjectIds, setFavoriteProjectIds] = useLocalStorage<string[]>(
     `ethos-project-favorites:${storageIdentity}`,
-    defaultFavoriteProjectIds,
+    [],
   );
   const [projectActivity, setProjectActivity] = useLocalStorage<Record<string, string>>(
     `ethos-project-activity:${storageIdentity}`,
@@ -137,16 +129,8 @@ function ProjectsNav({ isSmallScreen = false, navVisible = true, onNavigate }: P
       lastWorkedAt: projectActivity[project._id] ?? project.updatedAt ?? project.createdAt,
       project,
     }));
-    const availableSlots = Math.max(0, 5 - realProjects.length);
-    const mockProjects = mockNavigationProjects.slice(0, availableSlots).map((item) => ({
-      project: item.project,
-      accent: item.accent,
-      demoConversations: item.conversations,
-      isFavorite: favoriteProjectIdSet.has(item.project._id),
-      lastWorkedAt: projectActivity[item.project._id] ?? item.lastWorkedAt,
-    }));
-    return [...realProjects, ...mockProjects];
-  }, [favoriteProjectIdSet, mockNavigationProjects, projectActivity, projects]);
+    return realProjects;
+  }, [favoriteProjectIdSet, projectActivity, projects]);
   const rankedNavigationProjects = useMemo(
     () => rankProjects(navigationProjects),
     [navigationProjects],
@@ -223,23 +207,17 @@ function ProjectsNav({ isSmallScreen = false, navVisible = true, onNavigate }: P
     markProjectActivity(projectId);
     setSelectedProjectId(null);
     navigate(`/projects/${projectId}?tab=chats`);
-    if (isSmallScreen) {
-      onNavigate?.();
-    }
   };
 
   const handleConversationClick = (projectId: string, conversationId: string) => {
     markProjectActivity(projectId);
+    setSelectedProjectId(null);
     navigate(`/c/${conversationId}?projectId=${projectId}`, { state: { focusChat: true } });
-    if (isSmallScreen) {
-      setSelectedProjectId(null);
-      onNavigate?.();
-    }
   };
 
   const dismissMobileNavigation = () => {
     setSelectedProjectId(null);
-    onNavigate?.();
+    onDismissNavigation?.();
   };
 
   return (
