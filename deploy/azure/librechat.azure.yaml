@@ -39,12 +39,6 @@ mcpSettings:
     - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "20ad-103-189-68-222.ngrok-free.app"
-    - "mcp.monday.com"
-    - "mcp.canva.com"
-    - "api.canva.com"
-    - "www.canva.com"
-    - "canva.com"
-    - "canva.ai"
     # cowork — SearXNG web-search MCP host (Cowork-only; see the `searxng` server below)
     - "searxng-mcp-1081644116068.us-central1.run.app"
     # cowork A3 — GitHub official remote MCP server host (Cowork-only GitHub connector)
@@ -120,33 +114,6 @@ mcpServers:
       redirect_uri: ${TEAMS_MCP_REDIRECT_URI}
       scope: "openid profile User.Read"
 
-  monday:
-    description: "Manage monday.com work"
-    type: streamable-http
-    url: "https://mcp.monday.com/mcp"
-    timeout: 120000
-    initTimeout: 30000
-    chatMenu: false
-    startup: false
-    requiresOAuth: true
-    serverInstructions: |
-      **monday.com Workspace Assistant**
-
-      Use monday.com to read and update work across boards, items, docs, dashboards, and related workflows.
-
-      **Good uses:**
-      - Find boards, items, docs, and workspace content
-      - Summarize project status, blockers, and recent changes
-      - Create or update items, owners, dates, and statuses
-      - Build reports and answer questions about board data
-
-      **Authentication:**
-      Users will be prompted to connect their monday.com account with OAuth when they first use this connector.
-      The connector can only access what the signed-in monday.com user is already allowed to access.
-
-      **Note:**
-      The monday MCP app must be installed in the monday.com account before first use.
-
   # cowork A3 — GitHub connector. GitHub's official remote MCP server (read-only endpoint). GitHub's
   # auth server does NOT support dynamic client registration, so an explicit OAuth App is required
   # (client_id/secret via env, like the Microsoft connectors). chatMenu:false → Cowork-only. Write
@@ -210,7 +177,7 @@ mcpServers:
   # wordpress/airtable/youtube); startup:false → loaded on demand. Granted to the Cowork agent in ALL
   # modes via the `sys__all__sys_mcp_searxng` token in config/seed-cowork-agent.js — granting the whole
   # server (mcp_all) avoids coupling to an exact tool name. URL is hardcoded inline (fixed public Cloud
-  # Run endpoint, like the `monday` server) so it can't break on an unset env var; host is allow-listed
+  # Run endpoint) so it can't break on an unset env var; host is allow-listed
   # in mcpSettings.allowedDomains above. No auth/creds — uses its own endpoint.
   searxng:
     description: "Search the web via SearXNG"
@@ -241,49 +208,6 @@ mcpServers:
       client_secret: "${MICROSOFT_CLIENT_SECRET}"
       redirect_uri: ${ONEDRIVE_MCP_REDIRECT_URI}
       scope: "openid profile User.Read"
-
-  canva:
-    description: "Create, edit, search, and export Canva designs"
-    type: streamable-http
-    url: ${CANVA_MCP_URL}
-    requiresOAuth: true
-    oauth:
-      authorization_url: "https://www.canva.com/api/oauth/authorize"
-      token_url: "https://api.canva.com/rest/v1/oauth/token"
-      client_id: "${CANVA_CLIENT_ID}"
-      client_secret: "${CANVA_CLIENT_SECRET}"
-      redirect_uri: ${CANVA_MCP_REDIRECT_URI}
-      scope: "design:meta:read asset:read"
-    timeout: 60000
-    initTimeout: 30000
-    chatMenu: false
-    startup: false
-    serverInstructions: |
-      🎨 **Canva Design Tool**
-      Create, manage, and export professional designs with Canva.
-
-      **What you can do:**
-      • Create new designs (posters, presentations, social media, documents)
-      • Manage your existing designs (list, get details, update, delete)
-      • Search for design assets, templates, and trending designs
-      • Export designs in multiple formats (PDF, PNG, JPG, MP4, PPTX)
-
-      **How to use:**
-      Simply describe what design you want to create or what action you want to take with Canva designs!
-
-      **Features:**
-      • Automatic design creation from descriptions
-      • Asset and template search
-      • Multi-format export with quality options
-      • Design management (CRUD operations)
-      • Trending template discovery
-
-      **Example requests:**
-      • "Create a social media post for our summer sale"
-      • "Search for professional business card templates"
-      • "Export my latest design as a PDF"
-      • "List all my recent designs"
-      • "Find trending poster templates for marketing"
 
   lesson-planning:
     type: streamable-http
