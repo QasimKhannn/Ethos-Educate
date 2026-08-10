@@ -177,16 +177,16 @@ export class AccessControlService {
 
       this.validateResourceType(resourceType);
 
-      const entries = await this._aclModel
+      const entries = (await this._aclModel
         .find({
           principalType: PrincipalType.PUBLIC,
           resourceType,
         })
         .select('resourceId permBits')
-        .lean();
+        .lean()) as Array<{ resourceId: Types.ObjectId; permBits?: number }>;
 
       const resourceIds = new Map<string, Types.ObjectId>();
-      entries.forEach((entry: { resourceId: Types.ObjectId; permBits?: number }) => {
+      entries.forEach((entry) => {
         if (!hasRequiredPermission(entry.permBits, requiredPermissions)) {
           return;
         }
