@@ -41,6 +41,9 @@ const validateResourceType = (resourceType) => {
   }
 };
 
+const hasRequiredPermission = (permBits, requiredPermissions) =>
+  typeof permBits === 'number' && (permBits & requiredPermissions) === requiredPermissions;
+
 /**
  * @import { TPrincipal } from 'librechat-data-provider'
  */
@@ -275,14 +278,23 @@ const findPubliclyAccessibleResources = async ({ resourceType, requiredPermissio
 
     validateResourceType(resourceType);
 
-    // Find all public ACL entries where the public principal has at least the required permission bits
     const entries = await AclEntry.find({
       principalType: PrincipalType.PUBLIC,
       resourceType,
-      permBits: { $bitsAllSet: requiredPermissions },
-    }).distinct('resourceId');
+    })
+      .select('resourceId permBits')
+      .lean();
 
-    return entries;
+    const resourceIds = new Map();
+    entries.forEach((entry) => {
+      if (!hasRequiredPermission(entry.permBits, requiredPermissions)) {
+        return;
+      }
+
+      resourceIds.set(entry.resourceId.toString(), entry.resourceId);
+    });
+
+    return Array.from(resourceIds.values());
   } catch (error) {
     logger.error(`[PermissionService.findPubliclyAccessibleResources] Error: ${error.message}`);
     // Re-throw validation errors
@@ -570,7 +582,7 @@ const hasPublicPermission = async ({ resourceType, resourceId, requiredPermissio
     );
 
     // Check if any entry has the required permission bits
-    return entries.some((entry) => (entry.permBits & requiredPermissions) === requiredPermissions);
+    return entries.some((entry) => hasRequiredPermission(entry.permBits, requiredPermissions));
   } catch (error) {
     logger.error(`[PermissionService.hasPublicPermission] Error: ${error.message}`);
     // Re-throw validation errors

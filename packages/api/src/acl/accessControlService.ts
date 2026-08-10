@@ -2,6 +2,9 @@ import { Types, ClientSession, DeleteResult } from 'mongoose';
 import { AllMethods, IAclEntry, createMethods, logger } from '@librechat/data-schemas';
 import { AccessRoleIds, PrincipalType, ResourceType } from 'librechat-data-provider';
 
+const hasRequiredPermission = (permBits: number | undefined | null, requiredPermissions: number) =>
+  typeof permBits === 'number' && (permBits & requiredPermissions) === requiredPermissions;
+
 export class AccessControlService {
   private _dbMethods: AllMethods;
   private _aclModel;
@@ -174,16 +177,24 @@ export class AccessControlService {
 
       this.validateResourceType(resourceType);
 
-      // Find all public ACL entries where the public principal has at least the required permission bits
       const entries = await this._aclModel
         .find({
           principalType: PrincipalType.PUBLIC,
           resourceType,
-          permBits: { $bitsAllSet: requiredPermissions },
         })
-        .distinct('resourceId');
+        .select('resourceId permBits')
+        .lean();
 
-      return entries;
+      const resourceIds = new Map<string, Types.ObjectId>();
+      entries.forEach((entry: { resourceId: Types.ObjectId; permBits?: number }) => {
+        if (!hasRequiredPermission(entry.permBits, requiredPermissions)) {
+          return;
+        }
+
+        resourceIds.set(entry.resourceId.toString(), entry.resourceId);
+      });
+
+      return Array.from(resourceIds.values());
     } catch (error) {
       if (error instanceof Error) {
         logger.error(`[PermissionService.findPubliclyAccessibleResources] Error: ${error.message}`);

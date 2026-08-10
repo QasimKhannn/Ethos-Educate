@@ -3,6 +3,9 @@ import { PrincipalType, PrincipalModel } from 'librechat-data-provider';
 import type { Model, DeleteResult, ClientSession } from 'mongoose';
 import type { IAclEntry } from '~/types';
 
+const hasRequiredPermission = (permBits: number | undefined | null, requiredPermBit: number) =>
+  typeof permBits === 'number' && (permBits & requiredPermBit) === requiredPermBit;
+
 export function createAclEntryMethods(mongoose: typeof import('mongoose')) {
   /**
    * Find ACL entries for a specific principal (user or group)
@@ -83,14 +86,13 @@ export function createAclEntryMethods(mongoose: typeof import('mongoose')) {
       ...(p.principalType !== PrincipalType.PUBLIC && { principalId: p.principalId }),
     }));
 
-    const entry = await AclEntry.findOne({
+    const entries = await AclEntry.find({
       $or: principalsQuery,
       resourceType,
       resourceId,
-      permBits: { $bitsAllSet: permissionBit },
     }).lean();
 
-    return !!entry;
+    return entries.some((entry) => hasRequiredPermission(entry.permBits, permissionBit));
   }
 
   /**
@@ -341,10 +343,21 @@ export function createAclEntryMethods(mongoose: typeof import('mongoose')) {
     const entries = await AclEntry.find({
       $or: principalsQuery,
       resourceType,
-      permBits: { $bitsAllSet: requiredPermBit },
-    }).distinct('resourceId');
+    })
+      .select('resourceId permBits')
+      .lean();
 
-    return entries;
+    const resourceIds = new Map<string, Types.ObjectId>();
+    entries.forEach((entry) => {
+      if (!hasRequiredPermission(entry.permBits, requiredPermBit)) {
+        return;
+      }
+
+      const resourceId = entry.resourceId as Types.ObjectId;
+      resourceIds.set(resourceId.toString(), resourceId);
+    });
+
+    return Array.from(resourceIds.values());
   }
 
   return {

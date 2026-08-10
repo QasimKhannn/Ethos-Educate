@@ -41,6 +41,9 @@ export interface EnrichResult {
   entriesToBackfill: Types.ObjectId[];
 }
 
+const hasRequiredPermission = (permBits: number | undefined | null, requiredPermissions: number) =>
+  typeof permBits === 'number' && (permBits & requiredPermissions) === requiredPermissions;
+
 /** Enriches REMOTE_AGENT principals with implicit AGENT owners */
 export async function enrichRemoteAgentPrincipals(
   deps: EnricherDependencies,
@@ -60,7 +63,6 @@ export async function enrichRemoteAgentPrincipals(
         resourceType: ResourceType.AGENT,
         resourceId: resourceObjectId,
         principalType: PrincipalType.USER,
-        permBits: { $bitsAllSet: PermissionBits.SHARE },
       },
     },
     {
@@ -74,6 +76,7 @@ export async function enrichRemoteAgentPrincipals(
     {
       $project: {
         principalId: 1,
+        permBits: 1,
         userInfo: { $arrayElemAt: ['$userInfo', 0] },
       },
     },
@@ -83,6 +86,10 @@ export async function enrichRemoteAgentPrincipals(
   const entriesToBackfill: Types.ObjectId[] = [];
 
   for (const entry of agentOwnerEntries) {
+    if (!hasRequiredPermission(entry.permBits, PermissionBits.SHARE)) {
+      continue;
+    }
+
     if (!entry.userInfo) {
       continue;
     }
