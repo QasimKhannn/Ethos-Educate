@@ -183,7 +183,7 @@ export class AccessControlService {
           resourceType,
         })
         .select('resourceId permBits')
-        .lean()) as Array<{ resourceId: Types.ObjectId; permBits?: number }>;
+        .lean()) as unknown as Array<{ resourceId: Types.ObjectId; permBits?: number }>;
 
       const resourceIds = new Map<string, Types.ObjectId>();
       entries.forEach((entry) => {
