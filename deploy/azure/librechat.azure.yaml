@@ -90,6 +90,10 @@ mcpServers:
     description: "Read Outlook emails"
     type: streamable-http
     url: ${OUTLOOK_MCP_URL}
+    timeout: 120000
+    initTimeout: 30000
+    chatMenu: true
+    startup: false
     requiresOAuth: true
     oauth:
       authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
@@ -103,6 +107,10 @@ mcpServers:
     description: "Read Teams messages"
     type: streamable-http
     url: ${TEAMS_MCP_URL}
+    timeout: 120000
+    initTimeout: 30000
+    chatMenu: true
+    startup: false
     requiresOAuth: true
     oauth:
       authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
@@ -118,7 +126,7 @@ mcpServers:
     url: "https://mcp.monday.com/mcp"
     timeout: 120000
     initTimeout: 30000
-    chatMenu: true
+    chatMenu: false
     startup: false
     requiresOAuth: true
     serverInstructions: |
@@ -174,6 +182,10 @@ mcpServers:
     description: "Access SharePoint files"
     type: streamable-http
     url: ${SHAREPOINT_MCP_URL}
+    timeout: 120000
+    initTimeout: 30000
+    chatMenu: true
+    startup: false
     requiresOAuth: true
     oauth:
       authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
@@ -189,6 +201,8 @@ mcpServers:
     url: ${WEBSEARCH_MCP_URL}
     timeout: 60000
     initTimeout: 15000
+    chatMenu: true
+    startup: true
     serverInstructions: true
 
   # cowork — SearXNG web search (Cowork-only). Gives the coworker real, current web results via the
@@ -215,6 +229,10 @@ mcpServers:
     description: "Access OneDrive files"
     type: streamable-http
     url: ${ONEDRIVE_MCP_URL}
+    timeout: 120000
+    initTimeout: 30000
+    chatMenu: true
+    startup: false
     requiresOAuth: true
     oauth:
       authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
@@ -238,7 +256,7 @@ mcpServers:
       scope: "design:meta:read asset:read"
     timeout: 60000
     initTimeout: 30000
-    chatMenu: true
+    chatMenu: false
     startup: false
     serverInstructions: |
       🎨 **Canva Design Tool**
@@ -274,6 +292,8 @@ mcpServers:
     url: ${LESSON_PLANNING_MCP_URL}
     timeout: 120000
     initTimeout: 15000
+    chatMenu: true
+    startup: true
     global: false
     serverInstructions: |
       Use this MCP server for the complete lesson-planning workflow.
