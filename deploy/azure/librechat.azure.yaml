@@ -33,6 +33,9 @@ mcpSettings:
     - "lesson-planning-mcp-167785844293.us-central1.run.app"
     - "csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "classroom-docs-mcp.redglacier-e4c3b5e0.westus2.azurecontainerapps.io"
+    - "podcast-mcp-bc7qwf6s7a-uc.a.run.app"
+    - "youtube-transcript-mcp-bc7qwf6s7a-uc.a.run.app"
+    - "youtube-video-finder-mcp.redglacier-e4c3b5e0.westus2.azurecontainerapps.io"
     - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "20ad-103-189-68-222.ngrok-free.app"
@@ -345,6 +348,48 @@ mcpServers:
       - The link should appear as: [filename.extension](url) in markdown format
       - Example: If the tool returns a link, present it simply as "Here's your document: [AI in 2050.docx](https://...)" or just "[AI in 2050.docx](https://...)"
       - Do NOT say "Here's the download link" or "Here's the link" - just show the clickable filename directly
+
+  Podcast_Audio:
+    description: "Create MP3 podcast audio from text"
+    type: streamable-http
+    url: "https://podcast-mcp-bc7qwf6s7a-uc.a.run.app/mcp"
+    timeout: 180000
+    initTimeout: 15000
+    chatMenu: true
+    startup: true
+    serverInstructions: |
+      Use this Podcast Audio tool when the user asks to turn text into spoken audio or create an MP3.
+      Ask for the exact text to speak if the user has not provided it.
+      Keep the final response concise and include the generated download link when the tool returns one.
+
+  Youtube_Transcript:
+    description: "Read YouTube video transcripts"
+    type: streamable-http
+    url: "https://youtube-transcript-mcp-bc7qwf6s7a-uc.a.run.app/mcp"
+    timeout: 120000
+    initTimeout: 15000
+    chatMenu: true
+    startup: true
+    serverInstructions: |
+      Use this YouTube Transcript tool when the user asks to read, summarize, analyze, quote, or extract information from a YouTube video.
+      Ask for a YouTube URL or video ID if the user has not provided one.
+      Use get_youtube_transcript to fetch transcript content.
+      Use list_youtube_transcripts if the requested language is unavailable.
+      If captions are unavailable or YouTube blocks access, explain that clearly and suggest trying another video.
+
+  YouTube_Video_Finder:
+    description: "Find and verify YouTube videos"
+    type: streamable-http
+    url: "https://youtube-video-finder-mcp.redglacier-e4c3b5e0.westus2.azurecontainerapps.io/mcp"
+    timeout: 120000
+    initTimeout: 15000
+    chatMenu: true
+    startup: true
+    serverInstructions: |
+      Use this YouTube Video Finder tool when the user asks to find YouTube videos or verify a YouTube video link.
+      Return direct YouTube video links only, not search pages, playlists, channels, or Shorts.
+      Prefer educational and trustworthy videos when the user asks for classroom or student-facing content.
+      If the user provides a direct video URL, use get_youtube_video_metadata to verify it.
 
   # cowork — WordPress connector (Phase 7, API-key model). Runs in-process via npx (no hosting), so
   # it works wherever the backend runs. Per-teacher credentials: each teacher's Site URL / Username /
