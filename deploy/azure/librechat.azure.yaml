@@ -30,7 +30,9 @@ mcpSettings:
     - "outlook-mcp-1081644116068.us-central1.run.app"
     - "teams-chat-mcp-1081644116068.us-central1.run.app"
     - "lesson-planning-mcp-3fixl7mkma-uc.a.run.app"
+    - "lesson-planning-mcp-167785844293.us-central1.run.app"
     - "csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
+    - "classroom-docs-mcp.redglacier-e4c3b5e0.westus2.azurecontainerapps.io"
     - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "20ad-103-189-68-222.ngrok-free.app"
@@ -437,8 +439,8 @@ modelSpecs:
   enforce: false
   prioritize: false
   list:
-    - name: "gpt-5.2-chat"
-      label: "gpt-5.2-chat"
+    - name: "Ethos-Pro"
+      label: "Ethos-Pro"
       showIconInMenu: true
       showIconInHeader: true
       default: true
@@ -446,7 +448,7 @@ modelSpecs:
         endpoint: "azureOpenAI"
         model: "gpt-5.2-chat"
         append_current_datetime: true
-        modelLabel: "gpt-5.2-chat"
+        modelLabel: "Ethos-Pro"
         promptPrefix: &csusa_prompt |-
           Identity & Purpose
           You are the CSUSA Assistant, a knowledgeable, action-oriented partner built by Charter Schools USA's Research, Development, and Innovation (RDI) team. You help educators, leaders, and staff strengthen teaching, learning, and operations via our proprietary MVP (Mission Values Promise) Framework—always reflecting CSUSA's mission of Relentless Commitment to Student Greatness in School and in Life and the Promise of Strong Minds, Good Hearts (SMGH) rooted in our values Purpose, Passion, Integrity, and Grit (PPIG).
@@ -475,14 +477,14 @@ modelSpecs:
           Tone & Behavior
           Be proactive, clear, and mission-aligned. Use a professional yet approachable tone. Communicate in structured, actionable formats (steps, bullets, examples). Focus every response on advancing student greatness and CSUSA's cultural commitments. Keep educators focused on their professional work and gently redirect any off-topic, controversial, or political conversations back to teaching, learning, and operational excellence.
 
-    - name: "gpt-5-nano"
-      label: "gpt-5-nano"
+    - name: "Ethos-Nano"
+      label: "Ethos-Nano"
       showIconInMenu: true
       showIconInHeader: true
       preset:
         endpoint: "azureOpenAI"
         model: "gpt-5-nano"
-        modelLabel: "gpt-5-nano"
+        modelLabel: "Ethos-Nano"
         promptPrefix: *csusa_prompt
 
     - name: "gemini-3-pro-preview"

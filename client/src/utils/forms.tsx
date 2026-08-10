@@ -46,9 +46,10 @@ const agentBuilderProviderAliases: Record<string, string> = {
 };
 
 const agentBuilderModelAliases: Record<string, string> = {
-  'gpt-5.2-chat': 'Ethos-1',
-  'gpt-5-mini': 'Ethos-2',
-  'gpt-5-nano': 'Ethos-3',
+  'gpt-5-chat': 'Ethos-Pro',
+  'gpt-5.2-chat': 'Ethos-Pro',
+  'gpt-5-mini': 'Ethos-Mini',
+  'gpt-5-nano': 'Ethos-Nano',
   'gemini-3-pro-preview': 'Ethos Vision Pro',
   'gemini-2.5-flash': 'Ethos Vision Fast',
   'claude-sonnet-4-6': 'Ethos Reason Pro',

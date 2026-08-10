@@ -1,6 +1,6 @@
-import { EarthIcon } from 'lucide-react';
+import { EarthIcon, SearchIcon, XIcon } from 'lucide-react';
 import { ControlCombobox } from '@librechat/client';
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { AgentCapabilities, defaultAgentFormValues } from 'librechat-data-provider';
 import type { UseMutationResult, QueryObserverResult } from '@tanstack/react-query';
@@ -25,6 +25,7 @@ function AgentSelect({
 }) {
   const localize = useLocalize();
   const lastSelectedAgent = useRef<string | null>(null);
+  const [agentSearch, setAgentSearch] = useState('');
   const { control, reset } = useFormContext();
   const permissionLevel = useAgentDefaultPermissionLevel();
 
@@ -46,6 +47,36 @@ function AgentSelect({
           ),
     },
   );
+
+  const filteredAgents = useMemo(() => {
+    if (!agents) {
+      return null;
+    }
+
+    const query = agentSearch.trim().toLocaleLowerCase();
+    if (!query) {
+      return agents;
+    }
+
+    return agents.filter((agent) => {
+      const providerLabel =
+        typeof agent.provider === 'object' && agent.provider != null
+          ? agent.provider.label
+          : agent.provider;
+      const fields = [
+        agent.name,
+        agent.label,
+        agent.id,
+        agent.description,
+        agent.category,
+        providerLabel,
+      ];
+
+      return fields.some(
+        (field) => typeof field === 'string' && field.toLocaleLowerCase().includes(query),
+      );
+    });
+  }, [agentSearch, agents]);
 
   const resetAgentForm = useCallback(
     (fullAgent: Agent) => {
@@ -191,40 +222,77 @@ function AgentSelect({
   }, [selectedAgentId, agents, onSelect]);
 
   const createAgent = localize('com_ui_create_new_agent');
+  const hasAgentSearch = agentSearch.trim().length > 0;
 
   return (
     <Controller
       name="agent"
       control={control}
       render={({ field }) => (
-        <ControlCombobox
-          containerClassName="px-0"
-          selectedValue={(field?.value?.value ?? '') + ''}
-          displayValue={field?.value?.label ?? ''}
-          selectPlaceholder={field?.value?.value ?? createAgent}
-          iconSide="right"
-          searchPlaceholder={localize('com_agents_search_name')}
-          SelectIcon={field?.value?.icon}
-          setValue={onSelect}
-          items={
-            agents?.map((agent) => ({
-              label: agent.name ?? '',
-              value: agent.id ?? '',
-              icon: agent.icon,
-            })) ?? [
-              {
-                label: 'Loading...',
-                value: '',
-              },
-            ]
-          }
-          className={cn(
-            'z-50 flex h-[40px] w-full flex-none items-center justify-center truncate rounded-md bg-transparent font-bold',
-          )}
-          ariaLabel={localize('com_ui_agent')}
-          isCollapsed={false}
-          showCarat={true}
-        />
+        <div className="w-full space-y-2">
+          <div className="relative">
+            <SearchIcon
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={agentSearch}
+              onChange={(event) => setAgentSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                }
+              }}
+              placeholder={localize('com_agents_search_name')}
+              aria-label={localize('com_agents_search_name')}
+              className="h-10 w-full rounded-md border border-border-light bg-transparent py-2 pl-9 pr-9 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary focus:border-blue-500"
+            />
+            {hasAgentSearch ? (
+              <button
+                type="button"
+                onClick={() => setAgentSearch('')}
+                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
+                aria-label={localize('com_agents_clear_search')}
+              >
+                <XIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+          <ControlCombobox
+            containerClassName="px-0"
+            selectedValue={(field?.value?.value ?? '') + ''}
+            displayValue={field?.value?.label ?? ''}
+            selectPlaceholder={field?.value?.value ?? createAgent}
+            iconSide="right"
+            searchPlaceholder={localize('com_agents_search_name')}
+            SelectIcon={field?.value?.icon}
+            setValue={onSelect}
+            items={
+              filteredAgents?.map((agent) => ({
+                label: agent.name ?? '',
+                value: agent.id ?? '',
+                icon: agent.icon,
+              })) ?? [
+                {
+                  label: 'Loading...',
+                  value: '',
+                },
+              ]
+            }
+            className={cn(
+              'z-50 flex h-[40px] w-full flex-none items-center justify-center truncate rounded-md bg-transparent font-bold',
+            )}
+            ariaLabel={localize('com_ui_agent')}
+            isCollapsed={false}
+            showCarat={true}
+          />
+          {hasAgentSearch && filteredAgents?.length === 0 ? (
+            <p className="px-1 text-xs text-text-secondary">
+              {localize('com_agents_search_no_results', { query: agentSearch.trim() })}
+            </p>
+          ) : null}
+        </div>
       )}
     />
   );

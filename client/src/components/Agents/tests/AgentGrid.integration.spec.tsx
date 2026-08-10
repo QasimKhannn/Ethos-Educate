@@ -35,6 +35,8 @@ jest.mock('~/hooks/useLocalize', () => () => (key: string, options?: any) => {
     com_agents_error_loading: 'Error loading agents',
     com_agents_error_searching: 'Error searching agents',
     com_agents_search_empty_heading: 'No results found',
+    com_agents_search_no_results: 'No agents found for "{{query}}"',
+    com_agents_clear_search: 'Clear search',
     com_agents_empty_state_heading: 'No agents available',
     com_agents_loading: 'Loading...',
     com_agents_grid_announcement: '{{count}} agents in {{category}}',
@@ -480,6 +482,31 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       );
 
       expect(screen.getByText('No results found')).toBeInTheDocument();
+    });
+
+    it('does not fall back to preview-only mock agents while searching', () => {
+      mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue({
+        ...defaultMockQueryResult,
+        data: {
+          pages: [
+            {
+              data: [],
+            },
+          ],
+        },
+      });
+
+      const Wrapper = createWrapper();
+      render(
+        <Wrapper>
+          <AgentGrid category="all" searchQuery="lesson" onSelectAgent={mockOnSelectAgent} />
+        </Wrapper>,
+      );
+
+      expect(screen.getByText('No results found')).toBeInTheDocument();
+      expect(
+        screen.queryByTestId('agent-card-ethos-mock-agent-lesson-plan-builder'),
+      ).not.toBeInTheDocument();
     });
   });
 

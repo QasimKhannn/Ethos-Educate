@@ -185,7 +185,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     });
   }, [category, mockAgents, searchQuery, sortOption]);
   const isUsingMockAgents =
-    currentAgents.length === 0 && !isLoading && !isFetching && error == null;
+    searchQuery.trim().length === 0 &&
+    currentAgents.length === 0 &&
+    !isLoading &&
+    !isFetching &&
+    error == null;
   const displayedAgents = isUsingMockAgents ? fallbackAgents : currentAgents;
   const hasData = useHasData(data?.pages?.[0]);
 
