@@ -585,8 +585,14 @@ export const deleteAgentAction = async ({
  *
  * Ensure and List loaded mcp server configs from the cache Enriched with effective permissions.
  */
-export const getMCPServers = async (): Promise<mcp.MCPServersListResponse> => {
-  return request.get(endpoints.mcp.servers);
+export const getMCPServers = async (options?: {
+  agentBuilderAccess?: boolean;
+}): Promise<mcp.MCPServersListResponse> => {
+  return request.get(
+    options?.agentBuilderAccess === true
+      ? endpoints.mcp.agentBuilderServers
+      : endpoints.mcp.servers,
+  );
 };
 
 /**

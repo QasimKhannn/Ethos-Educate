@@ -110,19 +110,17 @@ describe('Agent Utilities', () => {
   });
 
   describe('getAgentAvatarImageUrl', () => {
-    it('should prefer bundled static icons for known Ethos tools', () => {
+    it('should prefer uploaded avatars for known Ethos tools', () => {
       const agent = {
         id: '1',
         name: 'YouTube Video Finder',
         avatar: {
-          filepath: '/images/user/missing-uploaded-avatar.png',
+          filepath: '/images/user/uploaded-avatar.png',
           source: 'local',
         },
       } as t.Agent;
 
-      expect(getAgentAvatarImageUrl(agent)).toBe(
-        '/assets/agent-icons/style-c/youtube-video-finder.svg',
-      );
+      expect(getAgentAvatarImageUrl(agent)).toBe('/images/user/uploaded-avatar.png');
     });
 
     it('should use uploaded avatars for unknown agents', () => {

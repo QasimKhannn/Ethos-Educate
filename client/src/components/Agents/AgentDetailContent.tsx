@@ -1,27 +1,12 @@
 import React from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Link, Pin, PinOff } from 'lucide-react';
 import { OGDialogContent, Button, useToastContext } from '@librechat/client';
-import {
-  QueryKeys,
-  Constants,
-  EModelEndpoint,
-  PermissionBits,
-  LocalStorageKeys,
-  AgentListResponse,
-} from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
-import { useLocalize, useFavorites, useDefaultConvo } from '~/hooks';
-import { useChatContext } from '~/Providers';
-import {
-  renderAgentAvatar,
-  clearMessagesCache,
-  getAgentAvatarImageUrl,
-  getAgentDisplayName,
-  normalizeAgentBrandText,
-} from '~/utils';
+import { useLocalize, useFavorites } from '~/hooks';
+import { renderAgentAvatar, getAgentDisplayName, normalizeAgentBrandText } from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
 import { isMockMarketplaceAgent, renderMockMarketplaceAvatar } from './mockAgents';
+import useStartAgentChat from './useStartAgentChat';
 
 interface SupportContact {
   name?: string;
@@ -44,10 +29,8 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const localize = useLocalize();
   const byLabel = localize('com_ui_by_author', { 0: '' }).trim();
   const { showToast } = useToastContext();
-  const queryClient = useQueryClient();
-  const getDefaultConversation = useDefaultConvo();
-  const { conversation, newConversation } = useChatContext();
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
+  const startAgentChat = useStartAgentChat();
   const isFavorite = isFavoriteAgent(agent?.id);
   const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
@@ -59,51 +42,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   };
 
   const handleStartChat = () => {
-    if (agent) {
-      const agentAvatarUrl = getAgentAvatarImageUrl(agent);
-      const keys = [QueryKeys.agents, { requiredPermission: PermissionBits.EDIT }];
-      const listResp = queryClient.getQueryData<AgentListResponse>(keys);
-
-      if (listResp != null && !listResp.data.some((candidate) => candidate.id === agent.id)) {
-        const currentAgents = [agent, ...JSON.parse(JSON.stringify(listResp.data))];
-        queryClient.setQueryData<AgentListResponse>(keys, { ...listResp, data: currentAgents });
-      }
-
-      localStorage.setItem(`${LocalStorageKeys.AGENT_ID_PREFIX}0`, agent.id);
-      localStorage.setItem(
-        'eduToolkitSelectedToolGuide',
-        JSON.stringify({
-          agentId: agent.id,
-          name: agentDisplayName,
-          category: agent.category,
-          description: agent.description,
-          avatarUrl: agentAvatarUrl,
-        }),
-      );
-
-      clearMessagesCache(queryClient, conversation?.conversationId);
-      queryClient.invalidateQueries([QueryKeys.messages]);
-
-      const template = {
-        conversationId: Constants.NEW_CONVO as string,
-        endpoint: EModelEndpoint.agents,
-        agent_id: agent.id,
-        ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
-        title: localize('com_agents_chat_with', {
-          name: agentDisplayName || localize('com_ui_agent'),
-        }),
-      };
-
-      const currentConvo = getDefaultConversation({
-        conversation: { ...(conversation ?? {}), ...template },
-        preset: template,
-      });
-
-      newConversation({
-        template: currentConvo,
-        preset: template,
-      });
-    }
+    startAgentChat(agent);
   };
 
   /**

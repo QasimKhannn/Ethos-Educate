@@ -34,7 +34,9 @@ export function AgentPanelProvider({ children }: { children: React.ReactNode }) 
   const [action, setAction] = useState<Action | undefined>(undefined);
   const [activePanel, setActivePanel] = useState<Panel>(Panel.builder);
   const [agent_id, setCurrentAgentId] = useState<string | undefined>(undefined);
-  const { availableMCPServers, isLoading, availableMCPServersMap } = useMCPServerManager();
+  const { availableMCPServers, isLoading, availableMCPServersMap } = useMCPServerManager({
+    agentBuilderAccess: true,
+  });
   const { data: startupConfig } = useGetStartupConfig();
   const { data: actions } = useGetActionsQuery(EModelEndpoint.agents, {
     enabled: !isEphemeralAgent(agent_id),

@@ -5303,6 +5303,10 @@ html:not(.dark) .chat-presentation-shell::after {
   gap: clamp(1rem, 2.8vh, 1.9rem);
 }
 
+.chat-landing-page:has(.chat-conversation-starters) {
+  gap: clamp(1.1rem, 2.4vh, 1.75rem);
+}
+
 .chat-landing-page:has(.chat-selected-tool-guide) {
   transform: translateY(clamp(3rem, 7vh, 5.75rem));
 }
@@ -5314,6 +5318,10 @@ html:not(.dark) .chat-presentation-shell::after {
 
 .chat-landing-page-body:has(.chat-landing-heading-copy) {
   padding-bottom: clamp(1.75rem, 3.2vh, 2rem);
+}
+
+.chat-landing-page-body:has(.chat-conversation-starters) {
+  padding-bottom: 0;
 }
 
 .chat-landing-page-composer {
@@ -5379,13 +5387,11 @@ html:not(.dark) .chat-presentation-shell::after {
   width: 100%;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(188, 201, 222, 0.82);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(247, 250, 255, 0.96) 0%, rgba(232, 238, 249, 0.84) 100%);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-primary);
-  box-shadow:
-    0 16px 28px -24px rgba(15, 23, 42, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: none;
 }
 
 .chat-landing-mark-icon {
@@ -5473,18 +5479,19 @@ html:not(.dark) .chat-presentation-shell::after {
 }
 
 .chat-landing-description {
-  display: -webkit-box;
-  max-width: min(100%, 35rem);
-  margin-top: clamp(0.56rem, 1.3vh, 0.82rem) !important;
-  overflow: hidden;
+  display: block;
+  max-width: min(100%, 48rem);
+  margin-top: clamp(0.68rem, 1.35vh, 0.95rem) !important;
+  margin-bottom: clamp(0.45rem, 1.15vh, 0.9rem);
+  overflow: visible;
   color: color-mix(in srgb, var(--text-secondary) 88%, var(--text-primary));
   font-size: clamp(0.88rem, 0.16vw + 0.84rem, 0.96rem);
   font-weight: 500;
   letter-spacing: 0;
-  line-height: 1.5;
+  line-height: 1.46;
   text-wrap: pretty;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .chat-selected-tool-guide {
@@ -5728,11 +5735,74 @@ html:not(.dark) .chat-presentation-shell::after {
 }
 
 .chat-conversation-starters {
+  display: grid;
+  max-width: min(100%, 48rem);
   width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.chat-landing-shell:has(.chat-conversation-starters) {
+  max-height: none !important;
+  padding-bottom: clamp(0.5rem, 1.6vh, 1.25rem);
 }
 
 .chat-conversation-starter {
-  flex-shrink: 0;
+  display: flex;
+  min-height: 4.25rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.25rem;
+  overflow: hidden;
+  padding: 0.82rem 0.95rem;
+  border: 1px solid rgba(188, 201, 222, 0.78);
+  border-radius: 0.75rem;
+  color: var(--text-primary);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow:
+    0 14px 30px -26px rgba(19, 38, 76, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.chat-conversation-starter:hover {
+  border-color: rgba(37, 66, 116, 0.26);
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-0.06rem);
+}
+
+.chat-conversation-starter:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
+}
+
+.chat-conversation-starter-label {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.28;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.chat-conversation-starter-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.32;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .chat-composer-shell {
@@ -6167,6 +6237,27 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   color: rgba(219, 231, 250, 0.76);
 }
 
+.dark .chat-conversation-starter {
+  border-color: rgba(127, 165, 230, 0.28);
+  background: rgba(18, 33, 59, 0.68);
+  box-shadow:
+    0 16px 32px -28px rgba(3, 10, 26, 0.88),
+    inset 0 1px 0 rgba(220, 233, 255, 0.06);
+}
+
+.dark .chat-conversation-starter:hover {
+  border-color: rgba(147, 190, 255, 0.42);
+  background: rgba(24, 45, 82, 0.82);
+}
+
+.dark .chat-conversation-starter-label {
+  color: rgba(244, 247, 255, 0.96);
+}
+
+.dark .chat-conversation-starter-description {
+  color: rgba(197, 215, 244, 0.72);
+}
+
 .dark .split-parent.chat-landing-title {
   color: #fbfdff;
   text-shadow:
@@ -6275,13 +6366,10 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
 }
 
 .dark .chat-landing-mark-shell:not(.chat-landing-mark-shell-ethos) {
-  border-color: rgba(137, 176, 239, 0.28);
-  background: linear-gradient(180deg, rgba(30, 57, 104, 0.76) 0%, rgba(14, 29, 61, 0.78) 100%);
+  border-color: transparent;
+  background: transparent;
   color: rgba(241, 245, 249, 0.98);
-  box-shadow:
-    0 18px 32px -28px rgba(3, 10, 26, 0.72),
-    0 10px 30px -28px rgba(82, 139, 236, 0.44),
-    inset 0 1px 0 rgba(220, 233, 255, 0.1);
+  box-shadow: none;
 }
 
 .dark .chat-landing-agent-avatar {
@@ -6540,7 +6628,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   }
 
   .chat-landing-description {
-    max-width: 28rem;
+    max-width: min(100%, 34rem);
     margin-top: 0.55rem !important;
     font-size: 0.9rem;
     line-height: 1.45;
@@ -6611,7 +6699,6 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   .chat-landing-description {
     margin-top: 0.5rem !important;
     line-height: 1.42;
-    -webkit-line-clamp: 1;
   }
 
   .chat-selected-tool-guide-body {
@@ -6664,7 +6751,10 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   }
 
   .chat-landing-description {
-    display: none;
+    max-width: min(100%, 32rem);
+    margin-top: 0.45rem !important;
+    font-size: 0.84rem;
+    line-height: 1.35;
   }
 }
 
@@ -6852,7 +6942,23 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
   }
 
   .chat-landing-description {
-    display: none;
+    display: block;
+    max-width: min(100%, 22rem);
+    margin-top: 0.45rem !important;
+    font-size: 0.84rem;
+    line-height: 1.38;
+  }
+
+  .chat-conversation-starters {
+    max-width: min(100%, 22rem);
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    margin-top: 0.85rem;
+  }
+
+  .chat-conversation-starter {
+    min-height: 3.55rem;
+    padding: 0.68rem 0.78rem;
   }
 
   .chat-selected-tool-guide {

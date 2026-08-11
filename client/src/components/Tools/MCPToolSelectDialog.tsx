@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -235,7 +236,7 @@ function MCPToolSelectDialog({
     filteredServers.length,
   ]);
 
-  return (
+  const dialog = (
     <Dialog
       open={isOpen}
       onClose={() => {
@@ -245,7 +246,7 @@ function MCPToolSelectDialog({
         setConfiguringServer(null);
         setIsInitializing(null);
       }}
-      className="relative z-[102]"
+      className="relative z-[1001]"
     >
       <div className="fixed inset-0 bg-surface-primary opacity-60 transition-opacity dark:opacity-80" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -374,6 +375,12 @@ function MCPToolSelectDialog({
       </div>
     </Dialog>
   );
+
+  if (typeof document === 'undefined') {
+    return dialog;
+  }
+
+  return createPortal(dialog, document.body);
 }
 
 export default MCPToolSelectDialog;

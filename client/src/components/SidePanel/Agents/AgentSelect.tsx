@@ -112,8 +112,9 @@ function AgentSelect({
         agent: update,
         model: update.model,
         tools: agentTools,
-        // Ensure the category is properly set for the form
-        category: fullAgent.category || 'general',
+        category: 'general',
+        recommended_prompts: fullAgent.recommended_prompts ?? [],
+        show_recommended_prompts: fullAgent.show_recommended_prompts !== false,
         // Make sure support_contact is properly loaded
         support_contact: fullAgent.support_contact,
         avatar_file: null,
@@ -148,6 +149,15 @@ function AgentSelect({
 
         if (name === 'tool_options' && typeof value === 'object' && value !== null) {
           formValues[name] = value;
+          return;
+        }
+
+        if (name === 'recommended_prompts' && Array.isArray(value)) {
+          formValues[name] = value;
+          return;
+        }
+
+        if (name === 'category') {
           return;
         }
 

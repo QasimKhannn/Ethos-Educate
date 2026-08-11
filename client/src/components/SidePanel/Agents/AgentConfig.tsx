@@ -15,7 +15,6 @@ import {
 import { MCPToolSelectDialog } from '~/components/Tools';
 import useAgentCapabilities from '~/hooks/Agents/useAgentCapabilities';
 import { useFileMapContext, useAgentPanelContext } from '~/Providers';
-import AgentCategorySelector from './AgentCategorySelector';
 import { useAuthContext, useLocalize, useVisibleTools } from '~/hooks';
 import { Panel } from '~/common';
 import { useGetAgentFiles } from '~/data-provider';
@@ -29,6 +28,7 @@ import Artifacts from './Artifacts';
 import CodeForm from './Code/Form';
 import MCPTools from './MCPTools';
 import AgentFieldLabel from './AgentFieldLabel';
+import RecommendedPrompts from './RecommendedPrompts';
 
 const inputClass = cn(
   defaultTextProps,
@@ -77,8 +77,7 @@ export default function AgentConfig() {
     useAgentCapabilities(agentsConfig?.capabilities);
   const showDeveloperControls = user?.role === SystemRoles.ADMIN;
   const showCodeControls = showDeveloperControls && codeEnabled;
-  const showMCPControls =
-    showDeveloperControls && availableMCPServers != null && availableMCPServers.length > 0;
+  const showMCPControls = availableMCPServers != null && availableMCPServers.length > 0;
 
   const context_files = useMemo(() => {
     if (typeof agent === 'string') {
@@ -275,15 +274,7 @@ export default function AgentConfig() {
               )}
             />
           </div>
-          <div className="mb-4">
-            <AgentFieldLabel
-              htmlFor="category-selector"
-              label={localize('com_ui_category')}
-              description={localize('com_ui_agent_category_help')}
-              required
-            />
-            <AgentCategorySelector className="w-full" />
-          </div>
+          <RecommendedPrompts />
         </section>
         <section className="agent-builder-section" aria-labelledby="agent-behavior-heading">
           <div className="agent-builder-section-heading">

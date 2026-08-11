@@ -10,6 +10,22 @@ interface AgentOnboardingOverviewProps {
 const getConversationStarters = (agent?: t.Agent | null): string[] => {
   const starters: string[] = [];
 
+  if (agent?.show_recommended_prompts !== false) {
+    for (const prompt of agent?.recommended_prompts ?? []) {
+      const label = prompt.label?.trim();
+
+      if (!label) {
+        continue;
+      }
+
+      starters.push(label);
+
+      if (starters.length === 3) {
+        return starters;
+      }
+    }
+  }
+
   for (const starter of agent?.conversation_starters ?? []) {
     const trimmedStarter = starter.trim();
 

@@ -6,11 +6,13 @@ import { BirthdayIcon, TooltipAnchor, SplitText, useMediaQuery } from '@librecha
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
+import ConversationStarters from './Input/ConversationStarters';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { motionSpring, softRevealVariants } from '~/utils/motion';
 import {
   getIconEndpoint,
   getEntity,
+  isExpiringAgentAvatarUrl,
   normalizeAgentAvatarUrl,
   getStaticAgentIconUrlForName,
   normalizeAgentBrandText,
@@ -26,7 +28,6 @@ const titleRevealAnimationTo = {
   opacity: 1,
   transform: 'translate3d(0,0,0)',
 };
-const compactDescriptionMaxLength = 112;
 
 interface SelectedToolGuide {
   agentId: string;
@@ -51,29 +52,6 @@ function getTextSizeClass(text: string | undefined | null) {
 
   return 'text-lg sm:text-md';
 }
-
-const getCompactDescription = (value: string | null | undefined) => {
-  const normalizedDescription = value?.replace(/\s+/g, ' ').trim() ?? '';
-  if (!normalizedDescription) {
-    return '';
-  }
-
-  const [beforeDash] = normalizedDescription.split(/\s[-\u2013\u2014]\s/);
-  const candidate =
-    beforeDash && beforeDash.length >= 42 && beforeDash.length <= compactDescriptionMaxLength
-      ? beforeDash
-      : normalizedDescription;
-
-  if (candidate.length <= compactDescriptionMaxLength) {
-    return candidate.replace(/[,:;.\s]+$/, '');
-  }
-
-  const clippedDescription = candidate.slice(0, compactDescriptionMaxLength).trimEnd();
-  const lastWordBreak = clippedDescription.lastIndexOf(' ');
-  const trimIndex = lastWordBreak > 72 ? lastWordBreak : compactDescriptionMaxLength;
-
-  return `${clippedDescription.slice(0, trimIndex).replace(/[,:;.\s]+$/, '')}...`;
-};
 
 export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: boolean }) {
   const { conversation } = useChatContext();
@@ -114,8 +92,9 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   });
 
   const name = entity?.name ?? '';
-  const description = (entity?.description || conversation?.greeting) ?? '';
-  const compactDescription = useMemo(() => getCompactDescription(description), [description]);
+  const description = normalizeAgentBrandText((entity?.description || conversation?.greeting) ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   const selectedToolGuide = useMemo<SelectedToolGuide | null>(() => {
     if (conversation?.endpoint !== EModelEndpoint.agents || !conversation.agent_id) {
       return null;
@@ -145,19 +124,23 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   }, [conversation?.agent_id, conversation?.endpoint]);
   const selectedToolGuideName = normalizeAgentBrandText(selectedToolGuide?.name);
   const headingName = normalizeAgentBrandText(name) || selectedToolGuideName;
-  const selectedToolGuideAvatarUrl = normalizeAgentAvatarUrl(
-    getStaticAgentIconUrlForName(selectedToolGuideName || name) ??
-      selectedToolGuide?.avatarUrl ??
-      conversation?.iconURL ??
-      null,
+  const selectedToolGuidePreferredAvatarUrl = normalizeAgentAvatarUrl(
+    selectedToolGuide?.avatarUrl ?? conversation?.iconURL ?? null,
   );
+  const selectedToolGuideStaticAvatarUrl = getStaticAgentIconUrlForName(
+    selectedToolGuideName || name,
+  );
+  const selectedToolGuideAvatarUrl =
+    selectedToolGuidePreferredAvatarUrl &&
+    !isExpiringAgentAvatarUrl(selectedToolGuidePreferredAvatarUrl)
+      ? selectedToolGuidePreferredAvatarUrl
+      : selectedToolGuideStaticAvatarUrl ?? selectedToolGuidePreferredAvatarUrl;
   const shouldShowSelectedToolGuideAvatar =
     selectedToolGuideAvatarUrl != null && !selectedToolGuideAvatarFailed;
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
       const customWelcome = normalizeAgentBrandText(startupConfig.interface.customWelcome);
-      // Replace {{user.name}} with actual user name if available
       if (user?.name && customWelcome.includes('{{user.name}}')) {
         return customWelcome.replace(/{{user.name}}/g, user.name);
       }
@@ -170,23 +153,16 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     const dayOfWeek = now.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-    // Early morning (midnight to 4:59 AM)
     if (hours >= 0 && hours < 5) {
       return localize('com_ui_late_night');
-    }
-    // Morning (6 AM to 11:59 AM)
-    else if (hours < 12) {
+    } else if (hours < 12) {
       if (isWeekend) {
         return localize('com_ui_weekend_morning');
       }
       return localize('com_ui_good_morning');
-    }
-    // Afternoon (12 PM to 4:59 PM)
-    else if (hours < 17) {
+    } else if (hours < 17) {
       return localize('com_ui_good_afternoon');
-    }
-    // Evening (5 PM to 8:59 PM)
-    else {
+    } else {
       return localize('com_ui_good_evening');
     }
   }, [localize, startupConfig?.interface?.customWelcome, user?.name]);
@@ -200,7 +176,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     if (contentRef.current) {
       setContentHeight(contentRef.current.offsetHeight);
     }
-  }, [lineCount, compactDescription]);
+  }, [lineCount, description]);
 
   useEffect(() => {
     setSelectedToolGuideAvatarFailed(false);
@@ -208,11 +184,14 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
 
   const getDynamicMargin = useMemo(() => {
     let margin = 'mb-0';
+    const descriptionLength = description.length;
 
-    if (lineCount > 2 || (compactDescription && compactDescription.length > 90)) {
+    if (lineCount > 2 || descriptionLength > 220) {
+      margin = 'mb-12';
+    } else if (descriptionLength > 120) {
+      margin = 'mb-10';
+    } else if (lineCount > 1 || description) {
       margin = 'mb-6';
-    } else if (lineCount > 1 || compactDescription) {
-      margin = 'mb-4';
     } else if (textHasMultipleLines) {
       margin = 'mb-3';
     }
@@ -224,7 +203,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     }
 
     return margin;
-  }, [lineCount, compactDescription, textHasMultipleLines, contentHeight]);
+  }, [lineCount, description, textHasMultipleLines, contentHeight]);
 
   const shouldShowMobileUserName = isSmallScreen && !isCustomWelcome && !!user?.name;
   const greetingText =
@@ -333,7 +312,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             </div>
           )}
         </div>
-        {compactDescription && (
+        {description && (
           <motion.div
             variants={softRevealVariants}
             initial={shouldReduceMotion ? false : 'hidden'}
@@ -348,9 +327,10 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             }
             className="chat-landing-description animate-fadeIn mt-4 text-center"
           >
-            {compactDescription}
+            {description}
           </motion.div>
         )}
+        <ConversationStarters />
       </div>
     </div>
   );

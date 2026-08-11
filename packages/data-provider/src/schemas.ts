@@ -253,6 +253,8 @@ export const defaultAgentFormValues = {
   id: '',
   name: '',
   description: '',
+  recommended_prompts: [],
+  show_recommended_prompts: true,
   instructions: '',
   model: '',
   model_parameters: {},

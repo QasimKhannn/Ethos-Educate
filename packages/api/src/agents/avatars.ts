@@ -38,8 +38,8 @@ export type RefreshStats = {
  * Opportunistically refreshes signed cloud-storage avatars for agent list responses.
  * Processes agents in batches to prevent database connection pool exhaustion.
  * Only list responses are refreshed because they're the highest-traffic surface and
- * the avatar URLs have a short-lived TTL. The refresh is cached per-user for 30 minutes
- * so we refresh once per interval at most.
+ * the avatar URLs have a short-lived TTL. The refresh is cached briefly per user
+ * so we avoid repeated refreshes during bursts.
  *
  * Any user with VIEW access to an agent can refresh its avatar URL. This ensures
  * avatars remain accessible even when the owner hasn't logged in recently.

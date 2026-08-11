@@ -87,6 +87,30 @@ const agentSchema = new Schema<IAgent>(
       type: [String],
       default: [],
     },
+    recommended_prompts: {
+      type: [
+        {
+          label: {
+            type: String,
+            trim: true,
+          },
+          prompt: {
+            type: String,
+            trim: true,
+          },
+          description: {
+            type: String,
+            trim: true,
+            default: undefined,
+          },
+        },
+      ],
+      default: [],
+    },
+    show_recommended_prompts: {
+      type: Boolean,
+      default: true,
+    },
     tool_resources: {
       type: Schema.Types.Mixed,
       default: {},

@@ -6,6 +6,12 @@ export interface ISupportContact {
   email?: string;
 }
 
+export interface IAgentRecommendedPrompt {
+  label: string;
+  prompt: string;
+  description?: string;
+}
+
 export interface IAgent extends Omit<Document, 'model'> {
   id: string;
   name?: string;
@@ -35,6 +41,8 @@ export interface IAgent extends Omit<Document, 'model'> {
   /** @deprecated Use ACL permissions instead */
   isCollaborative?: boolean;
   conversation_starters?: string[];
+  recommended_prompts?: IAgentRecommendedPrompt[];
+  show_recommended_prompts?: boolean;
   tool_resources?: unknown;
   projectIds?: Types.ObjectId[];
   versions?: Omit<IAgent, 'versions'>[];

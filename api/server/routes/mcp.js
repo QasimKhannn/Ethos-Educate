@@ -18,6 +18,7 @@ const {
   OAUTH_CSRF_COOKIE,
   setOAuthCsrfCookie,
   generateCheckAccess,
+  checkAccess,
   validateOAuthSession,
   OAUTH_SESSION_COOKIE,
 } = require('@librechat/api');
@@ -1014,18 +1015,52 @@ async function getOAuthHeaders(serverName, userId) {
 MCP Server CRUD Routes (User-Managed MCP Servers)
 */
 
-// Permission checkers for MCP server management
-const checkMCPUsePermissions = generateCheckAccess({
-  permissionType: PermissionTypes.MCP_SERVERS,
-  permissions: [Permissions.USE],
-  getRoleByName,
-});
-
 const checkMCPCreate = generateCheckAccess({
   permissionType: PermissionTypes.MCP_SERVERS,
   permissions: [Permissions.USE, Permissions.CREATE],
   getRoleByName,
 });
+
+const checkMCPUseOrAgentBuilderAccess = async (req, res, next) => {
+  try {
+    const hasMCPAccess = await checkAccess({
+      req,
+      user: req.user,
+      permissionType: PermissionTypes.MCP_SERVERS,
+      permissions: [Permissions.USE],
+      getRoleByName,
+    });
+
+    if (hasMCPAccess) {
+      return next();
+    }
+
+    const isAgentBuilderRequest = req.query?.context === 'agent-builder';
+    if (isAgentBuilderRequest) {
+      const hasAgentBuilderAccess = await checkAccess({
+        req,
+        user: req.user,
+        permissionType: PermissionTypes.AGENTS,
+        permissions: [Permissions.USE, Permissions.CREATE],
+        getRoleByName,
+      });
+
+      if (hasAgentBuilderAccess) {
+        return next();
+      }
+    }
+
+    logger.warn(
+      `[${PermissionTypes.MCP_SERVERS}] Forbidden: "${req.originalUrl}" - Insufficient permissions for User ${req.user?.id}: ${Permissions.USE}`,
+    );
+    return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({
+      message: `Server error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    });
+  }
+};
 
 /**
  * Get list of accessible MCP servers
@@ -1036,7 +1071,7 @@ const checkMCPCreate = generateCheckAccess({
  * @param {string} [req.query.search] - Search query for title/description
  * @returns {MCPServerListResponse} 200 - Success response - application/json
  */
-router.get('/servers', requireJwtAuth, checkMCPUsePermissions, getMCPServersList);
+router.get('/servers', requireJwtAuth, checkMCPUseOrAgentBuilderAccess, getMCPServersList);
 
 /**
  * Create a new MCP server
@@ -1055,7 +1090,7 @@ router.post('/servers', requireJwtAuth, checkMCPCreate, createMCPServerControlle
 router.get(
   '/servers/:serverName',
   requireJwtAuth,
-  checkMCPUsePermissions,
+  checkMCPUseOrAgentBuilderAccess,
   canAccessMCPServerResource({
     requiredPermission: PermissionBits.VIEW,
     resourceIdParam: 'serverName',

@@ -64,6 +64,8 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
     artifacts,
     toolkit_description,
     description,
+    recommended_prompts,
+    show_recommended_prompts,
     instructions,
     model: _model,
     model_parameters,
@@ -73,7 +75,6 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
     end_after_tools,
     hide_sequential_outputs,
     recursion_limit,
-    category,
     support_contact,
     tool_options,
     avatar_action: avatarActionState,
@@ -84,6 +85,19 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
   const model = _model ?? '';
   const provider =
     (typeof _provider === 'string' ? _provider : (_provider as StringOption).value) ?? '';
+  const cleanedRecommendedPrompts =
+    recommended_prompts
+      ?.map((prompt) => ({
+        label: prompt.label?.trim() ?? '',
+        prompt: prompt.prompt?.trim() ?? '',
+        description: prompt.description?.trim() ?? '',
+      }))
+      .filter((prompt) => prompt.label.length > 0 && prompt.prompt.length > 0)
+      .map((prompt) => ({
+        label: prompt.label,
+        prompt: prompt.prompt,
+        ...(prompt.description.length > 0 ? { description: prompt.description } : {}),
+      })) ?? [];
 
   return {
     payload: {
@@ -91,6 +105,8 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
       artifacts,
       toolkit_description,
       description,
+      recommended_prompts: cleanedRecommendedPrompts,
+      show_recommended_prompts,
       instructions,
       model,
       provider,
@@ -100,7 +116,7 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
       end_after_tools,
       hide_sequential_outputs,
       recursion_limit,
-      category,
+      category: 'general',
       support_contact,
       tool_options,
       ...(shouldResetAvatar ? { avatar: null } : {}),

@@ -40,6 +40,12 @@ export const agentSupportContactSchema = z
   })
   .optional();
 
+export const agentRecommendedPromptSchema = z.object({
+  label: z.string(),
+  prompt: z.string(),
+  description: z.string().optional(),
+});
+
 /** Graph edge schema for agent handoffs */
 export const graphEdgeSchema = z.object({
   from: z.union([z.string(), z.array(z.string())]),
@@ -77,6 +83,8 @@ export const agentBaseSchema = z.object({
   artifacts: z.string().optional(),
   recursion_limit: z.number().optional(),
   conversation_starters: z.array(z.string()).optional(),
+  recommended_prompts: z.array(agentRecommendedPromptSchema).optional(),
+  show_recommended_prompts: z.boolean().optional(),
   tool_resources: agentToolResourcesSchema,
   tool_options: agentToolOptionsSchema,
   support_contact: agentSupportContactSchema,

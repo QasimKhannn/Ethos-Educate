@@ -61,6 +61,33 @@ const escapeRegex = (str = '') => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const cloudStorageAvatarSources = [FileSources.s3, FileSources.azure_blob];
 const refreshCloudStorageUrl = (file) =>
   file?.source === FileSources.azure_blob ? refreshAzureBlobUrl(file) : refreshS3Url(file);
+const signedAvatarRefreshBufferMs = Time.ONE_MINUTE;
+
+const isExpiringSignedAvatarUrl = (url) => {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return false;
+  }
+
+  try {
+    const expiresAt = new URL(url).searchParams.get('se');
+    if (!expiresAt) {
+      return false;
+    }
+
+    const expiryTime = Date.parse(expiresAt);
+    return Number.isFinite(expiryTime) && expiryTime <= Date.now() + signedAvatarRefreshBufferMs;
+  } catch {
+    return false;
+  }
+};
+
+const hasExpiringAvatarCacheUrl = (urlCache) => {
+  if (!urlCache || typeof urlCache !== 'object') {
+    return false;
+  }
+
+  return Object.values(urlCache).some(isExpiringSignedAvatarUrl);
+};
 
 /**
  * Creates an Agent.
@@ -200,6 +227,9 @@ const getAgentHandler = async (req, res, expandProperties = false) => {
         name: agent.name,
         description: agent.description,
         toolkit_description: agent.toolkit_description,
+        conversation_starters: agent.conversation_starters,
+        recommended_prompts: agent.recommended_prompts,
+        show_recommended_prompts: agent.show_recommended_prompts,
         avatar: agent.avatar,
         author: agent.author,
         provider: agent.provider,
@@ -541,7 +571,10 @@ const getListAgentsHandler = async (req, res) => {
     const refreshKey = `${userId}:agents_avatar_refresh`;
     let cachedRefresh = await cache.get(refreshKey);
     const isValidCachedRefresh =
-      cachedRefresh != null && typeof cachedRefresh === 'object' && cachedRefresh.urlCache != null;
+      cachedRefresh != null &&
+      typeof cachedRefresh === 'object' &&
+      cachedRefresh.urlCache != null &&
+      !hasExpiringAvatarCacheUrl(cachedRefresh.urlCache);
     if (!isValidCachedRefresh) {
       try {
         const fullList = await getListAgentsByAccess({
@@ -558,7 +591,7 @@ const getListAgentsHandler = async (req, res) => {
           supportedSources: cloudStorageAvatarSources,
         });
         cachedRefresh = { urlCache };
-        await cache.set(refreshKey, cachedRefresh, Time.THIRTY_MINUTES);
+        await cache.set(refreshKey, cachedRefresh, Time.ONE_MINUTE);
       } catch (err) {
         logger.error('[/Agents] Error refreshing avatars for full list: %o', err);
       }

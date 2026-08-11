@@ -6,6 +6,8 @@ import AgentGrid from '../AgentGrid';
 import type t from 'librechat-data-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const mockStartAgentChat = jest.fn();
+
 // Mock the marketplace agent query hook
 jest.mock('~/data-provider/Agents', () => ({
   useMarketplaceAgentsInfiniteQuery: jest.fn(),
@@ -71,12 +73,28 @@ jest.mock('../ErrorDisplay', () => ({
 // Mock AgentCard component
 jest.mock('../AgentCard', () => ({
   __esModule: true,
-  default: ({ agent, onSelect }: { agent: t.Agent; onSelect?: (agent: t.Agent) => void }) => (
-    <div data-testid={`agent-card-${agent.id}`} onClick={() => onSelect?.(agent)}>
+  default: ({
+    agent,
+    onClick,
+    onSelect,
+  }: {
+    agent: t.Agent;
+    onClick?: () => void;
+    onSelect?: (agent: t.Agent) => void;
+  }) => (
+    <div
+      data-testid={`agent-card-${agent.id}`}
+      onClick={() => (onClick ? onClick() : onSelect?.(agent))}
+    >
       <h3>{agent.name}</h3>
       <p>{agent.description}</p>
     </div>
   ),
+}));
+
+jest.mock('../useStartAgentChat', () => ({
+  __esModule: true,
+  default: () => mockStartAgentChat,
 }));
 
 // Import the actual modules to get the mocked functions
@@ -364,7 +382,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       expect(mockOnSelectAgent).not.toHaveBeenCalled();
     });
 
-    it('should call onSelectAgent when agent card is clicked', () => {
+    it('should start chat when agent card is clicked', () => {
       const Wrapper = createWrapper();
       render(
         <Wrapper>
@@ -373,7 +391,8 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
       );
 
       fireEvent.click(screen.getByTestId('agent-card-1'));
-      expect(mockOnSelectAgent).toHaveBeenCalledWith(mockAgents[0]);
+      expect(mockStartAgentChat).toHaveBeenCalledWith(mockAgents[0]);
+      expect(mockOnSelectAgent).not.toHaveBeenCalled();
     });
   });
 

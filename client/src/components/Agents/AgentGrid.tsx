@@ -6,7 +6,7 @@ import { useMediaQuery } from '@librechat/client';
 import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import { useMarketplaceAgentsInfiniteQuery } from '~/data-provider/Agents';
-import { TranslationKeys, useAgentCategories, useLocalize } from '~/hooks';
+import { useLocalize } from '~/hooks';
 import {
   marketplaceCardRevealVariants,
   marketplaceCardStackVariants,
@@ -18,6 +18,7 @@ import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
 import AgentDetail from './AgentDetail';
 import ErrorDisplay from './ErrorDisplay';
+import useStartAgentChat from './useStartAgentChat';
 import {
   getMockMarketplaceAgents,
   isMockMarketplaceAgent,
@@ -25,7 +26,7 @@ import {
 } from './mockAgents';
 
 interface AgentGridProps {
-  category: string;
+  category?: string;
   searchQuery: string;
   sortOption?: AgentSortOption;
   viewMode?: MarketplaceViewMode;
@@ -35,23 +36,15 @@ interface AgentGridProps {
   scrollElementRef?: React.RefObject<HTMLElement>;
 }
 
-export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_desc' | 'category';
+export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_desc';
 export type MarketplaceViewMode = 'compact' | 'large';
 
-const getCategoryToneKey = (categoryValue: string | null | undefined) =>
-  categoryValue
-    ?.toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'all';
-
 const AgentGrid: React.FC<AgentGridProps> = ({
-  category,
   searchQuery,
   sortOption = 'featured',
   viewMode = 'compact',
   onSelectAgent,
   onClearSearch,
-  onViewAll,
   scrollElementRef,
 }) => {
   const localize = useLocalize();
@@ -63,16 +56,14 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const [isTourDetailOpen, setIsTourDetailOpen] = useState(false);
   const emptyStateHeadingId = useId();
   const storefrontScrollRef = useRef<HTMLDivElement>(null);
-  const { categories } = useAgentCategories();
+  const startAgentChat = useStartAgentChat();
   const shouldUseBackendDateSort = sortOption === 'newest' || sortOption === 'oldest';
 
   const queryParams = useMemo(() => {
     const params: {
       requiredPermission: number;
-      category?: string;
       search?: string;
       limit: number;
-      promoted?: 0 | 1;
       sortBy?: 'createdAt';
       sortDirection?: 'asc' | 'desc';
     } = {
@@ -82,13 +73,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
     if (searchQuery) {
       params.search = searchQuery;
-      if (category !== 'all' && category !== 'promoted') {
-        params.category = category;
-      }
-    } else if (category === 'promoted') {
-      params.promoted = 1;
-    } else if (category !== 'all') {
-      params.category = category;
     }
 
     if (shouldUseBackendDateSort) {
@@ -97,7 +81,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     }
 
     return params;
-  }, [category, pageSize, searchQuery, shouldUseBackendDateSort, sortOption]);
+  }, [pageSize, searchQuery, shouldUseBackendDateSort, sortOption]);
 
   const {
     data,
@@ -123,18 +107,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     }
 
     return [...agents].sort((firstAgent, secondAgent) => {
-      if (sortOption === 'category') {
-        const categoryOrder = (firstAgent.category ?? '').localeCompare(
-          secondAgent.category ?? '',
-          undefined,
-          { sensitivity: 'base' },
-        );
-
-        if (categoryOrder !== 0) {
-          return categoryOrder;
-        }
-      }
-
       if (sortOption === 'name_desc') {
         return (secondAgent.name ?? '').localeCompare(firstAgent.name ?? '', undefined, {
           sensitivity: 'base',
@@ -150,14 +122,12 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const fallbackAgents = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
     const matchingAgents = mockAgents.filter((agent) => {
-      const matchesCategory =
-        category === 'all' || category === 'promoted' || agent.category === category;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         agent.name?.toLocaleLowerCase().includes(normalizedSearch) ||
         agent.description?.toLocaleLowerCase().includes(normalizedSearch);
 
-      return matchesCategory && matchesSearch;
+      return matchesSearch;
     });
 
     if (sortOption === 'featured') {
@@ -183,7 +153,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         sensitivity: 'base',
       });
     });
-  }, [category, mockAgents, searchQuery, sortOption]);
+  }, [mockAgents, searchQuery, sortOption]);
   const isUsingMockAgents =
     searchQuery.trim().length === 0 &&
     currentAgents.length === 0 &&
@@ -248,7 +218,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     setIsDetailOpen(false);
     setDetailAgent(null);
     setIsTourDetailOpen(false);
-  }, [category, searchQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleTourOpen = () => {
@@ -341,28 +311,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     isFetchingNextPage,
   ]);
 
-  const getCategoryDisplayName = (categoryValue: string) => {
-    const categoryData = categories.find((cat) => cat.value === categoryValue);
-    if (categoryData?.label) {
-      return categoryData.label.startsWith('com_')
-        ? localize(categoryData.label as TranslationKeys)
-        : categoryData.label;
-    }
-
-    if (categoryValue === 'promoted') {
-      return localize('com_agents_top_picks');
-    }
-    if (categoryValue === 'all') {
-      return localize('com_agents_all');
-    }
-
-    return categoryValue
-      .split(/[_-]/)
-      .filter(Boolean)
-      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-      .join(' ');
-  };
-
   const emptyStateHeading = searchQuery
     ? localize('com_agents_search_empty_heading')
     : localize('com_agents_empty_state_heading');
@@ -370,19 +318,15 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   let emptyStateMessage = localize('com_agents_empty_state_message');
   if (searchQuery) {
     emptyStateMessage = localize('com_agents_search_no_results', { query: searchQuery });
-  } else if (category !== 'all' && category !== 'promoted') {
-    emptyStateMessage = localize('com_agents_category_empty', {
-      category: getCategoryDisplayName(category),
-    });
-  } else if (category === 'promoted') {
-    emptyStateMessage = localize('com_agents_recommended');
   }
 
-  let emptyStateAction = {
-    label: localize('com_agents_view_all'),
-    onClick: onViewAll,
+  let emptyStateAction: { label: string; onClick?: () => void } = {
+    label: localize('com_agents_refresh_library'),
+    onClick: () => {
+      void refetch();
+    },
   };
-  let EmptyStateActionIcon = ChevronRight;
+  let EmptyStateActionIcon = RotateCw;
 
   if (searchQuery) {
     emptyStateAction = {
@@ -390,22 +334,21 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       onClick: onClearSearch,
     };
     EmptyStateActionIcon = X;
-  } else if (category === 'all') {
-    emptyStateAction = {
-      label: localize('com_agents_refresh_library'),
-      onClick: () => refetch(),
-    };
-    EmptyStateActionIcon = RotateCw;
   }
 
-  const handleOpenAgent = (agent: t.Agent) => {
-    setIsTourDetailOpen(false);
-    if (!isMockMarketplaceAgent(agent)) {
-      onSelectAgent(agent);
-    }
-    setDetailAgent(agent);
-    setIsDetailOpen(true);
-  };
+  const handleOpenAgent = useCallback(
+    (agent: t.Agent) => {
+      if (isMockMarketplaceAgent(agent)) {
+        return;
+      }
+
+      setIsTourDetailOpen(false);
+      setIsDetailOpen(false);
+      setDetailAgent(null);
+      startAgentChat(agent);
+    },
+    [startAgentChat],
+  );
 
   if (error) {
     return (
@@ -414,7 +357,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         onRetry={() => refetch()}
         context={{
           searchQuery,
-          category,
         }}
       />
     );
@@ -456,7 +398,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
   const listAnnouncement = localize('com_agents_grid_announcement', {
     count: displayedAgents.length,
-    category: getCategoryDisplayName(category),
   });
   const loadingCardIndexes = Array.from(
     { length: isDesktopCatalog ? pageSize : 4 },
@@ -508,8 +449,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         data-tour-padding="0"
         data-tour-radius="22"
         role="tabpanel"
-        id={`category-panel-${category}`}
-        aria-labelledby={`category-tab-${category}`}
+        id="agents-panel"
         aria-live="polite"
         aria-busy={isLoading && !hasData}
       >
@@ -530,11 +470,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
               role="gridcell"
               variants={marketplaceCardRevealVariants}
             >
-              <AgentCard
-                agent={agent}
-                onSelect={isMockMarketplaceAgent(agent) ? undefined : onSelectAgent}
-                viewMode={viewMode}
-              />
+              <AgentCard agent={agent} onClick={() => handleOpenAgent(agent)} viewMode={viewMode} />
             </motion.div>
           ))}
         </motion.div>
@@ -584,8 +520,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       data-tour-padding="0"
       data-tour-radius="22"
       role="tabpanel"
-      id={`category-panel-${category}`}
-      aria-labelledby={`category-tab-${category}`}
+      id="agents-panel"
       aria-live="polite"
       aria-busy={isLoading && !hasData}
     >
@@ -608,10 +543,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
             aria-label={listAnnouncement}
           >
             {displayedAgents.map((agent, index) => {
-              const storefrontCategoryLabel = agent.category
-                ? getCategoryDisplayName(agent.category)
-                : localize('com_agents_all');
-              const toneKey = getCategoryToneKey(agent.category);
               const agentDisplayName = getAgentDisplayName(agent);
               const toolkitDescription = getAgentToolkitDescription(agent);
 
@@ -624,7 +555,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                   <button
                     type="button"
                     data-testid={`agent-storefront-row-${agent.id}`}
-                    data-category-tone={toneKey}
                     data-tour-id={index === 0 ? 'marketplace-agent' : undefined}
                     data-tour-padding={index === 0 ? '-2' : undefined}
                     data-tour-radius={index === 0 ? '22' : undefined}
@@ -657,9 +587,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                     </div>
                     <div className="agents-marketplace-storefront-copy">
                       <h3 className="agents-marketplace-storefront-title">{agentDisplayName}</h3>
-                      <p className="agents-marketplace-storefront-meta">
-                        {storefrontCategoryLabel}
-                      </p>
                       {toolkitDescription ? (
                         <p className="agents-marketplace-storefront-description">
                           {toolkitDescription}

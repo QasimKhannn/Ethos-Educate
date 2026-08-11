@@ -337,6 +337,23 @@ describe('AgentCard', () => {
     expect(card).toHaveAttribute('aria-label', 'Test Agent agent. Short toolkit card copy');
   });
 
+  it('uses direct click mode without opening the detail dialog', () => {
+    const mockOnClick = jest.fn();
+
+    render(
+      <Wrapper>
+        <AgentCard agent={mockAgent} onClick={mockOnClick} />
+      </Wrapper>,
+    );
+
+    const card = screen.getByRole('button');
+    fireEvent.click(card);
+
+    expect(mockOnClick).toHaveBeenCalledTimes(1);
+    expect(card).not.toHaveAttribute('aria-haspopup');
+    expect(screen.queryByTestId('dialog-wrapper')).not.toBeInTheDocument();
+  });
+
   it('displays localized category label', () => {
     const agentWithCategory = {
       ...mockAgent,

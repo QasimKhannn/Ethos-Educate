@@ -1,28 +1,12 @@
-import React, { useMemo, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useRef } from 'react';
 import { Link, Pin, PinOff } from 'lucide-react';
 import { OGDialog, OGDialogContent, Button, useToastContext } from '@librechat/client';
-import {
-  QueryKeys,
-  Constants,
-  EModelEndpoint,
-  PermissionBits,
-  LocalStorageKeys,
-  AgentListResponse,
-} from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
-import type { TranslationKeys } from '~/hooks';
-import { useLocalize, useFavorites, useAgentCategories, useDefaultConvo } from '~/hooks';
-import { useChatContext } from '~/Providers';
-import {
-  renderAgentAvatar,
-  clearMessagesCache,
-  getAgentAvatarImageUrl,
-  getAgentDisplayName,
-  normalizeAgentBrandText,
-} from '~/utils';
+import { useLocalize, useFavorites } from '~/hooks';
+import { renderAgentAvatar, getAgentDisplayName, normalizeAgentBrandText } from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
 import { isMockMarketplaceAgent, renderMockMarketplaceAvatar } from './mockAgents';
+import useStartAgentChat from './useStartAgentChat';
 
 interface SupportContact {
   name?: string;
@@ -44,45 +28,14 @@ interface AgentDetailProps {
  */
 const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTourPreview }) => {
   const localize = useLocalize();
-  const queryClient = useQueryClient();
-  const getDefaultConversation = useDefaultConvo();
-  const { conversation, newConversation } = useChatContext();
   const { showToast } = useToastContext();
   const dialogRef = useRef<HTMLDivElement>(null);
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
-  const { categories } = useAgentCategories();
+  const startAgentChat = useStartAgentChat();
   const isFavorite = isFavoriteAgent(agent?.id);
   const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
-  const categoryData = categories.find((category) => category.value === agent?.category);
   const byLabel = localize('com_ui_by_author', { 0: '' }).trim();
-
-  const categoryLabel = useMemo(() => {
-    if (categoryData?.label != null) {
-      return categoryData.label.startsWith('com_')
-        ? localize(categoryData.label as TranslationKeys)
-        : categoryData.label;
-    }
-
-    return agent?.category
-      ?.split(/[_-]/)
-      .filter(Boolean)
-      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-      .join(' ');
-  }, [agent?.category, categoryData?.label, localize]);
-
-  const categoryDescription = useMemo(() => {
-    const description =
-      categoryData && 'description' in categoryData && typeof categoryData.description === 'string'
-        ? categoryData.description
-        : undefined;
-
-    if (description == null) {
-      return '';
-    }
-
-    return description.startsWith('com_') ? localize(description as TranslationKeys) : description;
-  }, [categoryData, localize]);
 
   const handleFavoriteClick = () => {
     if (agent) {
@@ -91,51 +44,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
   };
 
   const handleStartChat = () => {
-    if (agent) {
-      const agentAvatarUrl = getAgentAvatarImageUrl(agent);
-      const keys = [QueryKeys.agents, { requiredPermission: PermissionBits.EDIT }];
-      const listResp = queryClient.getQueryData<AgentListResponse>(keys);
-
-      if (listResp != null && !listResp.data.some((candidate) => candidate.id === agent.id)) {
-        const currentAgents = [agent, ...JSON.parse(JSON.stringify(listResp.data))];
-        queryClient.setQueryData<AgentListResponse>(keys, { ...listResp, data: currentAgents });
-      }
-
-      localStorage.setItem(`${LocalStorageKeys.AGENT_ID_PREFIX}0`, agent.id);
-      localStorage.setItem(
-        'eduToolkitSelectedToolGuide',
-        JSON.stringify({
-          agentId: agent.id,
-          name: agentDisplayName,
-          category: agent.category,
-          description: agent.description,
-          avatarUrl: agentAvatarUrl,
-        }),
-      );
-
-      clearMessagesCache(queryClient, conversation?.conversationId);
-      queryClient.invalidateQueries([QueryKeys.messages]);
-
-      const template = {
-        conversationId: Constants.NEW_CONVO as string,
-        endpoint: EModelEndpoint.agents,
-        agent_id: agent.id,
-        ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
-        title: localize('com_agents_chat_with', {
-          name: agentDisplayName || localize('com_ui_agent'),
-        }),
-      };
-
-      const currentConvo = getDefaultConversation({
-        conversation: { ...(conversation ?? {}), ...template },
-        preset: template,
-      });
-
-      newConversation({
-        template: currentConvo,
-        preset: template,
-      });
-    }
+    startAgentChat(agent);
   };
 
   /**
@@ -208,11 +117,6 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
                 renderAgentAvatar(agent, { size: 'xl' })}
             </div>
             <div className="agent-detail-heading">
-              <div className="agent-detail-meta-row">
-                {categoryLabel ? (
-                  <span className="agent-detail-category-badge">{categoryLabel}</span>
-                ) : null}
-              </div>
               <div className="agent-detail-title-row">
                 <h2 className="agent-detail-title">
                   {agentDisplayName || localize('com_agents_loading')}
@@ -228,7 +132,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
           </div>
 
           <div className="agent-detail-body">
-            <AgentOnboardingOverview agent={agent} supportingNote={categoryDescription} />
+            <AgentOnboardingOverview agent={agent} />
           </div>
 
           <div className="agent-detail-actions">

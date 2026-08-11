@@ -9,7 +9,6 @@ import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
 import { useAddedResponse, useResumeOnLoad, useAdaptiveSSE, useChatHelpers } from '~/hooks';
-import ConversationStarters from './Input/ConversationStarters';
 import { useGetMessagesByConvoId } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
@@ -114,9 +113,8 @@ function ChatView({ index = 0 }: { index?: number }) {
                           'chat-landing-page-composer w-full',
                           isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
                         )}
-                      >
+                        >
                         <ChatForm index={index} />
-                        <ConversationStarters />
                       </motion.div>
                     </motion.div>
                   ) : (

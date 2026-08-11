@@ -219,6 +219,8 @@ export const useUploadAgentAvatarMutation = (
         [QueryKeys.agent, variables.agent_id, 'expanded'],
         updatedAgent,
       );
+      queryClient.invalidateQueries([QueryKeys.agents]);
+      queryClient.invalidateQueries([QueryKeys.agent, variables.agent_id]);
       invalidateAgentMarketplaceQueries(queryClient);
 
       return options?.onSuccess?.(updatedAgent, variables, context);
@@ -405,4 +407,5 @@ export const useRevertAgentVersionMutation = (
 
 export const invalidateAgentMarketplaceQueries = (queryClient: QueryClient) => {
   queryClient.invalidateQueries([QueryKeys.marketplaceAgents]);
+  queryClient.invalidateQueries([QueryKeys.agentCategories]);
 };

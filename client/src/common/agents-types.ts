@@ -2,6 +2,7 @@ import { AgentCapabilities, ArtifactModes } from 'librechat-data-provider';
 import type {
   AgentModelParameters,
   AgentToolOptions,
+  AgentRecommendedPrompt,
   SupportContact,
   AgentProvider,
   GraphEdge,
@@ -33,6 +34,8 @@ export type AgentForm = {
   name: string | null;
   toolkit_description?: string | null;
   description: string | null;
+  recommended_prompts?: AgentRecommendedPrompt[];
+  show_recommended_prompts?: boolean;
   instructions: string | null;
   model: string | null;
   model_parameters: AgentModelParameters;

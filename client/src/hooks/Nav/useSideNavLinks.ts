@@ -142,16 +142,18 @@ export default function useSideNavLinks({
       });
     }
 
-    links.push({
-      title: 'com_sidepanel_attach_files',
-      description: 'com_ui_control_panel_tour_files_body',
-      label: '',
-      icon: AttachmentIcon,
-      id: 'files',
-      Component: FilesPanel,
-    });
+    if (isAdmin) {
+      links.push({
+        title: 'com_sidepanel_attach_files',
+        description: 'com_ui_control_panel_tour_files_body',
+        label: '',
+        icon: AttachmentIcon,
+        id: 'files',
+        Component: FilesPanel,
+      });
+    }
 
-    if (hasAccessToBookmarks) {
+    if (isAdmin && hasAccessToBookmarks) {
       links.push({
         title: 'com_sidepanel_conversation_tags',
         description: 'com_ui_control_panel_tour_bookmarks_body',

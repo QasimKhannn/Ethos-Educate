@@ -19,11 +19,14 @@ const staticAgentIconPath = `${legacyStaticAgentIconPath}style-c/`;
 const staticAgentIconPaths = [staticAgentIconPath, legacyStaticAgentIconPath];
 const defaultAgentIconPath = `${staticAgentIconPath}default-agent.svg`;
 const defaultAgentIconUrl = () => getStaticAgentIconUrl(defaultAgentIconPath);
+const signedAvatarExpiryBufferMs = 60_000;
 
 const staticAgentIconFilesBySlug = new Map<string, string>([
   ['504-plan-generator', '504-plan-generator.svg'],
+  ['agent-creation-agent', 'agent-creation-agent.svg'],
   ['announcement-writer', 'announcement-writer.svg'],
   ['assessment-and-quiz-builder', 'assessment-quiz-builder.svg'],
+  ['assessment-quiz-builder', 'assessment-quiz-builder.svg'],
   ['class-newsletter-creator', 'class-newsletter-creator.svg'],
   ['coloring-page-creator', 'coloring-page-creator.svg'],
   ['conceptual-diagram-creator', 'conceptual-diagram-creator.svg'],
@@ -31,27 +34,49 @@ const staticAgentIconFilesBySlug = new Map<string, string>([
   ['downloadable-word-doc-or-pdf', 'word-doc-and-pdf-generator.svg'],
   ['educhat-support-assistant', 'default-agent.svg'],
   ['educational-grants-and-funding-finder', 'educational-grants-funding-finder.svg'],
+  ['educational-grants-funding-finder', 'educational-grants-funding-finder.svg'],
   ['email-drafter', 'email-drafter.svg'],
+  ['eoy-intech-support-guide', 'eoy-intech-support-guide.svg'],
+  ['eoy-power-school-guide', 'eoy-power-school-guide.svg'],
+  ['ethos-educate-support', 'ethos-educate-support.svg'],
   ['ethos-support-assistant', 'default-agent.svg'],
   ['lesson-plan-builder', 'lesson-plan-builder.svg'],
+  ['lesson-plan-enhancer', 'lesson-plan-enhancer.svg'],
   ['letter-and-memo-generator', 'letter-memo-generator.svg'],
+  ['letter-memo-generator', 'letter-memo-generator.svg'],
+  ['logo-editor-agent', 'logo-editor-agent.svg'],
   ['meeting-agenda-builder', 'meeting-agenda-builder.svg'],
   ['meeting-notes-summarizer', 'meeting-notes-summarizer.svg'],
+  ['mvp-culture-champion-assistant', 'mvp-culture-champion-assistant.svg'],
   ['parent-conference-prep-sheet', 'parent-conference-prep-sheet.svg'],
+  ['podcast-creator', 'podcast-creator.svg'],
   ['policy-and-document-summarizer', 'policy-document-summarizer.svg'],
+  ['policy-document-summarizer', 'policy-document-summarizer.svg'],
   ['poster-design', 'school-poster-designer.svg'],
+  ['poster-creator', 'school-poster-designer.svg'],
   ['powerpoint-presentation-creator', 'powerpoint-presentation-creator.svg'],
+  ['powerpoint-presentation-enhancer', 'powerpoint-presentation-enhancer.svg'],
   ['professional-development-plan-creator', 'professional-development-plan-creator.svg'],
+  ['prompt-creation-agent', 'prompt-creation-agent.svg'],
+  ['prompt-writer', 'prompt-creation-agent.svg'],
   ['real-world-examples-generator', 'real-world-examples-generator.svg'],
   ['report-card-comment-writer', 'report-card-comment-writer.svg'],
   ['rubric-creator', 'rubric-creator.svg'],
   ['social-media-post-generator', 'social-media-post-generator.svg'],
   ['spreadsheet-excel-creator', 'spreadsheet-excel-creator.svg'],
+  ['standard-translator', 'standard-translator.svg'],
   ['standards-translator', 'standard-translator.svg'],
   ['student-certificate-creator', 'student-certificate-creator.svg'],
   ['survey-builder', 'survey-builder.svg'],
+  ['transcript-to-worksheet', 'transcript-to-worksheet.svg'],
   ['translation-assistant', 'translation-assistant.svg'],
+  ['video-transcript-to-worksheet', 'transcript-to-worksheet.svg'],
+  ['vocabulary-and-spelling-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
+  ['vocabulary-and-spelling-list-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
   ['vocabulary-and-spelling-list-builder', 'vocabulary-spelling-list-builder.svg'],
+  ['vocabulary-spelling-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
+  ['vocabulary-spelling-list-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
+  ['vocabulary-spelling-list-builder', 'vocabulary-spelling-list-builder.svg'],
   ['word-doc-and-pdf-generator', 'word-doc-and-pdf-generator.svg'],
   ['worksheet-generator', 'worksheet-generator.svg'],
   ['youtube-video-finder', 'youtube-video-finder.svg'],
@@ -108,10 +133,33 @@ export const getStaticAgentIconUrlForName = (name: string | null | undefined): s
   return iconFileName ? getStaticAgentIconUrl(`${staticAgentIconPath}${iconFileName}`) : null;
 };
 
+export const isExpiringAgentAvatarUrl = (url: string | null | undefined): boolean => {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return false;
+  }
+
+  try {
+    const expiresAt = new URL(url).searchParams.get('se');
+    if (!expiresAt) {
+      return false;
+    }
+
+    const expiryTime = Date.parse(expiresAt);
+    return Number.isFinite(expiryTime) && expiryTime <= Date.now() + signedAvatarExpiryBufferMs;
+  } catch {
+    return false;
+  }
+};
+
 export const getAgentAvatarImageUrl = (agent: t.Agent | null | undefined): string | null => {
-  return (
-    getStaticAgentIconUrlForName(agent?.name) ?? normalizeAgentAvatarUrl(getAgentAvatarUrl(agent))
-  );
+  const avatarUrl = normalizeAgentAvatarUrl(getAgentAvatarUrl(agent));
+  const staticAvatarUrl = getStaticAgentIconUrlForName(agent?.name);
+
+  if (avatarUrl && !isExpiringAgentAvatarUrl(avatarUrl)) {
+    return avatarUrl;
+  }
+
+  return staticAvatarUrl ?? avatarUrl;
 };
 
 export const isStaticAgentIconUrl = (url: string) => {
@@ -333,7 +381,8 @@ export const renderAgentAvatar = (
   const skeletonClass = `absolute inset-0 ${placeholderSizeClasses[size]} ${imageShapeClasses}`;
 
   if (avatarUrl || size !== 'icon') {
-    const fallbackAvatarUrl = defaultAgentIconUrl();
+    const staticAvatarUrl = getStaticAgentIconUrlForName(agent?.name);
+    const fallbackAvatarUrl = staticAvatarUrl ?? defaultAgentIconUrl();
     const resolvedAvatarUrl = avatarUrl ?? fallbackAvatarUrl;
 
     return (

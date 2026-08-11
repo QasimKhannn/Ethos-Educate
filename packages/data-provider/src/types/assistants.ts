@@ -238,6 +238,12 @@ export type ToolOptions = {
  */
 export type AgentToolOptions = Record<string, ToolOptions>;
 
+export type AgentRecommendedPrompt = {
+  label: string;
+  prompt: string;
+  description?: string;
+};
+
 export type Agent = {
   _id?: string;
   id: string;
@@ -260,6 +266,8 @@ export type Agent = {
   model: string | null;
   model_parameters: AgentModelParameters;
   conversation_starters?: string[];
+  recommended_prompts?: AgentRecommendedPrompt[];
+  show_recommended_prompts?: boolean;
   /** @deprecated Use ACL permissions instead */
   isCollaborative?: boolean;
   tool_resources?: AgentToolResources;
@@ -302,6 +310,8 @@ export type AgentCreateParams = {
   | 'category'
   | 'support_contact'
   | 'tool_options'
+  | 'recommended_prompts'
+  | 'show_recommended_prompts'
 >;
 
 export type AgentUpdateParams = {
@@ -330,6 +340,8 @@ export type AgentUpdateParams = {
   | 'category'
   | 'support_contact'
   | 'tool_options'
+  | 'recommended_prompts'
+  | 'show_recommended_prompts'
 >;
 
 export type AgentListParams = {
