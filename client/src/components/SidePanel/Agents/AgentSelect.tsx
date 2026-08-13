@@ -7,6 +7,7 @@ import type { UseMutationResult, QueryObserverResult } from '@tanstack/react-que
 import type { Agent, AgentCreateParams } from 'librechat-data-provider';
 import type { TAgentCapabilities, AgentForm } from '~/common';
 import { cn, createProviderOption, processAgentOption, getDefaultAgentFormValues } from '~/utils';
+import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
 import { useLocalize, useAgentDefaultPermissionLevel } from '~/hooks';
 import { useListAgentsQuery } from '~/data-provider';
 
@@ -112,7 +113,7 @@ function AgentSelect({
         agent: update,
         model: update.model,
         tools: agentTools,
-        category: 'general',
+        category: fullAgent.category || EMPTY_AGENT_CATEGORY.value,
         recommended_prompts: fullAgent.recommended_prompts ?? [],
         show_recommended_prompts: fullAgent.show_recommended_prompts !== false,
         // Make sure support_contact is properly loaded
@@ -154,10 +155,6 @@ function AgentSelect({
 
         if (name === 'recommended_prompts' && Array.isArray(value)) {
           formValues[name] = value;
-          return;
-        }
-
-        if (name === 'category') {
           return;
         }
 
@@ -233,6 +230,16 @@ function AgentSelect({
 
   const createAgent = localize('com_ui_create_new_agent');
   const hasAgentSearch = agentSearch.trim().length > 0;
+  const searchResultsId = 'agent-builder-search-results';
+  const visibleSearchResults = hasAgentSearch ? (filteredAgents ?? []).slice(0, 10) : [];
+
+  const handleSearchResultSelect = useCallback(
+    (agentId: string) => {
+      setAgentSearch('');
+      onSelect(agentId);
+    },
+    [onSelect],
+  );
 
   return (
     <Controller
@@ -250,10 +257,20 @@ function AgentSelect({
               value={agentSearch}
               onChange={(event) => setAgentSearch(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
+                if (event.key !== 'Enter') {
+                  return;
+                }
+
+                event.preventDefault();
+                const firstAgent = visibleSearchResults[0];
+                const firstAgentId = `${firstAgent?.value ?? firstAgent?.id ?? ''}`;
+                if (firstAgentId) {
+                  handleSearchResultSelect(firstAgentId);
                 }
               }}
+              aria-controls={hasAgentSearch ? searchResultsId : undefined}
+              aria-expanded={hasAgentSearch && visibleSearchResults.length > 0}
+              role="combobox"
               placeholder={localize('com_agents_search_name')}
               aria-label={localize('com_agents_search_name')}
               className="h-10 w-full rounded-md border border-border-light bg-transparent py-2 pl-9 pr-9 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary focus:border-blue-500"
@@ -268,6 +285,45 @@ function AgentSelect({
                 <XIcon className="h-4 w-4" aria-hidden="true" />
               </button>
             ) : null}
+            {visibleSearchResults.length > 0 ? (
+              <div
+                id={searchResultsId}
+                role="listbox"
+                className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-72 overflow-y-auto rounded-md border border-border-light bg-surface-secondary py-1 shadow-lg"
+              >
+                {visibleSearchResults.map((agent) => {
+                  const agentId = `${agent.value ?? agent.id ?? ''}`;
+                  const label = agent.label ?? agent.name ?? agent.id ?? '';
+                  const description = agent.toolkit_description ?? agent.description ?? '';
+
+                  return (
+                    <button
+                      key={agentId}
+                      type="button"
+                      role="option"
+                      aria-selected={agentId === selectedAgentId}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => handleSearchResultSelect(agentId)}
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
+                    >
+                      {agent.icon ? (
+                        <span className="flex h-5 w-5 flex-none items-center justify-center overflow-hidden rounded-full">
+                          {agent.icon}
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{label}</span>
+                        {description ? (
+                          <span className="block truncate text-xs text-text-secondary">
+                            {description}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
           <ControlCombobox
             containerClassName="px-0"
@@ -280,8 +336,8 @@ function AgentSelect({
             setValue={onSelect}
             items={
               filteredAgents?.map((agent) => ({
-                label: agent.name ?? '',
-                value: agent.id ?? '',
+                label: agent.label ?? agent.name ?? agent.id ?? '',
+                value: `${agent.value ?? agent.id ?? ''}`,
                 icon: agent.icon,
               })) ?? [
                 {
@@ -296,6 +352,7 @@ function AgentSelect({
             ariaLabel={localize('com_ui_agent')}
             isCollapsed={false}
             showCarat={true}
+            popoverPortal={false}
           />
           {hasAgentSearch && filteredAgents?.length === 0 ? (
             <p className="px-1 text-xs text-text-secondary">

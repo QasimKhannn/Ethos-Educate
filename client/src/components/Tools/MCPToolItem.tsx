@@ -72,9 +72,9 @@ function MCPToolItem({
   const buttonState = getButtonState();
 
   return (
-    <div className="flex flex-col gap-4 rounded border border-border-medium bg-transparent p-6">
-      <div className="flex gap-4">
-        <div className="h-[70px] w-[70px] shrink-0">
+    <div className="flex aspect-square min-h-[13rem] flex-col gap-4 overflow-hidden rounded border border-border-medium bg-transparent p-5">
+      <div className="flex min-w-0 gap-3">
+        <div className="h-14 w-14 shrink-0">
           <div className="relative h-full w-full">
             {icon ? (
               <img
@@ -90,24 +90,28 @@ function MCPToolItem({
             <div className="absolute inset-0 rounded-[5px] ring-1 ring-inset ring-black/10"></div>
           </div>
         </div>
-        <div className="flex min-w-0 flex-col items-start justify-between">
-          <div className="mb-2 line-clamp-1 max-w-full text-lg leading-5 text-text-primary">
+        <div className="min-w-0 flex-1">
+          <div className="line-clamp-2 max-w-full text-base font-semibold leading-5 text-text-primary">
             {name}
           </div>
-          <button
-            className={buttonState.className}
-            aria-label={`${buttonState.text} ${name}`}
-            onClick={handleClick}
-            disabled={buttonState.disabled}
-          >
-            <div className="flex w-full items-center justify-center gap-2">
-              {buttonState.text}
-              {buttonState.icon}
+          {description ? (
+            <div className="mt-2 line-clamp-5 text-sm leading-5 text-text-secondary">
+              {description}
             </div>
-          </button>
+          ) : null}
         </div>
       </div>
-      <div className="line-clamp-3 h-[60px] text-sm text-text-secondary">{description}</div>
+      <button
+        className={`${buttonState.className} mt-auto w-full justify-center`}
+        aria-label={`${buttonState.text} ${name}`}
+        onClick={handleClick}
+        disabled={buttonState.disabled}
+      >
+        <div className="flex w-full items-center justify-center gap-2">
+          {buttonState.text}
+          {buttonState.icon}
+        </div>
+      </button>
     </div>
   );
 }

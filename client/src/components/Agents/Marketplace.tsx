@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ChevronDown } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ListFilter } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import {
   Constants,
@@ -18,6 +18,7 @@ import type t from 'librechat-data-provider';
 import type { AgentSortOption } from './AgentGrid';
 import {
   useDocumentTitle,
+  useAgentCategories,
   useHasAccess,
   useLocalize,
   useAuthContext,
@@ -107,21 +108,25 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 
   // Get URL parameters
   const searchQuery = searchParams.get('q') || '';
+  const selectedCategory = searchParams.get('category') || 'all';
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const [sortOption, setSortOption] = useState<AgentSortOption>('featured');
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isMarketplacePanelOpen, setIsMarketplacePanelOpen] = useState(false);
 
   // Ref for the scrollable container to enable infinite scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
 
   // Set page title
   useDocumentTitle(`${localize('com_agents_marketplace')}`);
 
   // Ensure endpoints config is loaded first (required for agent queries)
   const { data: endpointsConfig = {} as t.TEndpointsConfig } = useGetEndpointsQuery();
+  const { categories: agentCategories } = useAgentCategories();
 
   const marketplaceSidePanelContext = useMemo(
     () => resolveMarketplaceSidePanelContext({ conversation, endpointsConfig }),
@@ -194,21 +199,26 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   ]);
 
   useEffect(() => {
-    if (!isSortMenuOpen) {
+    if (!isSortMenuOpen && !isCategoryMenuOpen) {
       return;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (sortMenuRef.current?.contains(event.target as Node)) {
+      if (
+        sortMenuRef.current?.contains(event.target as Node) ||
+        categoryMenuRef.current?.contains(event.target as Node)
+      ) {
         return;
       }
 
       setIsSortMenuOpen(false);
+      setIsCategoryMenuOpen(false);
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsSortMenuOpen(false);
+        setIsCategoryMenuOpen(false);
       }
     };
 
@@ -219,7 +229,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isSortMenuOpen]);
+  }, [isCategoryMenuOpen, isSortMenuOpen]);
 
   /**
    * Handle agent card selection - updates URL for deep linking
@@ -242,6 +252,18 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       newParams.set('q', query.trim());
     } else {
       newParams.delete('q');
+    }
+
+    navigate(`/agents${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    const newParams = new URLSearchParams(searchParams);
+
+    if (category === 'all') {
+      newParams.delete('category');
+    } else {
+      newParams.set('category', category);
     }
 
     navigate(`/agents${newParams.toString() ? `?${newParams.toString()}` : ''}`);
@@ -290,6 +312,61 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   const activeSortLabel =
     sortOptions.find((option) => option.value === sortOption)?.label ??
     localize('com_agents_sort_featured');
+  const categoryOptions = [
+    { value: 'all', label: localize('com_agents_all_category') },
+    ...agentCategories.map((category) => ({
+      value: category.value,
+      label: category.label,
+    })),
+  ];
+  const activeCategoryLabel =
+    categoryOptions.find((option) => option.value === selectedCategory)?.label ??
+    localize('com_agents_all_category');
+  const categoryControl = (
+    <div className="agents-marketplace-category-control" ref={categoryMenuRef}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isCategoryMenuOpen}
+        aria-label={localize('com_agents_filter_by_category')}
+        className="agents-marketplace-category-trigger"
+        onClick={() => {
+          setIsCategoryMenuOpen((currentValue) => !currentValue);
+          setIsSortMenuOpen(false);
+        }}
+      >
+        <span className="agents-marketplace-category-icon" aria-hidden="true">
+          <ListFilter />
+        </span>
+        <span className="agents-marketplace-category-copy">
+          <span className="agents-marketplace-category-label">
+            {localize('com_agents_filter_by_category')}
+          </span>
+          <span className="agents-marketplace-category-value">{activeCategoryLabel}</span>
+        </span>
+        <ChevronDown aria-hidden="true" className="agents-marketplace-category-chevron" />
+      </button>
+      {isCategoryMenuOpen && (
+        <div className="agents-marketplace-category-menu" role="listbox">
+          {categoryOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === selectedCategory}
+              className="agents-marketplace-category-option"
+              onClick={() => {
+                handleCategoryChange(option.value);
+                setIsCategoryMenuOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
   const sortControl = (
     <div className="agents-marketplace-sort-control" ref={sortMenuRef}>
       <button
@@ -300,6 +377,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
         className="agents-marketplace-sort-trigger"
         onClick={() => {
           setIsSortMenuOpen((currentValue) => !currentValue);
+          setIsCategoryMenuOpen(false);
         }}
       >
         <span className="agents-marketplace-sort-icon" aria-hidden="true">
@@ -334,6 +412,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   );
   const renderResultsControls = () => (
     <div className="agents-marketplace-results-controls">
+      {categoryControl}
       {sortControl}
     </div>
   );
@@ -428,10 +507,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
             animate="visible"
             className="agents-marketplace-results relative overflow-hidden"
           >
-            <motion.div
-              key="pane-all-agents"
-              variants={marketplaceSurfaceRevealVariants}
-            >
+            <motion.div key="pane-all-agents" variants={marketplaceSurfaceRevealVariants}>
               {!searchQuery && (
                 <div className="agents-marketplace-results-heading">
                   <div className="agents-marketplace-section-header">
@@ -452,7 +528,8 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 
               <div className="agents-marketplace-grid-shell">
                 <AgentGrid
-                  key="grid-all-agents"
+                  key={`grid-${selectedCategory}`}
+                  category={selectedCategory}
                   searchQuery={searchQuery}
                   sortOption={sortOption}
                   viewMode="large"

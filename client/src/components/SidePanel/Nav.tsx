@@ -279,7 +279,7 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
         <OGDialog open={true} onOpenChange={handleModalOpenChange}>
           <OGDialogContent
             showCloseButton={false}
-            className="control-panel-dialog flex max-h-[calc(100dvh-2rem)] w-[min(94vw,62rem)] max-w-none flex-col overflow-hidden rounded-xl border border-border-light bg-surface-primary p-0 text-text-primary shadow-lg"
+            className="control-panel-dialog flex max-h-[calc(100dvh-2rem)] w-[min(96vw,76rem)] max-w-none flex-col overflow-hidden rounded-xl border border-border-light bg-surface-primary p-0 text-text-primary shadow-lg"
             onCloseAutoFocus={(event) => {
               event.preventDefault();
               triggerRefs.current.get(modalLink.id)?.focus();

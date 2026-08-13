@@ -351,7 +351,7 @@ export type AgentListParams = {
   search?: string;
   cursor?: string;
   promoted?: 0 | 1;
-  sortBy?: 'createdAt';
+  sortBy?: 'createdAt' | 'updatedAt';
   sortDirection?: 'asc' | 'desc';
 };
 

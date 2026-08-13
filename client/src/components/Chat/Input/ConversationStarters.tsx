@@ -18,12 +18,33 @@ type StarterCard = {
   description?: string;
 };
 
+const lessonPlanBuilderAgentIds = new Set(['agent_U34zrvm73tQ5iFaHpwiol']);
+
+const getEntitySlug = (name: string | null | undefined): string =>
+  name
+    ?.trim()
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/\(([^)]*)\)/g, ' $1 ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') ?? '';
+
+const isLessonPlanBuilderEntity = (entity?: t.Agent | t.Assistant | null): boolean => {
+  if (!entity) {
+    return false;
+  }
+
+  return (
+    lessonPlanBuilderAgentIds.has(entity.id) || getEntitySlug(entity.name) === 'lesson-plan-builder'
+  );
+};
+
 const getAgentPromptCards = (entity?: t.Agent | t.Assistant | null): StarterCard[] => {
   if (!entity || !('recommended_prompts' in entity)) {
     return [];
   }
 
-  if (entity.show_recommended_prompts === false) {
+  if (entity.show_recommended_prompts === false || isLessonPlanBuilderEntity(entity)) {
     return [];
   }
 

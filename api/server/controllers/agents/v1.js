@@ -231,6 +231,7 @@ const getAgentHandler = async (req, res, expandProperties = false) => {
         recommended_prompts: agent.recommended_prompts,
         show_recommended_prompts: agent.show_recommended_prompts,
         avatar: agent.avatar,
+        tools: agent.tools,
         author: agent.author,
         provider: agent.provider,
         model: agent.model,
@@ -546,7 +547,7 @@ const getListAgentsHandler = async (req, res) => {
       filter.$or = [{ name: regex }, { description: regex }, { toolkit_description: regex }];
     }
 
-    const validatedSortBy = sortBy === 'createdAt' ? sortBy : undefined;
+    const validatedSortBy = sortBy === 'createdAt' || sortBy === 'updatedAt' ? sortBy : undefined;
     const validatedSortDirection =
       sortDirection === 'asc' || sortDirection === 'desc' ? sortDirection : undefined;
 

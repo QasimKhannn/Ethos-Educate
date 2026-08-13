@@ -29,6 +29,7 @@ import CodeForm from './Code/Form';
 import MCPTools from './MCPTools';
 import AgentFieldLabel from './AgentFieldLabel';
 import RecommendedPrompts from './RecommendedPrompts';
+import AgentCategorySelector from './AgentCategorySelector';
 
 const inputClass = cn(
   defaultTextProps,
@@ -273,6 +274,13 @@ export default function AgentConfig() {
                 />
               )}
             />
+          </div>
+          <div className="mb-4">
+            <AgentFieldLabel
+              label={localize('com_agents_filter_by_category')}
+              description={localize('com_ui_agent_category_help')}
+            />
+            <AgentCategorySelector className="agent-builder-category-trigger btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium" />
           </div>
           <RecommendedPrompts />
         </section>

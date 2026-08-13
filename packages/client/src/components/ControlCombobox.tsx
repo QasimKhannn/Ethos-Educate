@@ -24,6 +24,7 @@ interface ControlComboboxProps {
   disabled?: boolean;
   iconSide?: 'left' | 'right';
   selectId?: string;
+  popoverPortal?: boolean;
 }
 
 const ROW_HEIGHT = 36;
@@ -45,6 +46,7 @@ function ControlCombobox({
   iconClassName,
   iconSide = 'left',
   selectId,
+  popoverPortal = true,
 }: ControlComboboxProps) {
   const [searchValue, setSearchValue] = useState('');
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -132,7 +134,7 @@ function ControlCombobox({
       <Ariakit.SelectPopover
         store={select}
         gutter={4}
-        portal
+        portal={popoverPortal}
         className={cn(
           'animate-popover z-40 overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
         )}
@@ -145,6 +147,10 @@ function ControlCombobox({
               store={combobox}
               autoSelect
               placeholder={searchPlaceholder}
+              onBlurCapture={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
               className="w-full rounded-md bg-surface-secondary py-2 pl-9 pr-3 text-sm text-text-primary focus:outline-none"
             />
           </div>

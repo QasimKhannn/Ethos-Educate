@@ -63,7 +63,7 @@ const createAgent = async (agentData) => {
         updatedAt: timestamp,
       },
     ],
-    category: agentData.category || 'general',
+    category: agentData.category || 'teaching_learning',
     mcpServerNames: extractMCPServerNames(agentData.tools),
   };
 
@@ -663,7 +663,7 @@ const deleteUserAgents = async (userId) => {
  * @param {Object} [params.otherParams] - Additional query parameters (including author filter).
  * @param {number} [params.limit] - Number of agents to return (max 100). If not provided, returns all agents.
  * @param {string} [params.after] - Cursor for pagination - get agents after this cursor.
- * @param {'createdAt'} [params.sortBy] - Optional explicit sort field for marketplace date sorting.
+ * @param {'createdAt'|'updatedAt'} [params.sortBy] - Optional explicit sort field for marketplace date sorting.
  * @param {'asc'|'desc'} [params.sortDirection] - Optional sort direction for the explicit sort field.
  * @returns {Promise<Object>} A promise that resolves to an object containing the agents data and pagination info.
  */
@@ -677,8 +677,8 @@ const getListAgentsByAccess = async ({
 }) => {
   const isPaginated = limit !== null && limit !== undefined;
   const normalizedLimit = isPaginated ? Math.min(Math.max(1, parseInt(limit) || 20), 100) : null;
-  const sortField = sortBy === 'createdAt' ? 'createdAt' : 'updatedAt';
-  const sortValueDirection = sortField === 'createdAt' && sortDirection === 'asc' ? 1 : -1;
+  const sortField = sortBy === 'createdAt' || sortBy === 'updatedAt' ? sortBy : 'updatedAt';
+  const sortValueDirection = sortDirection === 'asc' ? 1 : -1;
   const idTieBreakerDirection = 1;
 
   // Build base query combining ACL accessible agents with other filters

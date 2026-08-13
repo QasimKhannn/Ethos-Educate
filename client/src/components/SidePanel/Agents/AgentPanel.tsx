@@ -23,6 +23,7 @@ import {
   useUploadAgentAvatarMutation,
 } from '~/data-provider';
 import { createProviderOption, getDefaultAgentFormValues } from '~/utils';
+import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
 import { useResourcePermissions } from '~/hooks/useResourcePermissions';
 import { useSelectAgent, useLocalize, useAuthContext } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers/AgentPanelContext';
@@ -75,6 +76,7 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
     end_after_tools,
     hide_sequential_outputs,
     recursion_limit,
+    category,
     support_contact,
     tool_options,
     avatar_action: avatarActionState,
@@ -116,7 +118,7 @@ export function composeAgentUpdatePayload(data: AgentForm, agent_id?: string | n
       end_after_tools,
       hide_sequential_outputs,
       recursion_limit,
-      category: 'general',
+      category: category || EMPTY_AGENT_CATEGORY.value,
       support_contact,
       tool_options,
       ...(shouldResetAvatar ? { avatar: null } : {}),

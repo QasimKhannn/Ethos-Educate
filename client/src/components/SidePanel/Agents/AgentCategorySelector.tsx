@@ -9,6 +9,7 @@ import {
   ControllerRenderProps,
 } from 'react-hook-form';
 import { TranslationKeys, useLocalize, useAgentCategories } from '~/hooks';
+import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
 import { cn } from '~/utils';
 
 /**
@@ -23,7 +24,7 @@ const useCategorySync = (agent_id: string | null) => {
     ) => {
       // Only run once and only for new agents
       if (!handled && agent_id === '' && !field.value) {
-        field.onChange('general');
+        field.onChange(EMPTY_AGENT_CATEGORY.value);
         setHandled(true);
       }
     },
@@ -58,7 +59,11 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
 
   const getCategoryDisplayValue = (value: string) => {
     const categoryItem = comboboxItems.find((c) => c.value === value);
-    return categoryItem?.label || comboboxItems.find((c) => c.value === 'general')?.label;
+    return (
+      categoryItem?.label ||
+      comboboxItems.find((c) => c.value === EMPTY_AGENT_CATEGORY.value)?.label ||
+      comboboxItems[0]?.label
+    );
   };
 
   const searchPlaceholder = localize('com_ui_search_agent_category');
@@ -68,7 +73,7 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
     <Controller
       name="category"
       control={formContext.control}
-      defaultValue="general"
+      defaultValue={EMPTY_AGENT_CATEGORY.value}
       render={({ field }) => {
         // Sync category if needed (without using useEffect in render)
         syncCategory(field);
@@ -88,6 +93,7 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
             ariaLabel={ariaLabel}
             isCollapsed={false}
             showCarat={true}
+            popoverPortal={false}
           />
         );
       }}

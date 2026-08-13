@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { gsap } from 'gsap';
-import { ChevronRight, RotateCw, Search, X } from 'lucide-react';
+import { RotateCw, Search, X } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
@@ -40,6 +40,7 @@ export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_
 export type MarketplaceViewMode = 'compact' | 'large';
 
 const AgentGrid: React.FC<AgentGridProps> = ({
+  category,
   searchQuery,
   sortOption = 'featured',
   viewMode = 'compact',
@@ -62,9 +63,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const queryParams = useMemo(() => {
     const params: {
       requiredPermission: number;
+      category?: string;
       search?: string;
       limit: number;
-      sortBy?: 'createdAt';
+      sortBy?: 'createdAt' | 'updatedAt';
       sortDirection?: 'asc' | 'desc';
     } = {
       requiredPermission: PermissionBits.VIEW,
@@ -75,13 +77,17 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       params.search = searchQuery;
     }
 
+    if (category && category !== 'all') {
+      params.category = category;
+    }
+
     if (shouldUseBackendDateSort) {
-      params.sortBy = 'createdAt';
+      params.sortBy = 'updatedAt';
       params.sortDirection = sortOption === 'newest' ? 'desc' : 'asc';
     }
 
     return params;
-  }, [pageSize, searchQuery, shouldUseBackendDateSort, sortOption]);
+  }, [category, pageSize, searchQuery, shouldUseBackendDateSort, sortOption]);
 
   const {
     data,
@@ -122,12 +128,13 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const fallbackAgents = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
     const matchingAgents = mockAgents.filter((agent) => {
+      const matchesCategory = !category || category === 'all' || agent.category === category;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         agent.name?.toLocaleLowerCase().includes(normalizedSearch) ||
         agent.description?.toLocaleLowerCase().includes(normalizedSearch);
 
-      return matchesSearch;
+      return matchesCategory && matchesSearch;
     });
 
     if (sortOption === 'featured') {
@@ -153,7 +160,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         sensitivity: 'base',
       });
     });
-  }, [mockAgents, searchQuery, sortOption]);
+  }, [category, mockAgents, searchQuery, sortOption]);
   const isUsingMockAgents =
     searchQuery.trim().length === 0 &&
     currentAgents.length === 0 &&
@@ -593,9 +600,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                         </p>
                       ) : null}
                     </div>
-                    <span className="agents-marketplace-storefront-action" aria-hidden="true">
-                      <ChevronRight className="size-5" strokeWidth={2.8} />
-                    </span>
                   </button>
                 </motion.div>
               );

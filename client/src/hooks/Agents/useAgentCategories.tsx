@@ -36,33 +36,51 @@ const formatCategoryValue = (value: string) =>
 
 export const commonAgentCategories: ResolvedAgentCategoryOption[] = [
   {
-    value: 'planning_instruction',
-    label: 'Planning Instruction',
-    description: 'Lesson planning, activities, assessments, and instructional resources.',
+    value: 'teaching_learning',
+    label: 'Teaching & Learning',
+    description: 'Lesson planning, instruction, activities, and classroom learning resources.',
     count: 0,
   },
   {
-    value: 'content_creation',
-    label: 'Content Creation',
-    description: 'Visual, audio, presentation, document, and media creation.',
+    value: 'docs_productivity',
+    label: 'Docs & Productivity',
+    description: 'Documents, decks, spreadsheets, and productivity workflows.',
+    count: 0,
+  },
+  {
+    value: 'help_ai_basics',
+    label: 'Help & AI Basics',
+    description: 'Support, guidance, and practical AI help.',
+    count: 0,
+  },
+  {
+    value: 'leadership_operations',
+    label: 'Leadership & Operations',
+    description: 'Leadership, school operations, meetings, policies, and planning.',
+    count: 0,
+  },
+  {
+    value: 'design_media',
+    label: 'Design & Media',
+    description: 'Visual, audio, certificate, poster, and media creation.',
+    count: 0,
+  },
+  {
+    value: 'student_support',
+    label: 'Student Support',
+    description: 'Differentiation, accommodations, conferences, and student support workflows.',
+    count: 0,
+  },
+  {
+    value: 'assessment_grading',
+    label: 'Assessment & Grading',
+    description: 'Assessments, rubrics, report card comments, and grading support.',
     count: 0,
   },
   {
     value: 'communication',
     label: 'Communication',
     description: 'Parent, staff, student, and community communications.',
-    count: 0,
-  },
-  {
-    value: 'student_support',
-    label: 'Student Support',
-    description: 'Student accommodations, differentiation, and support workflows.',
-    count: 0,
-  },
-  {
-    value: 'operations_support',
-    label: 'Operations Support',
-    description: 'Meetings, school operations, reporting, systems, and support guides.',
     count: 0,
   },
 ];
@@ -75,11 +93,14 @@ const categoryDisplayOverrides: Record<string, string> = {
   it: 'IT',
   sales: 'Sales',
   aftersales: 'After Sales',
-  planning_instruction: 'Planning Instruction',
-  content_creation: 'Content Creation',
+  teaching_learning: 'Teaching & Learning',
+  docs_productivity: 'Docs & Productivity',
+  help_ai_basics: 'Help & AI Basics',
+  leadership_operations: 'Leadership & Operations',
+  design_media: 'Design & Media',
   communication: 'Communication',
   student_support: 'Student Support',
-  operations_support: 'Operations Support',
+  assessment_grading: 'Assessment & Grading',
 };
 
 const legacyAgentCategoryValues = new Set([
@@ -90,6 +111,9 @@ const legacyAgentCategoryValues = new Set([
   'it',
   'sales',
   'aftersales',
+  'planning_instruction',
+  'content_creation',
+  'operations_support',
 ]);
 const commonAgentCategoryValues = new Set(commonAgentCategories.map((category) => category.value));
 
@@ -168,16 +192,15 @@ const useAgentCategories = () => {
   const categories = useMemo((): ProcessedAgentCategory[] => {
     const sourceCategories = mergeCommonAgentCategories(categoriesQuery.data);
 
-    return sourceCategories
-      .map((category) => ({
-        label: getFriendlyAgentCategoryLabel({
-          value: category.value,
-          label: category.label,
-          localize,
-        }),
+    return sourceCategories.map((category) => ({
+      label: getFriendlyAgentCategoryLabel({
         value: category.value,
-        className: 'w-full',
-      }));
+        label: category.label,
+        localize,
+      }),
+      value: category.value,
+      className: 'w-full',
+    }));
   }, [categoriesQuery.data, localize]);
 
   const emptyCategory = useMemo(

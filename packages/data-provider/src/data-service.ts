@@ -532,7 +532,7 @@ export const getMarketplaceAgents = (params: {
   limit?: number;
   cursor?: string;
   promoted?: 0 | 1;
-  sortBy?: 'createdAt';
+  sortBy?: 'createdAt' | 'updatedAt';
   sortDirection?: 'asc' | 'desc';
 }): Promise<a.AgentListResponse> => {
   return request.get(
@@ -852,7 +852,12 @@ export function getCoworkProject(projectId: string): Promise<TCoworkProject> {
 
 export function updateCoworkProject(
   projectId: string,
-  payload: Partial<Pick<TCoworkProject, 'name' | 'description' | 'instructions' | 'enabledSkills' | 'model' | 'provider'>>,
+  payload: Partial<
+    Pick<
+      TCoworkProject,
+      'name' | 'description' | 'instructions' | 'enabledSkills' | 'model' | 'provider'
+    >
+  >,
 ): Promise<TCoworkProject> {
   return request.patch(endpoints.coworkProject(projectId), payload);
 }

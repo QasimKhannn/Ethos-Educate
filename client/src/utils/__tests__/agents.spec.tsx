@@ -92,13 +92,16 @@ describe('Agent Utilities', () => {
       document.head.appendChild(baseElement);
 
       expect(normalizeAgentAvatarUrl('assets/agent-icons/survey-builder.svg')).toBe(
-        '/chat/assets/agent-icons/style-c/survey-builder.svg',
+        '/chat/assets/generated-agent-icons/style-c/survey-builder.png',
       );
       expect(normalizeAgentAvatarUrl('/assets/agent-icons/survey-builder.svg?version=1')).toBe(
-        '/chat/assets/agent-icons/style-c/survey-builder.svg?version=1',
+        '/chat/assets/generated-agent-icons/style-c/survey-builder.png?version=1',
       );
       expect(normalizeAgentAvatarUrl('/assets/agent-icons/style-c/survey-builder.svg')).toBe(
-        '/chat/assets/agent-icons/style-c/survey-builder.svg',
+        '/chat/assets/generated-agent-icons/style-c/survey-builder.png',
+      );
+      expect(normalizeAgentAvatarUrl('assets/agent-icons/default-agent.svg')).toBe(
+        '/chat/assets/agent-icons/style-c/default-agent.svg',
       );
     });
 

@@ -128,7 +128,7 @@ const agentSchema = new Schema<IAgent>(
       type: String,
       trim: true,
       index: true,
-      default: 'general',
+      default: 'teaching_learning',
     },
     support_contact: {
       type: Schema.Types.Mixed,

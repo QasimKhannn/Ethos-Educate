@@ -1,10 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { Constants, EModelEndpoint, QueryKeys } from 'librechat-data-provider';
-import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { useUpdateUserPluginsMutation } from 'librechat-data-provider/react-query';
 import type { TError, AgentToolType } from 'librechat-data-provider';
 import type { AgentForm, ToolDialogProps } from '~/common';
@@ -43,6 +41,7 @@ function MCPToolSelectDialog({
   const [isSavingCustomVars, setIsSavingCustomVars] = useState(false);
   const [isInitializing, setIsInitializing] = useState<string | null>(null);
   const [configuringServer, setConfiguringServer] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const {
     maxPage,
@@ -64,6 +63,14 @@ function MCPToolSelectDialog({
   } = usePluginDialogHelpers();
 
   const updateUserPlugins = useUpdateUserPluginsMutation();
+
+  const closeDialog = useCallback(() => {
+    setIsOpen(false);
+    setCurrentPage(1);
+    setSearchValue('');
+    setConfiguringServer(null);
+    setIsInitializing(null);
+  }, [setCurrentPage, setIsOpen, setSearchValue]);
 
   const handleInstallError = (error: TError) => {
     setError(true);
@@ -213,13 +220,49 @@ function MCPToolSelectDialog({
   }, [mcpServersMap]);
 
   const filteredServers = useMemo(() => {
-    if (!searchValue) {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+    if (!normalizedSearch) {
       return mcpServers;
     }
-    return mcpServers.filter((serverInfo) =>
-      serverInfo.serverName.toLowerCase().includes(searchValue.toLowerCase()),
-    );
-  }, [mcpServers, searchValue]);
+    return mcpServers.filter((serverInfo) => {
+      const serverConfig = availableMCPServersMap?.[serverInfo.serverName];
+      const searchableFields = [
+        serverInfo.serverName,
+        serverInfo.metadata.name,
+        serverInfo.metadata.description,
+        serverConfig?.title,
+        serverConfig?.description,
+      ];
+
+      return searchableFields.some(
+        (field) => typeof field === 'string' && field.toLowerCase().includes(normalizedSearch),
+      );
+    });
+  }, [availableMCPServersMap, mcpServers, searchValue]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => searchInputRef.current?.focus());
+    return () => cancelAnimationFrame(frameId);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeDialog();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [closeDialog, isOpen]);
 
   useEffect(() => {
     setMaxPage(Math.ceil(filteredServers.length / itemsPerPage));
@@ -236,45 +279,50 @@ function MCPToolSelectDialog({
     filteredServers.length,
   ]);
 
-  const dialog = (
-    <Dialog
-      open={isOpen}
-      onClose={() => {
-        setIsOpen(false);
-        setCurrentPage(1);
-        setSearchValue('');
-        setConfiguringServer(null);
-        setIsInitializing(null);
-      }}
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mcp-tool-dialog-title"
+      aria-describedby="mcp-tool-dialog-description"
       className="relative z-[1001]"
     >
-      <div className="fixed inset-0 bg-surface-primary opacity-60 transition-opacity dark:opacity-80" />
+      <button
+        type="button"
+        aria-label={localize('com_ui_close')}
+        className="fixed inset-0 bg-surface-primary opacity-60 transition-opacity dark:opacity-80"
+        onClick={closeDialog}
+      />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel
-          className="relative max-h-[90vh] w-full transform overflow-hidden overflow-y-auto rounded-lg bg-surface-secondary text-left shadow-xl transition-all max-sm:h-full sm:mx-7 sm:my-8 sm:max-w-2xl lg:max-w-5xl xl:max-w-7xl"
+        <div
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+          className="relative max-h-[90vh] w-[min(100%,72rem)] transform overflow-hidden overflow-y-auto rounded-lg bg-surface-secondary text-left shadow-xl transition-all max-sm:h-full"
           style={{ minHeight: '610px' }}
         >
           <div className="flex items-center justify-between border-b-[1px] border-border-medium px-4 pb-4 pt-5 sm:p-6">
             <div className="flex items-center">
               <div className="text-center sm:text-left">
-                <DialogTitle className="text-lg font-medium leading-6 text-text-primary">
+                <h2
+                  id="mcp-tool-dialog-title"
+                  className="text-lg font-medium leading-6 text-text-primary"
+                >
                   {localize('com_nav_tool_dialog_mcp_server_tools')}
-                </DialogTitle>
-                <Description className="text-sm text-text-secondary">
+                </h2>
+                <p id="mcp-tool-dialog-description" className="text-sm text-text-secondary">
                   {localize('com_nav_tool_dialog_description')}
-                </Description>
+                </p>
               </div>
             </div>
             <div>
               <button
-                onClick={() => {
-                  setIsOpen(false);
-                  setCurrentPage(1);
-                  setConfiguringServer(null);
-                  setIsInitializing(null);
-                }}
+                onClick={closeDialog}
                 className="inline-block rounded-full text-text-secondary transition-colors hover:text-text-primary"
-                aria-label="Close dialog"
+                aria-label={localize('com_ui_close')}
                 type="button"
               >
                 <X aria-hidden="true" />
@@ -310,24 +358,24 @@ function MCPToolSelectDialog({
 
           <div className="p-4 sm:p-6 sm:pt-4">
             <div className="mt-4 flex flex-col gap-4">
-              <div
-                className="flex items-center justify-center space-x-4"
-                onClick={() => setConfiguringServer(null)}
-              >
-                <Search className="h-6 w-6 text-text-tertiary" />
+              <div className="mx-auto flex w-full max-w-xl items-center gap-3">
+                <Search className="h-6 w-6 flex-none text-text-tertiary" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchValue}
                   onChange={handleSearch}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                  onFocus={(event) => event.stopPropagation()}
                   placeholder={localize('com_nav_tool_search')}
-                  className="w-64 rounded border border-border-medium bg-transparent px-2 py-1 text-text-primary focus:outline-none"
+                  className="h-10 min-w-0 flex-1 rounded border border-border-medium bg-transparent px-3 py-2 text-text-primary focus:outline-none"
                 />
               </div>
 
               <div
                 ref={gridRef}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                style={{ minHeight: '410px' }}
+                className="grid min-h-[22rem] grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               >
                 {filteredServers
                   .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -371,16 +419,10 @@ function MCPToolSelectDialog({
               )}
             </div>
           </div>
-        </DialogPanel>
+        </div>
       </div>
-    </Dialog>
+    </div>
   );
-
-  if (typeof document === 'undefined') {
-    return dialog;
-  }
-
-  return createPortal(dialog, document.body);
 }
 
 export default MCPToolSelectDialog;

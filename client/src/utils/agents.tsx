@@ -16,7 +16,12 @@ type AgentContactFields = t.Agent & {
 const loadedAgentAvatarUrls = new Set<string>();
 const legacyStaticAgentIconPath = 'assets/agent-icons/';
 const staticAgentIconPath = `${legacyStaticAgentIconPath}style-c/`;
-const staticAgentIconPaths = [staticAgentIconPath, legacyStaticAgentIconPath];
+const generatedStaticAgentIconPath = 'assets/generated-agent-icons/style-c/';
+const staticAgentIconPaths = [
+  generatedStaticAgentIconPath,
+  staticAgentIconPath,
+  legacyStaticAgentIconPath,
+];
 const defaultAgentIconPath = `${staticAgentIconPath}default-agent.svg`;
 const defaultAgentIconUrl = () => getStaticAgentIconUrl(defaultAgentIconPath);
 const signedAvatarExpiryBufferMs = 60_000;
@@ -72,7 +77,10 @@ const staticAgentIconFilesBySlug = new Map<string, string>([
   ['translation-assistant', 'translation-assistant.svg'],
   ['video-transcript-to-worksheet', 'transcript-to-worksheet.svg'],
   ['vocabulary-and-spelling-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
-  ['vocabulary-and-spelling-list-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
+  [
+    'vocabulary-and-spelling-list-activity-creator',
+    'vocabulary-spelling-list-activity-creator.svg',
+  ],
   ['vocabulary-and-spelling-list-builder', 'vocabulary-spelling-list-builder.svg'],
   ['vocabulary-spelling-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
   ['vocabulary-spelling-list-activity-creator', 'vocabulary-spelling-list-activity-creator.svg'],
@@ -96,6 +104,24 @@ const getAppBasePath = () => {
 };
 
 const getStaticAgentIconUrl = (assetPath: string) => `${getAppBasePath()}${assetPath}`;
+
+const getPreferredStaticAgentIconAssetPath = (assetPath: string): string => {
+  const normalizedPath = assetPath.replace(/^\/+/, '');
+  const [, iconPath = normalizedPath, iconUrlSuffix = ''] =
+    normalizedPath.match(/^([^?#]*)(.*)$/) ?? [];
+
+  if (!iconPath.startsWith(staticAgentIconPath) || !iconPath.endsWith('.svg')) {
+    return normalizedPath;
+  }
+
+  if (iconPath.endsWith('default-agent.svg')) {
+    return normalizedPath;
+  }
+
+  return `${iconPath
+    .replace(staticAgentIconPath, generatedStaticAgentIconPath)
+    .replace(/\.svg$/i, '.png')}${iconUrlSuffix}`;
+};
 
 const getAgentNameSlug = (name: string | null | undefined): string | null => {
   const slug = name
@@ -130,7 +156,11 @@ export const getStaticAgentIconUrlForName = (name: string | null | undefined): s
   }
 
   const iconFileName = staticAgentIconFilesBySlug.get(slug);
-  return iconFileName ? getStaticAgentIconUrl(`${staticAgentIconPath}${iconFileName}`) : null;
+  return iconFileName
+    ? getStaticAgentIconUrl(
+        getPreferredStaticAgentIconAssetPath(`${staticAgentIconPath}${iconFileName}`),
+      )
+    : null;
 };
 
 export const isExpiringAgentAvatarUrl = (url: string | null | undefined): boolean => {
@@ -166,7 +196,7 @@ export const isStaticAgentIconUrl = (url: string) => {
   const pathWithoutParams = url.split(/[?#]/)[0]?.toLowerCase() ?? '';
   return (
     staticAgentIconPaths.some((iconPath) => pathWithoutParams.includes(`/${iconPath}`)) &&
-    pathWithoutParams.endsWith('.svg')
+    (pathWithoutParams.endsWith('.svg') || pathWithoutParams.endsWith('.png'))
   );
 };
 
@@ -210,7 +240,7 @@ export const normalizeAgentAvatarUrl = (url: string | null): string | null => {
     matchedStaticIconPath === legacyStaticAgentIconPath
       ? staticIconAssetPath.replace(legacyStaticAgentIconPath, staticAgentIconPath)
       : staticIconAssetPath;
-  return getStaticAgentIconUrl(typeCStaticIconAssetPath);
+  return getStaticAgentIconUrl(getPreferredStaticAgentIconAssetPath(typeCStaticIconAssetPath));
 };
 
 export const isAgentAvatarImageUrl = (url: string | null | undefined): boolean => {

@@ -147,7 +147,7 @@ export const useMarketplaceAgentsInfiniteQuery = (
     limit?: number;
     promoted?: 0 | 1;
     cursor?: string; // For pagination
-    sortBy?: 'createdAt';
+    sortBy?: 'createdAt' | 'updatedAt';
     sortDirection?: 'asc' | 'desc';
   },
   config?: UseInfiniteQueryOptions<t.AgentListResponse, unknown>,
