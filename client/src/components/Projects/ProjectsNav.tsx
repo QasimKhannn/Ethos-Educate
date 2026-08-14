@@ -32,6 +32,7 @@ const ProjectRow = memo(
     accent,
     conversationCount,
     onOpen,
+    onOpenProject,
   }: {
     project: TProject;
     active: boolean;
@@ -39,50 +40,62 @@ const ProjectRow = memo(
     accent?: MockProjectAccent;
     conversationCount: number;
     onOpen: (trigger: HTMLButtonElement) => void;
+    onOpenProject: () => void;
   }) => {
     const localize = useLocalize();
     return (
       <div className="sidebar-project-group">
-        <button
-          type="button"
+        <div
           className={cn(
-            'sidebar-project-row sidebar-utility-item group flex min-h-9 w-full items-center gap-2 rounded-xl px-2 text-left text-sm outline-none transition-colors',
+            'sidebar-project-row sidebar-utility-item group flex min-h-9 w-full items-center gap-1 rounded-xl text-sm outline-none transition-colors',
             selected && 'sidebar-project-row-selected',
             active || selected
               ? 'sidebar-utility-item-active text-text-primary'
               : 'text-text-primary hover:bg-surface-hover',
           )}
-          aria-controls={selected ? `project-chats-panel-${project._id}` : undefined}
-          aria-expanded={selected}
-          aria-label={localize(
-            selected ? 'com_projects_close_project_chats' : 'com_projects_toggle_chats',
-            { name: project.name },
-          )}
-          onClick={(event) => onOpen(event.currentTarget)}
           title={project.name}
         >
-          <span
-            className={cn(
-              'sidebar-utility-icon sidebar-project-icon flex flex-shrink-0 items-center justify-center',
-              accent && `sidebar-project-icon-${accent}`,
-            )}
+          <button
+            type="button"
+            className="sidebar-project-main-button flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none"
+            onClick={onOpenProject}
+            aria-label={localize('com_projects_open_project_name', { name: project.name })}
           >
-            <Folder className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
-          {conversationCount > 0 ? (
-            <span className="sidebar-project-count flex-shrink-0" aria-hidden="true">
-              {conversationCount}
+            <span
+              className={cn(
+                'sidebar-utility-icon sidebar-project-icon flex flex-shrink-0 items-center justify-center',
+                accent && `sidebar-project-icon-${accent}`,
+              )}
+            >
+              <Folder className="h-4 w-4" />
             </span>
-          ) : null}
-          <ChevronRight
-            className={cn(
-              'sidebar-project-open-icon h-3.5 w-3.5 flex-shrink-0',
-              selected && 'sidebar-project-open-icon-active',
+            <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
+            {conversationCount > 0 ? (
+              <span className="sidebar-project-count flex-shrink-0" aria-hidden="true">
+                {conversationCount}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            className="sidebar-project-panel-button flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg outline-none"
+            aria-controls={selected ? `project-chats-panel-${project._id}` : undefined}
+            aria-expanded={selected}
+            aria-label={localize(
+              selected ? 'com_projects_close_project_chats' : 'com_projects_toggle_chats',
+              { name: project.name },
             )}
-            aria-hidden="true"
-          />
-        </button>
+            onClick={(event) => onOpen(event.currentTarget)}
+          >
+            <ChevronRight
+              className={cn(
+                'sidebar-project-open-icon h-3.5 w-3.5 flex-shrink-0',
+                selected && 'sidebar-project-open-icon-active',
+              )}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
     );
   },
@@ -249,6 +262,7 @@ function ProjectsNav({
               accent={accent}
               conversationCount={conversationCount}
               onOpen={(trigger) => handleProjectClick(project._id, trigger)}
+              onOpenProject={() => handleOpenProject(project._id)}
             />
           );
         })}

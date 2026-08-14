@@ -255,8 +255,7 @@ function LessonPlanningLauncher({
     !canUseMcp ||
     !isAgentConversation ||
     !agentId ||
-    !hasLessonPlanningMcp ||
-    lessonPlanningServer == null
+    !hasLessonPlanningMcp
   ) {
     return null;
   }

@@ -1,6 +1,8 @@
 import { useCallback, useContext, useEffect, useState, memo, useRef } from 'react';
 import * as Menu from '@ariakit/react/menu';
-import { ChevronDown, FileText, LogOut, Moon, Sun } from 'lucide-react';
+import { SystemRoles } from 'librechat-data-provider';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, FileText, LogOut, Moon, Shield, Sun } from 'lucide-react';
 import {
   GearIcon,
   DropdownMenuSeparator,
@@ -17,6 +19,7 @@ import Settings from './Settings';
 
 function AccountSettings() {
   const localize = useLocalize();
+  const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthContext();
   const { theme, setTheme } = useContext(ThemeContext);
   const { data: startupConfig } = useGetStartupConfig();
@@ -28,6 +31,7 @@ function AccountSettings() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
   const isDarkMode = isDark(theme);
+  const showAdminConsole = user?.role === SystemRoles.ADMIN;
 
   const changeTheme = useCallback(
     (enabled: boolean) => {
@@ -39,6 +43,11 @@ function AccountSettings() {
   const closeAccountTourMenu = useCallback(() => {
     setIsAccountMenuOpen(false);
   }, []);
+
+  const handleAdminConsole = useCallback(() => {
+    setIsAccountMenuOpen(false);
+    navigate('/admin');
+  }, [navigate]);
 
   useEffect(() => {
     const handleTourOpen = () => setIsAccountMenuOpen(true);
@@ -120,6 +129,16 @@ function AccountSettings() {
           <GearIcon className="icon-md" aria-hidden="true" />
           {localize('com_nav_settings')}
         </Menu.MenuItem>
+        {showAdminConsole && (
+          <Menu.MenuItem
+            onClick={handleAdminConsole}
+            className="select-item text-sm"
+            data-testid="nav-admin-console-button"
+          >
+            <Shield className="icon-md" aria-hidden="true" />
+            {localize('com_nav_admin_console')}
+          </Menu.MenuItem>
+        )}
         <div className="flex items-center gap-3 px-3 py-2 text-sm text-text-primary">
           {isDarkMode ? (
             <Moon className="icon-md" aria-hidden="true" />

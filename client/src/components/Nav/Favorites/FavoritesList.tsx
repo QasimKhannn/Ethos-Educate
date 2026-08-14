@@ -1,11 +1,10 @@
 import React, { useRef, useCallback, useMemo, useEffect } from 'react';
-import { Shield } from 'lucide-react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Skeleton } from '@librechat/client';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { useRecoilValue } from 'recoil';
-import { QueryKeys, dataService, SystemRoles } from 'librechat-data-provider';
+import { QueryKeys, dataService } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import type { AgentQueryResult } from '~/common';
 import {
@@ -14,7 +13,6 @@ import {
   useFavorites,
   useLocalize,
   useNewConvo,
-  useAuthContext,
 } from '~/hooks';
 import { useAssistantsMapContext, useAgentsMapContext } from '~/Providers';
 import useSelectMention from '~/hooks/Input/useSelectMention';
@@ -120,12 +118,10 @@ export default function FavoritesList({ onHeightChange }: { onHeightChange?: () 
   const navigate = useNavigate();
   const location = useLocation();
   const localize = useLocalize();
-  const { user } = useAuthContext();
   const search = useRecoilValue(store.search);
   const getConversation = useGetConversation(0);
   const { favorites, reorderFavorites, isLoading: isFavoritesLoading } = useFavorites();
   const showAgentMarketplace = useShowMarketplace();
-  const showAdminConsole = user?.role === SystemRoles.ADMIN;
 
   const { newConversation } = useNewConvo();
   const assistantsMap = useAssistantsMapContext();
@@ -142,26 +138,16 @@ export default function FavoritesList({ onHeightChange }: { onHeightChange?: () 
   });
 
   const marketplaceRef = useRef<HTMLDivElement>(null);
-  const adminRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const isMarketplaceActive = location.pathname.startsWith('/agents');
-  const isAdminActive = location.pathname.startsWith('/admin');
 
   const handleAgentMarketplace = useCallback(() => {
     navigate('/agents');
   }, [navigate]);
 
-  const handleAdminConsole = useCallback(() => {
-    navigate('/admin');
-  }, [navigate]);
-
   const handleRemoveFocus = useCallback(() => {
     if (marketplaceRef.current) {
       marketplaceRef.current.focus();
-      return;
-    }
-    if (adminRef.current) {
-      adminRef.current.focus();
       return;
     }
     const nextFavorite = listContainerRef.current?.querySelector<HTMLElement>(
@@ -266,12 +252,7 @@ export default function FavoritesList({ onHeightChange }: { onHeightChange?: () 
     return null;
   }
 
-  if (
-    !isFavoritesLoading &&
-    safeFavorites.length === 0 &&
-    !showAgentMarketplace &&
-    !showAdminConsole
-  ) {
+  if (!isFavoritesLoading && safeFavorites.length === 0 && !showAgentMarketplace) {
     return null;
   }
 
@@ -280,7 +261,6 @@ export default function FavoritesList({ onHeightChange }: { onHeightChange?: () 
       <div className="mb-2 flex flex-col pb-2">
         <div className="mt-1 flex flex-col gap-1">
           {showAgentMarketplace && <MarketplaceSkeleton />}
-          {showAdminConsole && <MarketplaceSkeleton />}
           <FavoriteItemSkeleton />
         </div>
       </div>
@@ -293,7 +273,6 @@ export default function FavoritesList({ onHeightChange }: { onHeightChange?: () 
         {isAgentsLoading ? (
           <>
             {showAgentMarketplace && <MarketplaceSkeleton />}
-            {showAdminConsole && <MarketplaceSkeleton />}
             {safeFavorites.map((_, index) => (
               <FavoriteItemSkeleton key={`skeleton-${index}`} />
             ))}
@@ -340,34 +319,6 @@ export default function FavoritesList({ onHeightChange }: { onHeightChange?: () 
                   </div>
                   <span className="sidebar-marketplace-label truncate text-[0.95rem] font-medium tracking-[-0.014em]">
                     {localize('com_agents_marketplace')}
-                  </span>
-                </div>
-              </div>
-            )}
-            {showAdminConsole && (
-              <div
-                ref={adminRef}
-                role="button"
-                tabIndex={0}
-                aria-label={localize('com_nav_admin_console')}
-                className={`sidebar-utility-item group relative flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white ${
-                  isAdminActive ? 'sidebar-utility-item-active' : ''
-                }`}
-                onClick={handleAdminConsole}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleAdminConsole();
-                  }
-                }}
-                data-testid="nav-admin-console-button"
-              >
-                <div className="flex flex-1 items-center gap-3 truncate pr-6">
-                  <div className="sidebar-utility-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl">
-                    <Shield className="h-[18px] w-[18px]" />
-                  </div>
-                  <span className="truncate text-[0.95rem] font-medium tracking-[-0.014em]">
-                    {localize('com_nav_admin_console')}
                   </span>
                 </div>
               </div>

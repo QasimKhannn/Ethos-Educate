@@ -46,10 +46,14 @@ import SearchBar from './SearchBar';
 import NewChat from './NewChat';
 import {
   SIDEBAR_FOCUS_DELAY_MS,
-  SIDEBAR_ANIMATION_MS,
-  SIDEBAR_ANIMATION_SECONDS,
-  SIDEBAR_EASE_CSS,
-  SIDEBAR_MOTION_EASE,
+  SIDEBAR_OPEN_ANIMATION_MS,
+  SIDEBAR_CLOSE_ANIMATION_MS,
+  SIDEBAR_OPEN_ANIMATION_SECONDS,
+  SIDEBAR_CLOSE_ANIMATION_SECONDS,
+  SIDEBAR_OPEN_EASE_CSS,
+  SIDEBAR_CLOSE_EASE_CSS,
+  SIDEBAR_OPEN_MOTION_EASE,
+  SIDEBAR_CLOSE_MOTION_EASE,
 } from './sidebarMotion';
 import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
 import { clearMessagesCache, cn } from '~/utils';
@@ -60,7 +64,7 @@ const AccountSettings = lazy(() => import('./AccountSettings'));
 
 export const NAV_WIDTH = {
   MOBILE: 320,
-  DESKTOP: 260,
+  DESKTOP: 288,
   RAIL: 72,
 } as const;
 
@@ -107,7 +111,30 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
       aria-label={`${localize('com_ui_chat_history')} compact navigation`}
       className="flex h-full flex-col items-center px-2.5 py-4"
     >
-      <div className="relative mb-4 h-8 w-11 overflow-hidden" aria-hidden="true">
+      <TooltipAnchor
+        description={localize('com_nav_tooltip_open_sidebar')}
+        side="right"
+        render={
+          <Button
+            id={OPEN_SIDEBAR_ID}
+            type="button"
+            size="icon"
+            variant="ghost"
+            data-testid="open-sidebar-button"
+            aria-label={localize('com_nav_open_sidebar')}
+            aria-expanded={false}
+            aria-controls="chat-history-nav"
+            className={actionClassName()}
+            onClick={openAndFocusSidebar}
+          >
+            <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
+          </Button>
+        }
+      />
+
+      <div className="my-3 h-px w-7 bg-white/10" aria-hidden="true" />
+
+      <div className="relative mb-3 h-8 w-11 overflow-hidden" aria-hidden="true">
         <img
           src="/assets/ethos-rays.png"
           alt=""
@@ -204,26 +231,6 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
 
       <div className="mt-auto flex flex-col items-center gap-3">
         <HelpAndFaqButton compact className={actionClassName()} />
-        <TooltipAnchor
-          description={localize('com_nav_tooltip_open_sidebar')}
-          side="right"
-          render={
-            <Button
-              id={OPEN_SIDEBAR_ID}
-              type="button"
-              size="icon"
-              variant="ghost"
-              data-testid="open-sidebar-button"
-              aria-label={localize('com_nav_open_sidebar')}
-              aria-expanded={false}
-              aria-controls="chat-history-nav"
-              className={actionClassName()}
-              onClick={openAndFocusSidebar}
-            >
-              <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
-            </Button>
-          }
-        />
         <div className="h-px w-7 bg-white/10" aria-hidden="true" />
         <TooltipAnchor
           description={localize('com_nav_tooltip_account_settings')}
@@ -454,6 +461,12 @@ const Nav = memo(
     // Always render sidebar to avoid mount/unmount costs
     // Use transform for GPU-accelerated animation (no layout thrashing)
     const sidebarWidth = isSmallScreen ? NAV_WIDTH.MOBILE : NAV_WIDTH.DESKTOP;
+    const sidebarAnimationMs = navVisible ? SIDEBAR_OPEN_ANIMATION_MS : SIDEBAR_CLOSE_ANIMATION_MS;
+    const sidebarAnimationSeconds = navVisible
+      ? SIDEBAR_OPEN_ANIMATION_SECONDS
+      : SIDEBAR_CLOSE_ANIMATION_SECONDS;
+    const sidebarEaseCss = navVisible ? SIDEBAR_OPEN_EASE_CSS : SIDEBAR_CLOSE_EASE_CSS;
+    const sidebarMotionEase = navVisible ? SIDEBAR_OPEN_MOTION_EASE : SIDEBAR_CLOSE_MOTION_EASE;
 
     // Sidebar content (shared between mobile and desktop)
     const sidebarContent = (
@@ -511,7 +524,7 @@ const Nav = memo(
             style={{
               width: sidebarWidth,
               transform: navVisible ? 'translateX(0)' : `translateX(-${sidebarWidth}px)`,
-              transition: `transform ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
+              transition: `transform ${sidebarAnimationMs}ms ${sidebarEaseCss}`,
               willChange: 'transform',
             }}
           >
@@ -529,13 +542,10 @@ const Nav = memo(
     // Desktop: Inline sidebar with width transition
     return (
       <div
-        className={cn(
-          'relative flex-shrink-0',
-          navVisible ? 'overflow-hidden' : 'overflow-visible',
-        )}
+        className="relative flex-shrink-0 overflow-hidden"
         style={{
           width: navVisible ? sidebarWidth : NAV_WIDTH.RAIL,
-          transition: `width ${SIDEBAR_ANIMATION_MS}ms ${SIDEBAR_EASE_CSS}`,
+          transition: `width ${sidebarAnimationMs}ms ${sidebarEaseCss}`,
           willChange: 'width',
         }}
       >
@@ -550,7 +560,7 @@ const Nav = memo(
           animate={{
             x: navVisible ? 0 : -sidebarWidth,
           }}
-          transition={{ duration: SIDEBAR_ANIMATION_SECONDS, ease: SIDEBAR_MOTION_EASE }}
+          transition={{ duration: sidebarAnimationSeconds, ease: sidebarMotionEase }}
         >
           {sidebarContent}
         </motion.div>
@@ -562,7 +572,7 @@ const Nav = memo(
           animate={{
             x: navVisible ? -NAV_WIDTH.RAIL : 0,
           }}
-          transition={{ duration: SIDEBAR_ANIMATION_SECONDS, ease: SIDEBAR_MOTION_EASE }}
+          transition={{ duration: sidebarAnimationSeconds, ease: sidebarMotionEase }}
           aria-hidden={navVisible}
           {...{ inert: navVisible ? '' : undefined }}
         >

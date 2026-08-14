@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
-import { EModelEndpoint, SystemRoles, getEndpointField } from 'librechat-data-provider';
+import { EModelEndpoint, getEndpointField } from 'librechat-data-provider';
 import type { AgentForm, IconComponentTypes } from '~/common';
 import {
   removeFocusOutlines,
@@ -15,7 +15,7 @@ import {
 import { MCPToolSelectDialog } from '~/components/Tools';
 import useAgentCapabilities from '~/hooks/Agents/useAgentCapabilities';
 import { useFileMapContext, useAgentPanelContext } from '~/Providers';
-import { useAuthContext, useLocalize, useVisibleTools } from '~/hooks';
+import { useLocalize, useVisibleTools } from '~/hooks';
 import { Panel } from '~/common';
 import { useGetAgentFiles } from '~/data-provider';
 import { icons } from '~/hooks/Endpoint/Icons';
@@ -39,7 +39,6 @@ const inputClass = cn(
 
 export default function AgentConfig() {
   const localize = useLocalize();
-  const { user } = useAuthContext();
   const fileMap = useFileMapContext();
   const methods = useFormContext<AgentForm>();
   const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
@@ -76,8 +75,7 @@ export default function AgentConfig() {
 
   const { codeEnabled, contextEnabled, artifactsEnabled, webSearchEnabled, fileSearchEnabled } =
     useAgentCapabilities(agentsConfig?.capabilities);
-  const showDeveloperControls = user?.role === SystemRoles.ADMIN;
-  const showCodeControls = showDeveloperControls && codeEnabled;
+  const showCodeControls = codeEnabled;
   const showMCPControls = availableMCPServers != null && availableMCPServers.length > 0;
 
   const context_files = useMemo(() => {
@@ -217,15 +215,6 @@ export default function AgentConfig() {
                     {errors.name ? errors.name.message : ' '}
                   </div>
                 </>
-              )}
-            />
-            <Controller
-              name="id"
-              control={control}
-              render={({ field }) => (
-                <p className="h-3 text-xs italic text-text-secondary" aria-live="polite">
-                  {field.value}
-                </p>
               )}
             />
           </div>

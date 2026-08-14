@@ -1,12 +1,11 @@
 import { EarthIcon, SearchIcon, XIcon } from 'lucide-react';
-import { ControlCombobox } from '@librechat/client';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFormContext, Controller } from 'react-hook-form';
+import { useFormContext } from 'react-hook-form';
 import { AgentCapabilities, defaultAgentFormValues } from 'librechat-data-provider';
 import type { UseMutationResult, QueryObserverResult } from '@tanstack/react-query';
 import type { Agent, AgentCreateParams } from 'librechat-data-provider';
 import type { TAgentCapabilities, AgentForm } from '~/common';
-import { cn, createProviderOption, processAgentOption, getDefaultAgentFormValues } from '~/utils';
+import { createProviderOption, processAgentOption, getDefaultAgentFormValues } from '~/utils';
 import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
 import { useLocalize, useAgentDefaultPermissionLevel } from '~/hooks';
 import { useListAgentsQuery } from '~/data-provider';
@@ -27,7 +26,7 @@ function AgentSelect({
   const localize = useLocalize();
   const lastSelectedAgent = useRef<string | null>(null);
   const [agentSearch, setAgentSearch] = useState('');
-  const { control, reset } = useFormContext();
+  const { reset } = useFormContext();
   const permissionLevel = useAgentDefaultPermissionLevel();
 
   const { data: agents = null } = useListAgentsQuery(
@@ -228,7 +227,6 @@ function AgentSelect({
     };
   }, [selectedAgentId, agents, onSelect]);
 
-  const createAgent = localize('com_ui_create_new_agent');
   const hasAgentSearch = agentSearch.trim().length > 0;
   const searchResultsId = 'agent-builder-search-results';
   const visibleSearchResults = hasAgentSearch ? (filteredAgents ?? []).slice(0, 10) : [];
@@ -242,126 +240,91 @@ function AgentSelect({
   );
 
   return (
-    <Controller
-      name="agent"
-      control={control}
-      render={({ field }) => (
-        <div className="w-full space-y-2">
-          <div className="relative">
-            <SearchIcon
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={agentSearch}
-              onChange={(event) => setAgentSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') {
-                  return;
-                }
-
-                event.preventDefault();
-                const firstAgent = visibleSearchResults[0];
-                const firstAgentId = `${firstAgent?.value ?? firstAgent?.id ?? ''}`;
-                if (firstAgentId) {
-                  handleSearchResultSelect(firstAgentId);
-                }
-              }}
-              aria-controls={hasAgentSearch ? searchResultsId : undefined}
-              aria-expanded={hasAgentSearch && visibleSearchResults.length > 0}
-              role="combobox"
-              placeholder={localize('com_agents_search_name')}
-              aria-label={localize('com_agents_search_name')}
-              className="h-10 w-full rounded-md border border-border-light bg-transparent py-2 pl-9 pr-9 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary focus:border-blue-500"
-            />
-            {hasAgentSearch ? (
-              <button
-                type="button"
-                onClick={() => setAgentSearch('')}
-                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
-                aria-label={localize('com_agents_clear_search')}
-              >
-                <XIcon className="h-4 w-4" aria-hidden="true" />
-              </button>
-            ) : null}
-            {visibleSearchResults.length > 0 ? (
-              <div
-                id={searchResultsId}
-                role="listbox"
-                className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-72 overflow-y-auto rounded-md border border-border-light bg-surface-secondary py-1 shadow-lg"
-              >
-                {visibleSearchResults.map((agent) => {
-                  const agentId = `${agent.value ?? agent.id ?? ''}`;
-                  const label = agent.label ?? agent.name ?? agent.id ?? '';
-                  const description = agent.toolkit_description ?? agent.description ?? '';
-
-                  return (
-                    <button
-                      key={agentId}
-                      type="button"
-                      role="option"
-                      aria-selected={agentId === selectedAgentId}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => handleSearchResultSelect(agentId)}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
-                    >
-                      {agent.icon ? (
-                        <span className="flex h-5 w-5 flex-none items-center justify-center overflow-hidden rounded-full">
-                          {agent.icon}
-                        </span>
-                      ) : null}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{label}</span>
-                        {description ? (
-                          <span className="block truncate text-xs text-text-secondary">
-                            {description}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-          <ControlCombobox
-            containerClassName="px-0"
-            selectedValue={(field?.value?.value ?? '') + ''}
-            displayValue={field?.value?.label ?? ''}
-            selectPlaceholder={field?.value?.value ?? createAgent}
-            iconSide="right"
-            searchPlaceholder={localize('com_agents_search_name')}
-            SelectIcon={field?.value?.icon}
-            setValue={onSelect}
-            items={
-              filteredAgents?.map((agent) => ({
-                label: agent.label ?? agent.name ?? agent.id ?? '',
-                value: `${agent.value ?? agent.id ?? ''}`,
-                icon: agent.icon,
-              })) ?? [
-                {
-                  label: 'Loading...',
-                  value: '',
-                },
-              ]
+    <div className="agent-builder-agent-search">
+      <div className="relative">
+        <SearchIcon
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
+          aria-hidden="true"
+        />
+        <input
+          type="search"
+          value={agentSearch}
+          onChange={(event) => setAgentSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') {
+              return;
             }
-            className={cn(
-              'z-50 flex h-[40px] w-full flex-none items-center justify-center truncate rounded-md bg-transparent font-bold',
-            )}
-            ariaLabel={localize('com_ui_agent')}
-            isCollapsed={false}
-            showCarat={true}
-            popoverPortal={false}
-          />
-          {hasAgentSearch && filteredAgents?.length === 0 ? (
-            <p className="px-1 text-xs text-text-secondary">
-              {localize('com_agents_search_no_results', { query: agentSearch.trim() })}
-            </p>
-          ) : null}
-        </div>
-      )}
-    />
+
+            event.preventDefault();
+            const firstAgent = visibleSearchResults[0];
+            const firstAgentId = `${firstAgent?.value ?? firstAgent?.id ?? ''}`;
+            if (firstAgentId) {
+              handleSearchResultSelect(firstAgentId);
+            }
+          }}
+          aria-controls={hasAgentSearch ? searchResultsId : undefined}
+          aria-expanded={hasAgentSearch && visibleSearchResults.length > 0}
+          role="combobox"
+          placeholder={localize('com_agents_search_name')}
+          aria-label={localize('com_agents_search_name')}
+          className="agent-builder-agent-search-input"
+        />
+        {hasAgentSearch ? (
+          <button
+            type="button"
+            onClick={() => setAgentSearch('')}
+            className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
+            aria-label={localize('com_agents_clear_search')}
+          >
+            <XIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+        ) : null}
+        {visibleSearchResults.length > 0 ? (
+          <div
+            id={searchResultsId}
+            role="listbox"
+            className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-72 overflow-y-auto rounded-md border border-border-light bg-surface-secondary py-1 shadow-lg"
+          >
+            {visibleSearchResults.map((agent) => {
+              const agentId = `${agent.value ?? agent.id ?? ''}`;
+              const label = agent.label ?? agent.name ?? agent.id ?? '';
+              const description = agent.toolkit_description ?? agent.description ?? '';
+
+              return (
+                <button
+                  key={agentId}
+                  type="button"
+                  role="option"
+                  aria-selected={agentId === selectedAgentId}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSearchResultSelect(agentId)}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
+                >
+                  {agent.icon ? (
+                    <span className="flex h-5 w-5 flex-none items-center justify-center overflow-hidden rounded-full">
+                      {agent.icon}
+                    </span>
+                  ) : null}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{label}</span>
+                    {description ? (
+                      <span className="block truncate text-xs text-text-secondary">
+                        {description}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+      {hasAgentSearch && filteredAgents?.length === 0 ? (
+        <p className="px-1 text-xs text-text-secondary">
+          {localize('com_agents_search_no_results', { query: agentSearch.trim() })}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
