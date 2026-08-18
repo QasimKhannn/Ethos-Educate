@@ -93,8 +93,29 @@ async function cacheMCPServerTools({ userId, serverName, serverTools }) {
   }
 }
 
+async function refreshAppMCPServerTools({ serverName, serverTools }) {
+  try {
+    const mcpSuffix = `${Constants.mcp_delimiter}${serverName}`;
+    const currentTools = (await getCachedTools()) ?? {};
+    const refreshedTools = Object.fromEntries(
+      Object.entries(currentTools).filter(([toolName]) => !toolName.endsWith(mcpSuffix)),
+    );
+
+    Object.assign(refreshedTools, serverTools);
+    await setCachedTools(refreshedTools);
+    await getLogStores(CacheKeys.TOOL_CACHE).delete(CacheKeys.TOOLS);
+    logger.info(
+      `[MCP Cache] Refreshed ${Object.keys(serverTools).length} app tools for ${serverName}`,
+    );
+  } catch (error) {
+    logger.error(`[MCP Cache] Failed to refresh app tools for ${serverName}:`, error);
+    throw error;
+  }
+}
+
 module.exports = {
   mergeAppTools,
   cacheMCPServerTools,
   updateMCPServerTools,
+  refreshAppMCPServerTools,
 };

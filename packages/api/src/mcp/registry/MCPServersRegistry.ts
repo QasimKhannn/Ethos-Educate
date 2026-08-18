@@ -273,8 +273,12 @@ export class MCPServersRegistry {
       }
       throw new MCPInspectionFailedError(serverName, error as Error);
     }
-    await configRepo.update(serverName, parsedConfig, userId);
-    return parsedConfig;
+    const updatedConfig = { ...parsedConfig, updatedAt: Date.now() };
+    await configRepo.update(serverName, updatedConfig, userId);
+    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName, userId));
+    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName));
+    await this.readThroughCacheAll.clear();
+    return updatedConfig;
   }
 
   // TODO: This is currently used to determine if a server requires OAuth. However, this info can

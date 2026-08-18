@@ -150,6 +150,20 @@ export class MCPManager extends UserConnectionManager {
     return toolFunctions;
   }
 
+  /** Re-inspects an app-level MCP server and disconnects its stale connection. */
+  public async refreshAppServer(
+    serverName: string,
+    config: t.MCPOptions,
+  ): Promise<t.LCAvailableTools> {
+    const updatedConfig = await MCPServersRegistry.getInstance().updateServer(
+      serverName,
+      config,
+      'CACHE',
+    );
+    await this.appConnections?.disconnect(serverName);
+    return updatedConfig.toolFunctions ?? {};
+  }
+
   /** Returns all available tool functions from all connections available to user */
   public async getServerToolFunctions(
     userId: string,

@@ -89,11 +89,17 @@ jest.mock('~/server/services/Config', () => ({
   setCachedTools: jest.fn(),
   getCachedTools: jest.fn(),
   getMCPServerTools: jest.fn(),
+  getAppConfig: jest.fn(),
   loadCustomConfig: jest.fn(),
 }));
 
 jest.mock('~/server/services/Config/mcp', () => ({
+  refreshAppMCPServerTools: jest.fn(),
   updateMCPServerTools: jest.fn(),
+}));
+
+jest.mock('~/server/services/Config/getCachedTools', () => ({
+  invalidateMCPServerTools: jest.fn(),
 }));
 
 jest.mock('~/server/services/MCP', () => ({
@@ -128,6 +134,56 @@ jest.mock('~/server/services/Tools/mcp', () => ({
 describe('MCP Routes', () => {
   let app;
   let mongoServer;
+
+  describe('POST /webhooks/:serverName/refresh', () => {
+    const webhookSecret = 'test-mcp-refresh-secret';
+
+    beforeEach(() => {
+      process.env.MCP_REFRESH_WEBHOOK_SECRET = webhookSecret;
+    });
+
+    afterEach(() => {
+      delete process.env.MCP_REFRESH_WEBHOOK_SECRET;
+    });
+
+    it('rejects requests without the configured webhook secret', async () => {
+      const response = await request(app).post('/api/mcp/webhooks/files/refresh');
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ error: 'Unauthorized' });
+    });
+
+    it('refreshes configured app-level MCP servers and invalidates user tool caches', async () => {
+      const serverConfig = {
+        type: 'streamable-http',
+        startup: true,
+        url: 'https://mcp.example.com',
+      };
+      const serverTools = { create_document_mcp_files: { type: 'function' } };
+      const mockMcpManager = { refreshAppServer: jest.fn().mockResolvedValue(serverTools) };
+      require('~/config').getMCPManager.mockReturnValue(mockMcpManager);
+      require('~/server/services/Config').getAppConfig.mockResolvedValue({
+        mcpConfig: { files: serverConfig },
+      });
+
+      const response = await request(app)
+        .post('/api/mcp/webhooks/files/refresh')
+        .set('x-mcp-refresh-secret', webhookSecret);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ success: true, serverName: 'files', toolsCount: 1 });
+      expect(mockMcpManager.refreshAppServer).toHaveBeenCalledWith('files', serverConfig);
+      expect(require('~/server/services/Config/mcp').refreshAppMCPServerTools).toHaveBeenCalledWith(
+        {
+          serverName: 'files',
+          serverTools,
+        },
+      );
+      expect(
+        require('~/server/services/Config/getCachedTools').invalidateMCPServerTools,
+      ).toHaveBeenCalledWith('files');
+    });
+  });
   let mcpRouter;
 
   beforeAll(async () => {

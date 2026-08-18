@@ -12,6 +12,7 @@ const {
   setCachedTools,
   getMCPServerTools,
   invalidateCachedTools,
+  invalidateMCPServerTools,
 } = require('../getCachedTools');
 
 describe('getCachedTools', () => {
@@ -23,7 +24,7 @@ describe('getCachedTools', () => {
   describe('ToolCacheKeys.MCP_SERVER', () => {
     it('should generate cache keys that include userId', () => {
       const key = ToolCacheKeys.MCP_SERVER('user123', 'github');
-      expect(key).toBe('tools:mcp:user123:github');
+      expect(key).toBe('tools:mcp:user123:github:0');
     });
   });
 
@@ -35,7 +36,7 @@ describe('getCachedTools', () => {
     });
 
     it('getCachedTools with MCP server options should use TOOL_CACHE namespace', async () => {
-      mockCache.get.mockResolvedValue({ tool1: {} });
+      mockCache.get.mockResolvedValueOnce(null).mockResolvedValueOnce({ tool1: {} });
       await getCachedTools({ userId: 'user1', serverName: 'github' });
       expect(getLogStores).toHaveBeenCalledWith(CacheKeys.TOOL_CACHE);
       expect(mockCache.get).toHaveBeenCalledWith(ToolCacheKeys.MCP_SERVER('user1', 'github'));
@@ -50,6 +51,7 @@ describe('getCachedTools', () => {
     });
 
     it('setCachedTools with MCP server options should use TOOL_CACHE namespace', async () => {
+      mockCache.get.mockResolvedValueOnce(null);
       mockCache.set.mockResolvedValue(true);
       const tools = { tool1: { type: 'function' } };
       await setCachedTools(tools, { userId: 'user1', serverName: 'github' });
@@ -69,10 +71,19 @@ describe('getCachedTools', () => {
     });
 
     it('getMCPServerTools should use TOOL_CACHE namespace', async () => {
-      mockCache.get.mockResolvedValue(null);
+      mockCache.get.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       await getMCPServerTools('user1', 'github');
       expect(getLogStores).toHaveBeenCalledWith(CacheKeys.TOOL_CACHE);
       expect(mockCache.get).toHaveBeenCalledWith(ToolCacheKeys.MCP_SERVER('user1', 'github'));
+    });
+
+    it('invalidates all user-specific tool caches for a refreshed MCP server', async () => {
+      mockCache.set.mockResolvedValue(true);
+      await invalidateMCPServerTools('github');
+      expect(mockCache.set).toHaveBeenCalledWith(
+        ToolCacheKeys.MCP_SERVER_REVISION('github'),
+        expect.any(String),
+      );
     });
 
     it('should NOT use CONFIG_STORE namespace', async () => {

@@ -8,8 +8,15 @@ const ToolCacheKeys = {
   /** Global tools available to all users */
   GLOBAL: 'tools:global',
   /** MCP tools cached by user ID and server name */
-  MCP_SERVER: (userId, serverName) => `tools:mcp:${userId}:${serverName}`,
+  MCP_SERVER: (userId, serverName, revision = '0') =>
+    `tools:mcp:${userId}:${serverName}:${revision}`,
+  MCP_SERVER_REVISION: (serverName) => `tools:mcp:revision:${serverName}`,
 };
+
+async function getMCPServerToolCacheKey(cache, userId, serverName) {
+  const revision = (await cache.get(ToolCacheKeys.MCP_SERVER_REVISION(serverName))) ?? '0';
+  return ToolCacheKeys.MCP_SERVER(userId, serverName, revision);
+}
 
 /**
  * Retrieves available tools from cache
@@ -25,7 +32,7 @@ async function getCachedTools(options = {}) {
 
   // Return MCP server-specific tools if requested
   if (serverName && userId) {
-    return await cache.get(ToolCacheKeys.MCP_SERVER(userId, serverName));
+    return await cache.get(await getMCPServerToolCacheKey(cache, userId, serverName));
   }
 
   // Default to global tools
@@ -48,7 +55,7 @@ async function setCachedTools(tools, options = {}) {
 
   // Cache by MCP server if specified (requires userId)
   if (serverName && userId) {
-    return await cache.set(ToolCacheKeys.MCP_SERVER(userId, serverName), tools, ttl);
+    return await cache.set(await getMCPServerToolCacheKey(cache, userId, serverName), tools, ttl);
   }
 
   // Default to global cache
@@ -75,7 +82,7 @@ async function invalidateCachedTools(options = {}) {
   }
 
   if (serverName && userId) {
-    keysToDelete.push(ToolCacheKeys.MCP_SERVER(userId, serverName));
+    keysToDelete.push(await getMCPServerToolCacheKey(cache, userId, serverName));
   }
 
   await Promise.all(keysToDelete.map((key) => cache.delete(key)));
@@ -90,7 +97,8 @@ async function invalidateCachedTools(options = {}) {
  */
 async function getMCPServerTools(userId, serverName) {
   const cache = getLogStores(CacheKeys.TOOL_CACHE);
-  const serverTools = await cache.get(ToolCacheKeys.MCP_SERVER(userId, serverName));
+  const cacheKey = await getMCPServerToolCacheKey(cache, userId, serverName);
+  const serverTools = await cache.get(cacheKey);
 
   if (serverTools) {
     return serverTools;
@@ -99,10 +107,16 @@ async function getMCPServerTools(userId, serverName) {
   return null;
 }
 
+async function invalidateMCPServerTools(serverName) {
+  const cache = getLogStores(CacheKeys.TOOL_CACHE);
+  await cache.set(ToolCacheKeys.MCP_SERVER_REVISION(serverName), String(Date.now()));
+}
+
 module.exports = {
   ToolCacheKeys,
   getCachedTools,
   setCachedTools,
   getMCPServerTools,
   invalidateCachedTools,
+  invalidateMCPServerTools,
 };

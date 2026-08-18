@@ -138,9 +138,12 @@ export default function AgentConfig() {
     return _agent.code_files ?? [];
   }, [agent, agent_id, mergedFileMap]);
 
-  const providerValue = typeof provider === 'string' ? provider : provider?.value;
+  const savedAgent = typeof agent === 'string' || agent?.id !== agent_id ? undefined : agent;
+  const providerValue =
+    (typeof provider === 'string' ? provider : provider?.value) ?? savedAgent?.provider;
+  const modelValue = model || savedAgent?.model;
   const providerLabel = getAgentBuilderProviderLabel(providerValue ?? '');
-  const modelLabel = getAgentBuilderModelLabel(model);
+  const modelLabel = getAgentBuilderModelLabel(modelValue);
   let Icon: IconComponentTypes | null | undefined;
   let endpointType: EModelEndpoint | undefined;
   let endpointIconURL: string | undefined;

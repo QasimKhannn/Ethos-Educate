@@ -18,6 +18,7 @@ import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
 import AgentDetail from './AgentDetail';
 import ErrorDisplay from './ErrorDisplay';
+import EssayGraderToolCard from './EssayGraderToolCard';
 import useStartAgentChat from './useStartAgentChat';
 import {
   getMockMarketplaceAgents,
@@ -39,6 +40,9 @@ interface AgentGridProps {
 export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_desc';
 export type MarketplaceViewMode = 'compact' | 'large';
 
+const ESSAY_GRADER_CATEGORY = 'assessment_grading';
+const ESSAY_GRADER_SEARCH_TERMS = 'essay grader essay rubric rubrics grading score feedback writing assessment';
+
 const AgentGrid: React.FC<AgentGridProps> = ({
   category,
   searchQuery,
@@ -59,6 +63,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const storefrontScrollRef = useRef<HTMLDivElement>(null);
   const startAgentChat = useStartAgentChat();
   const shouldUseBackendDateSort = sortOption === 'newest' || sortOption === 'oldest';
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
 
   const queryParams = useMemo(() => {
     const params: {
@@ -169,6 +174,23 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     error == null;
   const displayedAgents = isUsingMockAgents ? fallbackAgents : currentAgents;
   const hasData = useHasData(data?.pages?.[0]);
+  const shouldShowEssayGraderTool = useMemo(() => {
+    const matchesCategory = !category || category === 'all' || category === ESSAY_GRADER_CATEGORY;
+
+    if (!matchesCategory) {
+      return false;
+    }
+
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    return `${localize('com_essay_grader_title')} ${localize(
+      'com_essay_grader_toolkit_description',
+    )} ${ESSAY_GRADER_SEARCH_TERMS}`
+      .toLocaleLowerCase()
+      .includes(normalizedSearch);
+  }, [category, localize, normalizedSearch]);
 
   const animateStorefrontCard = useCallback(
     (button: HTMLButtonElement, isActive: boolean) => {
@@ -369,7 +391,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     );
   }
 
-  if (displayedAgents.length === 0 && !isLoading && !isFetching) {
+  if (displayedAgents.length === 0 && !shouldShowEssayGraderTool && !isLoading && !isFetching) {
     return (
       <section
         className="agents-marketplace-empty"
@@ -404,7 +426,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   }
 
   const listAnnouncement = localize('com_agents_grid_announcement', {
-    count: displayedAgents.length,
+    count: displayedAgents.length + (shouldShowEssayGraderTool ? 1 : 0),
   });
   const loadingCardIndexes = Array.from(
     { length: isDesktopCatalog ? pageSize : 4 },
@@ -471,6 +493,15 @@ const AgentGrid: React.FC<AgentGridProps> = ({
           role="grid"
           aria-label={listAnnouncement}
         >
+          {shouldShowEssayGraderTool ? (
+            <motion.div
+              key="tool-essay-grader"
+              role="gridcell"
+              variants={marketplaceCardRevealVariants}
+            >
+              <EssayGraderToolCard variant="card" viewMode={viewMode} />
+            </motion.div>
+          ) : null}
           {displayedAgents.map((agent: t.Agent, index: number) => (
             <motion.div
               key={`${agent.id}-${index}`}
@@ -549,6 +580,15 @@ const AgentGrid: React.FC<AgentGridProps> = ({
             role="list"
             aria-label={listAnnouncement}
           >
+            {shouldShowEssayGraderTool ? (
+              <motion.div
+                key="tool-essay-grader"
+                role="listitem"
+                variants={marketplaceCardRevealVariants}
+              >
+                <EssayGraderToolCard variant="storefront" viewMode={viewMode} />
+              </motion.div>
+            ) : null}
             {displayedAgents.map((agent, index) => {
               const agentDisplayName = getAgentDisplayName(agent);
               const toolkitDescription = getAgentToolkitDescription(agent);

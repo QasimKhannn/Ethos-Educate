@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const crypto = require('crypto');
 const { logger } = require('@librechat/data-schemas');
 const {
   CacheKeys,
@@ -40,7 +41,9 @@ const { getMCPSetupData, getServerConnectionStatus } = require('~/server/service
 const { requireJwtAuth, canAccessMCPServerResource } = require('~/server/middleware');
 const { findToken, updateToken, createToken, deleteTokens } = require('~/models');
 const { getUserPluginAuthValue } = require('~/server/services/PluginService');
-const { updateMCPServerTools } = require('~/server/services/Config/mcp');
+const { getAppConfig } = require('~/server/services/Config');
+const { refreshAppMCPServerTools, updateMCPServerTools } = require('~/server/services/Config/mcp');
+const { invalidateMCPServerTools } = require('~/server/services/Config/getCachedTools');
 const { reinitMCPServer } = require('~/server/services/Tools/mcp');
 const { findPluginAuthsByKeys } = require('~/models');
 const { getRoleByName } = require('~/models/Role');
@@ -50,6 +53,21 @@ const { ERROR_CODES, sendErrorResponse } = require('~/server/utils/errorResponse
 const router = Router();
 
 const OAUTH_CSRF_COOKIE_PATH = '/api/mcp';
+
+function hasValidMCPRefreshWebhookSecret(requestSecret) {
+  const configuredSecret = process.env.MCP_REFRESH_WEBHOOK_SECRET;
+  if (!configuredSecret || !requestSecret) {
+    return false;
+  }
+
+  const configuredBuffer = Buffer.from(configuredSecret);
+  const requestBuffer = Buffer.from(requestSecret);
+  if (configuredBuffer.length !== requestBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(configuredBuffer, requestBuffer);
+}
 
 function buildClientOAuthRedirect(pathname, searchParams = {}) {
   const clientDomain = process.env.DOMAIN_CLIENT || 'http://localhost:3090';
@@ -740,6 +758,46 @@ router.post('/oauth/cancel/:serverName', requireJwtAuth, async (req, res) => {
       message: "We couldn't cancel the sign-in request.",
       action: 'Try again in a moment.',
     });
+  }
+});
+
+/**
+ * Refresh an app-level MCP server after its own deployment completes.
+ * The shared secret is configured in the Ethos backend and the MCP deployment environment.
+ */
+router.post('/webhooks/:serverName/refresh', async (req, res) => {
+  const { serverName } = req.params;
+  const requestSecret = req.get('x-mcp-refresh-secret');
+
+  if (!hasValidMCPRefreshWebhookSecret(requestSecret)) {
+    logger.warn(`[MCP Refresh Webhook] Unauthorized request for server: ${serverName}`);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const appConfig = await getAppConfig();
+    const serverConfig = appConfig.mcpConfig?.[serverName];
+
+    if (!serverConfig || serverConfig.startup !== true) {
+      return res.status(404).json({ error: 'Configured app-level MCP server not found' });
+    }
+
+    const serverTools = await getMCPManager().refreshAppServer(serverName, serverConfig);
+    await refreshAppMCPServerTools({ serverName, serverTools });
+    await invalidateMCPServerTools(serverName);
+
+    logger.info(
+      `[MCP Refresh Webhook] Refreshed ${Object.keys(serverTools).length} tools for ${serverName}`,
+    );
+    return res.status(200).json({
+      success: true,
+      serverName,
+      toolsCount: Object.keys(serverTools).length,
+      refreshedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error(`[MCP Refresh Webhook] Failed to refresh ${serverName}:`, error);
+    return res.status(503).json({ error: 'MCP refresh failed' });
   }
 });
 

@@ -33,6 +33,7 @@ const mockRegistryInstance = {
   getServerConfig: jest.fn(),
   getAllServerConfigs: jest.fn(),
   getOAuthServers: jest.fn(),
+  updateServer: jest.fn(),
   shouldEnableSSRFProtection: jest.fn().mockReturnValue(false),
 };
 
@@ -187,6 +188,27 @@ describe('MCPManager', () => {
       const result = await manager.getAppToolFunctions();
 
       expect(result).toEqual(toolFunctions1);
+    });
+  });
+
+  describe('refreshAppServer', () => {
+    it('re-inspects the server and disconnects its active app connection', async () => {
+      const disconnect = jest.fn().mockResolvedValue(undefined);
+      mockAppConnections({ disconnect });
+      (mockRegistryInstance.updateServer as jest.Mock).mockResolvedValue({
+        toolFunctions: { create_document_mcp_files: { type: 'function' } },
+      });
+
+      const manager = await MCPManager.createInstance(newMCPServersConfig());
+      const tools = await manager.refreshAppServer(serverName, newMCPServersConfig()[serverName]);
+
+      expect(mockRegistryInstance.updateServer).toHaveBeenCalledWith(
+        serverName,
+        newMCPServersConfig()[serverName],
+        'CACHE',
+      );
+      expect(disconnect).toHaveBeenCalledWith(serverName);
+      expect(tools).toEqual({ create_document_mcp_files: { type: 'function' } });
     });
   });
 
