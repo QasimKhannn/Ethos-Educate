@@ -1,7 +1,8 @@
 import React from 'react';
-import { BookOpenCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLocalize } from '~/hooks';
+
+const essayGraderIcon = '/assets/agent-icons/essay-grader.svg';
 
 interface EssayGraderToolCardProps {
   variant: 'card' | 'storefront';
@@ -31,8 +32,12 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
         onClick={openTool}
       >
         <div className="agents-marketplace-storefront-icon-wrap" aria-hidden="true">
-          <div className="agents-marketplace-storefront-avatar bg-blue-500 text-white">
-            <BookOpenCheck className="agents-marketplace-storefront-art h-9 w-9" />
+          <div className="agents-marketplace-storefront-avatar bg-surface-secondary">
+            <img
+              src={essayGraderIcon}
+              alt=""
+              className="agents-marketplace-storefront-art h-full w-full object-contain"
+            />
           </div>
         </div>
         <div className="agents-marketplace-storefront-copy">
@@ -44,7 +49,10 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
   }
 
   return (
-    <article className="agent-card-shell group overflow-hidden rounded-xl border" data-view-mode={viewMode}>
+    <article
+      className="agent-card-shell group overflow-hidden rounded-xl border"
+      data-view-mode={viewMode}
+    >
       <button
         type="button"
         className="agent-card-trigger w-full text-left"
@@ -52,8 +60,12 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
         aria-label={`${title}. ${description}`}
         onClick={openTool}
       >
-        <div className="agent-card-avatar-shell flex h-[3.95rem] w-[3.95rem] shrink-0 items-center justify-center rounded-xl border border-border-light bg-blue-500 text-white">
-          <BookOpenCheck className="h-8 w-8" aria-hidden="true" />
+        <div className="agent-card-avatar-shell flex h-[3.95rem] w-[3.95rem] shrink-0 items-center justify-center rounded-xl border border-border-light bg-surface-secondary">
+          <img
+            src={essayGraderIcon}
+            alt=""
+            className="agent-card-art h-full w-full object-contain"
+          />
         </div>
         <div className="agent-card-copy min-w-0">
           <div className="agent-card-title-row">
