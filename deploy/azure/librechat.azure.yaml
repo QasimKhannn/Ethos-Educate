@@ -253,7 +253,7 @@ mcpServers:
     description: "Create Microsoft Office documents"
     type: streamable-http
     url: ${DOWNLOADABLE_FILES_MCP_URL}
-    timeout: 180000
+    timeout: 300000
     initTimeout: 60000
     startup: true
     chatMenu: true
