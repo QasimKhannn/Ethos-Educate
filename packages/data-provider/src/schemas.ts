@@ -252,6 +252,7 @@ export const defaultAgentFormValues = {
   agent: {},
   id: '',
   name: '',
+  toolkit_description: '',
   description: '',
   recommended_prompts: [],
   show_recommended_prompts: true,
@@ -270,7 +271,7 @@ export const defaultAgentFormValues = {
   [Tools.execute_code]: false,
   [Tools.file_search]: false,
   [Tools.web_search]: false,
-  category: 'general',
+  category: 'teaching_learning',
   support_contact: {
     name: '',
     email: '',

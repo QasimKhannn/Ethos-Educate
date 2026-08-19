@@ -113,6 +113,7 @@ function AgentSelect({
         model: update.model,
         tools: agentTools,
         category: fullAgent.category || EMPTY_AGENT_CATEGORY.value,
+        toolkit_description: fullAgent.toolkit_description ?? '',
         recommended_prompts: fullAgent.recommended_prompts ?? [],
         show_recommended_prompts: fullAgent.show_recommended_prompts !== false,
         // Make sure support_contact is properly loaded

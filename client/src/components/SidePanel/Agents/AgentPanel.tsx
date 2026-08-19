@@ -512,30 +512,32 @@ export default function AgentPanel() {
         className="scrollbar-gutter-stable h-auto w-full flex-shrink-0 overflow-y-hidden overflow-x-visible"
         aria-label="Agent configuration form"
       >
-        <div className="agent-builder-agent-switcher">
-          <AgentSelect
-            createMutation={create}
-            agentQuery={agentQuery}
-            setCurrentAgentId={setCurrentAgentId}
-            // The following is required to force re-render the component when the form's agent ID changes
-            // Also maintains ComboBox Focus for Accessibility
-            selectedAgentId={agentQuery.isInitialLoading ? null : (current_agent_id ?? null)}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="agent-builder-create-button justify-center"
-            onClick={() => {
-              reset(getDefaultAgentFormValues());
-              setCurrentAgentId(undefined);
-            }}
-            disabled={agentQuery.isInitialLoading}
-            aria-label={localize('com_ui_create_new_agent')}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>{localize('com_ui_create_new_agent')}</span>
-          </Button>
-        </div>
+        {activePanel === Panel.builder && (
+          <div className="agent-builder-agent-switcher">
+            <AgentSelect
+              createMutation={create}
+              agentQuery={agentQuery}
+              setCurrentAgentId={setCurrentAgentId}
+              // The following is required to force re-render the component when the form's agent ID changes
+              // Also maintains ComboBox Focus for Accessibility
+              selectedAgentId={agentQuery.isInitialLoading ? null : (current_agent_id ?? null)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="agent-builder-create-button justify-center"
+              onClick={() => {
+                reset(getDefaultAgentFormValues());
+                setCurrentAgentId(undefined);
+              }}
+              disabled={agentQuery.isInitialLoading}
+              aria-label={localize('com_ui_create_new_agent')}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span>{localize('com_ui_create_new_agent')}</span>
+            </Button>
+          </div>
+        )}
         {agentQuery.isInitialLoading && <AgentPanelSkeleton />}
         {!canEditAgent && !agentQuery.isInitialLoading && (
           <div className="flex h-[30vh] w-full items-center justify-center">

@@ -39,10 +39,12 @@ export const useMCPToolsQuery = <TData = t.MCPServersResponse>(
     [QueryKeys.mcpTools],
     () => dataService.getMCPTools(),
     {
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      refetchOnMount: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      // Tool manifests are cached by the server. Always retrieve the current manifest when this
+      // UI is opened or revisited so a shared MCP refresh is visible to every signed-in user.
+      refetchOnWindowFocus: 'always',
+      refetchOnReconnect: 'always',
+      refetchOnMount: 'always',
+      staleTime: 0,
       ...config,
     },
   );

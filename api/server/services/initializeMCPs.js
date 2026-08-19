@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { logger } = require('@librechat/data-schemas');
-const { mergeAppTools, getAppConfig } = require('./Config');
+const { mergeAppTools, getAppConfig, isSharedAppMCPServer } = require('./Config');
+const { invalidateMCPServerTools } = require('./Config/getCachedTools');
 const { createMCPServersRegistry, createMCPManager } = require('~/config');
 
 /**
@@ -23,6 +24,11 @@ async function initializeMCPs() {
     if (mcpServers && Object.keys(mcpServers).length > 0) {
       const mcpTools = (await mcpManager.getAppToolFunctions()) || {};
       await mergeAppTools(mcpTools);
+      await Promise.all(
+        Object.entries(mcpServers)
+          .filter(([, serverConfig]) => isSharedAppMCPServer(serverConfig))
+          .map(([serverName]) => invalidateMCPServerTools(serverName)),
+      );
       const serverCount = Object.keys(mcpServers).length;
       const toolCount = Object.keys(mcpTools).length;
       logger.info(

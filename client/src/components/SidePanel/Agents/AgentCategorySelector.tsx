@@ -1,50 +1,15 @@
-import React, { memo, useState } from 'react';
+import React, { memo } from 'react';
 import { ControlCombobox } from '@librechat/client';
-import {
-  useWatch,
-  FieldPath,
-  Controller,
-  FieldValues,
-  useFormContext,
-  ControllerRenderProps,
-} from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import { TranslationKeys, useLocalize, useAgentCategories } from '~/hooks';
 import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
+import type { AgentForm } from '~/common';
 import { cn } from '~/utils';
 
-/**
- * Custom hook to handle category synchronization
- */
-const useCategorySync = (agent_id: string | null) => {
-  const [handled, setHandled] = useState(false);
-
-  return {
-    syncCategory: <T extends FieldPath<FieldValues>>(
-      field: ControllerRenderProps<FieldValues, T>,
-    ) => {
-      // Only run once and only for new agents
-      if (!handled && agent_id === '' && !field.value) {
-        field.onChange(EMPTY_AGENT_CATEGORY.value);
-        setHandled(true);
-      }
-    },
-  };
-};
-
-/**
- * A component for selecting agent categories with form validation
- */
 const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) => {
   const localize = useLocalize();
-  const formContext = useFormContext();
+  const formContext = useFormContext<AgentForm>();
   const { categories } = useAgentCategories();
-
-  const agent_id = useWatch({
-    name: 'id',
-    control: formContext.control,
-  });
-
-  const { syncCategory } = useCategorySync(agent_id);
   const getCategoryLabel = (category: { label: string; value: string }) => {
     if (category.label && category.label.startsWith('com_')) {
       return localize(category.label as TranslationKeys);
@@ -75,14 +40,12 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
       control={formContext.control}
       defaultValue={EMPTY_AGENT_CATEGORY.value}
       render={({ field }) => {
-        // Sync category if needed (without using useEffect in render)
-        syncCategory(field);
-
-        const displayValue = getCategoryDisplayValue(field.value);
+        const selectedValue = field.value || EMPTY_AGENT_CATEGORY.value;
+        const displayValue = getCategoryDisplayValue(selectedValue);
 
         return (
           <ControlCombobox
-            selectedValue={field.value}
+            selectedValue={selectedValue}
             displayValue={displayValue}
             searchPlaceholder={searchPlaceholder}
             setValue={(value) => {
@@ -93,7 +56,7 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
             ariaLabel={ariaLabel}
             isCollapsed={false}
             showCarat={true}
-            popoverPortal={false}
+            popoverPortal
           />
         );
       }}

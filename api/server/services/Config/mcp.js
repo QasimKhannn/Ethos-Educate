@@ -3,6 +3,15 @@ const { CacheKeys, Constants } = require('librechat-data-provider');
 const { getCachedTools, setCachedTools } = require('./getCachedTools');
 const { getLogStores } = require('~/cache');
 
+function isSharedAppMCPServer(serverConfig) {
+  return (
+    serverConfig.startup === true &&
+    serverConfig.requiresOAuth !== true &&
+    serverConfig.oauthMetadata == null &&
+    serverConfig.customUserVars == null
+  );
+}
+
 /**
  * Updates MCP tools in the cache for a specific server
  * @param {Object} params - Parameters for updating MCP tools
@@ -118,4 +127,5 @@ module.exports = {
   cacheMCPServerTools,
   updateMCPServerTools,
   refreshAppMCPServerTools,
+  isSharedAppMCPServer,
 };

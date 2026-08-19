@@ -136,7 +136,7 @@ function ControlCombobox({
         gutter={4}
         portal={popoverPortal}
         className={cn(
-          'animate-popover z-40 overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
+          'animate-popover z-[120] overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
         )}
         style={{ width: isCollapsed ? '300px' : (buttonWidth ?? '300px') }}
       >

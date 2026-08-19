@@ -42,7 +42,11 @@ const { requireJwtAuth, canAccessMCPServerResource } = require('~/server/middlew
 const { findToken, updateToken, createToken, deleteTokens } = require('~/models');
 const { getUserPluginAuthValue } = require('~/server/services/PluginService');
 const { getAppConfig } = require('~/server/services/Config');
-const { refreshAppMCPServerTools, updateMCPServerTools } = require('~/server/services/Config/mcp');
+const {
+  isSharedAppMCPServer,
+  refreshAppMCPServerTools,
+  updateMCPServerTools,
+} = require('~/server/services/Config/mcp');
 const { invalidateMCPServerTools } = require('~/server/services/Config/getCachedTools');
 const { reinitMCPServer } = require('~/server/services/Tools/mcp');
 const { findPluginAuthsByKeys } = require('~/models');
@@ -67,6 +71,13 @@ function hasValidMCPRefreshWebhookSecret(requestSecret) {
   }
 
   return crypto.timingSafeEqual(configuredBuffer, requestBuffer);
+}
+
+async function refreshSharedMCPServer(serverName, serverConfig) {
+  const serverTools = await getMCPManager().refreshAppServer(serverName, serverConfig);
+  await refreshAppMCPServerTools({ serverName, serverTools });
+  await invalidateMCPServerTools(serverName);
+  return serverTools;
 }
 
 function buildClientOAuthRedirect(pathname, searchParams = {}) {
@@ -778,13 +789,11 @@ router.post('/webhooks/:serverName/refresh', async (req, res) => {
     const appConfig = await getAppConfig();
     const serverConfig = appConfig.mcpConfig?.[serverName];
 
-    if (!serverConfig || serverConfig.startup !== true) {
+    if (!serverConfig || !isSharedAppMCPServer(serverConfig)) {
       return res.status(404).json({ error: 'Configured app-level MCP server not found' });
     }
 
-    const serverTools = await getMCPManager().refreshAppServer(serverName, serverConfig);
-    await refreshAppMCPServerTools({ serverName, serverTools });
-    await invalidateMCPServerTools(serverName);
+    const serverTools = await refreshSharedMCPServer(serverName, serverConfig);
 
     logger.info(
       `[MCP Refresh Webhook] Refreshed ${Object.keys(serverTools).length} tools for ${serverName}`,
@@ -825,6 +834,20 @@ router.post('/:serverName/reinitialize', requireJwtAuth, setOAuthSession, async 
         code: ERROR_CODES.NOT_FOUND,
         message: "We couldn't find that MCP server.",
         action: 'Check the server name and try again.',
+      });
+    }
+
+    if (isSharedAppMCPServer(serverConfig)) {
+      const serverTools = await refreshSharedMCPServer(serverName, serverConfig);
+      logger.info(
+        `[MCP Reinitialize] Refreshed ${Object.keys(serverTools).length} shared tools for ${serverName}`,
+      );
+      return res.json({
+        success: true,
+        message: `MCP server '${serverName}' refreshed for all agents`,
+        oauthUrl: null,
+        serverName,
+        oauthRequired: false,
       });
     }
 

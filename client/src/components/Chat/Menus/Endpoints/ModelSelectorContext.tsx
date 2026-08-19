@@ -11,7 +11,7 @@ import {
   useLocalize,
 } from '~/hooks';
 import { useAgentsMapContext, useAssistantsMapContext, useLiveAnnouncer } from '~/Providers';
-import { useGetEndpointsQuery, useListAgentsQuery } from '~/data-provider';
+import { useGetAgentByIdQuery, useGetEndpointsQuery, useListAgentsQuery } from '~/data-provider';
 import { useModelSelectorChatContext } from './ModelSelectorChatContext';
 import useSelectMention from '~/hooks/Input/useSelectMention';
 import { filterItems } from './utils';
@@ -26,6 +26,7 @@ type ModelSelectorContextType = {
   modelSpecs: t.TModelSpec[];
   mappedEndpoints: Endpoint[];
   agentsMap: t.TAgentsMap | undefined;
+  agentModel?: string;
   assistantsMap: t.TAssistantsMap | undefined;
   endpointsConfig: t.TEndpointsConfig;
 
@@ -60,6 +61,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { endpoint, model, spec, agent_id, assistant_id, getConversation, newConversation } =
     useModelSelectorChatContext();
+  const { data: selectedAgent } = useGetAgentByIdQuery(agent_id);
   const localize = useLocalize();
   const { announcePolite } = useLiveAnnouncer();
   const modelSpecs = useMemo(() => {
@@ -96,6 +98,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     startupConfig,
     endpointsConfig,
   });
+  const agentModel = selectedAgent?.model ?? agentsMap?.[agent_id ?? '']?.model;
 
   const getModelDisplayName = useCallback(
     (endpoint: Endpoint, model: string): string => {
@@ -248,6 +251,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       selectedValues,
       endpointSearchValues,
       agentsMap,
+      agentModel,
       modelSpecs,
       assistantsMap,
       mappedEndpoints,
@@ -267,6 +271,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       selectedValues,
       endpointSearchValues,
       agentsMap,
+      agentModel,
       modelSpecs,
       assistantsMap,
       mappedEndpoints,

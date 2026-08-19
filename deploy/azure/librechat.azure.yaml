@@ -57,7 +57,7 @@ mcpServers:
     timeout: 180000
     initTimeout: 60000
     chatMenu: true
-    startup: false
+    startup: true
     serverInstructions: |
       🎨 **AI Image Generation Tool**
       Create stunning images using advanced AI models:

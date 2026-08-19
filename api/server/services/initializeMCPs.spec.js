@@ -28,6 +28,12 @@ jest.mock('@librechat/data-schemas', () => ({
 // Mock config functions
 const mockGetAppConfig = jest.fn();
 const mockMergeAppTools = jest.fn();
+const mockInvalidateMCPServerTools = jest.fn();
+const isSharedAppMCPServer = (serverConfig) =>
+  serverConfig.startup === true &&
+  serverConfig.requiresOAuth !== true &&
+  serverConfig.oauthMetadata == null &&
+  serverConfig.customUserVars == null;
 
 jest.mock('./Config', () => ({
   get getAppConfig() {
@@ -35,6 +41,13 @@ jest.mock('./Config', () => ({
   },
   get mergeAppTools() {
     return mockMergeAppTools;
+  },
+  isSharedAppMCPServer,
+}));
+
+jest.mock('./Config/getCachedTools', () => ({
+  get invalidateMCPServerTools() {
+    return mockInvalidateMCPServerTools;
   },
 }));
 
@@ -66,6 +79,7 @@ describe('initializeMCPs', () => {
     mockCreateMCPManager.mockResolvedValue(mockMCPManagerInstance);
     mockMCPManagerInstance.getAppToolFunctions.mockResolvedValue({});
     mockMergeAppTools.mockResolvedValue(undefined);
+    mockInvalidateMCPServerTools.mockResolvedValue(undefined);
   });
 
   describe('MCPServersRegistry initialization', () => {
@@ -207,6 +221,30 @@ describe('initializeMCPs', () => {
       expect(logger.info).toHaveBeenCalledWith(
         '[MCP] Initialized with 1 configured server and 2 tools.',
       );
+    });
+
+    it('invalidates user tool caches for shared MCP servers at startup', async () => {
+      const mcpServers = {
+        files: { type: 'streamable-http', startup: true, url: 'https://files.example.com' },
+        oauth: {
+          type: 'streamable-http',
+          startup: true,
+          requiresOAuth: true,
+          url: 'https://oauth.example.com',
+        },
+        userKeys: {
+          type: 'streamable-http',
+          startup: true,
+          customUserVars: { API_KEY: { title: 'API key' } },
+          url: 'https://keys.example.com',
+        },
+      };
+      mockGetAppConfig.mockResolvedValue({ mcpConfig: mcpServers });
+
+      await initializeMCPs();
+
+      expect(mockInvalidateMCPServerTools).toHaveBeenCalledTimes(1);
+      expect(mockInvalidateMCPServerTools).toHaveBeenCalledWith('files');
     });
 
     it('should handle null return from getAppToolFunctions', async () => {

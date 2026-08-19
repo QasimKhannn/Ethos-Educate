@@ -104,17 +104,14 @@ function MCPToolSelectDialog({
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Only initialize if no cached tools exist; skip if tools are already available from DB
-      const serverInfo = mcpServersMap.get(serverName);
-      if (!serverInfo?.tools?.length) {
-        const result = await initializeServer(serverName);
-        if (result?.oauthRequired && result.oauthUrl) {
-          setIsInitializing(null);
-          return; // OAuth flow must complete first
-        }
+      // Refresh the tool manifest so a re-added MCP uses its current server tools.
+      const result = await initializeServer(serverName);
+      if (result?.oauthRequired && result.oauthUrl) {
+        setIsInitializing(null);
+        return; // OAuth flow must complete first
       }
 
-      // Add tools to form (refetches from backend's persisted cache)
+      // Add tools to form from the refreshed backend cache.
       await addToolsToForm(serverName);
       setIsInitializing(null);
     } catch (error) {

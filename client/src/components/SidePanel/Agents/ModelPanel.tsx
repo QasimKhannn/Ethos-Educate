@@ -105,31 +105,26 @@ export default function ModelPanel({
   };
 
   return (
-    <div className="mx-1 mb-1 flex h-full min-h-[50vh] w-full flex-col gap-2 text-sm">
-      <div className="model-panel relative flex flex-col items-center px-16 py-4 text-center">
-        <div className="absolute left-0 top-4">
-          <button
-            type="button"
-            className="btn btn-neutral relative"
-            onClick={() => {
-              setActivePanel(Panel.builder);
-            }}
-            aria-label={localize('com_ui_back_to_builder')}
-          >
-            <div className="model-panel-content flex w-full items-center justify-center gap-2">
-              <ChevronLeft />
-            </div>
-          </button>
-        </div>
-
-        <div className="mb-2 mt-2 text-xl font-medium">{localize('com_ui_model_parameters')}</div>
+    <div className="agent-builder-subpanel text-sm">
+      <div className="agent-builder-subpanel-header">
+        <button
+          type="button"
+          className="agent-builder-subpanel-back btn btn-neutral"
+          onClick={() => {
+            setActivePanel(Panel.builder);
+          }}
+          aria-label={localize('com_ui_back_to_builder')}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <h3>{localize('com_ui_model_parameters')}</h3>
       </div>
-      <div className="p-2">
+      <div className="agent-builder-subpanel-content">
         {/* Endpoint aka Provider for Agents */}
-        <div className="mb-4">
+        <div className="agent-builder-subpanel-field">
           <label
             id="provider-label"
-            className="text-token-text-primary model-panel-label mb-2 block font-medium"
+            className="agent-builder-subpanel-label text-token-text-primary"
             htmlFor="provider"
           >
             {localize('com_ui_provider')} <span className="text-red-500">*</span>
@@ -160,10 +155,14 @@ export default function ModelPanel({
                           : getAgentBuilderProviderLabel((provider.value as string) ?? ''),
                       value: typeof provider === 'string' ? provider : provider.value,
                     }))}
-                    className={cn(error ? 'border-2 border-red-500' : '')}
+                    className={cn(
+                      'agent-builder-subpanel-select',
+                      error ? 'border-2 border-red-500' : '',
+                    )}
                     ariaLabel={localize('com_ui_provider')}
                     isCollapsed={false}
                     showCarat={true}
+                    popoverPortal
                   />
                   {error && (
                     <span className="model-panel-error text-sm text-red-500 transition duration-300 ease-in-out">
@@ -176,11 +175,11 @@ export default function ModelPanel({
           />
         </div>
         {/* Model */}
-        <div className="model-panel-section mb-4">
+        <div className="agent-builder-subpanel-field">
           <label
             id="model-label"
             className={cn(
-              'text-token-text-primary model-panel-label mb-2 block font-medium',
+              'agent-builder-subpanel-label text-token-text-primary',
               !provider && 'text-gray-500 dark:text-gray-400',
             )}
             htmlFor="model"
@@ -209,10 +208,14 @@ export default function ModelPanel({
                       value: model,
                     }))}
                     disabled={!provider}
-                    className={cn('disabled:opacity-50', error ? 'border-2 border-red-500' : '')}
+                    className={cn(
+                      'agent-builder-subpanel-select disabled:opacity-50',
+                      error ? 'border-2 border-red-500' : '',
+                    )}
                     ariaLabel={localize('com_ui_model')}
                     isCollapsed={false}
                     showCarat={true}
+                    popoverPortal
                   />
                   {provider && error && (
                     <span className="text-sm text-red-500 transition duration-300 ease-in-out">
@@ -224,61 +227,61 @@ export default function ModelPanel({
             }}
           />
         </div>
-      </div>
-      {parameters.length > 0 && (
-        <details
-          className="agent-builder-model-parameters"
-          open={isParametersOpen}
-          onToggle={(event) => setIsParametersOpen(event.currentTarget.open)}
-        >
-          <summary>
-            <span className="agent-builder-model-parameters-summary-copy">
-              <span className="agent-builder-model-parameters-title">
-                {localize('com_ui_model_parameters')}
+        {parameters.length > 0 && (
+          <details
+            className="agent-builder-model-parameters"
+            open={isParametersOpen}
+            onToggle={(event) => setIsParametersOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <span className="agent-builder-model-parameters-summary-copy">
+                <span className="agent-builder-model-parameters-title">
+                  {localize('com_ui_model_parameters')}
+                </span>
+                <span className="agent-builder-model-parameters-description">
+                  {localize('com_ui_tooltip_model_parameters')}
+                </span>
               </span>
-              <span className="agent-builder-model-parameters-description">
-                {localize('com_ui_tooltip_model_parameters')}
-              </span>
-            </span>
-            <ChevronDown className="agent-builder-model-parameters-chevron" aria-hidden="true" />
-          </summary>
-          <div className="agent-builder-model-parameters-content">
-            <div className="agent-builder-model-parameters-grid">
-              {parameters.map((setting) => {
-                const Component = componentMapping[setting.component];
-                if (!Component) {
-                  return null;
-                }
-                const { key, default: defaultValue, ...rest } = setting;
+              <ChevronDown className="agent-builder-model-parameters-chevron" aria-hidden="true" />
+            </summary>
+            <div className="agent-builder-model-parameters-content">
+              <div className="agent-builder-model-parameters-grid">
+                {parameters.map((setting) => {
+                  const Component = componentMapping[setting.component];
+                  if (!Component) {
+                    return null;
+                  }
+                  const { key, default: defaultValue, ...rest } = setting;
 
-                if (key === 'region' && bedrockRegions.length) {
-                  rest.options = bedrockRegions;
-                }
+                  if (key === 'region' && bedrockRegions.length) {
+                    rest.options = bedrockRegions;
+                  }
 
-                return (
-                  <div key={key} className="agent-builder-model-parameter">
-                    <Component
-                      settingKey={key}
-                      defaultValue={defaultValue}
-                      {...rest}
-                      setOption={setOption as t.TSetOption}
-                      conversation={modelParameters as Partial<t.TConversation>}
-                    />
-                  </div>
-                );
-              })}
+                  return (
+                    <div key={key} className="agent-builder-model-parameter">
+                      <Component
+                        settingKey={key}
+                        defaultValue={defaultValue}
+                        {...rest}
+                        setOption={setOption as t.TSetOption}
+                        conversation={modelParameters as Partial<t.TConversation>}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={handleResetParameters}
+                className="btn btn-neutral agent-builder-model-parameters-reset flex w-full items-center justify-center gap-2 px-4 py-2 text-sm"
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                {localize('com_ui_reset_var', { 0: localize('com_ui_model_parameters') })}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleResetParameters}
-              className="btn btn-neutral agent-builder-model-parameters-reset flex w-full items-center justify-center gap-2 px-4 py-2 text-sm"
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              {localize('com_ui_reset_var', { 0: localize('com_ui_model_parameters') })}
-            </button>
-          </div>
-        </details>
-      )}
+          </details>
+        )}
+      </div>
     </div>
   );
 }

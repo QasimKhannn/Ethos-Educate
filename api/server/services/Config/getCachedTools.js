@@ -1,4 +1,4 @@
-const { CacheKeys, Time } = require('librechat-data-provider');
+const { CacheKeys, Constants, Time } = require('librechat-data-provider');
 const getLogStores = require('~/cache/getLogStores');
 
 /**
@@ -97,14 +97,18 @@ async function invalidateCachedTools(options = {}) {
  */
 async function getMCPServerTools(userId, serverName) {
   const cache = getLogStores(CacheKeys.TOOL_CACHE);
-  const cacheKey = await getMCPServerToolCacheKey(cache, userId, serverName);
-  const serverTools = await cache.get(cacheKey);
+  const appTools = (await cache.get(ToolCacheKeys.GLOBAL)) ?? {};
+  const mcpSuffix = `${Constants.mcp_delimiter}${serverName}`;
+  const sharedServerTools = Object.fromEntries(
+    Object.entries(appTools).filter(([toolName]) => toolName.endsWith(mcpSuffix)),
+  );
 
-  if (serverTools) {
-    return serverTools;
+  if (Object.keys(sharedServerTools).length > 0) {
+    return sharedServerTools;
   }
 
-  return null;
+  const cacheKey = await getMCPServerToolCacheKey(cache, userId, serverName);
+  return await cache.get(cacheKey);
 }
 
 async function invalidateMCPServerTools(serverName) {

@@ -94,6 +94,13 @@ jest.mock('~/server/services/Config', () => ({
 }));
 
 jest.mock('~/server/services/Config/mcp', () => ({
+  isSharedAppMCPServer: jest.fn(
+    (serverConfig) =>
+      serverConfig.startup === true &&
+      serverConfig.requiresOAuth !== true &&
+      serverConfig.oauthMetadata == null &&
+      serverConfig.customUserVars == null,
+  ),
   refreshAppMCPServerTools: jest.fn(),
   updateMCPServerTools: jest.fn(),
 }));
@@ -1029,6 +1036,46 @@ describe('MCP Routes', () => {
 
   describe('POST /:serverName/reinitialize', () => {
     // mockRegistryInstance is defined at the top of the file
+
+    it('refreshes a shared app-level MCP server once for every agent', async () => {
+      const serverConfig = {
+        type: 'streamable-http',
+        startup: true,
+        requiresOAuth: false,
+        url: 'https://mcp.example.com',
+      };
+      const serverTools = { create_document_mcp_files: { type: 'function' } };
+      const mockMcpManager = {
+        disconnectUserConnection: jest.fn(),
+        refreshAppServer: jest.fn().mockResolvedValue(serverTools),
+      };
+
+      mockRegistryInstance.getServerConfig.mockResolvedValue(serverConfig);
+      require('~/config').getMCPManager.mockReturnValue(mockMcpManager);
+
+      const response = await request(app).post('/api/mcp/files/reinitialize');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        success: true,
+        message: "MCP server 'files' refreshed for all agents",
+        oauthUrl: null,
+        serverName: 'files',
+        oauthRequired: false,
+      });
+      expect(mockMcpManager.refreshAppServer).toHaveBeenCalledWith('files', serverConfig);
+      expect(mockMcpManager.disconnectUserConnection).not.toHaveBeenCalled();
+      expect(require('~/server/services/Tools/mcp').reinitMCPServer).not.toHaveBeenCalled();
+      expect(require('~/server/services/Config/mcp').refreshAppMCPServerTools).toHaveBeenCalledWith(
+        {
+          serverName: 'files',
+          serverTools,
+        },
+      );
+      expect(
+        require('~/server/services/Config/getCachedTools').invalidateMCPServerTools,
+      ).toHaveBeenCalledWith('files');
+    });
 
     it('should return 404 when server is not found in configuration', async () => {
       const mockMcpManager = {

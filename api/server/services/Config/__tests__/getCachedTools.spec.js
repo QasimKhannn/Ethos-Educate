@@ -1,4 +1,4 @@
-const { CacheKeys } = require('librechat-data-provider');
+const { CacheKeys, Constants } = require('librechat-data-provider');
 
 jest.mock('~/cache/getLogStores');
 const getLogStores = require('~/cache/getLogStores');
@@ -75,6 +75,17 @@ describe('getCachedTools', () => {
       await getMCPServerTools('user1', 'github');
       expect(getLogStores).toHaveBeenCalledWith(CacheKeys.TOOL_CACHE);
       expect(mockCache.get).toHaveBeenCalledWith(ToolCacheKeys.MCP_SERVER('user1', 'github'));
+    });
+
+    it('prefers shared app-level tools over a user-specific cache', async () => {
+      const sharedToolName = `create_document${Constants.mcp_delimiter}files`;
+      const userToolName = `other_tool${Constants.mcp_delimiter}other`;
+      const sharedTools = { [sharedToolName]: { type: 'function' } };
+
+      mockCache.get.mockResolvedValueOnce({ ...sharedTools, [userToolName]: { type: 'function' } });
+
+      await expect(getMCPServerTools('user1', 'files')).resolves.toEqual(sharedTools);
+      expect(mockCache.get).toHaveBeenCalledWith(ToolCacheKeys.GLOBAL);
     });
 
     it('invalidates all user-specific tool caches for a refreshed MCP server', async () => {
