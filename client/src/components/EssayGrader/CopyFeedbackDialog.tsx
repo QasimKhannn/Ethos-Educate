@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '~/utils';
 import type { GradingResponse } from './types';
@@ -43,6 +43,7 @@ export function CopyFeedbackDialog({
   const [copied, setCopied] = useState(false);
 
   const allOn = SECTIONS.every((section) => chosen[section.key]);
+  const preview = useMemo(() => buildText(response, chosen), [response, chosen]);
 
   function toggle(key: SectionKey) {
     setChosen((current) => ({ ...current, [key]: !current[key] }));
@@ -74,29 +75,30 @@ export function CopyFeedbackDialog({
       aria-labelledby="essay-grader-copy-feedback-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6"
     >
-      <div className="flex max-h-[88vh] w-full max-w-md flex-col rounded-2xl border border-border-light bg-surface-primary shadow-2xl dark:border-white/10">
-        <div className="flex items-start justify-between gap-4 border-b border-border-light px-5 py-4 dark:border-white/10">
-          <div>
-            <h2
-              id="essay-grader-copy-feedback-title"
-              className="text-lg font-semibold text-text-primary"
-            >
-              Copy feedback
-            </h2>
-            <p className="mt-1 text-sm text-text-secondary">Select the sections to include.</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </div>
+      {/*
+        Two panes instead of one stacked checklist: pick sections on the
+        left, see exactly what will land on the clipboard on the right. A
+        checklist-then-blind-copy flow makes you guess at the result; this
+        one shows it before you commit to it. Ported from the same change in
+        the standalone Co-grader app.
+      */}
+      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-primary shadow-2xl dark:border-white/10 sm:flex-row">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-3 top-3 z-10 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
 
-        <div className="overflow-y-auto px-5 py-4">
-          <label className="flex items-center gap-2.5 border-b border-border-light pb-3 dark:border-white/10">
+        <div className="w-full shrink-0 overflow-y-auto border-b border-border-light p-5 pr-10 dark:border-white/10 sm:w-56 sm:border-b-0 sm:border-r sm:pr-5">
+          <h2 id="essay-grader-copy-feedback-title" className="text-base font-bold text-text-primary">
+            Copy feedback
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-text-secondary">Choose what&apos;s included.</p>
+
+          <label className="mt-4 flex items-center gap-2.5 rounded-xl border border-border-light bg-surface-secondary/60 px-3 py-2.5 dark:border-white/10">
             <input
               type="checkbox"
               checked={allOn}
@@ -112,42 +114,59 @@ export function CopyFeedbackDialog({
               }}
               className="h-4 w-4 accent-blue-600"
             />
-            <span className="text-sm font-semibold text-text-primary">All sections (complete)</span>
+            <span className="text-sm font-semibold text-text-primary">All sections</span>
           </label>
 
-          {(['Overview', 'Detailed', 'Extra'] as const).map((group) => (
-            <div key={group} className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                {group}
-              </p>
-              <div className="mt-2 space-y-2">
-                {SECTIONS.filter((section) => section.group === group).map((section) => (
-                  <label key={section.key} className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      checked={chosen[section.key]}
-                      onChange={() => toggle(section.key)}
-                      className="h-4 w-4 accent-blue-600"
-                    />
-                    <span className="text-sm text-text-primary">{section.label}</span>
-                  </label>
-                ))}
+          <div className="mt-4 space-y-4">
+            {(['Overview', 'Detailed', 'Extra'] as const).map((group) => (
+              <div key={group}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+                  {group}
+                </p>
+                <div className="mt-1.5 space-y-1.5">
+                  {SECTIONS.filter((section) => section.group === group).map((section) => (
+                    <label key={section.key} className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={chosen[section.key]}
+                        onChange={() => toggle(section.key)}
+                        className="h-4 w-4 accent-blue-600"
+                      />
+                      <span className="text-sm text-text-primary">{section.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <div className="border-t border-border-light px-5 py-4 dark:border-white/10">
-          <button
-            type="button"
-            onClick={() => void copy()}
-            className={cn(
-              'flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold text-white transition-colors',
-              'bg-blue-600 hover:bg-blue-500',
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex-1 overflow-y-auto p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">Preview</p>
+            {preview ? (
+              <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-primary">
+                {preview}
+              </pre>
+            ) : (
+              <p className="mt-2 text-sm text-text-tertiary">
+                Select a section on the left to see what gets copied.
+              </p>
             )}
-          >
-            {copied ? 'Copied' : 'Copy to clipboard'}
-          </button>
+          </div>
+          <div className="border-t border-border-light bg-surface-secondary/40 p-4 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => void copy()}
+              disabled={!preview}
+              className={cn(
+                'flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                'bg-blue-600 hover:bg-blue-500',
+              )}
+            >
+              {copied ? 'Copied' : 'Copy to clipboard'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
