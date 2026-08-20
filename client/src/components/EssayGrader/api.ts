@@ -2,6 +2,7 @@ import type {
   ToolStatus,
   RubricSummary,
   ExtractedDocument,
+  GradingMode,
   GradingResponse,
   GradingRequestBody,
   EssayGraderApiErrorBody,
@@ -71,12 +72,34 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T;
 };
 
-export const listRubrics = () => request<RubricSummary[]>('/public/rubrics');
+/**
+ * @param jurisdiction  A state code such as `US-CA`, or the literal `general`
+ *   for rubrics that belong to no state. Omitted returns everything published
+ *   — every state's rubrics at once, which is why the picker defaults to
+ *   `general` rather than calling this with no argument.
+ */
+export const listRubrics = (jurisdiction?: string) => {
+  const query = jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : '';
+  return request<RubricSummary[]>(`/public/rubrics${query}`);
+};
 
 export const fetchToolStatus = () => request<ToolStatus>('/public/gradings/status');
 
 export const submitForGrading = (body: GradingRequestBody) =>
   request<GradingResponse>('/public/gradings', { method: 'POST', body });
+
+/**
+ * Read an existing submission in another mode.
+ *
+ * POST, not GET, because a mode that has not been run yet is a model call
+ * that spends the visitor's allowance. A cached mode (see
+ * `GradingResponse.availableModes`) returns immediately and costs nothing.
+ */
+export const runGradingMode = (id: string, mode: GradingMode) =>
+  request<GradingResponse>(
+    `/public/gradings/${encodeURIComponent(id)}/modes/${encodeURIComponent(mode)}`,
+    { method: 'POST' },
+  );
 
 export const extractDocument = async (file: File): Promise<ExtractedDocument> => {
   const formData = new FormData();
