@@ -8,7 +8,6 @@ import {
   Loader2,
   Minus,
   MessageSquare,
-  Pencil,
   Plus,
   Send,
   Settings2,
@@ -50,38 +49,46 @@ const GRADER_DIRECTIONS_MARKER = '[[ETHOS_GRADER_DIRECTIONS]]';
 
 const GRADING_INSTRUCTION_PRESETS = [
   {
-    label: 'Make it shorter',
-    instruction: 'Make the feedback shorter, clearer, and easier to paste into a gradebook.',
+    label: 'Tighten it up',
+    instruction: 'Make the feedback more concise and easy to scan — short enough to paste straight into a gradebook comment.',
   },
   {
-    label: 'Be stricter',
-    instruction: 'Be stricter about rubric bands and only award credit when the text clearly earns it.',
+    label: 'Grade harder',
+    instruction: 'Hold the rubric bands to a strict reading and only award credit when the text clearly earns it.',
   },
   { label: 'Translate to', instruction: 'Translate the feedback to: ' },
   {
-    label: 'Use Gen Alpha slang',
+    label: 'Coach tone',
     instruction:
-      'Rewrite the student-facing feedback in appropriate Gen Alpha slang while keeping the academic meaning accurate.',
+      'Rewrite the student-facing feedback in an encouraging, coach-like tone while keeping the academic judgement accurate.',
   },
   {
-    label: 'Accommodate SLD',
+    label: 'Support SLD',
     instruction: 'Adapt the feedback for a student with a specific learning disability: ',
   },
 ] as const;
 
 const PROOFREAD_INSTRUCTION_PRESETS = [
   {
-    label: 'Misspelled only',
+    label: 'Spelling only',
     instruction:
       'List misspelled or mistyped words only. Scan the entire submission and include every likely misspelling in the Spelling category.',
   },
-  { label: 'US English', instruction: 'Use US English spelling and punctuation conventions.' },
+  { label: 'US spelling', instruction: 'Use US English spelling and punctuation conventions.' },
   {
-    label: 'Keep voice',
+    label: 'Keep their voice',
     instruction: 'Preserve the student’s voice and meaning; suggest the smallest correction that fixes the issue.',
   },
-  { label: 'Explain briefly', instruction: 'Keep each correction reason brief and student-friendly.' },
+  { label: 'Short reasons', instruction: 'Keep each correction reason brief and student-friendly.' },
 ] as const;
+
+/** What the result header's score chip shows when this pass has no points total. */
+const MODE_SUMMARY_LABEL: Record<GradingMode, string> = {
+  SCORE: 'Not yet scored',
+  FEEDBACK: 'Comment-only pass',
+  IMPROVE: 'Improve pass',
+  PROOFREAD: 'Grammar & spell check',
+};
 
 const ADVANCED_RULES = [
   {
@@ -1153,6 +1160,7 @@ const ResultView = ({
   const localize = useLocalize();
   const [documentView, setDocumentView] = useState<DocumentView>('text');
   const [metricView, setMetricView] = useState<ResultMetricView>('comments');
+  const [panelTab, setPanelTab] = useState<'feedback' | 'customize'>('feedback');
   const [activeCriterionId, setActiveCriterionId] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>(null);
@@ -1165,12 +1173,16 @@ const ResultView = ({
 
   const { result } = response;
   const title = response.title?.trim() || localize('com_essay_grader_untitled');
+  const scoreSummary = result.total
+    ? `${result.total.points}/${result.total.maxPoints} pts · ${result.total.percentage}%`
+    : MODE_SUMMARY_LABEL[result.mode];
 
   useEffect(() => {
     setActiveCriterionId(null);
     setScoreEditorId(null);
     setActionError(null);
     setCopiedCriterionId(null);
+    setPanelTab('feedback');
     if (response.mode === 'PROOFREAD') setMetricView('grammar');
   }, [response.id, response.mode]);
 
@@ -1380,8 +1392,8 @@ const ResultView = ({
         />
       )}
 
-      <header className="bg-surface-primary/85 dark:bg-surface-primary/45 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-light p-3 shadow-sm backdrop-blur dark:border-white/10 xl:sticky xl:top-4 xl:z-10">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <header className="overflow-hidden rounded-2xl border border-border-light shadow-sm dark:border-white/10 xl:sticky xl:top-4 xl:z-10">
+        <div className="bg-surface-primary/85 dark:bg-surface-primary/45 flex flex-wrap items-center gap-4 border-b border-border-light px-4 py-3 backdrop-blur dark:border-white/10 sm:px-5">
           <button
             type="button"
             onClick={onBack}
@@ -1390,32 +1402,44 @@ const ResultView = ({
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-blue-500">{localize('com_essay_grader_result')}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+              {localize('com_essay_grader_result')}
+            </p>
             <h1 className="truncate text-lg font-bold tracking-tight text-text-primary">{title}</h1>
+          </div>
+          <div className="hidden shrink-0 sm:block">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-border-light bg-surface-secondary px-3 py-1.5 dark:border-white/10">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+                {result.mode === 'SCORE' ? 'Score' : 'Result'}
+              </span>
+              <span className="text-sm font-bold text-text-primary">{scoreSummary}</span>
+            </span>
           </div>
         </div>
 
-        <div className="order-3 w-full lg:order-none lg:w-auto lg:min-w-[20rem] lg:flex-1 lg:px-4 xl:max-w-xl">
-          <ModeTabs response={response} onResult={onResult} />
-        </div>
+        <div className="bg-surface-primary/85 dark:bg-surface-primary/45 flex flex-wrap items-center justify-between gap-3 p-3 backdrop-blur">
+          <div className="order-3 w-full lg:order-none lg:w-auto lg:min-w-[20rem] lg:flex-1 xl:max-w-xl">
+            <ModeTabs response={response} onResult={onResult} />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCopyOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-light px-3 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-secondary dark:border-white/10"
-          >
-            <CopyIcon className="h-4 w-4" aria-hidden="true" />
-            {localize('com_essay_grader_result_copy')}
-          </button>
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
-          >
-            {localize('com_essay_grader_grade_another')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCopyOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-light px-3 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-secondary dark:border-white/10"
+            >
+              <CopyIcon className="h-4 w-4" aria-hidden="true" />
+              {localize('com_essay_grader_result_copy')}
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
+            >
+              {localize('com_essay_grader_grade_another')}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1423,7 +1447,7 @@ const ResultView = ({
         <Alert tone="danger">{actionError}</Alert>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(20rem,32%)_minmax(24rem,1fr)_minmax(18rem,20rem)] xl:items-start">
+      <div className="grid gap-5 xl:grid-cols-[minmax(26rem,60%)_minmax(22rem,1fr)] xl:items-start">
         <DocumentPane
           title={title}
           response={response}
@@ -1436,44 +1460,100 @@ const ResultView = ({
           onMetricViewChange={chooseMetric}
         />
 
-        <FeedbackPane
-          result={result}
-          activeCriterionId={activeCriterionId}
-          metricView={metricView}
-          copiedCriterionId={copiedCriterionId}
-          scoreEditorId={scoreEditorId}
-          onToggleCriterion={(id) => setActiveCriterionId((current) => (current === id ? null : id))}
-          onScoreEditorChange={(id) => setScoreEditorId((current) => (current === id ? null : id))}
-          onScoreChange={updateCriterionPoints}
-          onCopyCriterion={(criterion) => void copyCriterion(criterion)}
-        />
-
-        <CustomizationPane
-          response={response}
-          settingsPanel={settingsPanel}
-          instructionDraft={instructionDraft}
-          selectedRules={selectedRules}
-          pendingAction={pendingAction}
-          actionError={actionError}
-          onSettingsPanelChange={(panel) =>
-            setSettingsPanel((current) => (current === panel ? null : panel))
-          }
-          onInstructionDraftChange={setInstructionDraft}
-          onAddPreset={(instruction) =>
-            setInstructionDraft((current) => appendInstruction(current, instruction))
-          }
-          onClearInstructions={() => {
-            setInstructionDraft('');
-            setSelectedRules([]);
-            setActionError(null);
+        <WorkspacePanel
+          panelTab={panelTab}
+          onPanelTabChange={setPanelTab}
+          feedbackProps={{
+            result,
+            activeCriterionId,
+            metricView,
+            copiedCriterionId,
+            scoreEditorId,
+            onToggleCriterion: (id) => setActiveCriterionId((current) => (current === id ? null : id)),
+            onScoreEditorChange: (id) => setScoreEditorId((current) => (current === id ? null : id)),
+            onScoreChange: updateCriterionPoints,
+            onCopyCriterion: (criterion) => void copyCriterion(criterion),
           }}
-          onApplyInstructions={() => void applyInstructions()}
-          onRunProofread={() => void switchMode('PROOFREAD')}
+          customizationProps={{
+            response,
+            settingsPanel,
+            instructionDraft,
+            selectedRules,
+            pendingAction,
+            actionError,
+            onSettingsPanelChange: (panel) =>
+              setSettingsPanel((current) => (current === panel ? null : panel)),
+            onInstructionDraftChange: setInstructionDraft,
+            onAddPreset: (instruction) =>
+              setInstructionDraft((current) => appendInstruction(current, instruction)),
+            onClearInstructions: () => {
+              setInstructionDraft('');
+              setSelectedRules([]);
+              setActionError(null);
+            },
+            onApplyInstructions: () => void applyInstructions(),
+            onRunProofread: () => void switchMode('PROOFREAD'),
+          }}
         />
       </div>
     </div>
   );
 };
+
+/**
+ * The Feedback and Customization panes as one tabbed card instead of two
+ * separate columns. Ported from the same change in the standalone Co-grader
+ * app — cuts the workspace from three equal-width panels to two (Document,
+ * now the dominant pane, plus this one) so Document isn't boxed into the
+ * narrowest slot and the screen doesn't read as three generic side-by-side
+ * tiles.
+ */
+const WorkspacePanel = ({
+  panelTab,
+  onPanelTabChange,
+  feedbackProps,
+  customizationProps,
+}: {
+  panelTab: 'feedback' | 'customize';
+  onPanelTabChange: (tab: 'feedback' | 'customize') => void;
+  feedbackProps: Parameters<typeof FeedbackPane>[0];
+  customizationProps: Parameters<typeof CustomizationPane>[0];
+}) => (
+  <section className="bg-surface-primary/80 dark:bg-surface-primary/40 flex min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-border-light shadow-sm dark:border-white/10 xl:sticky xl:top-[8.5rem] xl:max-h-[calc(100vh-11rem)]">
+    <div role="tablist" aria-label="Workspace panel" className="flex shrink-0 border-b border-border-light px-4 dark:border-white/10 sm:px-5">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={panelTab === 'feedback'}
+        onClick={() => onPanelTabChange('feedback')}
+        className={cn(
+          'relative px-1 py-3 text-sm font-bold transition-colors',
+          panelTab === 'feedback'
+            ? 'text-text-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-blue-500'
+            : 'text-text-tertiary hover:text-text-primary',
+        )}
+      >
+        Feedback
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={panelTab === 'customize'}
+        onClick={() => onPanelTabChange('customize')}
+        className={cn(
+          'relative ml-5 px-1 py-3 text-sm font-bold transition-colors',
+          panelTab === 'customize'
+            ? 'text-text-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-blue-500'
+            : 'text-text-tertiary hover:text-text-primary',
+        )}
+      >
+        Customize
+      </button>
+    </div>
+
+    {panelTab === 'feedback' ? <FeedbackPane {...feedbackProps} /> : <CustomizationPane {...customizationProps} />}
+  </section>
+);
 
 const DocumentPane = ({
   title,
@@ -1501,15 +1581,12 @@ const DocumentPane = ({
     response.result.mode === 'PROOFREAD' || response.availableModes.includes('PROOFREAD');
 
   return (
-  <section className="bg-surface-primary/80 dark:bg-surface-primary/40 flex min-h-[26rem] flex-col overflow-hidden rounded-2xl border border-border-light shadow-sm dark:border-white/10 xl:max-h-[calc(100vh-9rem)]">
+  <section className="bg-surface-primary/80 dark:bg-surface-primary/40 flex min-h-[26rem] flex-col overflow-hidden rounded-2xl border border-border-light shadow-sm dark:border-white/10 xl:sticky xl:top-[8.5rem] xl:max-h-[calc(100vh-11rem)]">
     <div className="border-b border-border-light px-4 py-3 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <h2 className="truncate text-sm font-bold text-text-primary">
-            {title} ({commentCount})
-          </h2>
-          <Eye className="h-4 w-4 shrink-0 text-blue-500" aria-hidden="true" />
-        </div>
+        <h2 className="min-w-0 truncate text-sm font-bold text-text-primary">
+          {title} <span className="font-semibold text-text-tertiary">({commentCount})</span>
+        </h2>
         <SegmentedControl
           label="Document view"
           options={[
@@ -1522,7 +1599,7 @@ const DocumentPane = ({
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-2 border-b border-border-light text-center text-sm text-text-primary dark:border-white/10 sm:grid-cols-4">
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-border-light pt-2.5 text-sm dark:border-white/10">
         <MetricTab
           active={metricView === 'comments'}
           icon={MessageSquare}
@@ -1536,7 +1613,6 @@ const DocumentPane = ({
               ? String(countProofreadIssues(response.result))
               : String(commentCount)
           }
-          tone="rose"
           onClick={() => onMetricViewChange('comments')}
         />
         <MetricTab
@@ -1544,7 +1620,6 @@ const DocumentPane = ({
           icon={SpellCheck}
           label={localize('com_essay_grader_result_tab_grammar')}
           value={grammarScore(response.result)}
-          tone="rose"
           disabled={!grammarAvailable}
           disabledHint="Run a grammar & spell check first to see results here."
           onClick={() => onMetricViewChange('grammar')}
@@ -1554,7 +1629,6 @@ const DocumentPane = ({
           icon={BookOpenCheck}
           label={localize('com_essay_grader_result_tab_rubric')}
           value={rubricScore(response.result)}
-          tone="teal"
           onClick={() => onMetricViewChange('rubric')}
         />
         <MetricTab
@@ -1562,7 +1636,6 @@ const DocumentPane = ({
           icon={Sparkles}
           label={localize('com_essay_grader_result_tab_evidence')}
           value={evidenceCountLabel(response.result)}
-          tone="violet"
           onClick={() => onMetricViewChange('evidence')}
         />
       </div>
@@ -1792,15 +1865,15 @@ const EvidenceList = ({
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span
                 className={cn(
-                  'rounded-full px-2.5 py-1 text-xs font-bold',
+                  'rounded-md border px-2 py-1 text-xs font-bold',
                   item.polarity === 'STRENGTH'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
-                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+                    ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+                    : 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300',
                 )}
               >
                 {item.polarity === 'STRENGTH' ? 'Strength' : 'Growth'}
               </span>
-              <span className="rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold text-text-tertiary">
+              <span className="rounded-md border border-border-light bg-surface-secondary px-2 py-1 text-xs font-semibold text-text-tertiary dark:border-white/10">
                 {item.matchKind === 'EXACT' ? 'Exact quote' : 'Normalized match'}
               </span>
             </div>
@@ -1957,6 +2030,7 @@ const ScoreControl = ({
 
   const value = criterion.points ?? 0;
   const ratio = criterion.maxPoints > 0 ? value / criterion.maxPoints : 0;
+  const band = scoreBand(ratio);
 
   return (
     <div className="md:pt-6">
@@ -1966,22 +2040,29 @@ const ScoreControl = ({
         aria-label={`Adjust score for ${criterion.name}`}
         aria-expanded={editing}
         className={cn(
-          'w-full rounded-lg border bg-surface-secondary px-3 py-2.5 text-left transition-colors',
-          editing ? 'border-blue-400 bg-blue-500/5' : 'border-border-light hover:border-blue-300 dark:border-white/10',
+          'flex w-full items-stretch overflow-hidden rounded-lg border text-left transition-colors',
+          editing ? 'border-blue-400' : 'border-border-light hover:border-blue-300 dark:border-white/10',
         )}
       >
-        <span className="flex items-center justify-between gap-3 text-sm text-text-primary">
-          <span className="font-bold">Score</span>
-          <span className="tabular-nums text-blue-600">
-            {value}/{criterion.maxPoints}
+        {/* A colour-coded rule rather than a filled progress bar — the score
+            band (strong / developing / needs work) is the thing worth seeing
+            at a glance, not a percentage-of-a-line-length metaphor every
+            grading tool already uses. */}
+        <span className={cn('w-1.5 shrink-0', SCORE_BAND_RULE_CLASS[band])} aria-hidden />
+        <span className={cn('flex-1 px-3 py-2.5 transition-colors', editing ? 'bg-blue-500/5' : 'bg-surface-secondary')}>
+          <span className="flex items-baseline justify-between gap-3">
+            <span className="text-sm font-bold text-text-primary">Score</span>
+            <span className="text-lg font-bold leading-none tabular-nums text-text-primary">
+              {value}
+              <span className="text-xs font-semibold text-text-tertiary">/{criterion.maxPoints}</span>
+            </span>
           </span>
+          {criterion.levelLabel && (
+            <span className="mt-1.5 block truncate text-right text-xs font-semibold text-text-tertiary">
+              {criterion.levelLabel}
+            </span>
+          )}
         </span>
-        <ScoreRail ratio={ratio} />
-        {criterion.levelLabel && (
-          <span className="mt-1 block truncate text-right text-xs font-semibold text-text-tertiary">
-            {criterion.levelLabel}
-          </span>
-        )}
       </button>
 
       {editing && (
@@ -2029,13 +2110,20 @@ const ScoreControl = ({
   );
 };
 
-const ScoreRail = ({ ratio }: { ratio: number }) => {
-  const percent = `${clampNumber(Math.round(ratio * 100), 0, 100)}%`;
-  return (
-    <span className="mt-2 block h-1.5 rounded-full bg-surface-secondary">
-      <span className="block h-full rounded-full bg-blue-600" style={{ width: percent }} />
-    </span>
-  );
+type ScoreBand = 'strong' | 'developing' | 'needsWork';
+
+function scoreBand(ratio: number): ScoreBand {
+  if (ratio >= 0.8) return 'strong';
+  if (ratio >= 0.5) return 'developing';
+  return 'needsWork';
+}
+
+/** Reuses the same emerald/amber/red already used for the Evidence tags and
+ *  error states elsewhere in this file, rather than inventing a new palette. */
+const SCORE_BAND_RULE_CLASS: Record<ScoreBand, string> = {
+  strong: 'bg-emerald-500',
+  developing: 'bg-amber-500',
+  needsWork: 'bg-red-500',
 };
 
 const IconButton = ({
@@ -2116,12 +2204,8 @@ const CustomizationPane = ({
           : 'Revision priorities';
 
   return (
-    <aside className="bg-surface-primary/80 dark:bg-surface-primary/40 flex flex-col rounded-2xl border border-border-light p-4 shadow-sm dark:border-white/10 xl:sticky xl:top-[5.5rem] xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto">
-      <h2 className="text-base font-bold text-text-primary">
-        {localize('com_essay_grader_result_customization')}
-      </h2>
-
-      <div className="mt-4 space-y-4">
+    <div className="flex flex-1 flex-col overflow-y-auto p-4">
+      <div className="space-y-4">
         {(result.rubric || modeNeedsRubric(result.mode)) && (
           <SettingGroup
             title="Rubric"
@@ -2241,7 +2325,7 @@ const CustomizationPane = ({
           Rerunning the grader with the selected setting…
         </p>
       )}
-    </aside>
+    </div>
   );
 };
 
@@ -2430,22 +2514,20 @@ const SettingGroup = ({
   onClick: () => void;
 }) => (
   <section>
-    <h3 className="text-sm font-bold text-text-primary">{title}</h3>
+    <h3 className="text-xs font-bold uppercase tracking-wide text-text-tertiary">{title}</h3>
     <button
       type="button"
       onClick={onClick}
       aria-label={actionLabel}
       aria-expanded={active}
       className={cn(
-        'mt-2 flex min-h-[3.25rem] w-full items-center gap-3 rounded-full border bg-surface-primary px-4 text-left shadow-sm transition-colors',
+        'mt-2 flex min-h-[3rem] w-full items-center gap-3 rounded-[10px] border bg-surface-primary px-3.5 text-left transition-colors',
         active ? 'border-blue-400 bg-blue-500/10' : 'border-border-light hover:border-blue-300 hover:bg-surface-secondary dark:border-white/10',
       )}
     >
       <IconComponent className="h-4 w-4 shrink-0 text-blue-500" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-sm text-text-secondary">{value}</span>
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-500/10 text-blue-600">
-        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">{value}</span>
+      <span className="shrink-0 text-xs font-bold text-blue-600">Change</span>
     </button>
   </section>
 );
@@ -2490,7 +2572,6 @@ const MetricTab = ({
   label,
   value,
   icon: IconComponent,
-  tone,
   active,
   disabled,
   disabledHint,
@@ -2499,42 +2580,29 @@ const MetricTab = ({
   label: string;
   value: string;
   icon: ResultIcon;
-  tone: 'rose' | 'teal' | 'violet';
   active?: boolean;
   disabled?: boolean;
   disabledHint?: string;
   onClick: () => void;
-}) => {
-  const toneClass = tone === 'teal' ? 'bg-teal-500' : tone === 'violet' ? 'bg-violet-500' : 'bg-rose-500';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      title={disabled ? disabledHint : undefined}
-      className={cn(
-        'relative pb-2 transition-colors',
-        disabled ? 'cursor-not-allowed opacity-40' : 'hover:text-text-primary',
-        active && !disabled && 'after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-blue-500',
-      )}
-    >
-      <span
-        className={cn(
-          'mx-auto mb-1 inline-flex min-w-10 items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold leading-none text-white',
-          disabled ? 'bg-text-tertiary/60' : toneClass,
-        )}
-      >
-        {value}
-      </span>
-      <span className="flex items-center justify-center gap-1.5 text-text-secondary">
-        <IconComponent className="h-3.5 w-3.5" aria-hidden />
-        <span>{label}</span>
-      </span>
-    </button>
-  );
-};
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    aria-pressed={active}
+    title={disabled ? disabledHint : undefined}
+    className={cn(
+      'flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors',
+      disabled ? 'cursor-not-allowed opacity-40' : active ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
+    )}
+  >
+    <IconComponent className="h-3.5 w-3.5" aria-hidden />
+    <span className="font-semibold">{label}</span>
+    <span className={cn('tabular-nums font-bold', active && !disabled ? 'text-text-primary' : 'text-text-tertiary')}>
+      {value}
+    </span>
+  </button>
+);
 
 const ReadableEssay = ({ title, text }: { title: string | null; text: string }) => {
   const paragraphs = text
