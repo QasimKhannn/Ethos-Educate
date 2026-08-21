@@ -130,6 +130,42 @@ export interface GradingRequestBody {
   instructions?: string;
 }
 
+/**
+ * Batch grading — several essays graded against one shared rubric/mode in
+ * one submission. Mirrors the standalone Co-grader app's batch types; the
+ * backend endpoints (`/public/gradings/batches`) already serve both apps.
+ */
+export type BatchStatus = 'PENDING' | 'PROCESSING' | 'COMPLETE' | 'FAILED';
+
+export interface BatchItemSummary {
+  id: string;
+  batchIndex: number;
+  title: string | null;
+  wordCount: number;
+  status: BatchStatus;
+  score: { points: number; maxPoints: number; percentage: number } | null;
+  error: string | null;
+}
+
+export interface BatchSummary {
+  batchId: string;
+  quota: QuotaState;
+  items: BatchItemSummary[];
+}
+
+export interface BatchGradingItem {
+  text: string;
+  title?: string;
+}
+
+export interface CreateBatchRequestBody {
+  items: BatchGradingItem[];
+  mode: GradingMode;
+  rubricId?: string;
+  customRubric?: CustomRubric;
+  instructions?: string;
+}
+
 export interface ExtractedDocument {
   text: string;
   format: 'docx' | 'pdf' | 'txt' | 'rtf';

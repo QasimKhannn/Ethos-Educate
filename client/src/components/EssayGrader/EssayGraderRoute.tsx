@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookOpenCheck,
   ChevronLeft,
+  ChevronRight,
   Copy as CopyIcon,
   Eye,
   FileText,
@@ -29,6 +31,8 @@ import {
   fetchToolStatus,
   submitForGrading,
   runGradingMode,
+  submitBatchForGrading,
+  fetchGrading,
   EssayGraderApiError,
 } from './api';
 import type {
@@ -39,11 +43,15 @@ import type {
   GradingResponse,
   GradingResultDocument,
   CriterionResult,
+  BatchSummary,
+  BatchItemSummary,
 } from './types';
 import { US_STATES } from './us-states';
 import { ModeTabs, TOOL_MODES, MODE_LABEL, modeNeedsRubric } from './ModeTabs';
 import { HighlightedText, type TextHighlight } from './HighlightedText';
 import { CopyFeedbackDialog } from './CopyFeedbackDialog';
+import { BatchSubmissionPanel, type BatchFile } from './BatchSubmissionPanel';
+import { BatchOverview } from './BatchOverview';
 
 const GRADER_DIRECTIONS_MARKER = '[[ETHOS_GRADER_DIRECTIONS]]';
 
@@ -166,6 +174,16 @@ const EssayGraderRoute = () => {
   ]);
   const [nextRowKey, setNextRowKey] = useState(3);
 
+  // Batch grading — several essays graded at once against the same rubric
+  // chosen in step 1. `submissionKind` swaps step 2's submission block
+  // between the single-essay upload and the multi-file batch panel; the
+  // rest of the wizard (rubric step, assignment context, review step) is
+  // shared between both.
+  const [submissionKind, setSubmissionKind] = useState<'single' | 'batch'>('single');
+  const [batchFiles, setBatchFiles] = useState<BatchFile[]>([]);
+  const [batch, setBatch] = useState<BatchSummary | null>(null);
+  const [batchResult, setBatchResult] = useState<GradingResponse | null>(null);
+
   useDocumentTitle(localize('com_essay_grader_title'));
 
   useEffect(() => {
@@ -259,14 +277,23 @@ const EssayGraderRoute = () => {
   const selectedRubricMissing = !customRubricEnabled && !selectedRubric;
   const customRubricMissing = customRubricEnabled && !customRubric;
   const canContinueFromRubric = customRubricEnabled ? !customRubricMissing : !selectedRubricMissing;
-  const canContinueFromSubmission = words >= minWords && !tooLong && !extracting;
+
+  const batchReadyCount = batchFiles.filter((file) => file.status === 'ready').length;
+  const batchExtracting = batchFiles.some((file) => file.status === 'reading');
+
+  const canContinueFromSubmission =
+    submissionKind === 'batch'
+      ? batchReadyCount >= 2 && !batchExtracting
+      : words >= minWords && !tooLong && !extracting;
   const submitBlocked =
-    grading ||
-    extracting ||
-    words < minWords ||
-    tooLong ||
-    selectedRubricMissing ||
-    customRubricMissing;
+    submissionKind === 'batch'
+      ? grading || batchExtracting || batchReadyCount < 2 || selectedRubricMissing || customRubricMissing
+      : grading ||
+        extracting ||
+        words < minWords ||
+        tooLong ||
+        selectedRubricMissing ||
+        customRubricMissing;
 
   const clearErrors = () => {
     setError(null);
@@ -355,6 +382,136 @@ const EssayGraderRoute = () => {
     }
   };
 
+  const runBatchGrading = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setGrading(true);
+    clearErrors();
+
+    try {
+      const items = batchFiles
+        .filter((file) => file.status === 'ready' && file.text !== null)
+        .map((file) => ({ text: file.text as string, title: file.title.trim() || undefined }));
+
+      const response = await submitBatchForGrading({
+        items,
+        mode: 'SCORE',
+        rubricId: customRubric ? undefined : selectedRubric?.id,
+        customRubric: customRubric ?? undefined,
+        instructions: instructions.trim() || undefined,
+      });
+      setBatch(response);
+      setStatus((current) => (current ? { ...current, quota: response.quota } : current));
+    } catch (cause) {
+      if (cause instanceof EssayGraderApiError) {
+        setError(cause.message);
+        setFieldErrors(cause.fieldErrors ?? {});
+      } else {
+        setError(localize('com_essay_grader_grading_error'));
+      }
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    if (submissionKind === 'batch') {
+      void runBatchGrading(event);
+    } else {
+      void runGrading(event);
+    }
+  };
+
+  /** Every batch item, in the order they were submitted — used for the
+   *  overview table and for Prev/Next while drilled into a result. */
+  const sortedBatchItems = (current: BatchSummary): BatchItemSummary[] =>
+    [...current.items].sort((a, b) => a.batchIndex - b.batchIndex);
+
+  const openBatchItem = async (item: BatchItemSummary) => {
+    setError(null);
+    try {
+      setBatchResult(await fetchGrading(item.id));
+    } catch (cause) {
+      setError(
+        cause instanceof EssayGraderApiError ? cause.message : localize('com_essay_grader_grading_error'),
+      );
+    }
+  };
+
+  const stepBatchItem = (direction: 1 | -1) => {
+    if (!batch || !batchResult) return;
+    const items = sortedBatchItems(batch);
+    const currentIndex = items.findIndex((item) => item.id === batchResult.id);
+    if (currentIndex === -1) return;
+
+    let index = currentIndex + direction;
+    while (index >= 0 && index < items.length) {
+      if (items[index].status === 'COMPLETE') {
+        void openBatchItem(items[index]);
+        return;
+      }
+      index += direction;
+    }
+  };
+
+  const backToBatchOverview = () => {
+    setBatchResult(null);
+    window.scrollTo({ top: 0 });
+  };
+
+  const resetToBlankForm = () => {
+    setBatch(null);
+    setBatchResult(null);
+    setBatchFiles([]);
+    setSubmissionKind('single');
+    setResult(null);
+    setActiveStep(1);
+    setTitle('');
+    setInstructions('');
+    setEssayText('');
+    setEssayFileName(null);
+    clearErrors();
+    window.scrollTo({ top: 0 });
+  };
+
+  if (batchResult && batch) {
+    const items = sortedBatchItems(batch);
+    const currentIndex = items.findIndex((item) => item.id === batchResult.id);
+    const hasPrev = currentIndex > 0 && items.slice(0, currentIndex).some((item) => item.status === 'COMPLETE');
+    const hasNext =
+      currentIndex !== -1 &&
+      items.slice(currentIndex + 1).some((item) => item.status === 'COMPLETE');
+
+    return (
+      <EssayGraderShell>
+        <ResultView
+          response={batchResult}
+          rubrics={rubrics}
+          onResult={setBatchResult}
+          onBack={backToBatchOverview}
+          batchNav={{
+            position: currentIndex === -1 ? '' : `${currentIndex + 1} of ${items.length}`,
+            onPrev: hasPrev ? () => stepBatchItem(-1) : undefined,
+            onNext: hasNext ? () => stepBatchItem(1) : undefined,
+            onBackToBatch: backToBatchOverview,
+          }}
+        />
+      </EssayGraderShell>
+    );
+  }
+
+  if (batch) {
+    return (
+      <EssayGraderShell>
+        <BatchOverview
+          batch={batch}
+          onUpdate={setBatch}
+          onOpenItem={(item) => void openBatchItem(item)}
+          onBack={resetToBlankForm}
+        />
+      </EssayGraderShell>
+    );
+  }
+
   if (result) {
     return (
       <EssayGraderShell>
@@ -412,7 +569,7 @@ const EssayGraderRoute = () => {
           ]}
         />
 
-        <form onSubmit={runGrading} className="mx-auto w-full max-w-6xl">
+        <form onSubmit={handleSubmit} className="mx-auto w-full max-w-6xl">
           <section className="bg-surface-primary/85 dark:bg-surface-primary/45 rounded-2xl border border-border-light shadow-sm backdrop-blur dark:border-white/10">
             <div className="border-b border-border-light px-5 py-5 dark:border-white/10 md:px-6">
               <h2 className="flex items-center gap-2 text-xl font-semibold text-text-primary">
@@ -548,6 +705,27 @@ const EssayGraderRoute = () => {
 
               {activeStep === 2 ? (
                 <div className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RubricScopeToggle
+                      active={submissionKind === 'single'}
+                      onClick={() => {
+                        setSubmissionKind('single');
+                        clearErrors();
+                      }}
+                    >
+                      One essay
+                    </RubricScopeToggle>
+                    <RubricScopeToggle
+                      active={submissionKind === 'batch'}
+                      onClick={() => {
+                        setSubmissionKind('batch');
+                        clearErrors();
+                      }}
+                    >
+                      Batch of essays
+                    </RubricScopeToggle>
+                  </div>
+
                   <div className="bg-surface-secondary/45 rounded-2xl p-4 dark:bg-white/5">
                     <div className="mb-4">
                       <p className="text-sm font-semibold text-text-primary">
@@ -581,6 +759,22 @@ const EssayGraderRoute = () => {
                     </div>
                   </div>
 
+                  {submissionKind === 'batch' ? (
+                    <div className="bg-surface-secondary/45 rounded-2xl p-4 dark:bg-white/5">
+                      <div className="mb-4">
+                        <p className="text-sm font-semibold text-text-primary">Essays</p>
+                        <p className="mt-1 text-sm leading-6 text-text-secondary">
+                          Upload every essay you want graded against this rubric — they&apos;ll all use
+                          the assignment context above.
+                        </p>
+                      </div>
+                      <BatchSubmissionPanel
+                        files={batchFiles}
+                        onFilesChange={setBatchFiles}
+                        disabled={grading}
+                      />
+                    </div>
+                  ) : (
                   <div className="bg-surface-secondary/45 rounded-2xl p-4 dark:bg-white/5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -669,6 +863,7 @@ const EssayGraderRoute = () => {
                       <p className="mt-3 text-sm text-red-500">{fieldErrors.text}</p>
                     ) : null}
                   </div>
+                  )}
                 </div>
               ) : null}
 
@@ -695,11 +890,19 @@ const EssayGraderRoute = () => {
                     }
                     onEdit={() => setActiveStep(1)}
                   />
-                  <ReviewRow
-                    label={localize('com_essay_grader_submission')}
-                    value={`${numberFormatter.format(words)} ${localize('com_essay_grader_words')}`}
-                    onEdit={() => setActiveStep(2)}
-                  />
+                  {submissionKind === 'batch' ? (
+                    <ReviewRow
+                      label="Essays"
+                      value={`${batchReadyCount} of ${batchFiles.length} ready to grade`}
+                      onEdit={() => setActiveStep(2)}
+                    />
+                  ) : (
+                    <ReviewRow
+                      label={localize('com_essay_grader_submission')}
+                      value={`${numberFormatter.format(words)} ${localize('com_essay_grader_words')}`}
+                      onEdit={() => setActiveStep(2)}
+                    />
+                  )}
                 </div>
               ) : null}
             </div>
@@ -753,7 +956,9 @@ const EssayGraderRoute = () => {
                   )}
                   {grading
                     ? localize('com_essay_grader_grading')
-                    : localize('com_essay_grader_run_grading')}
+                    : submissionKind === 'batch'
+                      ? `Grade ${batchReadyCount} essay${batchReadyCount === 1 ? '' : 's'}`
+                      : localize('com_essay_grader_run_grading')}
                 </button>
               ) : null}
             </div>
@@ -936,7 +1141,14 @@ const CustomRubricModal = ({
 }) => {
   const localize = useLocalize();
 
-  return (
+  // Portaled straight to `document.body` — this route is nested under an
+  // ancestor with a CSS transform (part of the app shell's page-transition
+  // wrapper), which turns `position: fixed` into "fixed to that ancestor's
+  // box" instead of the real viewport. Left alone, that shrinks the overlay
+  // to whatever height was visible when the dialog opened and pins the card
+  // near the top instead of centering it. Portaling escapes that ancestor
+  // chain entirely, so `fixed inset-0` means the actual screen again.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -996,7 +1208,8 @@ const CustomRubricModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
@@ -1150,12 +1363,22 @@ const ResultView = ({
   rubrics,
   onBack,
   onResult,
+  batchNav,
 }: {
   response: GradingResponse;
   /** The general rubric set already loaded for step 1 — reused here for "Change rubric". */
   rubrics: RubricSummary[];
   onBack: () => void;
   onResult: (next: GradingResponse) => void;
+  /** Present only when this result was reached by drilling into a batch —
+   *  swaps the back controls to return to the batch overview instead of
+   *  resetting the form, and adds Prev/Next between graded essays. */
+  batchNav?: {
+    position: string;
+    onPrev?: () => void;
+    onNext?: () => void;
+    onBackToBatch: () => void;
+  };
 }) => {
   const localize = useLocalize();
   const [documentView, setDocumentView] = useState<DocumentView>('text');
@@ -1396,15 +1619,38 @@ const ResultView = ({
         <div className="bg-surface-primary/85 dark:bg-surface-primary/45 flex flex-wrap items-center gap-4 border-b border-border-light px-4 py-3 backdrop-blur dark:border-white/10 sm:px-5">
           <button
             type="button"
-            onClick={onBack}
-            aria-label={localize('com_essay_grader_grade_another')}
+            onClick={batchNav ? batchNav.onBackToBatch : onBack}
+            aria-label={batchNav ? 'Back to batch' : localize('com_essay_grader_grade_another')}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
+          {batchNav ? (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={batchNav.onPrev}
+                disabled={!batchNav.onPrev}
+                aria-label="Previous essay"
+                className="grid h-8 w-8 place-items-center rounded-lg text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <span className="text-xs font-semibold text-text-tertiary">{batchNav.position}</span>
+              <button
+                type="button"
+                onClick={batchNav.onNext}
+                disabled={!batchNav.onNext}
+                aria-label="Next essay"
+                className="grid h-8 w-8 place-items-center rounded-lg text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-              {localize('com_essay_grader_result')}
+              {batchNav ? 'Batch result' : localize('com_essay_grader_result')}
             </p>
             <h1 className="truncate text-lg font-bold tracking-tight text-text-primary">{title}</h1>
           </div>
@@ -1434,10 +1680,10 @@ const ResultView = ({
             </button>
             <button
               type="button"
-              onClick={onBack}
+              onClick={batchNav ? batchNav.onBackToBatch : onBack}
               className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
             >
-              {localize('com_essay_grader_grade_another')}
+              {batchNav ? 'Back to batch' : localize('com_essay_grader_grade_another')}
             </button>
           </div>
         </div>
@@ -2368,7 +2614,9 @@ const SettingsSheet = ({
           ? 'Quick quality signals from the submitted writing.'
           : 'Layer extra grading constraints into the next AI instruction pass.';
 
-  return (
+  // See `CustomRubricModal` — portaled to `document.body` so `fixed inset-0`
+  // resolves against the real viewport instead of a transformed ancestor.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -2494,7 +2742,8 @@ const SettingsSheet = ({
           </div>
         )}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

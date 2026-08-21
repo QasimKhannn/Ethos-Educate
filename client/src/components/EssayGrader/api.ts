@@ -6,6 +6,8 @@ import type {
   GradingResponse,
   GradingRequestBody,
   EssayGraderApiErrorBody,
+  BatchSummary,
+  CreateBatchRequestBody,
 } from './types';
 
 const DEFAULT_COGRADER_API_BASE_URL = 'http://localhost:4000/api';
@@ -27,7 +29,7 @@ export class EssayGraderApiError extends Error {
 
 interface RequestOptions {
   method?: 'GET' | 'POST';
-  body?: GradingRequestBody;
+  body?: GradingRequestBody | CreateBatchRequestBody;
 }
 
 const normalizeApiPath = (path: string) => `${cograderApiBaseUrl}${path}`;
@@ -100,6 +102,21 @@ export const runGradingMode = (id: string, mode: GradingMode) =>
     `/public/gradings/${encodeURIComponent(id)}/modes/${encodeURIComponent(mode)}`,
     { method: 'POST' },
   );
+
+/** Read back one grading by id — used to drill into a batch item's full result. */
+export const fetchGrading = (id: string) =>
+  request<GradingResponse>(`/public/gradings/${encodeURIComponent(id)}`);
+
+/**
+ * Submit several essays at once against one shared rubric/mode. Returns
+ * immediately with the batch's rows in `PENDING`/`PROCESSING` — the caller
+ * polls `fetchBatch` to watch them move to `COMPLETE`/`FAILED`.
+ */
+export const submitBatchForGrading = (body: CreateBatchRequestBody) =>
+  request<BatchSummary>('/public/gradings/batches', { method: 'POST', body });
+
+export const fetchBatch = (batchId: string) =>
+  request<BatchSummary>(`/public/gradings/batches/${encodeURIComponent(batchId)}`);
 
 export const extractDocument = async (file: File): Promise<ExtractedDocument> => {
   const formData = new FormData();
