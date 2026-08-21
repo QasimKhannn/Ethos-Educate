@@ -2,6 +2,7 @@ import {
   agentHasLessonPlanningMcp,
   buildLessonPlanningLaunchPrompt,
   defaultLessonPlanningLaunchForm,
+  isLessonPlanningAgentLabel,
   isLessonPlanningServerName,
   parseFrameworks,
 } from '../lessonPlanningUtils';
@@ -49,13 +50,25 @@ describe('lessonPlanningUtils', () => {
   test('isLessonPlanningServerName matches normalized server names', () => {
     expect(isLessonPlanningServerName(' lesson-planning ')).toBe(true);
     expect(isLessonPlanningServerName('LESSON-PLANNING')).toBe(true);
+    expect(isLessonPlanningServerName('lesson_planning')).toBe(true);
+    expect(isLessonPlanningServerName('lesson-planning-mcp')).toBe(true);
+    expect(isLessonPlanningServerName('nei-lesson-planning-mcp')).toBe(true);
     expect(isLessonPlanningServerName('downloadable-files-creation')).toBe(false);
+  });
+
+  test('isLessonPlanningAgentLabel matches lesson planner agent names and descriptions', () => {
+    expect(isLessonPlanningAgentLabel('Lesson Plan Builder')).toBe(true);
+    expect(isLessonPlanningAgentLabel('NEI Lesson Planning')).toBe(true);
+    expect(isLessonPlanningAgentLabel('Build standards-aligned lesson plans')).toBe(true);
+    expect(isLessonPlanningAgentLabel('Worksheet Builder')).toBe(false);
   });
 
   test('agentHasLessonPlanningMcp matches server sentinel and individual MCP tool ids', () => {
     expect(
       agentHasLessonPlanningMcp(['sys__server__sys_mcp_lesson-planning'], 'lesson-planning'),
     ).toBe(true);
+    expect(agentHasLessonPlanningMcp(['lesson_get_units'])).toBe(true);
+    expect(agentHasLessonPlanningMcp([{ name: 'lesson_generate' }])).toBe(true);
     expect(agentHasLessonPlanningMcp(['lesson_get_states_mcp_lesson-planning'])).toBe(true);
     expect(agentHasLessonPlanningMcp(['lesson_get_states_mcp_other-server'])).toBe(false);
   });

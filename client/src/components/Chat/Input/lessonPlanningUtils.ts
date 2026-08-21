@@ -1,6 +1,14 @@
 import { Constants } from 'librechat-data-provider';
 
 export const LESSON_PLANNING_SERVER_NAME = 'lesson-planning';
+const LESSON_PLANNING_SERVER_ALIASES = [
+  LESSON_PLANNING_SERVER_NAME,
+  'lesson_planning',
+  'lesson-planning-mcp',
+  'nei-lesson-planning',
+  'nei-lesson-planning-mcp',
+];
+const LESSON_PLANNING_TOOL_PREFIX = 'lesson_';
 
 export interface LessonPlanningOption {
   value: string;
@@ -40,6 +48,11 @@ export const LESSON_PLANNING_DURATION_OPTIONS: LessonPlanningOption[] = [
   { value: '60_min', label: '60 minutes' },
   { value: '90_min', label: '90 minutes' },
 ];
+export const LESSON_PLANNING_SCOPE_OPTIONS: LessonPlanningOption[] = [
+  { value: 'one_day', label: 'One-day lesson' },
+  { value: 'five_day', label: 'Five-day sequence' },
+  { value: 'full_unit', label: 'Full unit plan' },
+];
 
 export interface LessonPlanningLaunchForm {
   state: string;
@@ -47,6 +60,7 @@ export interface LessonPlanningLaunchForm {
   subject: string;
   gradeLevel: string;
   lessonDuration: string;
+  lessonScope: string;
   teacherNotes: string;
 }
 
@@ -56,6 +70,7 @@ export const defaultLessonPlanningLaunchForm = (): LessonPlanningLaunchForm => (
   subject: '',
   gradeLevel: '',
   lessonDuration: '',
+  lessonScope: 'five_day',
   teacherNotes: '',
 });
 
@@ -64,7 +79,22 @@ export function normalizeServerName(value: string): string {
 }
 
 export function isLessonPlanningServerName(value: string): boolean {
-  return normalizeServerName(value) === LESSON_PLANNING_SERVER_NAME;
+  const normalizedValue = normalizeServerName(value).replace(/_/g, '-');
+  return LESSON_PLANNING_SERVER_ALIASES.some(
+    (serverName) => normalizeServerName(serverName).replace(/_/g, '-') === normalizedValue,
+  );
+}
+
+export function isLessonPlanningAgentLabel(...values: unknown[]): boolean {
+  const normalizedText = values
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+
+  return normalizedText.includes('lesson plan');
 }
 
 export function parseFrameworks(value: string | string[]): string[] {
@@ -100,6 +130,13 @@ export function isLessonPlanningAgentTool(
     return false;
   }
 
+  if (
+    value.startsWith(LESSON_PLANNING_TOOL_PREFIX) &&
+    !value.includes(normalizeServerName(Constants.mcp_delimiter))
+  ) {
+    return true;
+  }
+
   const serverToolIds = [
     normalizedServerName,
     `${Constants.mcp_prefix}${normalizedServerName}`,
@@ -126,6 +163,10 @@ function durationLabel(value: string): string {
 
 function gradeLevelLabel(value: string): string {
   return LESSON_PLANNING_GRADE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+function lessonScopeLabel(value: string): string {
+  return LESSON_PLANNING_SCOPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
 export function buildLessonPlanningLaunchPrompt(values: LessonPlanningLaunchForm): string {
@@ -156,6 +197,12 @@ export function buildLessonPlanningLaunchPrompt(values: LessonPlanningLaunchForm
       `- Preferred lesson duration: ${durationLabel(durationValue)} (lesson_duration: ${durationValue})`,
     );
   }
+  if (values.lessonScope.trim()) {
+    const scopeValue = values.lessonScope.trim();
+    selections.push(
+      `- Lesson scope: ${lessonScopeLabel(scopeValue)} (lesson_scope: ${scopeValue})`,
+    );
+  }
   if (values.teacherNotes.trim()) {
     selections.push(`- Teacher notes: ${values.teacherNotes.trim()}`);
   }
@@ -174,6 +221,8 @@ export function buildLessonPlanningLaunchPrompt(values: LessonPlanningLaunchForm
     'After lesson_get_units returns, ask me to choose one returned unit in chat unless the subject is Specials or Electives and no units are returned.',
     'If lesson_get_units returns no units for any subject other than Specials or Electives, do not proceed without a unit and do not call lesson_generate_suggestions. Retry lesson_get_units once with the exact grade value from lesson_get_grades. If it is still empty, stop and report the exact state, subject, and grade_level arguments used.',
     'If Preferred lesson duration is listed below, treat it as explicit user-provided lesson_duration for lesson_generate. Do not ask for duration again unless it is blank or invalid.',
+    'If Lesson scope is listed below, treat it as explicit user-provided lesson_scope for lesson_generate. Do not ask for lesson scope again unless it is blank or invalid.',
+    'When calling lesson_generate, pass use_supporting_resources=true so available test specs, BlueBook-style guidance, and pacing calendars can be used when relevant.',
     'If any field below is blank, ask me for that choice next and keep it to one decision at a time.',
     '',
     'Current known selections:',

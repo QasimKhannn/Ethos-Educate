@@ -113,7 +113,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                           'chat-landing-page-composer w-full',
                           isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
                         )}
-                        >
+                      >
                         <ChatForm index={index} />
                       </motion.div>
                     </motion.div>
