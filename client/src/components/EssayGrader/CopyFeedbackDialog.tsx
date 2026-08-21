@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '~/utils';
 import type { GradingResponse } from './types';
@@ -45,6 +46,11 @@ export function CopyFeedbackDialog({
   const allOn = SECTIONS.every((section) => chosen[section.key]);
   const preview = useMemo(() => buildText(response, chosen), [response, chosen]);
 
+  // Portaled to `document.body` — see `EssayReviewDialog` for why: this
+  // route sits under an app-shell ancestor with a CSS transform, which
+  // breaks `fixed inset-0` positioning (it resolves against that ancestor's
+  // box instead of the real viewport) unless the dialog escapes it.
+
   function toggle(key: SectionKey) {
     setChosen((current) => ({ ...current, [key]: !current[key] }));
     setCopied(false);
@@ -68,7 +74,7 @@ export function CopyFeedbackDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -169,7 +175,8 @@ export function CopyFeedbackDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
