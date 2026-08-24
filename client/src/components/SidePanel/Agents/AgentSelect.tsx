@@ -116,6 +116,7 @@ function AgentSelect({
         toolkit_description: fullAgent.toolkit_description ?? '',
         recommended_prompts: fullAgent.recommended_prompts ?? [],
         show_recommended_prompts: fullAgent.show_recommended_prompts !== false,
+        intake_form: fullAgent.intake_form,
         // Make sure support_contact is properly loaded
         support_contact: fullAgent.support_contact,
         avatar_file: null,

@@ -1,10 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, Pin, PinOff } from 'lucide-react';
 import { OGDialog, OGDialogContent, Button, useToastContext } from '@librechat/client';
 import type t from 'librechat-data-provider';
 import { useLocalize, useFavorites } from '~/hooks';
 import { renderAgentAvatar, getAgentDisplayName, normalizeAgentBrandText } from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
+import AgentIntakeDialog from './AgentIntakeDialog';
+import { getAgentIntakeTemplate } from './agentIntake';
 import { isMockMarketplaceAgent, renderMockMarketplaceAvatar } from './mockAgents';
 import useStartAgentChat from './useStartAgentChat';
 
@@ -32,6 +34,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
   const dialogRef = useRef<HTMLDivElement>(null);
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const startAgentChat = useStartAgentChat();
+  const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const isFavorite = isFavoriteAgent(agent?.id);
   const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
@@ -44,6 +47,11 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
   };
 
   const handleStartChat = () => {
+    if (getAgentIntakeTemplate(agent)) {
+      setIsIntakeOpen(true);
+      return;
+    }
+
     startAgentChat(agent);
   };
 
@@ -166,6 +174,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose, isTou
           </div>
         </div>
       </OGDialogContent>
+      <AgentIntakeDialog agent={agent} open={isIntakeOpen} onOpenChange={setIsIntakeOpen} />
     </OGDialog>
   );
 };

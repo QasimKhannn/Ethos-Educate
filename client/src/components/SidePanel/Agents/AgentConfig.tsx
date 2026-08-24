@@ -30,6 +30,7 @@ import MCPTools from './MCPTools';
 import AgentFieldLabel from './AgentFieldLabel';
 import RecommendedPrompts from './RecommendedPrompts';
 import AgentCategorySelector from './AgentCategorySelector';
+import AgentIntakeFormConfig from './AgentIntakeFormConfig';
 
 const inputClass = cn(
   defaultTextProps,
@@ -274,6 +275,7 @@ export default function AgentConfig() {
             />
             <AgentCategorySelector className="agent-builder-category-trigger btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium" />
           </div>
+          <AgentIntakeFormConfig />
           <RecommendedPrompts />
         </section>
         <section className="agent-builder-section" aria-labelledby="agent-behavior-heading">

@@ -732,6 +732,7 @@ const getListAgentsByAccess = async ({
     conversation_starters: 1,
     recommended_prompts: 1,
     show_recommended_prompts: 1,
+    intake_form: 1,
     createdAt: 1,
     updatedAt: 1,
     category: 1,

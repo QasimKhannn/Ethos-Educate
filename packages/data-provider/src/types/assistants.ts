@@ -244,6 +244,15 @@ export type AgentRecommendedPrompt = {
   description?: string;
 };
 
+/**
+ * Selects the structured teacher-request form shown before an agent chat starts.
+ * The form fields themselves are rendered by the client so the stored contract
+ * remains small and can be expanded with additional templates later.
+ */
+export type AgentIntakeForm = {
+  template: 'worksheet' | 'assessment';
+};
+
 export type Agent = {
   _id?: string;
   id: string;
@@ -268,6 +277,7 @@ export type Agent = {
   conversation_starters?: string[];
   recommended_prompts?: AgentRecommendedPrompt[];
   show_recommended_prompts?: boolean;
+  intake_form?: AgentIntakeForm;
   /** @deprecated Use ACL permissions instead */
   isCollaborative?: boolean;
   tool_resources?: AgentToolResources;
@@ -312,6 +322,7 @@ export type AgentCreateParams = {
   | 'tool_options'
   | 'recommended_prompts'
   | 'show_recommended_prompts'
+  | 'intake_form'
 >;
 
 export type AgentUpdateParams = {
@@ -342,6 +353,7 @@ export type AgentUpdateParams = {
   | 'tool_options'
   | 'recommended_prompts'
   | 'show_recommended_prompts'
+  | 'intake_form'
 >;
 
 export type AgentListParams = {

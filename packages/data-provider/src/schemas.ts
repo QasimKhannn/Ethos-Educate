@@ -256,6 +256,7 @@ export const defaultAgentFormValues = {
   description: '',
   recommended_prompts: [],
   show_recommended_prompts: true,
+  intake_form: undefined,
   instructions: '',
   model: '',
   model_parameters: {},

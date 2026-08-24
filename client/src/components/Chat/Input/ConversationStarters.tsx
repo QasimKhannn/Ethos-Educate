@@ -147,25 +147,27 @@ const ConversationStarters = () => {
   }
 
   return (
-    <div
-      className="chat-conversation-starters"
+    <section
+      className="chat-conversation-starters-section"
       aria-label={localize('com_ui_agent_recommended_prompts')}
     >
-      {starterCards.map((starter, index) => (
-        <button
-          key={`${starter.label}-${index}`}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => setConversationStarter(starter.prompt)}
-          className="chat-conversation-starter"
-          type="button"
-        >
-          <span className="chat-conversation-starter-label">{starter.label}</span>
-          {starter.description ? (
-            <span className="chat-conversation-starter-description">{starter.description}</span>
-          ) : null}
-        </button>
-      ))}
-    </div>
+      <div className="chat-conversation-starters">
+        {starterCards.map((starter, index) => (
+          <button
+            key={`${starter.label}-${index}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setConversationStarter(starter.prompt)}
+            className="chat-conversation-starter"
+            type="button"
+          >
+            <span className="chat-conversation-starter-label">{starter.label}</span>
+            {starter.description ? (
+              <span className="chat-conversation-starter-description">{starter.description}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 };
 

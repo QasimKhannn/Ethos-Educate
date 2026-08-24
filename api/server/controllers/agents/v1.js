@@ -230,6 +230,7 @@ const getAgentHandler = async (req, res, expandProperties = false) => {
         conversation_starters: agent.conversation_starters,
         recommended_prompts: agent.recommended_prompts,
         show_recommended_prompts: agent.show_recommended_prompts,
+        intake_form: agent.intake_form,
         avatar: agent.avatar,
         tools: agent.tools,
         author: agent.author,

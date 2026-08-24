@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, Pin, PinOff } from 'lucide-react';
 import { OGDialogContent, Button, useToastContext } from '@librechat/client';
 import type t from 'librechat-data-provider';
 import { useLocalize, useFavorites } from '~/hooks';
 import { renderAgentAvatar, getAgentDisplayName, normalizeAgentBrandText } from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
+import AgentIntakeDialog from './AgentIntakeDialog';
+import { getAgentIntakeTemplate } from './agentIntake';
 import { isMockMarketplaceAgent, renderMockMarketplaceAvatar } from './mockAgents';
 import useStartAgentChat from './useStartAgentChat';
 
@@ -31,6 +33,7 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const { showToast } = useToastContext();
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const startAgentChat = useStartAgentChat();
+  const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const isFavorite = isFavoriteAgent(agent?.id);
   const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
@@ -42,6 +45,11 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   };
 
   const handleStartChat = () => {
+    if (getAgentIntakeTemplate(agent)) {
+      setIsIntakeOpen(true);
+      return;
+    }
+
     startAgentChat(agent);
   };
 
@@ -100,63 +108,66 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const authorName = normalizeAgentBrandText(agent?.authorName) || 'Ethos Intelligence';
 
   return (
-    <OGDialogContent className="agent-detail-dialog max-h-[90vh] w-[min(94vw,48rem)] overflow-y-auto p-0">
-      <div className="agent-detail-sheet">
-        <div className="agent-detail-header">
-          <div className="agent-detail-avatar">
-            {renderMockMarketplaceAvatar(agent, { size: 'xl' }) ??
-              renderAgentAvatar(agent, { size: 'xl' })}
-          </div>
-          <div className="agent-detail-heading">
-            <div className="agent-detail-title-row">
-              <h2 className="agent-detail-title">
-                {agentDisplayName || localize('com_agents_loading')}
-              </h2>
-              {agent ? (
-                <p className="agent-detail-title-byline">
-                  <span>{byLabel}</span>
-                  {contactNode ?? <span>{authorName}</span>}
-                </p>
-              ) : null}
+    <>
+      <OGDialogContent className="agent-detail-dialog max-h-[90vh] w-[min(94vw,48rem)] overflow-y-auto p-0">
+        <div className="agent-detail-sheet">
+          <div className="agent-detail-header">
+            <div className="agent-detail-avatar">
+              {renderMockMarketplaceAvatar(agent, { size: 'xl' }) ??
+                renderAgentAvatar(agent, { size: 'xl' })}
+            </div>
+            <div className="agent-detail-heading">
+              <div className="agent-detail-title-row">
+                <h2 className="agent-detail-title">
+                  {agentDisplayName || localize('com_agents_loading')}
+                </h2>
+                {agent ? (
+                  <p className="agent-detail-title-byline">
+                    <span>{byLabel}</span>
+                    {contactNode ?? <span>{authorName}</span>}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="agent-detail-body">
-          <AgentOnboardingOverview agent={agent} />
-        </div>
+          <div className="agent-detail-body">
+            <AgentOnboardingOverview agent={agent} />
+          </div>
 
-        <div className="agent-detail-actions">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleFavoriteClick}
-            title={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-            aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-          >
-            {isFavorite ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleCopyLink}
-            title={localize('com_agents_copy_link')}
-            aria-label={localize('com_agents_copy_link')}
-          >
-            <Link className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          <Button
-            className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
-            onClick={handleStartChat}
-            disabled={!agent || isMockAgent}
-          >
-            {isMockAgent
-              ? localize('com_agents_mock_preview_only')
-              : localize('com_agents_start_chat')}
-          </Button>
+          <div className="agent-detail-actions">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleFavoriteClick}
+              title={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
+              aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
+            >
+              {isFavorite ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleCopyLink}
+              title={localize('com_agents_copy_link')}
+              aria-label={localize('com_agents_copy_link')}
+            >
+              <Link className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
+              onClick={handleStartChat}
+              disabled={!agent || isMockAgent}
+            >
+              {isMockAgent
+                ? localize('com_agents_mock_preview_only')
+                : localize('com_agents_start_chat')}
+            </Button>
+          </div>
         </div>
-      </div>
-    </OGDialogContent>
+      </OGDialogContent>
+      <AgentIntakeDialog agent={agent} open={isIntakeOpen} onOpenChange={setIsIntakeOpen} />
+    </>
   );
 };
 

@@ -111,6 +111,10 @@ const agentSchema = new Schema<IAgent>(
       type: Boolean,
       default: true,
     },
+    intake_form: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
     tool_resources: {
       type: Schema.Types.Mixed,
       default: {},

@@ -17,6 +17,8 @@ import { renderAgentAvatar, getAgentDisplayName, getAgentToolkitDescription } fr
 import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
 import AgentDetail from './AgentDetail';
+import AgentIntakeDialog from './AgentIntakeDialog';
+import { getAgentIntakeTemplate } from './agentIntake';
 import ErrorDisplay from './ErrorDisplay';
 import EssayGraderToolCard from './EssayGraderToolCard';
 import useStartAgentChat from './useStartAgentChat';
@@ -41,7 +43,8 @@ export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_
 export type MarketplaceViewMode = 'compact' | 'large';
 
 const ESSAY_GRADER_CATEGORY = 'assessment_grading';
-const ESSAY_GRADER_SEARCH_TERMS = 'essay grader essay rubric rubrics grading score feedback writing assessment';
+const ESSAY_GRADER_SEARCH_TERMS =
+  'essay grader essay rubric rubrics grading score feedback writing assessment';
 
 const AgentGrid: React.FC<AgentGridProps> = ({
   category,
@@ -57,6 +60,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const isDesktopCatalog = useMediaQuery('(min-width: 960px)');
   const pageSize = isDesktopCatalog ? 10 : 9;
   const [detailAgent, setDetailAgent] = useState<t.Agent | null>(null);
+  const [intakeAgent, setIntakeAgent] = useState<t.Agent | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isTourDetailOpen, setIsTourDetailOpen] = useState(false);
   const emptyStateHeadingId = useId();
@@ -374,6 +378,12 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       setIsTourDetailOpen(false);
       setIsDetailOpen(false);
       setDetailAgent(null);
+
+      if (getAgentIntakeTemplate(agent)) {
+        setIntakeAgent(agent);
+        return;
+      }
+
       startAgentChat(agent);
     },
     [startAgentChat],
@@ -472,47 +482,58 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     }
 
     return (
-      <div
-        className="space-y-6"
-        data-tour-id="marketplace-results"
-        data-tour-padding="0"
-        data-tour-radius="22"
-        role="tabpanel"
-        id="agents-panel"
-        aria-live="polite"
-        aria-busy={isLoading && !hasData}
-      >
-        <div id="search-results-count" className="sr-only" aria-live="polite" aria-atomic="true">
-          {listAnnouncement}
-        </div>
-        <motion.div
-          variants={marketplaceCardStackVariants}
-          initial={shouldReduceMotion ? false : 'hidden'}
-          animate="visible"
-          className="grid w-full grid-cols-1 items-start gap-3.5 xl:grid-cols-2 xl:gap-4"
-          role="grid"
-          aria-label={listAnnouncement}
+      <>
+        <div
+          className="space-y-6"
+          data-tour-id="marketplace-results"
+          data-tour-padding="0"
+          data-tour-radius="22"
+          role="tabpanel"
+          id="agents-panel"
+          aria-live="polite"
+          aria-busy={isLoading && !hasData}
         >
-          {shouldShowEssayGraderTool ? (
-            <motion.div
-              key="tool-essay-grader"
-              role="gridcell"
-              variants={marketplaceCardRevealVariants}
-            >
-              <EssayGraderToolCard variant="card" viewMode={viewMode} />
-            </motion.div>
-          ) : null}
-          {displayedAgents.map((agent: t.Agent, index: number) => (
-            <motion.div
-              key={`${agent.id}-${index}`}
-              role="gridcell"
-              variants={marketplaceCardRevealVariants}
-            >
-              <AgentCard agent={agent} onClick={() => handleOpenAgent(agent)} viewMode={viewMode} />
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
+          <div id="search-results-count" className="sr-only" aria-live="polite" aria-atomic="true">
+            {listAnnouncement}
+          </div>
+          <motion.div
+            variants={marketplaceCardStackVariants}
+            initial={shouldReduceMotion ? false : 'hidden'}
+            animate="visible"
+            className="grid w-full grid-cols-1 items-start gap-3.5 xl:grid-cols-2 xl:gap-4"
+            role="grid"
+            aria-label={listAnnouncement}
+          >
+            {shouldShowEssayGraderTool ? (
+              <motion.div
+                key="tool-essay-grader"
+                role="gridcell"
+                variants={marketplaceCardRevealVariants}
+              >
+                <EssayGraderToolCard variant="card" viewMode={viewMode} />
+              </motion.div>
+            ) : null}
+            {displayedAgents.map((agent: t.Agent, index: number) => (
+              <motion.div
+                key={`${agent.id}-${index}`}
+                role="gridcell"
+                variants={marketplaceCardRevealVariants}
+              >
+                <AgentCard
+                  agent={agent}
+                  onClick={() => handleOpenAgent(agent)}
+                  viewMode={viewMode}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+        <AgentIntakeDialog
+          agent={intakeAgent}
+          open={intakeAgent != null}
+          onOpenChange={(open) => !open && setIntakeAgent(null)}
+        />
+      </>
     );
   }
 
@@ -674,6 +695,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({
           }}
         />
       ) : null}
+      <AgentIntakeDialog
+        agent={intakeAgent}
+        open={intakeAgent != null}
+        onOpenChange={(open) => !open && setIntakeAgent(null)}
+      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { Document, Types } from 'mongoose';
-import type { GraphEdge, AgentToolOptions } from 'librechat-data-provider';
+import type { GraphEdge, AgentIntakeForm, AgentToolOptions } from 'librechat-data-provider';
 
 export interface ISupportContact {
   name?: string;
@@ -43,6 +43,7 @@ export interface IAgent extends Omit<Document, 'model'> {
   conversation_starters?: string[];
   recommended_prompts?: IAgentRecommendedPrompt[];
   show_recommended_prompts?: boolean;
+  intake_form?: AgentIntakeForm;
   tool_resources?: unknown;
   projectIds?: Types.ObjectId[];
   versions?: Omit<IAgent, 'versions'>[];

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Constants,
@@ -20,9 +21,10 @@ export default function useStartAgentChat() {
   const queryClient = useQueryClient();
   const getDefaultConversation = useDefaultConvo();
   const { conversation, newConversation } = useChatContext();
+  const navigate = useNavigate();
 
   return useCallback(
-    (agent: t.Agent | null | undefined) => {
+    (agent: t.Agent | null | undefined, initialPrompt?: string) => {
       if (agent == null) {
         return;
       }
@@ -53,6 +55,16 @@ export default function useStartAgentChat() {
       clearMessagesCache(queryClient, conversation?.conversationId);
       queryClient.invalidateQueries([QueryKeys.messages]);
 
+      if (initialPrompt?.trim()) {
+        const params = new URLSearchParams({
+          agent_id: agent.id,
+          prompt: initialPrompt.trim(),
+          submit: 'true',
+        });
+        navigate(`/c/new?${params.toString()}`);
+        return;
+      }
+
       const template = {
         conversationId: Constants.NEW_CONVO as string,
         endpoint: EModelEndpoint.agents,
@@ -73,6 +85,6 @@ export default function useStartAgentChat() {
         preset: template,
       });
     },
-    [conversation, getDefaultConversation, localize, newConversation, queryClient],
+    [conversation, getDefaultConversation, localize, navigate, newConversation, queryClient],
   );
 }

@@ -3,6 +3,7 @@ import type {
   AgentModelParameters,
   AgentToolOptions,
   AgentRecommendedPrompt,
+  AgentIntakeForm,
   SupportContact,
   AgentProvider,
   GraphEdge,
@@ -36,6 +37,7 @@ export type AgentForm = {
   description: string | null;
   recommended_prompts?: AgentRecommendedPrompt[];
   show_recommended_prompts?: boolean;
+  intake_form?: AgentIntakeForm;
   instructions: string | null;
   model: string | null;
   model_parameters: AgentModelParameters;

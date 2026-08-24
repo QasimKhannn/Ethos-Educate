@@ -46,6 +46,11 @@ export const agentRecommendedPromptSchema = z.object({
   description: z.string().optional(),
 });
 
+/** Structured request forms that can be enabled for an agent in Agent Builder. */
+export const agentIntakeFormSchema = z.object({
+  template: z.enum(['worksheet', 'assessment']),
+});
+
 /** Graph edge schema for agent handoffs */
 export const graphEdgeSchema = z.object({
   from: z.union([z.string(), z.array(z.string())]),
@@ -85,6 +90,7 @@ export const agentBaseSchema = z.object({
   conversation_starters: z.array(z.string()).optional(),
   recommended_prompts: z.array(agentRecommendedPromptSchema).optional(),
   show_recommended_prompts: z.boolean().optional(),
+  intake_form: agentIntakeFormSchema.optional(),
   tool_resources: agentToolResourcesSchema,
   tool_options: agentToolOptionsSchema,
   support_contact: agentSupportContactSchema,
