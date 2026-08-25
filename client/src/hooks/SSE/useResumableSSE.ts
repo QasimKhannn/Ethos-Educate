@@ -17,6 +17,7 @@ import {
 import type { TMessage, TPayload, TSubmission, EventSubmission } from 'librechat-data-provider';
 import type { EventHandlerParams } from './useEventHandlers';
 import { useGetStartupConfig, useGetUserBalance, queueTitleGeneration } from '~/data-provider';
+import { fetchStreamStatus } from '~/data-provider/SSE/queries';
 import type { ActiveJobsResponse } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useEventHandlers from './useEventHandlers';
@@ -43,6 +44,8 @@ type ChatHelpers = Pick<
 >;
 
 const MAX_RETRIES = 5;
+const TERMINAL_RECOVERY_INTERVAL_MS = 5000;
+const MAX_TERMINAL_RECOVERY_ATTEMPTS = 2;
 
 /**
  * Hook for resumable SSE streams.
@@ -99,6 +102,9 @@ export default function useResumableSSE(
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const submissionRef = useRef<TSubmission | null>(null);
+  const terminalEventReceivedRef = useRef(false);
+  const terminalRecoveryAttemptsRef = useRef(0);
+  const terminalRecoverySSERef = useRef<SSE | null>(null);
 
   const {
     setMessages,
@@ -171,6 +177,8 @@ export default function useResumableSSE(
           const data = JSON.parse(e.data);
 
           if (data.final != null) {
+            terminalEventReceivedRef.current = true;
+            terminalRecoveryAttemptsRef.current = 0;
             console.log('[ResumableSSE] Received FINAL event', {
               aborted: data.aborted,
               conversationId: data.conversation?.conversationId,
@@ -350,6 +358,7 @@ export default function useResumableSSE(
 
         // 404 means job doesn't exist (completed/deleted) - don't retry
         if (responseCode === 404) {
+          terminalEventReceivedRef.current = true;
           console.log('[ResumableSSE] Stream not found (404) - job completed or expired');
           sse.close();
           removeActiveJob(currentStreamId);
@@ -385,6 +394,7 @@ export default function useResumableSSE(
          * Only check e.data if there's no HTTP responseCode, since HTTP errors may also have body data.
          */
         if (!responseCode && e.data) {
+          terminalEventReceivedRef.current = true;
           console.log('[ResumableSSE] Server-sent error event received:', e.data);
           sse.close();
           removeActiveJob(currentStreamId);
@@ -477,6 +487,11 @@ export default function useResumableSSE(
        * Only reset state if we're NOT in a reconnection cycle.
        */
       sse.addEventListener('abort', () => {
+        if (terminalRecoverySSERef.current === sse) {
+          console.log('[ResumableSSE] Closing stream to recover a persisted terminal event');
+          return;
+        }
+
         // If we're in a reconnection cycle, don't reset state
         // (error handler will set up the reconnect timeout)
         if (reconnectAttemptRef.current > 0) {
@@ -545,6 +560,90 @@ export default function useResumableSSE(
       removeActiveJob,
     ],
   );
+
+  /**
+   * A completed response can occasionally lose its final Pub/Sub message while
+   * the SSE connection itself remains open. The backend keeps that final event
+   * briefly, so reconnect once the job reports a terminal status.
+   */
+  useEffect(() => {
+    if (!streamId) {
+      return;
+    }
+
+    let disposed = false;
+
+    const recoverTerminalEvent = async () => {
+      if (disposed || terminalEventReceivedRef.current || !submissionRef.current) {
+        return;
+      }
+
+      try {
+        const status = await fetchStreamStatus(streamId);
+        const isTerminal =
+          status.status === 'complete' || status.status === 'error' || status.status === 'aborted';
+
+        if (disposed || !isTerminal || terminalEventReceivedRef.current) {
+          return;
+        }
+
+        const activeSSE = sseRef.current;
+        if (!activeSSE) {
+          return;
+        }
+
+        if (terminalRecoveryAttemptsRef.current >= MAX_TERMINAL_RECOVERY_ATTEMPTS) {
+          console.error(
+            '[ResumableSSE] Terminal event recovery exhausted; clearing completed stream',
+          );
+          terminalEventReceivedRef.current = true;
+          terminalRecoverySSERef.current = activeSSE;
+          activeSSE.close();
+          sseRef.current = null;
+          clearStepMaps();
+          removeActiveJob(streamId);
+          setIsSubmitting(false);
+          setShowStopButton(false);
+          setStreamId(null);
+          return;
+        }
+
+        terminalRecoveryAttemptsRef.current += 1;
+        terminalRecoverySSERef.current = activeSSE;
+        reconnectAttemptRef.current += 1;
+        console.warn('[ResumableSSE] Recovering persisted terminal event', {
+          streamId,
+          status: status.status,
+          attempt: terminalRecoveryAttemptsRef.current,
+        });
+        activeSSE.close();
+
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (!disposed && submissionRef.current && !terminalEventReceivedRef.current) {
+            subscribeToStream(streamId, submissionRef.current, true);
+          }
+        }, 0);
+      } catch (error) {
+        console.warn('[ResumableSSE] Unable to check terminal stream status', error);
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      void recoverTerminalEvent();
+    }, TERMINAL_RECOVERY_INTERVAL_MS);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, [
+    streamId,
+    subscribeToStream,
+    clearStepMaps,
+    removeActiveJob,
+    setIsSubmitting,
+    setShowStopButton,
+  ]);
 
   /**
    * Start generation (POST request that returns streamId)
@@ -640,6 +739,8 @@ export default function useResumableSSE(
     });
 
     submissionRef.current = submission;
+    terminalEventReceivedRef.current = false;
+    terminalRecoveryAttemptsRef.current = 0;
 
     const initStream = async () => {
       setIsSubmitting(true);

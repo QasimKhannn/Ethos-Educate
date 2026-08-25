@@ -1463,6 +1463,48 @@ describe('GenerationJobManager Integration Tests', () => {
     });
   });
 
+  describe('Final Event Preservation for Late Subscribers', () => {
+    test('should retain a successful final event when recovery is requested', async () => {
+      const manager = new GenerationJobManagerClass();
+      manager.configure({
+        jobStore: new InMemoryJobStore({ ttlAfterComplete: 60000 }),
+        eventTransport: new InMemoryEventTransport(),
+        isRedis: false,
+        cleanupOnComplete: true,
+      });
+      manager.initialize();
+
+      const streamId = `final-late-sub-${Date.now()}`;
+      const finalEvent = {
+        final: true,
+        title: 'Completed response',
+      } as unknown as ServerSentEvent;
+
+      await manager.createJob(streamId, 'user-1');
+      await manager.emitDone(streamId, finalEvent);
+      await manager.completeJob(streamId, undefined, { retainForRecovery: true });
+
+      const completedJob = await manager.getJob(streamId);
+      expect(completedJob?.status).toBe('complete');
+      expect(completedJob?.finalEvent).toBeDefined();
+
+      let receivedFinal: ServerSentEvent | undefined;
+      const subscription = await manager.subscribe(
+        streamId,
+        () => {},
+        (event) => {
+          receivedFinal = event;
+        },
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(receivedFinal).toEqual(finalEvent);
+
+      subscription?.unsubscribe();
+      await manager.destroy();
+    });
+  });
+
   describe('Cross-Replica Live Streaming (Redis)', () => {
     test('should publish events to Redis even when no local subscriber exists', async () => {
       if (!ioredisClient) {

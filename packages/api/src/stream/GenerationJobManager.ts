@@ -517,13 +517,19 @@ class GenerationJobManagerClass {
   /**
    * Mark job as complete.
    * If cleanupOnComplete is true (default), immediately cleans up job resources.
+   * Set options.retainForRecovery for a successful completion when a client may need to
+   * reconnect and retrieve the persisted final event.
    * Exception: Jobs with errors are NOT immediately deleted to allow late-connecting
    * clients to receive the error (race condition where error occurs before client connects).
    * Note: eventTransport is NOT cleaned up here to allow the final event to be
    * fully transmitted. It will be cleaned up when subscribers disconnect or
    * by the periodic cleanup job.
    */
-  async completeJob(streamId: string, error?: string): Promise<void> {
+  async completeJob(
+    streamId: string,
+    error?: string,
+    options: { retainForRecovery?: boolean } = {},
+  ): Promise<void> {
     const runtime = this.runtimeState.get(streamId);
 
     // Abort the controller to signal all pending operations (e.g., OAuth flow monitors)
@@ -558,14 +564,16 @@ class GenerationJobManagerClass {
       return;
     }
 
-    // Immediate cleanup if configured (default: true) - only for successful completions
-    if (this._cleanupOnComplete) {
+    // Immediate cleanup if configured (default: true) - only for successful completions.
+    // Agent streams opt into a short recovery window so a client that missed the
+    // live done event can reconnect and receive the persisted final event.
+    if (this._cleanupOnComplete && !options.retainForRecovery) {
       this.runtimeState.delete(streamId);
       // Don't cleanup eventTransport here - let the done event fully transmit first.
       // EventTransport will be cleaned up when subscribers disconnect or by periodic cleanup.
       await this.jobStore.deleteJob(streamId);
     } else {
-      // Only update status if keeping the job around
+      // Keep the terminal state until the backing store's completed-job TTL expires.
       await this.jobStore.updateJob(streamId, {
         status: 'complete',
         completedAt: Date.now(),
@@ -1047,10 +1055,9 @@ class GenerationJobManagerClass {
     if (runtime) {
       runtime.finalEvent = event;
     }
-    // Persist finalEvent to Redis for cross-replica consistency
-    this.jobStore.updateJob(streamId, { finalEvent: JSON.stringify(event) }).catch((err) => {
-      logger.error(`[GenerationJobManager] Failed to persist finalEvent:`, err);
-    });
+    // Persist before publishing so a reconnecting client can always recover a
+    // terminal event that was missed by a live SSE subscriber.
+    await this.jobStore.updateJob(streamId, { finalEvent: JSON.stringify(event) });
     await this.eventTransport.emitDone(streamId, event);
   }
 
