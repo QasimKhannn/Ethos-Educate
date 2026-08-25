@@ -128,6 +128,12 @@ export interface GradingRequestBody {
   customRubric?: CustomRubric;
   title?: string;
   instructions?: string;
+  /**
+   * SCORE only: run the grammar/spelling check in the same model call as the
+   * rubric scoring instead of as a separate pass. See the backend's
+   * `CreateGradingDto`.
+   */
+  includeGrammar?: boolean;
 }
 
 /**
@@ -164,6 +170,8 @@ export interface CreateBatchRequestBody {
   rubricId?: string;
   customRubric?: CustomRubric;
   instructions?: string;
+  /** SCORE only: bundle the grammar check into the same pass for every essay. */
+  includeGrammar?: boolean;
 }
 
 export interface ExtractedDocument {
@@ -177,4 +185,106 @@ export interface ExtractedDocument {
 export interface EssayGraderApiErrorBody {
   message?: string;
   fieldErrors?: Record<string, string>;
+}
+
+/**
+ * AI writing-pattern detection — a separate top-level tool from grading
+ * (`toolKind: 'detect'` in the wizard), not another grading mode. See the
+ * backend's `modules/detection/` and `claude/ai-detection-tool-research.md`
+ * in the project for why this is deliberately not a verdict tool: every
+ * score below is always paired with the evidence behind it.
+ */
+export interface DetectionEvidenceSpan {
+  start: number;
+  end: number;
+  quote: string;
+}
+
+export type DetectionSignalKey =
+  | 'burstiness'
+  | 'vocabulary'
+  | 'buzzwords'
+  | 'transitions'
+  | 'formatting'
+  | 'paragraphUniformity'
+  | 'informality';
+
+export interface DetectionSignal {
+  key: DetectionSignalKey;
+  label: string;
+  /** 0-100. Higher means more consistent with the pattern this signal looks for — never rendered alone. */
+  score: number;
+  description: string;
+  evidence: DetectionEvidenceSpan[];
+  matchCount?: number;
+}
+
+export type DetectionBand = 'INCONCLUSIVE' | 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface DetectionResultDocument {
+  /** Null only when the submission is too short to say anything meaningful. */
+  overallSignalScore: number | null;
+  band: DetectionBand;
+  bandLabel: string;
+  signals: DetectionSignal[];
+  wordCount: number;
+  disclaimer: string;
+}
+
+export interface DetectionResponse {
+  id: string;
+  createdAt: string;
+  title: string | null;
+  text: string;
+  wordCount: number;
+  result: DetectionResultDocument;
+  quota: QuotaState;
+}
+
+export interface DetectionRequestBody {
+  text: string;
+  title?: string;
+}
+
+export interface DetectionToolStatus {
+  quota: QuotaState;
+  limits: { minWords: number };
+}
+
+/**
+ * Batch AI detection -- several essays analyzed at once, each independently
+ * (there is no shared rubric or mode the way batch grading has one). Mirrors
+ * the standalone Co-grader app's batch-detection types; the backend endpoints
+ * (`/public/detection/batches`) already serve both apps.
+ *
+ * Simpler than `BatchItemSummary`/`BatchSummary` above: no PENDING/PROCESSING
+ * status, because every row a batch-detection call returns is already
+ * COMPLETE (see the backend's `DetectionService.createBatch` -- analysis is
+ * synchronous, so a whole batch finishes inside the request that started it).
+ */
+export interface BatchDetectionItemSummary {
+  id: string;
+  batchIndex: number;
+  title: string | null;
+  wordCount: number;
+  status: 'COMPLETE' | 'FAILED';
+  overallSignalScore: number | null;
+  band: DetectionBand;
+  bandLabel: string;
+  error?: string | null;
+}
+
+export interface BatchDetectionSummary {
+  batchId: string;
+  quota: QuotaState;
+  items: BatchDetectionItemSummary[];
+}
+
+export interface BatchDetectionItemRequestBody {
+  text: string;
+  title?: string;
+}
+
+export interface CreateBatchDetectionRequestBody {
+  items: BatchDetectionItemRequestBody[];
 }

@@ -58,10 +58,31 @@ export function CopyFeedbackDialog({
 
   async function copy() {
     const text = buildText(response, chosen);
+
+    // Writing both a plain-text and an HTML clipboard entry is what makes
+    // this look "formatted" once pasted into a rich-text destination (Word,
+    // Google Docs, Gmail, most gradebook comment boxes): those editors read
+    // text/html when it's present and render its bold headers and real
+    // bullet lists, instead of the ALL-CAPS/dash plain-text fallback going
+    // through verbatim. See `buildHtml`'s comment for more. Ported from the
+    // standalone Co-grader app alongside `buildText`.
     try {
+      if (typeof ClipboardItem !== 'undefined') {
+        const html = buildHtml(response, chosen);
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+            'text/html': new Blob([html], { type: 'text/html' }),
+          }),
+        ]);
+        setCopied(true);
+        return;
+      }
       await navigator.clipboard.writeText(text);
       setCopied(true);
     } catch {
+      // Plain text only at this point -- there is no rich-text equivalent
+      // of execCommand('copy').
       const area = document.createElement('textarea');
       area.value = text;
       area.style.position = 'fixed';
@@ -180,21 +201,31 @@ export function CopyFeedbackDialog({
   );
 }
 
+/**
+ * Rewritten 2026-08-25 -- the previous version relied entirely on blank-line
+ * spacing to separate sections, with no headers and 3-space indentation for
+ * quotes. That reads fine in the dialog's own `<pre>` preview, but several
+ * real paste destinations (rich-text comment boxes especially) either
+ * collapse single line breaks or strip leading whitespace, which turned a
+ * multi-section copy into what looked like one undifferentiated block once
+ * pasted. Every section below now gets an explicit header, and quotes use a
+ * leading "- " (a literal character, not whitespace) instead of indentation,
+ * so structure survives even when a destination normalizes blank space.
+ */
 function buildText(response: GradingResponse, chosen: Record<SectionKey, boolean>): string {
   const { result } = response;
   const blocks: string[] = [];
 
   if (response.title) blocks.push(response.title);
 
-  if (chosen.summary && result.overallComment) {
-    blocks.push(result.overallComment);
-  }
-
+  const overview: string[] = [];
+  if (chosen.summary && result.overallComment) overview.push(result.overallComment);
   if (chosen.summary && result.total) {
-    blocks.push(
+    overview.push(
       `Total: ${result.total.points} / ${result.total.maxPoints} (${result.total.percentage}%)`,
     );
   }
+  if (overview.length > 0) blocks.push(overview.join('\n'));
 
   if (chosen.rubric && result.criteria.length > 0) {
     const lines = result.criteria.map((criterion, index) => {
@@ -207,37 +238,141 @@ function buildText(response: GradingResponse, chosen: Record<SectionKey, boolean
 
       if (chosen.evidence && criterion.evidence.length > 0) {
         for (const span of criterion.evidence) {
-          parts.push(`   "${span.quote}"${span.note ? ` — ${span.note}` : ''}`);
+          parts.push(`- "${span.quote}"${span.note ? ` — ${span.note}` : ''}`);
         }
       }
       return parts.join('\n');
     });
-    blocks.push(lines.join('\n\n'));
+    blocks.push(['RUBRIC FEEDBACK', ...lines].join('\n\n'));
   }
 
   if (chosen.evidence && result.criteria.length === 0 && result.generalEvidence.length > 0) {
     blocks.push(
-      result.generalEvidence
-        .map((span) => `"${span.quote}"${span.note ? ` — ${span.note}` : ''}`)
-        .join('\n'),
+      [
+        'COMMENTS',
+        result.generalEvidence
+          .map((span) => `- "${span.quote}"${span.note ? ` — ${span.note}` : ''}`)
+          .join('\n'),
+      ].join('\n'),
     );
   }
 
-  if (chosen.nextSteps) {
-    if (result.strengths.length > 0) {
-      blocks.push(`What is working:\n${result.strengths.map((s) => `- ${s}`).join('\n')}`);
-    }
-    if (result.nextSteps.length > 0) {
-      blocks.push(`Do next:\n${result.nextSteps.map((s) => `- ${s}`).join('\n')}`);
-    }
+  const nextStepsBlock: string[] = [];
+  if (chosen.nextSteps && result.strengths.length > 0) {
+    nextStepsBlock.push(`What is working:\n${result.strengths.map((s) => `- ${s}`).join('\n')}`);
   }
+  if (chosen.nextSteps && result.nextSteps.length > 0) {
+    nextStepsBlock.push(`Do next:\n${result.nextSteps.map((s) => `- ${s}`).join('\n')}`);
+  }
+  if (nextStepsBlock.length > 0) blocks.push(nextStepsBlock.join('\n\n'));
 
   if (chosen.metrics && result.metrics) {
     const m = result.metrics;
     blocks.push(
-      `${m.words} words, ${m.sentences} sentences, ${m.paragraphs} paragraphs, averaging ${m.averageSentenceWords} words a sentence.`,
+      `Word count: ${m.words} words, ${m.sentences} sentences, ${m.paragraphs} paragraphs, averaging ${m.averageSentenceWords} words a sentence.`,
     );
   }
 
   return blocks.join('\n\n').trim();
+}
+
+/**
+ * The `text/html` clipboard entry `copy()` writes alongside the plain text
+ * above. A rich-text destination (Word, Google Docs, Gmail, most gradebook
+ * comment boxes) reads this instead of the plain text when both are on the
+ * clipboard, which is what turns "RUBRIC FEEDBACK" and "- " bullets in the
+ * plain version into an actual bold heading and a real bulleted list once
+ * pasted. Structurally mirrors `buildText` block for block; every dynamic
+ * value is escaped since it becomes literal HTML. Ported from the
+ * standalone Co-grader app alongside `buildText`.
+ */
+function buildHtml(response: GradingResponse, chosen: Record<SectionKey, boolean>): string {
+  const { result } = response;
+  const blocks: string[] = [];
+
+  if (response.title) {
+    blocks.push(`<h2 style="margin:0 0 12px;font-size:16px;">${escapeHtml(response.title)}</h2>`);
+  }
+
+  const overview: string[] = [];
+  if (chosen.summary && result.overallComment) {
+    overview.push(`<p style="margin:0 0 6px;">${escapeHtml(result.overallComment)}</p>`);
+  }
+  if (chosen.summary && result.total) {
+    overview.push(
+      `<p style="margin:0;"><strong>Total: ${result.total.points} / ${result.total.maxPoints} (${result.total.percentage}%)</strong></p>`,
+    );
+  }
+  if (overview.length > 0) blocks.push(`<div style="margin:0 0 12px;">${overview.join('')}</div>`);
+
+  if (chosen.rubric && result.criteria.length > 0) {
+    const items = result.criteria
+      .map((criterion, index) => {
+        const score =
+          criterion.points === null
+            ? (criterion.levelLabel ?? '')
+            : `${criterion.points}/${criterion.maxPoints}`;
+        const head = `${index + 1}) ${escapeHtml(criterion.name)}${score ? ` — ${escapeHtml(score)}` : ''}`;
+        const evidence =
+          chosen.evidence && criterion.evidence.length > 0
+            ? `<ul style="margin:4px 0 0;padding-left:20px;">${criterion.evidence
+                .map(
+                  (span) =>
+                    `<li>"${escapeHtml(span.quote)}"${span.note ? ` — ${escapeHtml(span.note)}` : ''}</li>`,
+                )
+                .join('')}</ul>`
+            : '';
+        return `<li style="margin:0 0 10px;"><strong>${head}</strong><br>${escapeHtml(criterion.rationale)}${evidence}</li>`;
+      })
+      .join('');
+    blocks.push(
+      `<h3 style="margin:0 0 8px;font-size:14px;">RUBRIC FEEDBACK</h3><ul style="margin:0 0 12px;padding-left:20px;">${items}</ul>`,
+    );
+  }
+
+  if (chosen.evidence && result.criteria.length === 0 && result.generalEvidence.length > 0) {
+    const items = result.generalEvidence
+      .map(
+        (span) =>
+          `<li>"${escapeHtml(span.quote)}"${span.note ? ` — ${escapeHtml(span.note)}` : ''}</li>`,
+      )
+      .join('');
+    blocks.push(
+      `<h3 style="margin:0 0 8px;font-size:14px;">COMMENTS</h3><ul style="margin:0 0 12px;padding-left:20px;">${items}</ul>`,
+    );
+  }
+
+  const nextStepsBlock: string[] = [];
+  if (chosen.nextSteps && result.strengths.length > 0) {
+    nextStepsBlock.push(
+      `<p style="margin:0 0 4px;"><strong>What is working:</strong></p><ul style="margin:0 0 10px;padding-left:20px;">${result.strengths
+        .map((s) => `<li>${escapeHtml(s)}</li>`)
+        .join('')}</ul>`,
+    );
+  }
+  if (chosen.nextSteps && result.nextSteps.length > 0) {
+    nextStepsBlock.push(
+      `<p style="margin:0 0 4px;"><strong>Do next:</strong></p><ul style="margin:0;padding-left:20px;">${result.nextSteps
+        .map((s) => `<li>${escapeHtml(s)}</li>`)
+        .join('')}</ul>`,
+    );
+  }
+  if (nextStepsBlock.length > 0) blocks.push(`<div style="margin:0 0 12px;">${nextStepsBlock.join('')}</div>`);
+
+  if (chosen.metrics && result.metrics) {
+    const m = result.metrics;
+    blocks.push(
+      `<p style="margin:0;">Word count: ${m.words} words, ${m.sentences} sentences, ${m.paragraphs} paragraphs, averaging ${m.averageSentenceWords} words a sentence.</p>`,
+    );
+  }
+
+  return blocks.join('');
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
