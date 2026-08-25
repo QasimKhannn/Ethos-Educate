@@ -8,6 +8,11 @@ import type {
   EssayGraderApiErrorBody,
   BatchSummary,
   CreateBatchRequestBody,
+  DetectionResponse,
+  DetectionRequestBody,
+  DetectionToolStatus,
+  BatchDetectionSummary,
+  CreateBatchDetectionRequestBody,
 } from './types';
 
 const DEFAULT_COGRADER_API_BASE_URL = 'http://localhost:4000/api';
@@ -29,7 +34,11 @@ export class EssayGraderApiError extends Error {
 
 interface RequestOptions {
   method?: 'GET' | 'POST';
-  body?: GradingRequestBody | CreateBatchRequestBody;
+  body?:
+    | GradingRequestBody
+    | CreateBatchRequestBody
+    | DetectionRequestBody
+    | CreateBatchDetectionRequestBody;
 }
 
 const normalizeApiPath = (path: string) => `${cograderApiBaseUrl}${path}`;
@@ -117,6 +126,32 @@ export const submitBatchForGrading = (body: CreateBatchRequestBody) =>
 
 export const fetchBatch = (batchId: string) =>
   request<BatchSummary>(`/public/gradings/batches/${encodeURIComponent(batchId)}`);
+
+/**
+ * The AI writing-pattern detection tool — a separate namespace from
+ * `/public/gradings`, sharing only the visitor cookie/quota underneath.
+ */
+export const fetchDetectionStatus = () => request<DetectionToolStatus>('/public/detection/status');
+
+export const submitForDetection = (body: DetectionRequestBody) =>
+  request<DetectionResponse>('/public/detection', { method: 'POST', body });
+
+export const fetchDetection = (id: string) =>
+  request<DetectionResponse>(`/public/detection/${encodeURIComponent(id)}`);
+
+/**
+ * Several essays analyzed at once, each independently -- no shared rubric or
+ * mode the way batch grading has one. Returns immediately with every row
+ * already `COMPLETE` (analysis is synchronous), unlike `submitBatchForGrading`,
+ * so there is nothing here for a caller to poll.
+ */
+export const submitBatchForDetection = (body: CreateBatchDetectionRequestBody) =>
+  request<BatchDetectionSummary>('/public/detection/batches', { method: 'POST', body });
+
+/** Kept symmetrical with `fetchBatch`, even without a caller yet -- nothing in
+ *  this wizard currently reopens a detection batch by id from a URL. */
+export const fetchDetectionBatch = (batchId: string) =>
+  request<BatchDetectionSummary>(`/public/detection/batches/${encodeURIComponent(batchId)}`);
 
 export const extractDocument = async (file: File): Promise<ExtractedDocument> => {
   const formData = new FormData();

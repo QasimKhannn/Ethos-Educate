@@ -13,7 +13,6 @@ import {
   Plus,
   Send,
   Settings2,
-  SlidersHorizontal,
   Sparkles,
   SpellCheck,
   Trash2,
@@ -33,6 +32,10 @@ import {
   runGradingMode,
   submitBatchForGrading,
   fetchGrading,
+  submitForDetection,
+  fetchDetectionStatus,
+  fetchDetection,
+  submitBatchForDetection,
   EssayGraderApiError,
 } from './api';
 import type {
@@ -45,13 +48,19 @@ import type {
   CriterionResult,
   BatchSummary,
   BatchItemSummary,
+  DetectionResponse,
+  DetectionToolStatus,
+  BatchDetectionSummary,
+  BatchDetectionItemSummary,
 } from './types';
 import { US_STATES } from './us-states';
-import { ModeTabs, TOOL_MODES, MODE_LABEL, modeNeedsRubric } from './ModeTabs';
+import { TOOL_MODES, modeNeedsRubric } from './ModeTabs';
 import { HighlightedText, type TextHighlight } from './HighlightedText';
 import { CopyFeedbackDialog } from './CopyFeedbackDialog';
 import { BatchSubmissionPanel, type BatchFile } from './BatchSubmissionPanel';
 import { BatchOverview } from './BatchOverview';
+import { DetectionResultView } from './DetectionResultView';
+import { DetectionBatchOverview } from './DetectionBatchOverview';
 
 const GRADER_DIRECTIONS_MARKER = '[[ETHOS_GRADER_DIRECTIONS]]';
 
@@ -184,6 +193,29 @@ const EssayGraderRoute = () => {
   const [batch, setBatch] = useState<BatchSummary | null>(null);
   const [batchResult, setBatchResult] = useState<GradingResponse | null>(null);
 
+  /**
+   * The top-level choice: grade against a rubric, or run the AI
+   * writing-pattern detector. A separate tool, not another grading mode --
+   * step 1's rubric picker is skipped entirely when this is 'detect', and
+   * submission routes to `submitForDetection`/`submitBatchForDetection`
+   * instead of `submitForGrading`/`submitBatchForGrading`. `submissionKind`
+   * (below) applies to both tool kinds: a batch of essays can be graded or
+   * analyzed for AI writing patterns, same toggle either way.
+   */
+  const [toolKind, setToolKind] = useState<'grade' | 'detect'>('grade');
+  const [detectionResult, setDetectionResult] = useState<DetectionResponse | null>(null);
+  const [detectionStatus, setDetectionStatus] = useState<DetectionToolStatus | null>(null);
+
+  // Batch AI detection -- mirrors `batch`/`batchResult` above exactly, but
+  // for `toolKind === 'detect'`. Kept as its own pair of state variables
+  // rather than reusing the grading ones: a detection batch's rows have no
+  // PENDING/PROCESSING status (analysis is synchronous, see the backend's
+  // `DetectionService.createBatch`) and score differently (signal bands, not
+  // rubric points), so `DetectionBatchOverview` and `BatchOverview` are
+  // deliberately separate components rather than one parameterized by kind.
+  const [detectionBatch, setDetectionBatch] = useState<BatchDetectionSummary | null>(null);
+  const [detectionBatchResult, setDetectionBatchResult] = useState<DetectionResponse | null>(null);
+
   useDocumentTitle(localize('com_essay_grader_title'));
 
   useEffect(() => {
@@ -199,6 +231,14 @@ const EssayGraderRoute = () => {
         // nice-to-have (engine banner, quota) and shouldn't block the picker.
       } finally {
         if (!cancelled) setLoadingRubrics(false);
+      }
+
+      try {
+        const nextDetectionStatus = await fetchDetectionStatus();
+        if (!cancelled) setDetectionStatus(nextDetectionStatus);
+      } catch {
+        // Same as above -- the "AI Detection" toggle's own word-count check
+        // falls back to a sane default if this never loads.
       }
     };
 
@@ -270,13 +310,16 @@ const EssayGraderRoute = () => {
   const customRubric = customRubricEnabled ? draftCustomRubric : null;
 
   const words = countWords(essayText);
-  const minWords = status?.limits.minWords ?? 40;
+  const minWords =
+    toolKind === 'detect' ? (detectionStatus?.limits.minWords ?? 100) : (status?.limits.minWords ?? 40);
   const maxWords = status?.limits.maxWords ?? 2000;
   const tooShort = words > 0 && words < minWords;
   const tooLong = words > maxWords;
   const selectedRubricMissing = !customRubricEnabled && !selectedRubric;
   const customRubricMissing = customRubricEnabled && !customRubric;
-  const canContinueFromRubric = customRubricEnabled ? !customRubricMissing : !selectedRubricMissing;
+  // Detection needs no rubric at all -- step 1 is skipped straight to "Next" being enabled.
+  const canContinueFromRubric =
+    toolKind === 'detect' ? true : customRubricEnabled ? !customRubricMissing : !selectedRubricMissing;
 
   const batchReadyCount = batchFiles.filter((file) => file.status === 'ready').length;
   const batchExtracting = batchFiles.some((file) => file.status === 'reading');
@@ -287,13 +330,18 @@ const EssayGraderRoute = () => {
       : words >= minWords && !tooLong && !extracting;
   const submitBlocked =
     submissionKind === 'batch'
-      ? grading || batchExtracting || batchReadyCount < 2 || selectedRubricMissing || customRubricMissing
-      : grading ||
-        extracting ||
-        words < minWords ||
-        tooLong ||
-        selectedRubricMissing ||
-        customRubricMissing;
+      ? grading ||
+        batchExtracting ||
+        batchReadyCount < 2 ||
+        (toolKind === 'grade' && (selectedRubricMissing || customRubricMissing))
+      : toolKind === 'detect'
+        ? grading || extracting || words < minWords || tooLong
+        : grading ||
+          extracting ||
+          words < minWords ||
+          tooLong ||
+          selectedRubricMissing ||
+          customRubricMissing;
 
   const clearErrors = () => {
     setError(null);
@@ -367,6 +415,7 @@ const EssayGraderRoute = () => {
         customRubric: customRubric ?? undefined,
         title: title.trim() || undefined,
         instructions: instructions.trim() || undefined,
+        includeGrammar: true,
       });
       setResult(response);
       setStatus((current) => (current ? { ...current, quota: response.quota } : current));
@@ -398,6 +447,7 @@ const EssayGraderRoute = () => {
         rubricId: customRubric ? undefined : selectedRubric?.id,
         customRubric: customRubric ?? undefined,
         instructions: instructions.trim() || undefined,
+        includeGrammar: true,
       });
       setBatch(response);
       setStatus((current) => (current ? { ...current, quota: response.quota } : current));
@@ -413,9 +463,64 @@ const EssayGraderRoute = () => {
     }
   };
 
+  const runDetection = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setGrading(true);
+    clearErrors();
+
+    try {
+      const response = await submitForDetection({
+        text: essayText,
+        title: title.trim() || undefined,
+      });
+      setDetectionResult(response);
+      setStatus((current) => (current ? { ...current, quota: response.quota } : current));
+    } catch (cause) {
+      if (cause instanceof EssayGraderApiError) {
+        setError(cause.message);
+        setFieldErrors(cause.fieldErrors ?? {});
+      } else {
+        setError(localize('com_essay_grader_grading_error'));
+      }
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  const runBatchDetection = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setGrading(true);
+    clearErrors();
+
+    try {
+      const items = batchFiles
+        .filter((file) => file.status === 'ready' && file.text !== null)
+        .map((file) => ({ text: file.text as string, title: file.title.trim() || undefined }));
+
+      const response = await submitBatchForDetection({ items });
+      setDetectionBatch(response);
+      setStatus((current) => (current ? { ...current, quota: response.quota } : current));
+    } catch (cause) {
+      if (cause instanceof EssayGraderApiError) {
+        setError(cause.message);
+        setFieldErrors(cause.fieldErrors ?? {});
+      } else {
+        setError(localize('com_essay_grader_grading_error'));
+      }
+    } finally {
+      setGrading(false);
+    }
+  };
+
   const handleSubmit = (event: React.FormEvent) => {
     if (submissionKind === 'batch') {
-      void runBatchGrading(event);
+      if (toolKind === 'detect') {
+        void runBatchDetection(event);
+      } else {
+        void runBatchGrading(event);
+      }
+    } else if (toolKind === 'detect') {
+      void runDetection(event);
     } else {
       void runGrading(event);
     }
@@ -458,12 +563,51 @@ const EssayGraderRoute = () => {
     window.scrollTo({ top: 0 });
   };
 
+  /** Same three helpers as above, for a detection batch instead of a grading one. */
+  const sortedDetectionBatchItems = (current: BatchDetectionSummary): BatchDetectionItemSummary[] =>
+    [...current.items].sort((a, b) => a.batchIndex - b.batchIndex);
+
+  const openDetectionBatchItem = async (item: BatchDetectionItemSummary) => {
+    setError(null);
+    try {
+      setDetectionBatchResult(await fetchDetection(item.id));
+    } catch (cause) {
+      setError(
+        cause instanceof EssayGraderApiError ? cause.message : localize('com_essay_grader_grading_error'),
+      );
+    }
+  };
+
+  const stepDetectionBatchItem = (direction: 1 | -1) => {
+    if (!detectionBatch || !detectionBatchResult) return;
+    const items = sortedDetectionBatchItems(detectionBatch);
+    const currentIndex = items.findIndex((item) => item.id === detectionBatchResult.id);
+    if (currentIndex === -1) return;
+
+    let index = currentIndex + direction;
+    while (index >= 0 && index < items.length) {
+      if (items[index].status === 'COMPLETE') {
+        void openDetectionBatchItem(items[index]);
+        return;
+      }
+      index += direction;
+    }
+  };
+
+  const backToDetectionBatchOverview = () => {
+    setDetectionBatchResult(null);
+    window.scrollTo({ top: 0 });
+  };
+
   const resetToBlankForm = () => {
     setBatch(null);
     setBatchResult(null);
     setBatchFiles([]);
+    setDetectionBatch(null);
+    setDetectionBatchResult(null);
     setSubmissionKind('single');
     setResult(null);
+    setDetectionResult(null);
     setActiveStep(1);
     setTitle('');
     setInstructions('');
@@ -472,6 +616,56 @@ const EssayGraderRoute = () => {
     clearErrors();
     window.scrollTo({ top: 0 });
   };
+
+  if (detectionResult) {
+    return (
+      <EssayGraderShell>
+        <DetectionResultView
+          response={detectionResult}
+          onBack={() => {
+            setDetectionResult(null);
+            window.scrollTo({ top: 0 });
+          }}
+        />
+      </EssayGraderShell>
+    );
+  }
+
+  if (detectionBatchResult && detectionBatch) {
+    const items = sortedDetectionBatchItems(detectionBatch);
+    const currentIndex = items.findIndex((item) => item.id === detectionBatchResult.id);
+    const hasPrev = currentIndex > 0 && items.slice(0, currentIndex).some((item) => item.status === 'COMPLETE');
+    const hasNext =
+      currentIndex !== -1 &&
+      items.slice(currentIndex + 1).some((item) => item.status === 'COMPLETE');
+
+    return (
+      <EssayGraderShell>
+        <DetectionResultView
+          response={detectionBatchResult}
+          onBack={backToDetectionBatchOverview}
+          batchNav={{
+            position: currentIndex === -1 ? '' : `${currentIndex + 1} of ${items.length}`,
+            onPrev: hasPrev ? () => stepDetectionBatchItem(-1) : undefined,
+            onNext: hasNext ? () => stepDetectionBatchItem(1) : undefined,
+            onBackToBatch: backToDetectionBatchOverview,
+          }}
+        />
+      </EssayGraderShell>
+    );
+  }
+
+  if (detectionBatch) {
+    return (
+      <EssayGraderShell>
+        <DetectionBatchOverview
+          batch={detectionBatch}
+          onOpenItem={(item) => void openDetectionBatchItem(item)}
+          onBack={resetToBlankForm}
+        />
+      </EssayGraderShell>
+    );
+  }
 
   if (batchResult && batch) {
     const items = sortedBatchItems(batch);
@@ -588,6 +782,29 @@ const EssayGraderRoute = () => {
             <div className="px-5 py-5 md:px-6">
               {activeStep === 1 ? (
                 <>
+                  <div className="mb-5 flex flex-wrap items-center gap-2">
+                    <RubricScopeToggle active={toolKind === 'grade'} onClick={() => setToolKind('grade')}>
+                      Grader
+                    </RubricScopeToggle>
+                    <RubricScopeToggle
+                      active={toolKind === 'detect'}
+                      onClick={() => {
+                        setToolKind('detect');
+                        clearErrors();
+                      }}
+                    >
+                      AI Detection
+                    </RubricScopeToggle>
+                  </div>
+
+                  {toolKind === 'detect' ? (
+                    <div className="rounded-xl border border-border-light bg-surface-secondary/45 px-4 py-3 text-sm leading-6 text-text-secondary dark:border-white/10 dark:bg-white/5">
+                      No rubric needed for this one -- it looks at the writing itself for patterns
+                      sometimes associated with AI-generated text, and always shows the evidence behind
+                      any score. Continue to paste or upload one submission, or a batch of several.
+                    </div>
+                  ) : (
+                  <>
                   <div className="flex flex-wrap items-center gap-2">
                     <RubricScopeToggle
                       active={rubricJurisdiction === 'general'}
@@ -700,6 +917,8 @@ const EssayGraderRoute = () => {
                       {fieldErrors.rubricId ?? fieldErrors.customRubric}
                     </p>
                   ) : null}
+                  </>
+                  )}
                 </>
               ) : null}
 
@@ -744,18 +963,20 @@ const EssayGraderRoute = () => {
                           placeholder={localize('com_essay_grader_assignment_title_placeholder')}
                         />
                       </Field>
-                      <Field label={localize('com_essay_grader_assignment_prompt')}>
-                        <textarea
-                          value={instructions}
-                          onChange={(event) => setInstructions(event.target.value)}
-                          rows={4}
-                          className={cn(
-                            inputClassName,
-                            'h-auto min-h-[120px] resize-y py-3 leading-6',
-                          )}
-                          placeholder={localize('com_essay_grader_assignment_prompt_placeholder')}
-                        />
-                      </Field>
+                      {toolKind === 'grade' ? (
+                        <Field label={localize('com_essay_grader_assignment_prompt')}>
+                          <textarea
+                            value={instructions}
+                            onChange={(event) => setInstructions(event.target.value)}
+                            rows={4}
+                            className={cn(
+                              inputClassName,
+                              'h-auto min-h-[120px] resize-y py-3 leading-6',
+                            )}
+                            placeholder={localize('com_essay_grader_assignment_prompt_placeholder')}
+                          />
+                        </Field>
+                      ) : null}
                     </div>
                   </div>
 
@@ -764,8 +985,9 @@ const EssayGraderRoute = () => {
                       <div className="mb-4">
                         <p className="text-sm font-semibold text-text-primary">Essays</p>
                         <p className="mt-1 text-sm leading-6 text-text-secondary">
-                          Upload every essay you want graded against this rubric — they&apos;ll all use
-                          the assignment context above.
+                          {toolKind === 'detect'
+                            ? 'Upload every essay you want checked for AI writing patterns — each is analyzed independently, with its own evidence.'
+                            : "Upload every essay you want graded against this rubric — they'll all use the assignment context above."}
                         </p>
                       </div>
                       <BatchSubmissionPanel
@@ -881,19 +1103,23 @@ const EssayGraderRoute = () => {
                       onEdit={() => setActiveStep(2)}
                     />
                   ) : null}
-                  <ReviewRow
-                    label={localize('com_essay_grader_rubric')}
-                    value={
-                      customRubric
-                        ? customRubric.name || localize('com_essay_grader_custom_rubric')
-                        : selectedRubric?.name || localize('com_essay_grader_choose_rubric')
-                    }
-                    onEdit={() => setActiveStep(1)}
-                  />
+                  {toolKind === 'grade' ? (
+                    <ReviewRow
+                      label={localize('com_essay_grader_rubric')}
+                      value={
+                        customRubric
+                          ? customRubric.name || localize('com_essay_grader_custom_rubric')
+                          : selectedRubric?.name || localize('com_essay_grader_choose_rubric')
+                      }
+                      onEdit={() => setActiveStep(1)}
+                    />
+                  ) : (
+                    <ReviewRow label="Tool" value="AI Detection" onEdit={() => setActiveStep(1)} />
+                  )}
                   {submissionKind === 'batch' ? (
                     <ReviewRow
                       label="Essays"
-                      value={`${batchReadyCount} of ${batchFiles.length} ready to grade`}
+                      value={`${batchReadyCount} of ${batchFiles.length} ready to ${toolKind === 'detect' ? 'analyze' : 'grade'}`}
                       onEdit={() => setActiveStep(2)}
                     />
                   ) : (
@@ -925,7 +1151,7 @@ const EssayGraderRoute = () => {
                 <button
                   type="button"
                   onClick={() => setActiveStep(2)}
-                  disabled={!canContinueFromRubric || loadingRubrics}
+                  disabled={!canContinueFromRubric || (loadingRubrics && toolKind === 'grade')}
                   className="inline-flex h-11 min-w-[140px] items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
                   {localize('com_essay_grader_next')}
@@ -957,8 +1183,12 @@ const EssayGraderRoute = () => {
                   {grading
                     ? localize('com_essay_grader_grading')
                     : submissionKind === 'batch'
-                      ? `Grade ${batchReadyCount} essay${batchReadyCount === 1 ? '' : 's'}`
-                      : localize('com_essay_grader_run_grading')}
+                      ? toolKind === 'detect'
+                        ? `Analyze ${batchReadyCount} essay${batchReadyCount === 1 ? '' : 's'}`
+                        : `Grade ${batchReadyCount} essay${batchReadyCount === 1 ? '' : 's'}`
+                      : toolKind === 'detect'
+                        ? 'Analyze for AI patterns'
+                        : localize('com_essay_grader_run_grading')}
                 </button>
               ) : null}
             </div>
@@ -1342,8 +1572,15 @@ const CustomRubricPanel = ({
 };
 
 type DocumentView = 'view' | 'text' | 'original';
-type ResultMetricView = 'comments' | 'grammar' | 'rubric' | 'evidence';
-type SettingsPanel = 'rubric' | 'mode' | 'parameters' | 'rules' | null;
+/**
+ * 'commentary' and 'improve' only ever exist while their checkbox is on —
+ * see `commentEnabled`/`improveEnabled` in `ResultView`. They are additive:
+ * turning either on adds a tab without ever replacing what `comments`/
+ * `grammar`/`rubric`/`evidence` already show, unlike the old destructive
+ * mode-switch this replaces.
+ */
+type ResultMetricView = 'comments' | 'grammar' | 'rubric' | 'evidence' | 'commentary' | 'improve';
+type SettingsPanel = 'rubric' | 'parameters' | 'rules' | null;
 
 /** Shape shared by every lucide-react icon used as a prop in this file's
  *  result-screen components (they all accept at least these two). */
@@ -1393,6 +1630,17 @@ const ResultView = ({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [copiedCriterionId, setCopiedCriterionId] = useState<string | null>(null);
+  /*
+   * Comment on it / Improve it, as checkboxes (default off) rather than
+   * buttons that swap the whole result view. Each one, when turned on, fires
+   * its own on-demand grading call and the answer lands here — additive,
+   * never touching `response`/`result` (the always-on Score + Grammar pass).
+   */
+  const [commentEnabled, setCommentEnabled] = useState(false);
+  const [improveEnabled, setImproveEnabled] = useState(false);
+  const [commentaryResult, setCommentaryResult] = useState<GradingResultDocument | null>(null);
+  const [improveResult, setImproveResult] = useState<GradingResultDocument | null>(null);
+  const [analysisPending, setAnalysisPending] = useState<'FEEDBACK' | 'IMPROVE' | null>(null);
 
   const { result } = response;
   const title = response.title?.trim() || localize('com_essay_grader_untitled');
@@ -1406,7 +1654,18 @@ const ResultView = ({
     setActionError(null);
     setCopiedCriterionId(null);
     setPanelTab('feedback');
-    if (response.mode === 'PROOFREAD') setMetricView('grammar');
+    // Same as before for the four always-there tabs; additionally, a
+    // 'commentary'/'improve' selection can never survive a new submission —
+    // those checkboxes reset below, so the tab they belonged to must too.
+    setMetricView((current) => {
+      if (current === 'commentary' || current === 'improve') return 'comments';
+      return response.mode === 'PROOFREAD' ? 'grammar' : current;
+    });
+    setCommentEnabled(false);
+    setImproveEnabled(false);
+    setCommentaryResult(null);
+    setImproveResult(null);
+    setAnalysisPending(null);
   }, [response.id, response.mode]);
 
   const allHighlights = useMemo<TextHighlight[]>(
@@ -1431,17 +1690,22 @@ const ResultView = ({
     [result.criteria, result.generalEvidence],
   );
 
+  /*
+   * The grammar check now always runs bundled into the same pass as scoring
+   * (see `includeGrammar` on the grading request), so its four categories
+   * are just four more rows in `result.criteria` — identified precisely by
+   * their fixed ids rather than by fuzzy name matching, so a rubric
+   * criterion that happens to be named e.g. "Language and Conventions" is
+   * never mistaken for one of them.
+   */
   const grammarCriteria = useMemo(
-    () => result.criteria.filter((criterion) => isGrammarCriterion(criterion)),
+    () => result.criteria.filter((criterion) => isBundledGrammarRow(criterion)),
     [result.criteria],
   );
   const grammarCriterionIds = useMemo(
     () => new Set(grammarCriteria.map((criterion) => criterion.criterionId)),
     [grammarCriteria],
   );
-  /** Whether an actual proofread pass exists for this submission — the
-   *  only thing that should ever gate or populate the Grammar tab. */
-  const proofreadAvailable = result.mode === 'PROOFREAD' || response.availableModes.includes('PROOFREAD');
 
   const filteredHighlights = useMemo(() => {
     if (documentView === 'original') return [];
@@ -1456,20 +1720,19 @@ const ResultView = ({
     return allHighlights;
   }, [allHighlights, documentView, grammarCriterionIds, metricView]);
 
-  const commentCount = result.criteria.length || result.generalEvidence.length || result.nextSteps.length;
+  // Excludes the bundled grammar rows — those are counted on their own tab,
+  // not folded into the rubric criteria count shown here.
+  const rubricCriteriaCount = result.criteria.filter((criterion) => !isBundledGrammarRow(criterion)).length;
+  const commentCount = rubricCriteriaCount || result.generalEvidence.length || result.nextSteps.length;
   const combinedInstructions = buildInstructions(instructionDraft, selectedRules);
   const canRerunWithCurrentRubric = !modeNeedsRubric(result.mode) || result.rubric !== null;
 
   function chooseMetric(next: ResultMetricView) {
-    if (next === 'grammar' && result.mode !== 'PROOFREAD') {
-      // Grammar only ever reflects a real proofread pass. If one hasn't
-      // been run yet the tab is disabled and this is unreachable; if one
-      // is cached, switch into it (free — it's already in availableModes)
-      // instead of guessing at a score from an unrelated criterion.
-      if (!proofreadAvailable) return;
-      void switchMode('PROOFREAD');
-      return;
-    }
+    // Grammar is bundled into the same pass as scoring now, so its tab is
+    // just another view over the already-loaded result — no mode switch, no
+    // extra call. Commentary/Improve are gated by their own tab visibility
+    // (only rendered once their checkbox has a result), so a plain view
+    // change is all any tab ever needs.
     setMetricView(next);
     setActiveCriterionId(null);
   }
@@ -1505,15 +1768,40 @@ const ResultView = ({
     window.setTimeout(() => setCopiedCriterionId(null), 1600);
   }
 
-  async function switchMode(mode: GradingMode) {
-    if (mode === response.mode || pendingAction) return;
-    if (modeNeedsRubric(mode) && !result.rubric) {
-      setActionError('Choose a rubric before switching to a scored or comment-only pass.');
+  /**
+   * Comment on it / Improve it, as a checkbox: turning one on fetches that
+   * pass (cached instantly if it's already been fetched once this result is
+   * showing) and adds its tab; turning it off just hides the tab again — the
+   * fetched result stays cached so re-checking it is instant. Never touches
+   * `response`/`result`, unlike the mode-switch this replaces: Score and
+   * Grammar stay on screen no matter what is checked.
+   */
+  async function toggleAnalysis(mode: 'FEEDBACK' | 'IMPROVE') {
+    const isFeedback = mode === 'FEEDBACK';
+    const enabled = isFeedback ? commentEnabled : improveEnabled;
+    const setEnabled = isFeedback ? setCommentEnabled : setImproveEnabled;
+    const existing = isFeedback ? commentaryResult : improveResult;
+    const tab: ResultMetricView = isFeedback ? 'commentary' : 'improve';
+
+    if (enabled) {
+      setEnabled(false);
+      setMetricView((current) => (current === tab ? 'comments' : current));
+      return;
+    }
+
+    if (isFeedback && !result.rubric) {
+      setActionError('Choose a rubric before turning on Comment on it.');
       setSettingsPanel('rubric');
       return;
     }
 
-    setPendingAction(`mode:${mode}`);
+    setEnabled(true);
+    if (existing) {
+      setMetricView(tab);
+      return;
+    }
+
+    setAnalysisPending(mode);
     setActionError(null);
     try {
       const next =
@@ -1526,12 +1814,14 @@ const ResultView = ({
               instructions: encodeGraderDirections(combinedInstructions),
             })
           : await runGradingMode(response.id, mode);
-      onResult(next);
-      setSettingsPanel(null);
+      if (isFeedback) setCommentaryResult(next.result);
+      else setImproveResult(next.result);
+      setMetricView(tab);
     } catch (cause) {
-      setActionError(readError(cause, 'Could not switch modes. Please try again.'));
+      setActionError(readError(cause, 'Could not run that. Please try again.'));
+      setEnabled(false);
     } finally {
-      setPendingAction(null);
+      setAnalysisPending(null);
     }
   }
 
@@ -1584,6 +1874,7 @@ const ResultView = ({
         rubricId: modeNeedsRubric(mode) ? rubricId : undefined,
         title: response.title?.trim() || undefined,
         instructions: encodeGraderDirections(instructions),
+        includeGrammar: mode === 'SCORE',
       });
       onResult(next);
     } catch (cause) {
@@ -1592,6 +1883,16 @@ const ResultView = ({
       setPendingAction(null);
     }
   }
+
+  // The pane shown by the workspace's Feedback tab: the always-on Score +
+  // Grammar result, unless the Commentary/Improve tab is the active one and
+  // has actually loaded — additive, never a replacement for `result` itself.
+  const activeResult: GradingResultDocument =
+    metricView === 'commentary' && commentaryResult
+      ? commentaryResult
+      : metricView === 'improve' && improveResult
+        ? improveResult
+        : result;
 
   return (
     <div className="mx-auto flex w-full max-w-[100rem] flex-col gap-5 px-5 py-6 md:px-8 xl:px-12">
@@ -1605,7 +1906,6 @@ const ResultView = ({
           pendingAction={pendingAction}
           selectedRules={selectedRules}
           onClose={() => setSettingsPanel(null)}
-          onSwitchMode={(mode) => void switchMode(mode)}
           onChangeRubric={(rubric) => void changeRubric(rubric)}
           onToggleRule={(id) =>
             setSelectedRules((current) =>
@@ -1665,8 +1965,21 @@ const ResultView = ({
         </div>
 
         <div className="bg-surface-primary/85 dark:bg-surface-primary/45 flex flex-wrap items-center justify-between gap-3 p-3 backdrop-blur">
-          <div className="order-3 w-full lg:order-none lg:w-auto lg:min-w-[20rem] lg:flex-1 xl:max-w-xl">
-            <ModeTabs response={response} onResult={onResult} />
+          <div className="order-3 flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto">
+            <AnalysisToggle
+              label="Comment on it"
+              checked={commentEnabled}
+              pending={analysisPending === 'FEEDBACK'}
+              disabled={pendingAction !== null}
+              onChange={() => void toggleAnalysis('FEEDBACK')}
+            />
+            <AnalysisToggle
+              label="Improve it"
+              checked={improveEnabled}
+              pending={analysisPending === 'IMPROVE'}
+              disabled={pendingAction !== null}
+              onChange={() => void toggleAnalysis('IMPROVE')}
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -1704,13 +2017,19 @@ const ResultView = ({
           metricView={metricView}
           onDocumentViewChange={setDocumentView}
           onMetricViewChange={chooseMetric}
+          commentEnabled={commentEnabled}
+          commentaryPending={analysisPending === 'FEEDBACK'}
+          commentaryCount={commentaryResult ? commentaryResult.criteria.length : null}
+          improveEnabled={improveEnabled}
+          improvePending={analysisPending === 'IMPROVE'}
+          improveCount={improveResult ? improveResult.generalEvidence.length : null}
         />
 
         <WorkspacePanel
           panelTab={panelTab}
           onPanelTabChange={setPanelTab}
           feedbackProps={{
-            result,
+            result: activeResult,
             activeCriterionId,
             metricView,
             copiedCriterionId,
@@ -1738,7 +2057,6 @@ const ResultView = ({
               setActionError(null);
             },
             onApplyInstructions: () => void applyInstructions(),
-            onRunProofread: () => void switchMode('PROOFREAD'),
           }}
         />
       </div>
@@ -1811,6 +2129,12 @@ const DocumentPane = ({
   metricView,
   onDocumentViewChange,
   onMetricViewChange,
+  commentEnabled,
+  commentaryPending,
+  commentaryCount,
+  improveEnabled,
+  improvePending,
+  improveCount,
 }: {
   title: string;
   response: GradingResponse;
@@ -1821,10 +2145,21 @@ const DocumentPane = ({
   metricView: ResultMetricView;
   onDocumentViewChange: (view: DocumentView) => void;
   onMetricViewChange: (view: ResultMetricView) => void;
+  /** Whether the Comment on it / Improve it checkbox is on — gates whether
+   *  that tab is shown at all (additive: hidden, not disabled, when off). */
+  commentEnabled: boolean;
+  commentaryPending: boolean;
+  /** Null while no result has loaded yet (either never run, or still pending). */
+  commentaryCount: number | null;
+  improveEnabled: boolean;
+  improvePending: boolean;
+  improveCount: number | null;
 }) => {
   const localize = useLocalize();
-  const grammarAvailable =
-    response.result.mode === 'PROOFREAD' || response.availableModes.includes('PROOFREAD');
+  // Grammar always rides along with scoring now (see `includeGrammar` on the
+  // grading request), so its tab reflects whether those four fixed-id rows
+  // are actually present in this result — not a separate PROOFREAD pass.
+  const grammarAvailable = response.result.criteria.some((criterion) => isBundledGrammarRow(criterion));
 
   return (
   <section className="bg-surface-primary/80 dark:bg-surface-primary/40 flex min-h-[26rem] flex-col overflow-hidden rounded-2xl border border-border-light shadow-sm dark:border-white/10 xl:sticky xl:top-[8.5rem] xl:max-h-[calc(100vh-11rem)]">
@@ -1867,7 +2202,7 @@ const DocumentPane = ({
           label={localize('com_essay_grader_result_tab_grammar')}
           value={grammarScore(response.result)}
           disabled={!grammarAvailable}
-          disabledHint="Run a grammar & spell check first to see results here."
+          disabledHint="This result was graded before grammar checking ran alongside scoring — rerun it to see results here."
           onClick={() => onMetricViewChange('grammar')}
         />
         <MetricTab
@@ -1884,6 +2219,26 @@ const DocumentPane = ({
           value={evidenceCountLabel(response.result)}
           onClick={() => onMetricViewChange('evidence')}
         />
+        {commentEnabled && (
+          <MetricTab
+            active={metricView === 'commentary'}
+            icon={MessageSquare}
+            label="Comments"
+            value={commentaryPending ? '…' : commentaryCount !== null ? String(commentaryCount) : '–'}
+            disabled={commentaryPending}
+            onClick={() => onMetricViewChange('commentary')}
+          />
+        )}
+        {improveEnabled && (
+          <MetricTab
+            active={metricView === 'improve'}
+            icon={Sparkles}
+            label="Improve"
+            value={improvePending ? '…' : improveCount !== null ? String(improveCount) : '–'}
+            disabled={improvePending}
+            onClick={() => onMetricViewChange('improve')}
+          />
+        )}
       </div>
     </div>
 
@@ -1939,15 +2294,19 @@ const FeedbackPane = ({
   const rows = buildRows(result);
   const visibleRows = filterRows(rows, metricView, result.mode);
   const paneTitle =
-    result.mode === 'PROOFREAD'
-      ? 'Grammar & spelling check'
-      : metricView === 'evidence'
-        ? 'Evidence'
-        : metricView === 'grammar'
-          ? 'Grammar'
-          : result.rubric
-            ? 'Rubric'
-            : 'Feedback';
+    metricView === 'commentary'
+      ? 'Comments'
+      : metricView === 'improve'
+        ? 'Improve suggestions'
+        : result.mode === 'PROOFREAD'
+          ? 'Grammar & spelling check'
+          : metricView === 'evidence'
+            ? 'Evidence'
+            : metricView === 'grammar'
+              ? 'Grammar'
+              : result.rubric
+                ? 'Rubric'
+                : 'Feedback';
   const evidenceCount = countEvidence(result);
 
   return (
@@ -2407,6 +2766,45 @@ const Badge = ({ children }: { children: ReactNode }) => (
   <p className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-600">{children}</p>
 );
 
+/**
+ * Comment on it / Improve it — a checkbox, not a button. Off by default;
+ * turning it on adds a tab to the result (see `toggleAnalysis`) instead of
+ * replacing whatever is already on screen.
+ */
+const AnalysisToggle = ({
+  label,
+  checked,
+  pending,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  pending?: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+}) => (
+  <label
+    className={cn(
+      'inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors',
+      checked
+        ? 'border-blue-400 bg-blue-500/10 text-blue-600'
+        : 'border-border-light text-text-secondary hover:bg-surface-secondary dark:border-white/10',
+      disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+    )}
+  >
+    <input
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      onChange={onChange}
+      className="h-4 w-4 accent-blue-600"
+    />
+    {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+    {label}
+  </label>
+);
+
 const CustomizationPane = ({
   response,
   settingsPanel,
@@ -2419,7 +2817,6 @@ const CustomizationPane = ({
   onAddPreset,
   onClearInstructions,
   onApplyInstructions,
-  onRunProofread,
 }: {
   response: GradingResponse;
   settingsPanel: SettingsPanel;
@@ -2432,7 +2829,6 @@ const CustomizationPane = ({
   onAddPreset: (instruction: string) => void;
   onClearInstructions: () => void;
   onApplyInstructions: () => void;
-  onRunProofread: () => void;
 }) => {
   const localize = useLocalize();
   const { result } = response;
@@ -2463,14 +2859,6 @@ const CustomizationPane = ({
           />
         )}
         <SettingGroup
-          title={localize('com_essay_grader_result_feedback_style')}
-          value={MODE_LABEL[result.mode]}
-          icon={SlidersHorizontal}
-          active={settingsPanel === 'mode'}
-          onClick={() => onSettingsPanelChange('mode')}
-          actionLabel="Change feedback style"
-        />
-        <SettingGroup
           title={localize('com_essay_grader_result_grading_parameters')}
           value={`${paragraphs} paragraphs, ${response.wordCount.toLocaleString()} words`}
           icon={FileText}
@@ -2487,24 +2875,6 @@ const CustomizationPane = ({
           actionLabel="Edit advanced rules"
         />
       </div>
-
-      {result.mode !== 'PROOFREAD' && (
-        <button
-          type="button"
-          onClick={onRunProofread}
-          disabled={pendingAction !== null}
-          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-400 bg-blue-500/10 px-4 text-sm font-bold text-blue-600 transition-colors hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {pendingAction === 'mode:PROOFREAD' ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <SpellCheck className="h-4 w-4" aria-hidden="true" />
-          )}
-          {pendingAction === 'mode:PROOFREAD'
-            ? localize('com_essay_grader_result_checking_grammar')
-            : localize('com_essay_grader_result_run_grammar_check')}
-        </button>
-      )}
 
       <section className="mt-5">
         <h3 className="text-sm font-bold text-text-primary">
@@ -2582,7 +2952,6 @@ const SettingsSheet = ({
   pendingAction,
   selectedRules,
   onClose,
-  onSwitchMode,
   onChangeRubric,
   onToggleRule,
 }: {
@@ -2592,7 +2961,6 @@ const SettingsSheet = ({
   pendingAction: string | null;
   selectedRules: string[];
   onClose: () => void;
-  onSwitchMode: (mode: GradingMode) => void;
   onChangeRubric: (rubric: RubricSummary) => void;
   onToggleRule: (id: string) => void;
 }) => {
@@ -2600,19 +2968,15 @@ const SettingsSheet = ({
   const title =
     panel === 'rubric'
       ? 'Rubric'
-      : panel === 'mode'
-        ? 'Feedback Style'
-        : panel === 'parameters'
-          ? 'Grading Parameters'
-          : 'Advanced Rules';
+      : panel === 'parameters'
+        ? 'Grading Parameters'
+        : 'Advanced Rules';
   const description =
     panel === 'rubric'
       ? 'Rerun this submission against a different rubric from the general set.'
-      : panel === 'mode'
-        ? 'Choose how the grader should respond to this essay.'
-        : panel === 'parameters'
-          ? 'Quick quality signals from the submitted writing.'
-          : 'Layer extra grading constraints into the next AI instruction pass.';
+      : panel === 'parameters'
+        ? 'Quick quality signals from the submitted writing.'
+        : 'Layer extra grading constraints into the next AI instruction pass.';
 
   // See `CustomRubricModal` — portaled to `document.body` so `fixed inset-0`
   // resolves against the real viewport instead of a transformed ancestor.
@@ -2668,41 +3032,6 @@ const SettingsSheet = ({
                   <span className="mt-1 block text-xs leading-relaxed">
                     {rubric.gradeBand} · {rubric.totalPoints} points · {rubric.criteria.length} criteria
                   </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {panel === 'mode' && (
-          <div className="mt-5 grid gap-2">
-            {TOOL_MODES.map((option) => {
-              const selected = option.mode === result.mode;
-              const blocked = option.needsRubric && result.rubric === null;
-              return (
-                <button
-                  key={option.mode}
-                  type="button"
-                  disabled={selected || blocked || pendingAction !== null}
-                  onClick={() => onSwitchMode(option.mode)}
-                  className={cn(
-                    'rounded-xl border px-4 py-3 text-left text-sm transition-colors',
-                    selected
-                      ? 'border-blue-400 bg-blue-500/10 text-text-primary'
-                      : 'border-border-light bg-surface-primary text-text-secondary hover:border-blue-300 hover:bg-surface-secondary dark:border-white/10',
-                    (blocked || pendingAction !== null) && 'cursor-not-allowed opacity-60',
-                  )}
-                >
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="font-bold">{option.label}</span>
-                    {selected && (
-                      <span className="rounded-full bg-surface-primary px-2 py-0.5 text-xs font-bold text-blue-600">
-                        Active
-                      </span>
-                    )}
-                  </span>
-                  <span className="mt-1 block text-xs leading-relaxed">{option.returns}</span>
-                  {blocked && <span className="mt-2 block text-xs font-semibold text-red-500">Choose a rubric first.</span>}
                 </button>
               );
             })}
@@ -2929,6 +3258,8 @@ function buildRows(result: GradingResultDocument): CriterionResult[] {
 }
 
 function filterRows(rows: CriterionResult[], metricView: ResultMetricView, mode: GradingMode): CriterionResult[] {
+  // Untouched: a standalone PROOFREAD result (old cached data, or a legacy
+  // batch item) still renders exactly as it always has.
   if (mode === 'PROOFREAD') {
     if (metricView === 'rubric') return [];
     if (metricView === 'evidence') {
@@ -2939,13 +3270,20 @@ function filterRows(rows: CriterionResult[], metricView: ResultMetricView, mode:
   }
 
   if (metricView === 'grammar') {
-    return rows.filter((criterion) => isGrammarCriterion(criterion));
+    // Precise id match, not the fuzzy name match PROOFREAD mode uses above —
+    // once grammar rows sit alongside rubric criteria in the same list, a
+    // rubric criterion legitimately named e.g. "Language and Conventions"
+    // must not be mistaken for one of the four bundled grammar categories.
+    return rows.filter((criterion) => isBundledGrammarRow(criterion));
   }
   if (metricView === 'evidence') {
     const evidenceRows = rows.filter((criterion) => criterion.evidence.length > 0);
     return evidenceRows.length > 0 ? evidenceRows : rows;
   }
-  return rows;
+  // 'comments', 'rubric', 'commentary', 'improve' and any other view all
+  // fall through here — the bundled grammar rows belong only on the Grammar
+  // tab, never mixed into the rubric criteria list.
+  return rows.filter((criterion) => !isBundledGrammarRow(criterion));
 }
 
 function emptyMetricMessage(metricView: ResultMetricView, mode: GradingMode): string {
@@ -2955,8 +3293,14 @@ function emptyMetricMessage(metricView: ResultMetricView, mode: GradingMode): st
   if (mode === 'PROOFREAD') {
     return 'No spelling, grammar, punctuation or sentence-clarity issues were flagged in this view.';
   }
+  if (metricView === 'commentary') {
+    return 'No comments were returned for this pass.';
+  }
+  if (metricView === 'improve') {
+    return 'No improvement suggestions were returned for this pass.';
+  }
   if (metricView === 'grammar') {
-    return 'This rubric does not include a separate grammar or conventions criterion.';
+    return 'No grammar or spelling check has been run for this result yet.';
   }
   if (metricView === 'evidence') {
     return 'No evidence spans were returned for this result.';
@@ -3016,16 +3360,14 @@ function clampNumber(value: number, min: number, max: number): number {
 
 /**
  * The grammar tab's badge is only ever an issue count from an actual
- * proofread pass — never a percentage borrowed from an incidentally
+ * grammar check — never a percentage borrowed from an incidentally
  * grammar-named rubric criterion (that number doesn't mean "grammar
- * issues" and was confusing). Until a proofread pass exists for this
- * submission, there's nothing to count yet.
+ * issues" and was confusing). Grammar now rides along with every SCORE
+ * pass, so this no longer needs to gate on mode — `countProofreadIssues`
+ * itself returns 0 when no bundled grammar rows are present.
  */
 function grammarScore(result: GradingResultDocument): string {
-  if (result.mode === 'PROOFREAD') {
-    return String(countProofreadIssues(result));
-  }
-  return '–';
+  return String(countProofreadIssues(result));
 }
 
 function rubricScore(result: GradingResultDocument): string {
@@ -3043,14 +3385,34 @@ function countEvidence(result: GradingResultDocument): number {
 
 function countProofreadIssues(result: GradingResultDocument): number {
   return result.criteria
-    .filter((row) => isGrammarCriterion(row))
+    .filter((row) => isBundledGrammarRow(row))
     .reduce((sum, row) => sum + row.evidence.filter((span) => span.polarity === 'GROWTH').length, 0);
 }
 
+/**
+ * Used only by standalone PROOFREAD-mode rendering (old cached data, or a
+ * legacy batch item) — fuzzy name matching, which is exactly right there
+ * since every criterion in that result already comes from the four
+ * proofread categories.
+ */
 function isGrammarCriterion(criterion: CriterionResult): boolean {
   return /proofread|language|grammar|convention|mechanic|sentence|clarity|usage|punctuation|capitalization|spelling|syntax/i.test(
     `${criterion.name} ${criterion.description}`,
   );
+}
+
+/**
+ * The four fixed ids the backend's grammar check always uses, whether it
+ * ran as its own PROOFREAD pass or bundled into a SCORE pass (see
+ * `includeGrammar`). Matching on these exact ids — mirrored from the
+ * backend's `PROOFREAD_CRITERIA` — is what lets a bundled result tell its
+ * four grammar rows apart from the rubric's own criteria without ever
+ * risking a false match on a rubric criterion's name.
+ */
+const PROOFREAD_CATEGORY_IDS = new Set(['spelling', 'grammar', 'punctuation', 'clarity']);
+
+function isBundledGrammarRow(criterion: CriterionResult): boolean {
+  return PROOFREAD_CATEGORY_IDS.has(criterion.criterionId);
 }
 
 export default EssayGraderRoute;
