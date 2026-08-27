@@ -38,7 +38,7 @@ export default function AgentIntakeFormConfig() {
             <option value="">No form</option>
             <option value="worksheet">Worksheet setup</option>
             <option value="assessment">Assessment setup</option>
-            <option value="presentation">Presentation setup</option>
+            <option value="presentation">Presentation template picker</option>
           </select>
         )}
       />

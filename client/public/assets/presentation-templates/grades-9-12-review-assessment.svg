@@ -1,0 +1,59 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 640 360"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Grades 9-12 Review Assessment template preview</title>
+  <desc id="desc">Preview of an approved Grades 9-12 review assessment PowerPoint template.</desc>
+  <rect width="640" height="360" rx="18" fill="#f8fafc" />
+  <rect x="0" y="0" width="640" height="16" fill="#2563eb" />
+  <rect x="0" y="344" width="640" height="16" fill="#0f172a" />
+  <text
+    x="40"
+    y="70"
+    font-family="Arial, sans-serif"
+    font-size="30"
+    font-weight="700"
+    fill="#0f172a"
+  >
+    Grades 9-12 Review Assessment
+  </text>
+  <text x="462" y="72" font-family="Arial, sans-serif" font-size="18" fill="#2563eb">
+    11 slides
+  </text>
+  <rect
+    x="56"
+    y="116"
+    width="530"
+    height="178"
+    rx="8"
+    fill="#ffffff"
+    stroke="#cbd5e1"
+    stroke-width="3"
+  />
+  <text
+    x="88"
+    y="158"
+    font-family="Arial, sans-serif"
+    font-size="22"
+    font-weight="700"
+    fill="#0f172a"
+  >
+    Evidence Check
+  </text>
+  <rect x="88" y="188" width="178" height="12" rx="6" fill="#bfdbfe" />
+  <rect x="88" y="218" width="220" height="12" rx="6" fill="#bfdbfe" />
+  <rect x="88" y="248" width="148" height="12" rx="6" fill="#bfdbfe" />
+  <rect
+    x="390"
+    y="152"
+    width="120"
+    height="92"
+    rx="10"
+    fill="#fef3c7"
+    stroke="#d97706"
+    stroke-width="4"
+  />
+  <path d="M420 198h60" stroke="#d97706" stroke-width="8" stroke-linecap="round" />
+</svg>

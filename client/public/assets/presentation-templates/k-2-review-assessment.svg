@@ -1,0 +1,73 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 640 360"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">K-2 Review Assessment template preview</title>
+  <desc id="desc">Preview of an approved K-2 review assessment PowerPoint template.</desc>
+  <rect width="640" height="360" rx="18" fill="#ffffff" />
+  <rect x="0" y="0" width="640" height="22" fill="#f97316" />
+  <rect x="0" y="338" width="640" height="22" fill="#2563eb" />
+  <text
+    x="38"
+    y="72"
+    font-family="Arial, sans-serif"
+    font-size="30"
+    font-weight="700"
+    fill="#172554"
+  >
+    K-2 Review Check
+  </text>
+  <text x="456" y="74" font-family="Arial, sans-serif" font-size="18" fill="#ea580c">
+    11 slides
+  </text>
+  <rect
+    x="42"
+    y="112"
+    width="234"
+    height="172"
+    rx="20"
+    fill="#fff7ed"
+    stroke="#fdba74"
+    stroke-width="3"
+  />
+  <text
+    x="72"
+    y="154"
+    font-family="Arial, sans-serif"
+    font-size="22"
+    font-weight="700"
+    fill="#7c2d12"
+  >
+    Key Idea
+  </text>
+  <rect x="72" y="176" width="150" height="16" rx="8" fill="#fed7aa" />
+  <rect x="72" y="206" width="120" height="16" rx="8" fill="#fed7aa" />
+  <rect x="72" y="236" width="166" height="16" rx="8" fill="#fed7aa" />
+  <rect
+    x="320"
+    y="112"
+    width="250"
+    height="172"
+    rx="20"
+    fill="#eff6ff"
+    stroke="#93c5fd"
+    stroke-width="3"
+  />
+  <text
+    x="350"
+    y="154"
+    font-family="Arial, sans-serif"
+    font-size="22"
+    font-weight="700"
+    fill="#172554"
+  >
+    Quick Check
+  </text>
+  <circle cx="366" cy="198" r="12" fill="#2563eb" />
+  <rect x="392" y="188" width="122" height="20" rx="10" fill="#bfdbfe" />
+  <circle cx="366" cy="238" r="12" fill="#2563eb" />
+  <rect x="392" y="228" width="92" height="20" rx="10" fill="#bfdbfe" />
+  <rect x="88" y="306" width="464" height="12" rx="6" fill="#e5e7eb" />
+</svg>

@@ -39,8 +39,6 @@ export const versionMethods = [
   'Keep written-response prompts the same',
 ];
 
-export const presentationGradeBands = ['K-2', '3-5', '6-8', '9-12'];
-
 export const presentationDeckTypes = [
   {
     value: 'teacher_lesson',
@@ -62,13 +60,46 @@ export const presentationDeckTypes = [
   },
 ] as const;
 
-export const presentationToneOptions = [
-  'Student-friendly',
-  'Warm and family-friendly',
-  'Professional staff-facing',
-  'Concise executive',
-  'Other',
-];
+const presentationGradeBands = [
+  {
+    value: 'K-2',
+    label: 'K-2',
+    description: 'Large text, simple language, and visual-heavy pacing.',
+    previewSlug: 'k-2',
+  },
+  {
+    value: '3-5',
+    label: '3-5',
+    description: 'Student-friendly explanations, examples, and checks for understanding.',
+    previewSlug: 'grades-3-5',
+  },
+  {
+    value: '6-8',
+    label: '6-8',
+    description: 'Middle-grade vocabulary, reasoning, discussion, and application tasks.',
+    previewSlug: 'grades-6-8',
+  },
+  {
+    value: '9-12',
+    label: '9-12',
+    description: 'Concise academic style with analysis, evidence, and synthesis prompts.',
+    previewSlug: 'grades-9-12',
+  },
+] as const;
+
+export const presentationTemplates = presentationGradeBands.flatMap((gradeBand) =>
+  presentationDeckTypes.map((deckType) => ({
+    templateId: `${gradeBand.value}:${deckType.value}`,
+    gradeBand: gradeBand.value,
+    deckType: deckType.value,
+    label: `${gradeBand.label} ${deckType.label}`,
+    deckLabel: deckType.label,
+    gradeDescription: gradeBand.description,
+    description: deckType.description,
+    previewImage: `/assets/presentation-templates/${gradeBand.previewSlug}-${deckType.value.replace(/_/g, '-')}.svg`,
+    slideCount: 11,
+  })),
+);
 
 export type WorksheetIntakeValues = {
   topic: string;
@@ -108,18 +139,7 @@ export type AssessmentIntakeValues = {
 };
 
 export type PresentationIntakeValues = {
-  titleOrTopic: string;
-  purpose: string;
-  audience: string;
-  gradeBand: string;
-  deckType: string;
-  tone: string;
-  customTone: string;
-  keyTopics: string;
-  requiredSections: string;
-  brandingRequirements: string;
-  sourceMaterial: string;
-  notes: string;
+  selectedTemplateId: string;
   templateView: 'gallery' | 'list';
 };
 
@@ -161,18 +181,7 @@ export const createAssessmentIntakeValues = (): AssessmentIntakeValues => ({
 });
 
 export const createPresentationIntakeValues = (): PresentationIntakeValues => ({
-  titleOrTopic: '',
-  purpose: '',
-  audience: '',
-  gradeBand: '3-5',
-  deckType: 'teacher_lesson',
-  tone: 'Student-friendly',
-  customTone: '',
-  keyTopics: '',
-  requiredSections: '',
-  brandingRequirements: 'Use the selected approved template.',
-  sourceMaterial: '',
-  notes: '',
+  selectedTemplateId: '3-5:teacher_lesson',
   templateView: 'gallery',
 });
 
@@ -277,31 +286,19 @@ export function buildAssessmentIntakePrompt(values: AssessmentIntakeValues): str
 }
 
 export function buildPresentationIntakePrompt(values: PresentationIntakeValues): string {
+  const selectedTemplate =
+    presentationTemplates.find((template) => template.templateId === values.selectedTemplateId) ??
+    presentationTemplates[0];
   const lines = [
-    'Create a PowerPoint presentation draft from this teacher request.',
-    'Important: do not create the PPTX yet. First show the complete slide-by-slide content in chat for teacher review. After I approve it, create the downloadable deck using the selected template.',
+    'I selected a PowerPoint template for this presentation creator chat.',
+    `Selected template: ${selectedTemplate.label}`,
+    `grade_band: ${selectedTemplate.gradeBand}`,
+    `deck_type: ${selectedTemplate.deckType}`,
+    'Do not create a PPTX from this template selection alone.',
+    'Ask me what presentation I want to create if I have not already provided the topic or content.',
+    'After I provide the presentation request, draft the complete slide-by-slide content in chat for teacher review before creating the PPTX.',
+    'Only after I approve the draft, call presentation_deck_creator with content_status="teacher_approved" using the selected grade_band and deck_type.',
   ];
-
-  addLine(lines, 'Presentation title or topic', values.titleOrTopic);
-  addLine(lines, 'Purpose', values.purpose);
-  addLine(lines, 'Audience', values.audience);
-  addLine(lines, 'Selected template grade band', values.gradeBand);
-  addLine(
-    lines,
-    'Selected template type',
-    presentationDeckTypes.find((type) => type.value === values.deckType)?.label ?? values.deckType,
-  );
-  addLine(lines, 'Template deck_type value for tool call after approval', values.deckType);
-  addLine(lines, 'Tone', values.tone === 'Other' ? values.customTone : values.tone);
-  addLine(lines, 'Key topics to cover', values.keyTopics);
-  addLine(lines, 'Required sections', values.requiredSections);
-  addLine(lines, 'Branding/template requirements', values.brandingRequirements);
-  addLine(lines, 'Images, examples, data, or source material', values.sourceMaterial);
-  addLine(lines, 'Additional teacher notes', values.notes);
-  lines.push('Use the selected approved template. The template has an 11-slide classroom flow.');
-  lines.push(
-    'When the teacher approves the draft, call presentation_deck_creator with content_status="teacher_approved".',
-  );
 
   return lines.join('\n');
 }

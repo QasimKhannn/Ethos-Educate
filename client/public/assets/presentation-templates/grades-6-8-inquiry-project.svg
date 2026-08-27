@@ -1,0 +1,70 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 640 360"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Grades 6-8 Inquiry Project template preview</title>
+  <desc id="desc">Preview of an approved Grades 6-8 inquiry project PowerPoint template.</desc>
+  <rect width="640" height="360" rx="18" fill="#f0fdfa" />
+  <rect x="0" y="0" width="640" height="18" fill="#dc2626" />
+  <rect x="0" y="342" width="640" height="18" fill="#0f766e" />
+  <text
+    x="40"
+    y="70"
+    font-family="Arial, sans-serif"
+    font-size="30"
+    font-weight="700"
+    fill="#0f172a"
+  >
+    Grades 6-8 Inquiry Project
+  </text>
+  <text x="462" y="72" font-family="Arial, sans-serif" font-size="18" fill="#dc2626">
+    11 slides
+  </text>
+  <rect
+    x="56"
+    y="118"
+    width="154"
+    height="154"
+    rx="16"
+    fill="#ffffff"
+    stroke="#fecaca"
+    stroke-width="3"
+  />
+  <text
+    x="98"
+    y="202"
+    font-family="Arial, sans-serif"
+    font-size="56"
+    font-weight="700"
+    fill="#dc2626"
+  >
+    ?
+  </text>
+  <rect
+    x="250"
+    y="118"
+    width="144"
+    height="154"
+    rx="16"
+    fill="#ffffff"
+    stroke="#99f6e4"
+    stroke-width="3"
+  />
+  <rect x="278" y="152" width="88" height="14" rx="7" fill="#ccfbf1" />
+  <rect x="278" y="190" width="88" height="14" rx="7" fill="#ccfbf1" />
+  <rect x="278" y="228" width="88" height="14" rx="7" fill="#ccfbf1" />
+  <rect
+    x="434"
+    y="118"
+    width="144"
+    height="154"
+    rx="16"
+    fill="#ffffff"
+    stroke="#c4b5fd"
+    stroke-width="3"
+  />
+  <circle cx="506" cy="196" r="38" fill="#ede9fe" />
+  <path d="M486 196h40" stroke="#7c3aed" stroke-width="8" stroke-linecap="round" />
+</svg>

@@ -1,0 +1,94 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 640 360"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">K-2 Teacher Lesson template preview</title>
+  <desc id="desc">Preview of an approved K-2 teacher lesson PowerPoint template.</desc>
+  <rect width="640" height="360" rx="18" fill="#ffffff" />
+  <rect x="0" y="0" width="640" height="22" fill="#2563eb" />
+  <rect x="0" y="338" width="640" height="22" fill="#f97316" />
+  <text
+    x="38"
+    y="72"
+    font-family="Arial, sans-serif"
+    font-size="30"
+    font-weight="700"
+    fill="#172554"
+  >
+    K-2 Teacher Lesson
+  </text>
+  <text x="454" y="74" font-family="Arial, sans-serif" font-size="18" fill="#1d4ed8">
+    11 slides
+  </text>
+  <rect x="38" y="94" width="564" height="3" fill="#dbeafe" />
+  <rect
+    x="46"
+    y="130"
+    width="156"
+    height="114"
+    rx="18"
+    fill="#eff6ff"
+    stroke="#93c5fd"
+    stroke-width="3"
+  />
+  <circle cx="124" cy="169" r="26" fill="#bfdbfe" />
+  <path d="M109 190h30M124 143v52" stroke="#2563eb" stroke-width="8" stroke-linecap="round" />
+  <text
+    x="74"
+    y="224"
+    font-family="Arial, sans-serif"
+    font-size="20"
+    font-weight="700"
+    fill="#172554"
+  >
+    Learn
+  </text>
+  <rect
+    x="242"
+    y="130"
+    width="156"
+    height="114"
+    rx="18"
+    fill="#f0fdf4"
+    stroke="#86efac"
+    stroke-width="3"
+  />
+  <rect x="288" y="150" width="64" height="48" rx="12" fill="#bbf7d0" />
+  <path d="M292 212h56" stroke="#16a34a" stroke-width="8" stroke-linecap="round" />
+  <text
+    x="276"
+    y="224"
+    font-family="Arial, sans-serif"
+    font-size="20"
+    font-weight="700"
+    fill="#14532d"
+  >
+    Practice
+  </text>
+  <rect
+    x="446"
+    y="130"
+    width="156"
+    height="114"
+    rx="18"
+    fill="#fff7ed"
+    stroke="#fdba74"
+    stroke-width="3"
+  />
+  <circle cx="524" cy="174" r="28" fill="#fed7aa" />
+  <path d="M508 174h32M524 158v32" stroke="#ea580c" stroke-width="7" stroke-linecap="round" />
+  <text
+    x="480"
+    y="224"
+    font-family="Arial, sans-serif"
+    font-size="20"
+    font-weight="700"
+    fill="#7c2d12"
+  >
+    Check
+  </text>
+  <rect x="64" y="278" width="430" height="18" rx="9" fill="#e5e7eb" />
+  <rect x="64" y="306" width="280" height="18" rx="9" fill="#e5e7eb" />
+</svg>

@@ -26,9 +26,7 @@ import {
   createWorksheetIntakeValues,
   getAgentIntakeTemplate,
   gradeOptions,
-  presentationDeckTypes,
-  presentationGradeBands,
-  presentationToneOptions,
+  presentationTemplates,
   versionMethods,
   worksheetQuestionTypes,
   type AssessmentIntakeValues,
@@ -61,15 +59,6 @@ const decisionOptions = ['Yes', 'No', 'Let the agent decide'];
 const sharedObjectiveOptions = ['Yes', 'No', 'Other'];
 const versionLabelOptions = ['Version A, B, C, D, E', 'Version 1, 2, 3, 4, 5', 'Custom'];
 const versionCountOptions = ['1', '2', '3', '4', '5'];
-const templatePreviewPalettes: Record<
-  string,
-  { primary: string; secondary: string; accent: string; soft: string }
-> = {
-  'K-2': { primary: '#2563eb', secondary: '#f97316', accent: '#16a34a', soft: '#eff6ff' },
-  '3-5': { primary: '#1d4ed8', secondary: '#059669', accent: '#ea580c', soft: '#f8fafc' },
-  '6-8': { primary: '#0f766e', secondary: '#7c3aed', accent: '#dc2626', soft: '#f0fdfa' },
-  '9-12': { primary: '#0f172a', secondary: '#2563eb', accent: '#d97706', soft: '#f8fafc' },
-};
 
 const toOptions = (options: string[]): IntakeOption[] =>
   options.map((option) => ({ value: option, label: option }));
@@ -343,77 +332,25 @@ function GradeField({
   );
 }
 
-function PresentationThumbnail({
-  gradeBand,
-  deckType,
+type PresentationTemplateOption = (typeof presentationTemplates)[number];
+
+function PresentationPreviewImage({
+  template,
   compact = false,
 }: {
-  gradeBand: string;
-  deckType: string;
+  template: PresentationTemplateOption;
   compact?: boolean;
 }) {
-  const palette = templatePreviewPalettes[gradeBand] ?? templatePreviewPalettes['3-5'];
-  const isLesson = deckType === 'teacher_lesson';
-  const isReview = deckType === 'review_assessment';
-  let bottomAccent = palette.accent;
-  let previewBody: React.ReactNode;
-
-  if (isLesson) {
-    bottomAccent = palette.primary;
-    previewBody = (
-      <>
-        <div className="absolute left-[8%] top-[38%] h-[30%] w-[26%] rounded-md bg-slate-100 ring-1 ring-slate-200" />
-        <div className="absolute left-[38%] top-[38%] h-[30%] w-[26%] rounded-md bg-slate-100 ring-1 ring-slate-200" />
-        <div className="absolute left-[68%] top-[38%] h-[30%] w-[24%] rounded-md bg-slate-100 ring-1 ring-slate-200" />
-        <div className="absolute bottom-[18%] left-[8%] h-[6%] w-[70%] rounded-full bg-slate-200" />
-      </>
-    );
-  } else if (isReview) {
-    bottomAccent = palette.secondary;
-    previewBody = (
-      <>
-        <div className="absolute left-[8%] top-[35%] h-[10%] w-[80%] rounded-full bg-slate-200" />
-        <div className="absolute left-[8%] top-[52%] h-[10%] w-[60%] rounded-full bg-slate-200" />
-        <div
-          className="absolute bottom-[20%] left-[8%] h-[18%] w-[82%] rounded-md"
-          style={{ backgroundColor: palette.soft, border: `1px solid ${palette.secondary}` }}
-        />
-      </>
-    );
-  } else {
-    previewBody = (
-      <>
-        <div
-          className="absolute left-[8%] top-[34%] h-[34%] w-[34%] rounded-full"
-          style={{ backgroundColor: palette.soft, border: `2px solid ${palette.accent}` }}
-        />
-        <div className="absolute right-[10%] top-[36%] h-[8%] w-[36%] rounded-full bg-slate-200" />
-        <div className="absolute right-[10%] top-[52%] h-[8%] w-[28%] rounded-full bg-slate-200" />
-        <div
-          className="absolute bottom-[18%] right-[10%] h-[6%] w-[44%] rounded-full"
-          style={{ backgroundColor: palette.accent }}
-        />
-      </>
-    );
-  }
-
   return (
-    <div
+    <img
+      src={template.previewImage}
+      alt={`${template.label} preview`}
       className={cn(
-        'relative overflow-hidden rounded-lg border border-border-light bg-white shadow-sm',
-        compact ? 'h-16 w-28 shrink-0' : 'aspect-video w-full',
+        'border border-border-light bg-white object-cover shadow-sm',
+        compact ? 'h-16 w-28 shrink-0 rounded-lg' : 'aspect-video w-full rounded-xl',
       )}
-      aria-hidden="true"
-    >
-      <div className="absolute inset-x-0 top-0 h-2" style={{ backgroundColor: palette.primary }} />
-      <div className="absolute inset-x-0 bottom-0 h-2" style={{ backgroundColor: bottomAccent }} />
-      <div
-        className="absolute left-[8%] top-[18%] h-[10%] w-[45%] rounded-sm"
-        style={{ backgroundColor: palette.primary }}
-      />
-      <div className="absolute right-[8%] top-[18%] h-[6%] w-[22%] rounded-full bg-slate-200" />
-      {previewBody}
-    </div>
+      loading="lazy"
+    />
   );
 }
 
@@ -450,16 +387,14 @@ function TemplateViewToggle({
 }
 
 function PresentationTemplatePicker({
-  gradeBand,
-  deckType,
+  selectedTemplateId,
   view,
-  onDeckTypeChange,
+  onTemplateChange,
   onViewChange,
 }: {
-  gradeBand: string;
-  deckType: string;
+  selectedTemplateId: string;
   view: 'gallery' | 'list';
-  onDeckTypeChange: (value: string) => void;
+  onTemplateChange: (value: string) => void;
   onViewChange: (value: 'gallery' | 'list') => void;
 }) {
   return (
@@ -470,21 +405,25 @@ function PresentationTemplatePicker({
             <PresentationIcon className="h-4 w-4" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-sm font-medium text-text-primary">Choose template style</p>
+            <p className="text-sm font-medium text-text-primary">Choose a PowerPoint template</p>
             <p className="text-xs leading-5 text-text-secondary">
-              Preview the selected grade band and pick the deck flow.
+              Browse the approved templates and select the one this agent should use.
             </p>
           </div>
         </div>
         <TemplateViewToggle value={view} onChange={onViewChange} />
       </div>
-      <div className={cn(view === 'gallery' ? 'grid gap-3 lg:grid-cols-3' : 'space-y-2')}>
-        {presentationDeckTypes.map((template) => {
-          const selected = deckType === template.value;
+      <div
+        className={cn(
+          view === 'gallery' ? 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-2',
+        )}
+      >
+        {presentationTemplates.map((template) => {
+          const selected = selectedTemplateId === template.templateId;
 
           return (
             <button
-              key={template.value}
+              key={template.templateId}
               type="button"
               aria-pressed={selected}
               className={cn(
@@ -494,16 +433,19 @@ function PresentationTemplatePicker({
                   : 'border-border-light',
                 view === 'list' && 'flex items-center gap-3 p-3',
               )}
-              onClick={() => onDeckTypeChange(template.value)}
+              onClick={() => onTemplateChange(template.templateId)}
             >
               {view === 'gallery' ? (
                 <div className="space-y-3 p-3">
-                  <PresentationThumbnail gradeBand={gradeBand} deckType={template.value} />
+                  <PresentationPreviewImage template={template} />
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-text-primary">{template.label}</p>
                       <p className="mt-1 text-xs leading-5 text-text-secondary">
                         {template.description}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-text-secondary">
+                        {template.gradeDescription}
                       </p>
                     </div>
                     {selected ? (
@@ -512,13 +454,18 @@ function PresentationTemplatePicker({
                       </span>
                     ) : null}
                   </div>
-                  <p className="inline-flex rounded-full bg-surface-secondary px-2 py-1 text-xs text-text-secondary">
-                    11-slide template
-                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <p className="inline-flex rounded-full bg-surface-secondary px-2 py-1 text-xs text-text-secondary">
+                      {template.gradeBand}
+                    </p>
+                    <p className="inline-flex rounded-full bg-surface-secondary px-2 py-1 text-xs text-text-secondary">
+                      {template.slideCount} slides
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <>
-                  <PresentationThumbnail gradeBand={gradeBand} deckType={template.value} compact />
+                  <PresentationPreviewImage template={template} compact />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold text-text-primary">
@@ -531,9 +478,12 @@ function PresentationTemplatePicker({
                     <p className="line-clamp-2 text-xs leading-5 text-text-secondary">
                       {template.description}
                     </p>
+                    <p className="line-clamp-1 text-xs leading-5 text-text-secondary">
+                      {template.gradeDescription}
+                    </p>
                   </div>
                   <span className="hidden rounded-full bg-surface-secondary px-2 py-1 text-xs text-text-secondary sm:inline-flex">
-                    11 slides
+                    {template.gradeBand}
                   </span>
                 </>
               )}
@@ -895,141 +845,17 @@ function PresentationFields({
   ) => setValues((current) => ({ ...current, [key]: value }));
 
   return (
-    <div className="space-y-5">
-      <IntakeSection
-        title="Presentation Basics"
-        description="Start with the topic, purpose, and audience. The agent will draft the slide content for review before creating a file."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="presentation-topic">Presentation title or topic</Label>
-            <Input
-              id="presentation-topic"
-              value={values.titleOrTopic}
-              onChange={(event) => update('titleOrTopic', event.target.value)}
-              placeholder="e.g., Grade 3 pollination lesson"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="presentation-audience">Audience</Label>
-            <Input
-              id="presentation-audience"
-              value={values.audience}
-              onChange={(event) => update('audience', event.target.value)}
-              placeholder="e.g., Grade 3 students"
-            />
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="presentation-purpose">Purpose</Label>
-            <Input
-              id="presentation-purpose"
-              value={values.purpose}
-              onChange={(event) => update('purpose', event.target.value)}
-              placeholder="Teach, review, train, inform, or discuss"
-            />
-          </div>
-          <IntakeSelect
-            id="presentation-tone"
-            label="Tone"
-            value={values.tone}
-            options={toOptions(presentationToneOptions)}
-            onChange={(value) => update('tone', value)}
-          />
-        </div>
-        {values.tone === 'Other' ? (
-          <div className="space-y-2">
-            <Label htmlFor="presentation-custom-tone">Custom tone</Label>
-            <Input
-              id="presentation-custom-tone"
-              value={values.customTone}
-              onChange={(event) => update('customTone', event.target.value)}
-              placeholder="Describe the tone"
-            />
-          </div>
-        ) : null}
-      </IntakeSection>
-
-      <IntakeSection
-        title="Template"
-        description="Pick the approved deck family before the agent drafts the content."
-      >
-        <div className="grid gap-4 lg:grid-cols-[13rem_1fr]">
-          <IntakeSelect
-            id="presentation-grade-band"
-            label="Template grade band"
-            value={values.gradeBand}
-            options={toOptions(presentationGradeBands)}
-            onChange={(value) => update('gradeBand', value)}
-          />
-          <PresentationTemplatePicker
-            gradeBand={values.gradeBand}
-            deckType={values.deckType}
-            view={values.templateView}
-            onDeckTypeChange={(value) => update('deckType', value)}
-            onViewChange={(value) => update('templateView', value)}
-          />
-        </div>
-      </IntakeSection>
-
-      <IntakeSection
-        title="Content Direction"
-        description="Add the must-cover ideas and any source material the slide draft should follow."
-      >
-        <div className="space-y-2">
-          <Label htmlFor="presentation-key-topics">Key topics to cover</Label>
-          <Textarea
-            id="presentation-key-topics"
-            className={textareaClass}
-            rows={3}
-            value={values.keyTopics}
-            onChange={(event) => update('keyTopics', event.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="presentation-required-sections">Required sections</Label>
-          <Textarea
-            id="presentation-required-sections"
-            className={textareaClass}
-            rows={2}
-            value={values.requiredSections}
-            onChange={(event) => update('requiredSections', event.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="presentation-source">Images, examples, data, or source material</Label>
-          <Textarea
-            id="presentation-source"
-            className={textareaClass}
-            rows={3}
-            value={values.sourceMaterial}
-            onChange={(event) => update('sourceMaterial', event.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="presentation-branding">Branding/template requirements</Label>
-            <Input
-              id="presentation-branding"
-              value={values.brandingRequirements}
-              onChange={(event) => update('brandingRequirements', event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="presentation-notes">Anything else to include</Label>
-            <Input
-              id="presentation-notes"
-              value={values.notes}
-              onChange={(event) => update('notes', event.target.value)}
-              placeholder="Optional"
-            />
-          </div>
-        </div>
-      </IntakeSection>
-    </div>
+    <IntakeSection
+      title="Template Gallery"
+      description="Pick the approved PowerPoint template to use for this presentation chat."
+    >
+      <PresentationTemplatePicker
+        selectedTemplateId={values.selectedTemplateId}
+        view={values.templateView}
+        onTemplateChange={(value) => update('selectedTemplateId', value)}
+        onViewChange={(value) => update('templateView', value)}
+      />
+    </IntakeSection>
   );
 }
 
@@ -1068,10 +894,10 @@ export default function AgentIntakeDialog({ agent, open, onOpenChange }: AgentIn
       submitLabel: 'Create assessment',
     },
     presentation: {
-      title: 'Plan presentation',
+      title: 'Choose presentation template',
       description:
-        'Choose an approved template style and share the presentation details. The agent will draft the slide content for review before creating the PPTX.',
-      submitLabel: 'Draft for review',
+        'Select the approved PowerPoint template this agent should use. After this, tell the agent what presentation to build.',
+      submitLabel: 'Use template',
     },
   }[template];
   const { title, description, submitLabel } = dialogCopy;
@@ -1098,10 +924,6 @@ export default function AgentIntakeDialog({ agent, open, onOpenChange }: AgentIn
       }
       prompt = buildAssessmentIntakePrompt(assessmentValues);
     } else {
-      if (!presentationValues.titleOrTopic.trim() || !presentationValues.audience.trim()) {
-        setValidationMessage('Enter a presentation topic and audience to continue.');
-        return;
-      }
       prompt = buildPresentationIntakePrompt(presentationValues);
     }
 

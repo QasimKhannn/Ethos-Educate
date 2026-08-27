@@ -1,0 +1,71 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 640 360"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Grades 6-8 Teacher Lesson template preview</title>
+  <desc id="desc">Preview of an approved Grades 6-8 teacher lesson PowerPoint template.</desc>
+  <rect width="640" height="360" rx="18" fill="#f0fdfa" />
+  <rect x="0" y="0" width="640" height="18" fill="#0f766e" />
+  <rect x="0" y="342" width="640" height="18" fill="#7c3aed" />
+  <text
+    x="40"
+    y="70"
+    font-family="Arial, sans-serif"
+    font-size="30"
+    font-weight="700"
+    fill="#0f172a"
+  >
+    Grades 6-8 Teacher Lesson
+  </text>
+  <text x="462" y="72" font-family="Arial, sans-serif" font-size="18" fill="#0f766e">
+    11 slides
+  </text>
+  <rect
+    x="46"
+    y="112"
+    width="246"
+    height="182"
+    rx="12"
+    fill="#ffffff"
+    stroke="#99f6e4"
+    stroke-width="3"
+  />
+  <text
+    x="76"
+    y="154"
+    font-family="Arial, sans-serif"
+    font-size="24"
+    font-weight="700"
+    fill="#0f172a"
+  >
+    Concept
+  </text>
+  <rect x="76" y="180" width="164" height="14" rx="7" fill="#ccfbf1" />
+  <rect x="76" y="210" width="124" height="14" rx="7" fill="#ccfbf1" />
+  <rect x="76" y="240" width="146" height="14" rx="7" fill="#ccfbf1" />
+  <rect
+    x="338"
+    y="112"
+    width="246"
+    height="182"
+    rx="12"
+    fill="#ffffff"
+    stroke="#c4b5fd"
+    stroke-width="3"
+  />
+  <text
+    x="368"
+    y="154"
+    font-family="Arial, sans-serif"
+    font-size="24"
+    font-weight="700"
+    fill="#0f172a"
+  >
+    Apply
+  </text>
+  <rect x="368" y="180" width="156" height="14" rx="7" fill="#ede9fe" />
+  <rect x="368" y="210" width="120" height="14" rx="7" fill="#ede9fe" />
+  <rect x="368" y="240" width="170" height="14" rx="7" fill="#ede9fe" />
+</svg>
