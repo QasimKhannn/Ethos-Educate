@@ -96,7 +96,7 @@ export const presentationTemplates = presentationGradeBands.flatMap((gradeBand) 
     deckLabel: deckType.label,
     gradeDescription: gradeBand.description,
     description: deckType.description,
-    previewImage: `/assets/presentation-templates/${gradeBand.previewSlug}-${deckType.value.replace(/_/g, '-')}.svg`,
+    previewImage: `/assets/presentation-templates/${gradeBand.previewSlug}-${deckType.value.replace(/_/g, '-')}.png`,
     slideCount: 11,
   })),
 );
