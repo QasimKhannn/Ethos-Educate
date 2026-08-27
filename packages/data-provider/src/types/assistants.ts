@@ -250,7 +250,7 @@ export type AgentRecommendedPrompt = {
  * remains small and can be expanded with additional templates later.
  */
 export type AgentIntakeForm = {
-  template: 'worksheet' | 'assessment';
+  template: 'worksheet' | 'assessment' | 'presentation';
 };
 
 export type Agent = {

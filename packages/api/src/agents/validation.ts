@@ -48,7 +48,7 @@ export const agentRecommendedPromptSchema = z.object({
 
 /** Structured request forms that can be enabled for an agent in Agent Builder. */
 export const agentIntakeFormSchema = z.object({
-  template: z.enum(['worksheet', 'assessment']),
+  template: z.enum(['worksheet', 'assessment', 'presentation']),
 });
 
 /** Graph edge schema for agent handoffs */

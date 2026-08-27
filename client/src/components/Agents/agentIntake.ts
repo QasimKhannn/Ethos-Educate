@@ -1,6 +1,6 @@
 import type { Agent } from 'librechat-data-provider';
 
-export type IntakeTemplate = 'worksheet' | 'assessment';
+export type IntakeTemplate = 'worksheet' | 'assessment' | 'presentation';
 
 export const gradeOptions = [
   'Preschool',
@@ -37,6 +37,37 @@ export const versionMethods = [
   'Change examples or scenarios',
   'Change reading passages or source material',
   'Keep written-response prompts the same',
+];
+
+export const presentationGradeBands = ['K-2', '3-5', '6-8', '9-12'];
+
+export const presentationDeckTypes = [
+  {
+    value: 'teacher_lesson',
+    label: 'Teacher Lesson',
+    description:
+      'Full lesson flow with objective, warm-up, teaching, guided practice, quick check, independent work, and exit ticket.',
+  },
+  {
+    value: 'review_assessment',
+    label: 'Review Assessment',
+    description:
+      'Review/checkpoint flow with key concepts, practice, quick check, independent response, and reteach notes.',
+  },
+  {
+    value: 'inquiry_project',
+    label: 'Inquiry Project',
+    description:
+      'Investigation/project flow with question launch, exploration, organizer, collaboration, share-out, and reflection.',
+  },
+] as const;
+
+export const presentationToneOptions = [
+  'Student-friendly',
+  'Warm and family-friendly',
+  'Professional staff-facing',
+  'Concise executive',
+  'Other',
 ];
 
 export type WorksheetIntakeValues = {
@@ -76,6 +107,22 @@ export type AssessmentIntakeValues = {
   notes: string;
 };
 
+export type PresentationIntakeValues = {
+  titleOrTopic: string;
+  purpose: string;
+  audience: string;
+  gradeBand: string;
+  deckType: string;
+  tone: string;
+  customTone: string;
+  keyTopics: string;
+  requiredSections: string;
+  brandingRequirements: string;
+  sourceMaterial: string;
+  notes: string;
+  templateView: 'gallery' | 'list';
+};
+
 export const createWorksheetIntakeValues = (): WorksheetIntakeValues => ({
   topic: '',
   grade: '',
@@ -113,9 +160,25 @@ export const createAssessmentIntakeValues = (): AssessmentIntakeValues => ({
   notes: '',
 });
 
+export const createPresentationIntakeValues = (): PresentationIntakeValues => ({
+  titleOrTopic: '',
+  purpose: '',
+  audience: '',
+  gradeBand: '3-5',
+  deckType: 'teacher_lesson',
+  tone: 'Student-friendly',
+  customTone: '',
+  keyTopics: '',
+  requiredSections: '',
+  brandingRequirements: 'Use the selected approved template.',
+  sourceMaterial: '',
+  notes: '',
+  templateView: 'gallery',
+});
+
 export function getAgentIntakeTemplate(agent?: Agent | null): IntakeTemplate | null {
   const template = agent?.intake_form?.template;
-  if (template === 'worksheet' || template === 'assessment') {
+  if (template === 'worksheet' || template === 'assessment' || template === 'presentation') {
     return template;
   }
 
@@ -127,6 +190,9 @@ export function getAgentIntakeTemplate(agent?: Agent | null): IntakeTemplate | n
   }
   if (name === 'assessment & quiz builder') {
     return 'assessment';
+  }
+  if (name === 'powerpoint presentation creator') {
+    return 'presentation';
   }
 
   return null;
@@ -205,6 +271,36 @@ export function buildAssessmentIntakePrompt(values: AssessmentIntakeValues): str
   addLine(lines, 'Additional teacher notes', values.notes);
   lines.push(
     'Treat every supplied item as a requirement. Include standards-aligned questions, defensible distractors, and teacher materials requested above.',
+  );
+
+  return lines.join('\n');
+}
+
+export function buildPresentationIntakePrompt(values: PresentationIntakeValues): string {
+  const lines = [
+    'Create a PowerPoint presentation draft from this teacher request.',
+    'Important: do not create the PPTX yet. First show the complete slide-by-slide content in chat for teacher review. After I approve it, create the downloadable deck using the selected template.',
+  ];
+
+  addLine(lines, 'Presentation title or topic', values.titleOrTopic);
+  addLine(lines, 'Purpose', values.purpose);
+  addLine(lines, 'Audience', values.audience);
+  addLine(lines, 'Selected template grade band', values.gradeBand);
+  addLine(
+    lines,
+    'Selected template type',
+    presentationDeckTypes.find((type) => type.value === values.deckType)?.label ?? values.deckType,
+  );
+  addLine(lines, 'Template deck_type value for tool call after approval', values.deckType);
+  addLine(lines, 'Tone', values.tone === 'Other' ? values.customTone : values.tone);
+  addLine(lines, 'Key topics to cover', values.keyTopics);
+  addLine(lines, 'Required sections', values.requiredSections);
+  addLine(lines, 'Branding/template requirements', values.brandingRequirements);
+  addLine(lines, 'Images, examples, data, or source material', values.sourceMaterial);
+  addLine(lines, 'Additional teacher notes', values.notes);
+  lines.push('Use the selected approved template. The template has an 11-slide classroom flow.');
+  lines.push(
+    'When the teacher approves the draft, call presentation_deck_creator with content_status="teacher_approved".',
   );
 
   return lines.join('\n');
