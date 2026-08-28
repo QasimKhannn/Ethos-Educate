@@ -83,7 +83,7 @@
         "OPENID_SESSION_SECRET": "<openid-session-secret>",
         "MICROSOFT_CLIENT_SECRET": "<microsoft-client-secret>",
         "CANVA_CLIENT_SECRET": "<canva-client-secret>",
-        "AZURE_API_KEY": "<azure-openai-api-key>",
+        "AZURE_OPENAI_API_KEY": "<azure-openai-api-key>",
         "AZURE_IMAGE_API_KEY": "<azure-image-api-key>",
         "GOOGLE_KEY": "<google-api-key>",
         "GEMINI_API_KEY": "<gemini-api-key>",

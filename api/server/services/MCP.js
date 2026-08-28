@@ -32,6 +32,7 @@ const { findToken, createToken, updateToken } = require('~/models');
 const { getGraphApiToken } = require('./GraphTokenService');
 const { reinitMCPServer } = require('./Tools/mcp');
 const { getAppConfig } = require('./Config');
+const { isSharedAppMCPServer } = require('./Config/mcp');
 const { getLogStores } = require('~/cache');
 const { ERROR_CODES, createToolErrorOutput } = require('~/server/utils/errorResponse');
 
@@ -675,9 +676,18 @@ async function getServerConnectionStatus(
   const connection = appConnections.get(serverName) || userConnections.get(serverName);
   const isStaleOrDoNotExist = connection ? connection?.isStale(config.updatedAt) : true;
 
-  const baseConnectionState = isStaleOrDoNotExist
-    ? 'disconnected'
-    : connection?.connectionState || 'disconnected';
+  /**
+   * Shared app MCPs are intentionally disconnected after a refresh. Their inspected
+   * tool functions are the durable availability signal until a tool call reconnects.
+   */
+  const hasCachedSharedTools =
+    isSharedAppMCPServer(config) && Object.keys(config.toolFunctions ?? {}).length > 0;
+
+  const baseConnectionState = !isStaleOrDoNotExist
+    ? connection?.connectionState || 'disconnected'
+    : hasCachedSharedTools
+      ? 'connected'
+      : 'disconnected';
   let finalConnectionState = baseConnectionState;
 
   // connection state overrides specific to OAuth servers

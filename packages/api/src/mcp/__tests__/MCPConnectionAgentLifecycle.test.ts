@@ -555,7 +555,7 @@ describe('MCPConnection SSE 404 handling – session-aware', () => {
 
     fire404(conn, transport);
 
-    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('no session'));
+    expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('no session'));
     expect(emitSpy).not.toHaveBeenCalledWith('connectionChange', 'error');
   });
 
@@ -662,6 +662,23 @@ describe('MCPConnection SSE stream disconnect handling', () => {
     transport.onerror?.(new Error('Streamable HTTP error: Error POSTing to endpoint: 500'));
 
     expect(emitSpy).toHaveBeenCalledWith('connectionChange', 'error');
+  });
+
+  it('ignores an aborted error from a transport the client intentionally closed', () => {
+    const conn = makeConn();
+    const transport = makeTransportStub();
+    const emitSpy = jest.spyOn(conn, 'emit');
+    bindErrorHandler(conn, transport);
+
+    (
+      conn as unknown as { intentionallyClosedTransports: WeakSet<object> }
+    ).intentionallyClosedTransports.add(transport);
+    transport.onerror?.(new Error('This operation was aborted'));
+
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Ignoring transport error during intentional close'),
+    );
+    expect(emitSpy).not.toHaveBeenCalledWith('connectionChange', 'error');
   });
 });
 

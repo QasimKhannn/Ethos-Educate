@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Skeleton } from '@librechat/client';
+import { Download } from 'lucide-react';
+import { Button, Skeleton, TooltipAnchor } from '@librechat/client';
 import { apiBaseUrl } from 'librechat-data-provider';
 import DialogImage from './DialogImage';
 import { cn } from '~/utils';
@@ -104,7 +105,7 @@ const Image = ({
   const showSkeleton = hasDimensions && !paintedUrls.has(absoluteImageUrl);
 
   return (
-    <div>
+    <div className="relative w-fit max-w-full">
       <button
         ref={triggerRef}
         type="button"
@@ -131,6 +132,21 @@ const Image = ({
           )}
         />
       </button>
+      <TooltipAnchor
+        description="Download image"
+        render={
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => void downloadImage()}
+            aria-label="Download image"
+            className="absolute right-2 top-3 z-10 size-8 bg-black/55 text-white shadow-sm hover:bg-black/75"
+          >
+            <Download className="size-4" aria-hidden="true" />
+          </Button>
+        }
+      />
       <DialogImage
         isOpen={isOpen}
         onOpenChange={setIsOpen}

@@ -3,6 +3,9 @@ cache: true
 fileStrategy: azure_blob
 secureImageLinks: true
 
+balance:
+  enabled: false
+
 registration:
   socialLogins: ["openid"]
 
@@ -41,6 +44,7 @@ mcpSettings:
     - "9671049-sb2.app.netsuite.com"
     - "9671049-sb2.suitetalk.api.netsuite.com"
     - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
+    - "image-gen-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "20ad-103-189-68-222.ngrok-free.app"
     # cowork — SearXNG web-search MCP host (Cowork-only; see the `searxng` server below)
@@ -50,39 +54,41 @@ mcpSettings:
 
 mcpServers:
   Image_Generation:
-    description: "Generate AI images"
-    command: npx
-    args:
-      - -y
-      - "@malikmalikayesha/azure-image-generation-mcp"
-    env:
-      AZURE_IMAGE_API_KEY: ${AZURE_IMAGE_API_KEY}
-      AZURE_IMAGE_BASE_URL: ${AZURE_IMAGE_BASE_URL}
-    timeout: 180000
-    initTimeout: 60000
+    description: "Generate AI images with Azure FLUX and GPT image models"
+    type: streamable-http
+    url: "https://image-gen-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp"
+    timeout: 300000
+    initTimeout: 15000
     chatMenu: true
     startup: true
+    headers:
+      x-ethos-image-output: "managed-file"
     serverInstructions: |
-      🎨 **AI Image Generation Tool**
-      Create stunning images using advanced AI models:
-      **🖼️ What you can create:**
-      • Realistic images and portraits
-      • Artistic illustrations and concept art
-      • Logo designs and brand graphics
-      • Character portraits and scenes
-      • Abstract art and creative compositions
-      • Social media content and presentations
-      **💡 How to use:**
-      Simply describe what you want to see! The system uses FLUX by default for all image generation.
-      **🤖 Model Selection:**
-      • **FLUX** (default): Used for all requests unless you specifically ask for DALL-E
-      • **DALL-E 3**: Only used when you explicitly mention "DALL-E" in your prompt
-      **⚡ Features:**
-      • High-quality AI image generation
-      • Multiple sizes: Square (1024x1024), Wide (1792x1024), Tall (1024x1792)
-      • Fast generation (typically 30-60 seconds)
-      • Professional-grade results
-      **After generating an image, ask:** "Would you like me to generate any other images for you?" nothing else, just ask the user if they would like to generate any other images for them.
+      AI Image Generation Tool
+
+      Use Image_Generation when the user asks to create, generate, render, design, or produce an image.
+
+      Model behavior:
+      - Omit model for automatic selection. Never send model: "flux"; it is not a supported value.
+      - Use auto model selection unless the user explicitly asks for a specific model.
+      - The Image Generation MCP tries the best configured model first, then automatically falls back to the remaining Azure FLUX and GPT image deployments if a model is unavailable or overloaded.
+      - For several images, pass either a count for one prompt or a prompts array for multiple different prompts. The MCP safely handles multiple generations with its configured concurrency limit.
+      - Use mode "fast" for quick drafts or larger batches, and mode "best" for final quality.
+
+      Request guidance:
+      - Ask a brief clarifying question only when the visual request is too vague to generate a useful image.
+      - Preserve the user's requested style, subject, aspect ratio, text, and number of images.
+      - Use useCase when obvious: coloring_page, poster, banner, infographic, worksheet, icon, logo, thumbnail, social_post, image_edit, or illustration.
+      - Prefer square unless the user asks for portrait, poster, worksheet, landscape, wide, banner, thumbnail, social post, or a specific size.
+      - For posters, flyers, banners, worksheets, or any request where words must be correct, pass title/subtitle/exactText or textOverlay and set noText true so the MCP overlays exact text locally.
+      - If the user provides reference images, pass them as referenceImages or referenceImageUrls when available.
+
+      Response guidance:
+      - Ethos stores each completed image in the conversation automatically.
+      - Do not output image Markdown, a raw URL, or a download link. Briefly confirm that the image is ready.
+      - Keep the response short.
+      - If generation fails, do not show raw Azure errors, stack traces, model internals, or API details.
+      - Give one clear next step such as retrying, simplifying the prompt, reducing the number of images, changing the prompt, or checking the Image Generation MCP configuration.
 
   outlook:
     description: "Read Outlook emails"
@@ -572,7 +578,7 @@ endpoints:
     plugins: true
     groups:
       - group: "default"
-        apiKey: "${AZURE_API_KEY}"
+        apiKey: "${AZURE_OPENAI_API_KEY}"
         instanceName: "arij-me35gkee-eastus2"
         version: "2025-04-01-preview"
         models:
@@ -607,7 +613,7 @@ endpoints:
 speech:
   stt:
     azureOpenAI:
-      apiKey: "${AZURE_API_KEY}"
+      apiKey: "${AZURE_OPENAI_API_KEY}"
       instanceName: "arij-me35gkee-eastus2"
       deploymentName: "UPDATE_STT_DEPLOYMENT_NAME"
       apiVersion: "2025-04-01-preview"

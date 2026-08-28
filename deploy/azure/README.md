@@ -144,7 +144,7 @@ Required GitHub environment secrets for deployment:
 - `OPENID_SESSION_SECRET`
 - `MICROSOFT_CLIENT_SECRET`
 - `CANVA_CLIENT_SECRET`
-- `AZURE_API_KEY`
+- `AZURE_OPENAI_API_KEY`
 - `GOOGLE_KEY`
 - `GEMINI_API_KEY`
 

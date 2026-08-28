@@ -23,6 +23,7 @@ export default function DialogImage({
   downloadImage,
   args,
   triggerRef,
+  showDetails = true,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +36,7 @@ export default function DialogImage({
     [key: string]: unknown;
   };
   triggerRef?: React.RefObject<HTMLButtonElement>;
+  showDetails?: boolean;
 }) {
   const localize = useLocalize();
   const [isPromptOpen, setIsPromptOpen] = useState(false);
@@ -319,23 +321,25 @@ export default function DialogImage({
                 </Button>
               }
             />
-            <TooltipAnchor
-              description={localize('com_ui_tooltip_image_details')}
-              render={
-                <Button
-                  onClick={() => setIsPromptOpen(!isPromptOpen)}
-                  variant="ghost"
-                  className="h-10 w-10 p-0 text-white hover:bg-white/10"
-                  aria-label={imageDetailsLabel}
-                >
-                  {isPromptOpen ? (
-                    <PanelLeftOpen className="size-5" aria-hidden="true" />
-                  ) : (
-                    <PanelLeftClose className="size-5" aria-hidden="true" />
-                  )}
-                </Button>
-              }
-            />
+            {showDetails && (
+              <TooltipAnchor
+                description={localize('com_ui_tooltip_image_details')}
+                render={
+                  <Button
+                    onClick={() => setIsPromptOpen(!isPromptOpen)}
+                    variant="ghost"
+                    className="h-10 w-10 p-0 text-white hover:bg-white/10"
+                    aria-label={imageDetailsLabel}
+                  >
+                    {isPromptOpen ? (
+                      <PanelLeftOpen className="size-5" aria-hidden="true" />
+                    ) : (
+                      <PanelLeftClose className="size-5" aria-hidden="true" />
+                    )}
+                  </Button>
+                }
+              />
+            )}
           </div>
 
           {/* Image container - centered */}
@@ -377,76 +381,80 @@ export default function DialogImage({
           </div>
 
           {/* Side Panel */}
-          <div
-            data-side-panel
-            className={`fixed right-0 top-0 z-30 h-full w-80 transform border-l border-white/10 bg-surface-primary shadow-2xl transition-transform duration-300 ${
-              isPromptOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="h-full overflow-y-auto p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-text-primary">
-                  {localize('com_ui_image_details')}
-                </h3>
-                <Button
-                  onClick={() => setIsPromptOpen(false)}
-                  variant="ghost"
-                  className="h-10 w-10 p-0 sm:hidden"
-                >
-                  <X className="size-5" aria-hidden="true" />
-                </Button>
-              </div>
-              <div className="mb-4 h-px bg-border-medium"></div>
-
-              <div className="space-y-6">
-                {/* Prompt Section */}
-                <div>
-                  <h4 className="mb-2 text-sm font-medium text-text-primary">
-                    {localize('com_ui_prompt')}
-                  </h4>
-                  <div className="rounded-md bg-surface-tertiary p-3">
-                    <p className="text-sm leading-relaxed text-text-primary">
-                      {args?.prompt || 'No prompt available'}
-                    </p>
-                  </div>
+          {showDetails && (
+            <div
+              data-side-panel
+              className={`fixed right-0 top-0 z-30 h-full w-80 transform border-l border-white/10 bg-surface-primary shadow-2xl transition-transform duration-300 ${
+                isPromptOpen ? 'translate-x-0' : 'translate-x-full'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="h-full overflow-y-auto p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-text-primary">
+                    {localize('com_ui_image_details')}
+                  </h3>
+                  <Button
+                    onClick={() => setIsPromptOpen(false)}
+                    variant="ghost"
+                    className="h-10 w-10 p-0 sm:hidden"
+                  >
+                    <X className="size-5" aria-hidden="true" />
+                  </Button>
                 </div>
+                <div className="mb-4 h-px bg-border-medium"></div>
 
-                {/* Generation Settings */}
-                <div>
-                  <h4 className="mb-3 text-sm font-medium text-text-primary">
-                    {localize('com_ui_generation_settings')}
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">{localize('com_ui_size')}:</span>
-                      <span className="text-sm font-medium text-text-primary">
-                        {args?.size || 'Unknown'}
-                      </span>
+                <div className="space-y-6">
+                  {/* Prompt Section */}
+                  <div>
+                    <h4 className="mb-2 text-sm font-medium text-text-primary">
+                      {localize('com_ui_prompt')}
+                    </h4>
+                    <div className="rounded-md bg-surface-tertiary p-3">
+                      <p className="text-sm leading-relaxed text-text-primary">
+                        {args?.prompt || 'No prompt available'}
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">
-                        {localize('com_ui_quality')}:
-                      </span>
-                      <span
-                        className={`rounded px-2 py-1 text-xs font-medium capitalize ${getQualityStyles(args?.quality || '')}`}
-                      >
-                        {args?.quality || 'Standard'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">
-                        {localize('com_ui_file_size')}:
-                      </span>
-                      <span className="text-sm font-medium text-text-primary">
-                        {imageSize || 'Loading...'}
-                      </span>
+                  </div>
+
+                  {/* Generation Settings */}
+                  <div>
+                    <h4 className="mb-3 text-sm font-medium text-text-primary">
+                      {localize('com_ui_generation_settings')}
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-text-primary">
+                          {localize('com_ui_size')}:
+                        </span>
+                        <span className="text-sm font-medium text-text-primary">
+                          {args?.size || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-text-primary">
+                          {localize('com_ui_quality')}:
+                        </span>
+                        <span
+                          className={`rounded px-2 py-1 text-xs font-medium capitalize ${getQualityStyles(args?.quality || '')}`}
+                        >
+                          {args?.quality || 'Standard'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-text-primary">
+                          {localize('com_ui_file_size')}:
+                        </span>
+                        <span className="text-sm font-medium text-text-primary">
+                          {imageSize || 'Loading...'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

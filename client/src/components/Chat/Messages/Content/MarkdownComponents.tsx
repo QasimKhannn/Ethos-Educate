@@ -1,10 +1,12 @@
-import React, { memo, useMemo, useRef, useEffect } from 'react';
+import React, { memo, useMemo, useRef, useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
-import { useToastContext } from '@librechat/client';
+import { Button, TooltipAnchor, useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, apiBaseUrl } from 'librechat-data-provider';
 import MermaidErrorBoundary from '~/components/Messages/Content/MermaidErrorBoundary';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import Mermaid from '~/components/Messages/Content/Mermaid';
+import DialogImage from './DialogImage';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
@@ -224,6 +226,114 @@ type TImageProps = {
   style?: React.CSSProperties;
 };
 
+const imageGenerationHosts = new Set([
+  'image-generation-mcp-1081644116068.us-central1.run.app',
+  'image-gen-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io',
+]);
+
+function isGeneratedImageAsset(src?: string) {
+  if (!src) {
+    return false;
+  }
+
+  try {
+    const url = new URL(src);
+    return imageGenerationHosts.has(url.hostname) && url.pathname.startsWith('/files/');
+  } catch {
+    return false;
+  }
+}
+
+function getImageFilename(src: string) {
+  try {
+    const filename = new URL(src).pathname.split('/').pop();
+    return filename ? decodeURIComponent(filename) : 'generated-image.png';
+  } catch {
+    return 'generated-image.png';
+  }
+}
+
+async function downloadGeneratedImage(src: string) {
+  try {
+    const response = await fetch(src);
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = getImageFilename(src);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error('Error downloading generated image:', error);
+    window.open(src, '_blank', 'noopener,noreferrer');
+  }
+}
+
+function GeneratedImage({
+  src,
+  alt,
+  title,
+  style,
+}: Pick<TImageProps, 'src' | 'alt' | 'title' | 'style'> & { src: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const imageAlt = alt || 'Generated image';
+
+  return (
+    <>
+      <span className="my-3 inline-flex max-w-full align-top">
+        <span className="relative inline-flex max-w-full overflow-hidden rounded-md border border-border-light bg-surface-primary">
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setIsOpen(true)}
+            aria-label={`View ${imageAlt} in dialog`}
+            aria-haspopup="dialog"
+            className="block max-w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <img
+              src={src}
+              alt={imageAlt}
+              title={title}
+              className="max-h-[45vh] max-w-full object-contain"
+              style={style}
+            />
+          </button>
+          <TooltipAnchor
+            description="Download image"
+            render={
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => void downloadGeneratedImage(src)}
+                aria-label="Download image"
+                className="absolute right-2 top-2 size-8 bg-black/55 text-white shadow-sm hover:bg-black/75"
+              >
+                <Download className="size-4" aria-hidden="true" />
+              </Button>
+            }
+          />
+        </span>
+      </span>
+      <DialogImage
+        isOpen={isOpen}
+        onOpenChange={setIsOpen}
+        src={src}
+        downloadImage={() => void downloadGeneratedImage(src)}
+        triggerRef={triggerRef}
+        showDetails={false}
+      />
+    </>
+  );
+}
+
 export const img: React.ElementType = memo(function MarkdownImage({
   src,
   alt,
@@ -246,6 +356,10 @@ export const img: React.ElementType = memo(function MarkdownImage({
     // Prepend base URL to the image path
     return `${baseURL}${src}`;
   }, [src, baseURL]);
+
+  if (fixedSrc && isGeneratedImageAsset(fixedSrc)) {
+    return <GeneratedImage src={fixedSrc} alt={alt} title={title} style={style} />;
+  }
 
   return <img src={fixedSrc} alt={alt} title={title} className={className} style={style} />;
 });

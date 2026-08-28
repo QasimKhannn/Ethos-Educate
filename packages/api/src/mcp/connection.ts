@@ -252,6 +252,8 @@ export class MCPConnection extends EventEmitter {
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
   public readonly serverName: string;
   private shouldStopReconnecting = false;
+  /** Transports closed by this client should not be treated as connection failures. */
+  private readonly intentionallyClosedTransports = new WeakSet<object>();
   private isReconnecting = false;
   private isInitializing = false;
   private reconnectAttempts = 0;
@@ -546,6 +548,10 @@ export class MCPConnection extends EventEmitter {
           });
 
           transport.onclose = () => {
+            if (this.intentionallyClosedTransports.has(transport)) {
+              logger.debug(`${this.getLogPrefix()} Streamable-http transport closed intentionally`);
+              return;
+            }
             logger.info(`${this.getLogPrefix()} Streamable-http transport closed`);
             this.emit('connectionChange', 'disconnected');
           };
@@ -692,6 +698,7 @@ export class MCPConnection extends EventEmitter {
       try {
         if (this.transport) {
           try {
+            this.intentionallyClosedTransports.add(this.transport);
             await this.client.close();
           } catch (error) {
             logger.warn(`${this.getLogPrefix()} Error closing connection:`, error);
@@ -879,6 +886,11 @@ export class MCPConnection extends EventEmitter {
 
   private setupTransportErrorHandlers(transport: Transport): void {
     transport.onerror = (error) => {
+      if (this.intentionallyClosedTransports.has(transport)) {
+        logger.debug(`${this.getLogPrefix()} Ignoring transport error during intentional close`);
+        return;
+      }
+
       const rawMessage =
         error && typeof error === 'object' ? ((error as { message?: string }).message ?? '') : '';
 
@@ -913,9 +925,7 @@ export class MCPConnection extends EventEmitter {
           (transport as { sessionId?: string }).sessionId !== '';
 
         if (!hasSession && errorMessage.toLowerCase().includes('failed to open sse stream')) {
-          logger.warn(
-            `${this.getLogPrefix()} SSE stream not available (404), no session. Ignoring.`,
-          );
+          logger.debug(`${this.getLogPrefix()} SSE stream not available (404), no session.`);
           return;
         }
 
@@ -995,6 +1005,7 @@ export class MCPConnection extends EventEmitter {
   public async disconnect(): Promise<void> {
     try {
       if (this.transport) {
+        this.intentionallyClosedTransports.add(this.transport);
         await this.client.close();
         this.transport = null;
       }

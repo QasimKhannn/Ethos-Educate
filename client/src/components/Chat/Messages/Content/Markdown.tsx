@@ -27,6 +27,37 @@ type TContentProps = {
   isLatestMessage: boolean;
 };
 
+const imageGenerationFileUrl =
+  'https://(?:image-generation-mcp-1081644116068\\.us-central1\\.run\\.app|image-gen-mcp\\.mangoocean-84242d32\\.eastus\\.azurecontainerapps\\.io)/files/[^\\s)\\]]+\\.(?:png|jpe?g|webp)';
+
+const escapedImageMarkdownPattern = new RegExp(
+  `!\\[([^\\]]*)\\]\\\\+\\((${imageGenerationFileUrl})\\)`,
+  'gi',
+);
+const directImageLinkPattern = new RegExp(
+  `(?:Download:\\s*)?\\[(${imageGenerationFileUrl})\\]\\(\\1\\)`,
+  'gi',
+);
+const standaloneImageUrlPattern = new RegExp(`(^|\\n)(${imageGenerationFileUrl})(?=\\s|$)`, 'gi');
+
+function hasMarkdownImageForUrl(content: string, url: string) {
+  const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`!\\[[^\\]]*\\]\\(${escapedUrl}\\)`, 'i').test(content);
+}
+
+function normalizeImageGenerationMarkdown(content: string) {
+  const normalizedEscapedImages = content.replace(escapedImageMarkdownPattern, '![$1]($2)');
+  const normalizedLinks = normalizedEscapedImages.replace(
+    directImageLinkPattern,
+    (_match, url: string) =>
+      hasMarkdownImageForUrl(normalizedEscapedImages, url) ? '' : `![Generated image](${url})`,
+  );
+
+  return normalizedLinks.replace(standaloneImageUrlPattern, (_match, prefix: string, url: string) =>
+    hasMarkdownImageForUrl(normalizedLinks, url) ? prefix : `${prefix}![Generated image](${url})`,
+  );
+}
+
 const Markdown = memo(function Markdown({ content = '', isLatestMessage }: TContentProps) {
   const LaTeXParsing = useRecoilValue<boolean>(store.LaTeXParsing);
   const isInitializing = content === '';
@@ -35,7 +66,8 @@ const Markdown = memo(function Markdown({ content = '', isLatestMessage }: TCont
     if (isInitializing) {
       return '';
     }
-    return LaTeXParsing ? preprocessLaTeX(content) : content;
+    const normalizedContent = normalizeImageGenerationMarkdown(content);
+    return LaTeXParsing ? preprocessLaTeX(normalizedContent) : normalizedContent;
   }, [content, LaTeXParsing, isInitializing]);
 
   const rehypePlugins = useMemo(

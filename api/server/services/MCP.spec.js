@@ -384,6 +384,33 @@ describe('tests for the new helper functions used by the MCP connection status e
       });
     });
 
+    it('should report a shared server with refreshed cached tools as connected', async () => {
+      const appConnections = new Map();
+      const userConnections = new Map();
+      const oauthServers = new Set();
+      const sharedConfig = {
+        updatedAt: Date.now(),
+        startup: true,
+        toolFunctions: {
+          [`create_document${D}${mockServerName}`]: { type: 'function' },
+        },
+      };
+
+      const result = await getServerConnectionStatus(
+        mockUserId,
+        mockServerName,
+        sharedConfig,
+        appConnections,
+        userConnections,
+        oauthServers,
+      );
+
+      expect(result).toEqual({
+        requiresOAuth: false,
+        connectionState: 'connected',
+      });
+    });
+
     it('should prioritize app connection over user connection', async () => {
       const appConnections = new Map([
         [

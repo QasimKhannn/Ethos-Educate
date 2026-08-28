@@ -44,7 +44,7 @@ const assertRuntimeConfiguration = () => {
     'MICROSOFT_CLIENT_SECRET',
     'CANVA_CLIENT_ID',
     'CANVA_CLIENT_SECRET',
-    'AZURE_API_KEY',
+    'AZURE_OPENAI_API_KEY',
     'GOOGLE_KEY',
     'GEMINI_API_KEY',
   ];
@@ -185,7 +185,6 @@ const secretKeys = [
   'MICROSOFT_CLIENT_SECRET',
   'CANVA_CLIENT_SECRET',
   'GITHUB_MCP_CLIENT_SECRET', // cowork A3 — GitHub OAuth app secret
-  'AZURE_API_KEY',
   'AZURE_OPENAI_API_KEY',
   'AZURE_IMAGE_API_KEY',
   'GOOGLE_KEY',

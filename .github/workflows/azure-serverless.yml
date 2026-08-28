@@ -261,8 +261,7 @@ jobs:
           OPENID_SESSION_SECRET: ${{ secrets.OPENID_SESSION_SECRET }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           CANVA_CLIENT_SECRET: ${{ secrets.CANVA_CLIENT_SECRET }}
-          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
-          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY || secrets.AZURE_API_KEY }}
           AZURE_IMAGE_API_KEY: ${{ secrets.AZURE_IMAGE_API_KEY }}
           GOOGLE_KEY: ${{ secrets.GOOGLE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
