@@ -3,7 +3,6 @@ import {
   FileSources,
   EModelEndpoint,
   EToolResources,
-  LocalStorageKeys,
   defaultAgentFormValues,
 } from 'librechat-data-provider';
 import type { Agent, TFile } from 'librechat-data-provider';
@@ -173,13 +172,16 @@ export const createProviderOption = (provider: string) => ({
 });
 
 /**
- * Gets default agent form values with localStorage values for model and provider.
- * This is used to initialize agent forms with the last used model and provider.
+ * Ethos agents run on the managed Ethos-Pro deployment. Keeping this fixed avoids
+ * new agents inheriting a stale provider or model from a previous browser session.
  **/
+export const DEFAULT_AGENT_PROVIDER = EModelEndpoint.azureOpenAI;
+export const DEFAULT_AGENT_MODEL = 'gpt-5-chat';
+
 export const getDefaultAgentFormValues = () => ({
   ...defaultAgentFormValues,
-  model: localStorage.getItem(LocalStorageKeys.LAST_AGENT_MODEL) ?? '',
-  provider: createProviderOption(localStorage.getItem(LocalStorageKeys.LAST_AGENT_PROVIDER) ?? ''),
+  model: DEFAULT_AGENT_MODEL,
+  provider: createProviderOption(DEFAULT_AGENT_PROVIDER),
   avatar_file: null,
   avatar_preview: '',
   avatar_action: null,

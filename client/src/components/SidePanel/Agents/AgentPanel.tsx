@@ -2,15 +2,7 @@ import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { Plus } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { useWatch, useForm, FormProvider } from 'react-hook-form';
-import { useGetModelsQuery } from 'librechat-data-provider/react-query';
-import {
-  Tools,
-  SystemRoles,
-  ResourceType,
-  EModelEndpoint,
-  PermissionBits,
-  isAssistantsEndpoint,
-} from 'librechat-data-provider';
+import { Tools, SystemRoles, ResourceType, PermissionBits } from 'librechat-data-provider';
 import type { FieldNamesMarkedBoolean } from 'react-hook-form';
 import type { Agent } from 'librechat-data-provider';
 import type { TranslationKeys } from '~/hooks/useLocalize';
@@ -22,7 +14,7 @@ import {
   useGetExpandedAgentByIdQuery,
   useUploadAgentAvatarMutation,
 } from '~/data-provider';
-import { createProviderOption, getDefaultAgentFormValues } from '~/utils';
+import { DEFAULT_AGENT_MODEL, DEFAULT_AGENT_PROVIDER, getDefaultAgentFormValues } from '~/utils';
 import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
 import { useResourcePermissions } from '~/hooks/useResourcePermissions';
 import { useLocalize, useAuthContext } from '~/hooks';
@@ -33,7 +25,6 @@ import { Panel, isEphemeralAgent } from '~/common';
 import AgentConfig from './AgentConfig';
 import AgentSelect from './AgentSelect';
 import AgentFooter from './AgentFooter';
-import ModelPanel from './ModelPanel';
 
 /* Helpers */
 function getUpdateToastMessage(
@@ -234,14 +225,11 @@ export default function AgentPanel() {
   const { showToast } = useToastContext();
   const {
     activePanel,
-    agentsConfig,
     setActivePanel,
-    endpointsConfig,
     setCurrentAgentId,
     agent_id: current_agent_id,
   } = useAgentPanelContext();
 
-  const modelsQuery = useGetModelsQuery({ refetchOnMount: 'always' });
   const basicAgentQuery = useGetAgentByIdQuery(current_agent_id);
 
   const { hasPermission, isLoading: permissionsLoading } = useResourcePermissions(
@@ -257,7 +245,6 @@ export default function AgentPanel() {
 
   const agentQuery = canEdit && expandedAgentQuery.data ? expandedAgentQuery : basicAgentQuery;
 
-  const models = useMemo(() => modelsQuery.data ?? {}, [modelsQuery.data]);
   const methods = useForm<AgentForm>({
     defaultValues: getDefaultAgentFormValues(),
     mode: 'onChange',
@@ -318,24 +305,6 @@ export default function AgentPanel() {
   const agent_id = useWatch({ control, name: 'id' });
   const previousVersionRef = useRef<number | undefined>();
   const initializedColdCreateRef = useRef(false);
-
-  const allowedProviders = useMemo(
-    () => new Set(agentsConfig?.allowedProviders),
-    [agentsConfig?.allowedProviders],
-  );
-
-  const providers = useMemo(
-    () =>
-      Object.keys(endpointsConfig ?? {})
-        .filter(
-          (key) =>
-            !isAssistantsEndpoint(key) &&
-            (allowedProviders.size > 0 ? allowedProviders.has(key) : true) &&
-            key !== EModelEndpoint.agents,
-        )
-        .map((provider) => createProviderOption(provider)),
-    [endpointsConfig, allowedProviders],
-  );
 
   useEffect(() => {
     const hasCurrentAgent = current_agent_id != null && current_agent_id !== '';
@@ -452,7 +421,11 @@ export default function AgentPanel() {
         tools.push(Tools.web_search);
       }
 
-      const { payload: basePayload, provider, model } = composeAgentUpdatePayload(data, agent_id);
+      const {
+        payload: basePayload,
+        provider: selectedProvider,
+        model: selectedModel,
+      } = composeAgentUpdatePayload(data, agent_id);
 
       if (agent_id) {
         if (data.avatar_action === 'upload' && isAvatarUploadOnlyDirty(dirtyFields)) {
@@ -477,12 +450,6 @@ export default function AgentPanel() {
         return;
       }
 
-      if (!provider || !model) {
-        return showToast({
-          message: localize('com_agents_missing_provider_model'),
-          status: 'error',
-        });
-      }
       if (!data.name) {
         return showToast({
           message: localize('com_agents_missing_name'),
@@ -490,7 +457,12 @@ export default function AgentPanel() {
         });
       }
 
-      create.mutate({ ...basePayload, model, tools, provider });
+      create.mutate({
+        ...basePayload,
+        model: selectedModel || DEFAULT_AGENT_MODEL,
+        tools,
+        provider: selectedProvider || DEFAULT_AGENT_PROVIDER,
+      });
     },
     [agent_id, create, dirtyFields, handleAvatarUpload, update, showToast, localize],
   );
@@ -550,9 +522,6 @@ export default function AgentPanel() {
               <p className="text-token-text-secondary">{localize('com_agents_no_access')}</p>
             </div>
           </div>
-        )}
-        {canEditAgent && !agentQuery.isInitialLoading && activePanel === Panel.model && (
-          <ModelPanel models={models} providers={providers} setActivePanel={setActivePanel} />
         )}
         {canEditAgent && !agentQuery.isInitialLoading && activePanel === Panel.builder && (
           <AgentConfig />

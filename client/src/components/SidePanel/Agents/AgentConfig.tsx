@@ -1,24 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
-import { EModelEndpoint, getEndpointField } from 'librechat-data-provider';
-import type { AgentForm, IconComponentTypes } from '~/common';
+import type { AgentForm } from '~/common';
 import {
   removeFocusOutlines,
   processAgentOption,
   defaultTextProps,
   validateEmail,
-  getAgentBuilderModelLabel,
-  getAgentBuilderProviderLabel,
-  getIconKey,
   cn,
 } from '~/utils';
 import { MCPToolSelectDialog } from '~/components/Tools';
 import useAgentCapabilities from '~/hooks/Agents/useAgentCapabilities';
 import { useFileMapContext, useAgentPanelContext } from '~/Providers';
 import { useLocalize, useVisibleTools } from '~/hooks';
-import { Panel } from '~/common';
 import { useGetAgentFiles } from '~/data-provider';
-import { icons } from '~/hooks/Endpoint/Icons';
 import Instructions from './Instructions';
 import AgentAvatar from './AgentAvatar';
 import FileContext from './FileContext';
@@ -43,21 +37,12 @@ export default function AgentConfig() {
   const fileMap = useFileMapContext();
   const methods = useFormContext<AgentForm>();
   const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
-  const {
-    regularTools,
-    agentsConfig,
-    availableMCPServers,
-    mcpServersMap,
-    setActivePanel,
-    endpointsConfig,
-  } = useAgentPanelContext();
+  const { regularTools, agentsConfig, availableMCPServers, mcpServersMap } = useAgentPanelContext();
 
   const {
     control,
     formState: { errors },
   } = methods;
-  const provider = useWatch({ control, name: 'provider' });
-  const model = useWatch({ control, name: 'model' });
   const agent = useWatch({ control, name: 'agent' });
   const tools = useWatch({ control, name: 'tools' });
   const agent_id = useWatch({ control, name: 'id' });
@@ -139,37 +124,7 @@ export default function AgentConfig() {
     return _agent.code_files ?? [];
   }, [agent, agent_id, mergedFileMap]);
 
-  const savedAgent = typeof agent === 'string' || agent?.id !== agent_id ? undefined : agent;
-  const providerValue =
-    (typeof provider === 'string' ? provider : provider?.value) ?? savedAgent?.provider;
-  const modelValue = model || savedAgent?.model;
-  const providerLabel = getAgentBuilderProviderLabel(providerValue ?? '');
-  const modelLabel = getAgentBuilderModelLabel(modelValue);
-  let Icon: IconComponentTypes | null | undefined;
-  let endpointType: EModelEndpoint | undefined;
-  let endpointIconURL: string | undefined;
-  let iconKey: string | undefined;
-
-  if (providerValue !== undefined) {
-    endpointType = getEndpointField(endpointsConfig, providerValue as string, 'type');
-    endpointIconURL = getEndpointField(endpointsConfig, providerValue as string, 'iconURL');
-    iconKey = getIconKey({
-      endpoint: providerValue as string,
-      endpointsConfig,
-      endpointType,
-      endpointIconURL,
-    });
-    Icon = icons[iconKey];
-  }
-
   const { mcpServerNames } = useVisibleTools(tools, regularTools, mcpServersMap);
-  let modelSelectionLabel = localize('com_ui_select_model');
-  if (modelLabel) {
-    modelSelectionLabel = modelLabel;
-    if (providerLabel) {
-      modelSelectionLabel = `${providerLabel} - ${modelLabel}`;
-    }
-  }
 
   return (
     <>
@@ -283,40 +238,6 @@ export default function AgentConfig() {
             <h4 id="agent-behavior-heading">{localize('com_ui_agent_builder_behavior_title')}</h4>
           </div>
           <Instructions />
-        </section>
-        <section className="agent-builder-section" aria-labelledby="agent-model-heading">
-          <div className="agent-builder-section-heading">
-            <h4 id="agent-model-heading">{localize('com_ui_agent_builder_model_title')}</h4>
-          </div>
-          <div className="mb-4">
-            <AgentFieldLabel
-              htmlFor="provider"
-              label={localize('com_ui_model')}
-              description={localize('com_ui_agent_model_help')}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setActivePanel(Panel.model)}
-              className="agent-builder-model-trigger btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium"
-              aria-haspopup="true"
-              aria-expanded="false"
-            >
-              <div className="flex w-full items-center gap-2">
-                {Icon && (
-                  <div className="shadow-stroke relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-black dark:bg-white">
-                    <Icon
-                      className="h-2/3 w-2/3"
-                      endpoint={providerValue as string}
-                      endpointType={endpointType}
-                      iconURL={endpointIconURL}
-                    />
-                  </div>
-                )}
-                <span>{modelSelectionLabel}</span>
-              </div>
-            </button>
-          </div>
         </section>
         <details className="agent-builder-optional-settings">
           <summary>
