@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Image, { _resetImageCaches } from '../Image';
 
 jest.mock('~/utils', () => ({
@@ -12,12 +12,25 @@ jest.mock('~/utils', () => ({
 
 jest.mock('librechat-data-provider', () => ({
   apiBaseUrl: () => '',
+  FileSources: {
+    local: 'local',
+    firebase: 'firebase',
+    s3: 's3',
+    azure_blob: 'azure_blob',
+  },
+  dataService: {
+    getFilePreview: jest.fn(),
+  },
 }));
 
 jest.mock('@librechat/client', () => ({
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
   Skeleton: ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
     <div data-testid="skeleton" className={className} {...props} />
   ),
+  TooltipAnchor: ({ render }: { render: React.ReactElement }) => render,
 }));
 
 jest.mock('../DialogImage', () => ({
@@ -25,6 +38,9 @@ jest.mock('../DialogImage', () => ({
   default: ({ isOpen, src }: { isOpen: boolean; src: string }) =>
     isOpen ? <div data-testid="dialog-image" data-src={src} /> : null,
 }));
+
+const getFilePreviewMock = () =>
+  jest.requireMock('librechat-data-provider').dataService.getFilePreview as jest.Mock;
 
 describe('Image', () => {
   const defaultProps = {
@@ -35,6 +51,15 @@ describe('Image', () => {
   beforeEach(() => {
     _resetImageCaches();
     jest.clearAllMocks();
+    getFilePreviewMock().mockResolvedValue({ data: new Blob(['image']) });
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: jest.fn(() => 'blob:managed-image-preview'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: jest.fn(),
+    });
   });
 
   describe('rendering without dimensions', () => {
@@ -64,7 +89,7 @@ describe('Image', () => {
 
     it('does not apply heightStyle without dimensions', () => {
       render(<Image {...defaultProps} />);
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'View Test image in dialog' });
       expect(button.style.height).toBeFalsy();
     });
   });
@@ -77,7 +102,7 @@ describe('Image', () => {
 
     it('applies computed heightStyle to button', () => {
       render(<Image {...defaultProps} width={1024} height={1792} />);
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'View Test image in dialog' });
       expect(button.style.height).toBeTruthy();
       expect(button.style.height).toContain('min(45vh');
     });
@@ -113,7 +138,7 @@ describe('Image', () => {
   describe('common behavior', () => {
     it('applies custom className to the button wrapper', () => {
       render(<Image {...defaultProps} className="mb-4" />);
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'View Test image in dialog' });
       expect(button.className).toContain('mb-4');
     });
 
@@ -125,7 +150,7 @@ describe('Image', () => {
 
     it('has correct accessibility attributes on button', () => {
       render(<Image {...defaultProps} />);
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'View Test image in dialog' });
       expect(button).toHaveAttribute('aria-label', 'View Test image in dialog');
       expect(button).toHaveAttribute('aria-haspopup', 'dialog');
     });
@@ -136,7 +161,7 @@ describe('Image', () => {
       render(<Image {...defaultProps} />);
       expect(screen.queryByTestId('dialog-image')).not.toBeInTheDocument();
 
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'View Test image in dialog' });
       fireEvent.click(button);
 
       expect(screen.getByTestId('dialog-image')).toBeInTheDocument();
@@ -146,12 +171,29 @@ describe('Image', () => {
       render(<Image {...defaultProps} />);
       // DialogImage mock returns null when isOpen=false, but the component is in the tree
       // Clicking should immediately show it
-      fireEvent.click(screen.getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: 'View Test image in dialog' }));
       expect(screen.getByTestId('dialog-image')).toBeInTheDocument();
     });
   });
 
   describe('image URL resolution', () => {
+    it('loads managed files with the authenticated preview client', async () => {
+      render(
+        <Image
+          {...defaultProps}
+          imagePath="https://storage.example.com/expired-sas-url"
+          fileId="file-123"
+          userId="user-456"
+          source="azure_blob"
+        />,
+      );
+
+      await waitFor(() =>
+        expect(getFilePreviewMock()).toHaveBeenCalledWith('user-456', 'file-123'),
+      );
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:managed-image-preview');
+    });
+
     it('passes /images/ paths through with base URL', () => {
       render(<Image {...defaultProps} imagePath="/images/test.png" />);
       const img = screen.getByRole('img');

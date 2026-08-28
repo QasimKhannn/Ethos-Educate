@@ -1,5 +1,5 @@
 // cowork — persistent left rail for the dedicated Cowork section.
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Button,
@@ -21,6 +21,8 @@ import {
   MessagesSquare,
   Trash2,
   HelpCircle,
+  Search,
+  X,
 } from 'lucide-react';
 import { useCoworkProjectsQuery, useCreateCoworkProjectMutation } from '~/data-provider';
 import { useCoworkConversationsQuery } from '~/data-provider/Cowork/queries';
@@ -209,7 +211,18 @@ export default function CoworkSidebar({
   const [showSkills, setShowSkills] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<TCoworkProject | null>(null);
   const [deleteProjectError, setDeleteProjectError] = useState<string | null>(null);
+  const [projectSearch, setProjectSearch] = useState('');
   const projectNameInputRef = useRef<HTMLInputElement>(null);
+  const normalizedProjectSearch = projectSearch.trim().toLocaleLowerCase();
+  const filteredProjects = useMemo(
+    () =>
+      normalizedProjectSearch
+        ? projects.filter((project) =>
+            project.name.toLocaleLowerCase().includes(normalizedProjectSearch),
+          )
+        : projects,
+    [normalizedProjectSearch, projects],
+  );
 
   useEffect(() => {
     const beginProjectCreation = () => setCreating(true);
@@ -348,8 +361,34 @@ export default function CoworkSidebar({
         <div className="mb-1 px-1 text-xs text-text-tertiary">
           {localize('com_cowork_projects')}
         </div>
+        {projects.length > 6 ? (
+          <div className="relative mb-2">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-text-tertiary"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={projectSearch}
+              onChange={(event) => setProjectSearch(event.target.value)}
+              placeholder={localize('com_cowork_search_projects')}
+              aria-label={localize('com_cowork_search_projects')}
+              className="focus:border-brand-primary focus:ring-brand-primary/25 h-9 w-full rounded-md border border-border-medium bg-surface-secondary py-1.5 pl-8 pr-8 text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:ring-2"
+            />
+            {projectSearch ? (
+              <button
+                type="button"
+                onClick={() => setProjectSearch('')}
+                className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
+                aria-label={localize('com_cowork_clear_project_search')}
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-          {projects.map((p) => {
+          {filteredProjects.map((p) => {
             const active = p._id === projectId;
             const isDeletingProject =
               deleteProjectMutation.isLoading && deleteProjectMutation.variables === p._id;
@@ -394,9 +433,7 @@ export default function CoworkSidebar({
                     }}
                     disabled={isDeletingProject}
                     className={`mr-1 flex-none rounded p-1 text-text-tertiary transition-opacity hover:text-red-400 focus:opacity-100 disabled:pointer-events-none ${
-                      active
-                        ? 'opacity-100'
-                        : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+                      active ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
                     }`}
                   >
                     {isDeletingProject ? (
@@ -420,6 +457,11 @@ export default function CoworkSidebar({
               </div>
             );
           })}
+          {filteredProjects.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-text-tertiary" role="status">
+              {localize('com_cowork_no_projects_matching_search')}
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-2 flex flex-col gap-0.5 border-t border-border-medium pt-2">

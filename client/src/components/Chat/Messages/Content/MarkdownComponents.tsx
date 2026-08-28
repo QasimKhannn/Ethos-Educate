@@ -1,11 +1,10 @@
-import React, { memo, useMemo, useRef, useEffect, useState } from 'react';
+import React, { lazy, memo, Suspense, useMemo, useRef, useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
 import { Button, TooltipAnchor, useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, apiBaseUrl } from 'librechat-data-provider';
 import MermaidErrorBoundary from '~/components/Messages/Content/MermaidErrorBoundary';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
-import Mermaid from '~/components/Messages/Content/Mermaid';
 import DialogImage from './DialogImage';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
@@ -13,6 +12,14 @@ import { useCodeBlockContext } from '~/Providers';
 import { handleDoubleClick } from '~/utils';
 import { useLocalize } from '~/hooks';
 import store from '~/store';
+
+const Mermaid = lazy(() => import('~/components/Messages/Content/Mermaid'));
+
+const MermaidFallback = ({ content }: { content: string }) => (
+  <pre className="overflow-auto whitespace-pre-wrap rounded-md bg-surface-primary-alt p-4 font-mono text-xs text-text-secondary">
+    {content}
+  </pre>
+);
 
 type TCodeProps = {
   inline?: boolean;
@@ -47,7 +54,9 @@ export const code: React.ElementType = memo(function MarkdownCode({
     const content = typeof children === 'string' ? children : String(children);
     return (
       <MermaidErrorBoundary code={content}>
-        <Mermaid id={`mermaid-${blockIndex}`}>{content}</Mermaid>
+        <Suspense fallback={<MermaidFallback content={content} />}>
+          <Mermaid id={`mermaid-${blockIndex}`}>{content}</Mermaid>
+        </Suspense>
       </MermaidErrorBoundary>
     );
   } else if (isSingleLine) {
@@ -80,7 +89,11 @@ export const codeNoExecution: React.ElementType = memo(function MarkdownCodeNoEx
     return children;
   } else if (lang === 'mermaid') {
     const content = typeof children === 'string' ? children : String(children);
-    return <Mermaid>{content}</Mermaid>;
+    return (
+      <Suspense fallback={<MermaidFallback content={content} />}>
+        <Mermaid>{content}</Mermaid>
+      </Suspense>
+    );
   } else if (typeof children === 'string' && children.split('\n').length === 1) {
     return (
       <code onDoubleClick={handleDoubleClick} className={className}>

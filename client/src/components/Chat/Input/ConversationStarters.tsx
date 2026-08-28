@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { EModelEndpoint, Constants } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import {
@@ -14,8 +15,9 @@ import { useLocalize } from '~/hooks';
 
 type StarterCard = {
   label: string;
-  prompt: string;
+  prompt?: string;
   description?: string;
+  action?: 'open-toolkit';
 };
 
 const lessonPlanBuilderAgentIds = new Set(['agent_U34zrvm73tQ5iFaHpwiol']);
@@ -89,6 +91,7 @@ const ConversationStarters = () => {
   const agentsMap = useAgentsMapContext();
   const assistantMap = useAssistantsMapContext();
   const localize = useLocalize();
+  const navigate = useNavigate();
   const { data: endpointsConfig } = useGetEndpointsQuery();
 
   const endpointType = useMemo(() => {
@@ -129,8 +132,31 @@ const ConversationStarters = () => {
       return [];
     }
 
-    return getStarterCards(documentsMap.get(entity?.id ?? '')?.conversation_starters ?? []);
-  }, [documentsMap, isAgent, entity]);
+    const documentStarters = getStarterCards(
+      documentsMap.get(entity?.id ?? '')?.conversation_starters ?? [],
+    );
+    if (documentStarters.length > 0) {
+      return documentStarters;
+    }
+
+    return [
+      {
+        label: localize('com_ui_educator_starter_lesson_label'),
+        description: localize('com_ui_educator_starter_lesson_description'),
+        prompt: localize('com_ui_educator_starter_lesson_prompt'),
+      },
+      {
+        label: localize('com_ui_educator_starter_feedback_label'),
+        description: localize('com_ui_educator_starter_feedback_description'),
+        prompt: localize('com_ui_educator_starter_feedback_prompt'),
+      },
+      {
+        label: localize('com_ui_educator_starter_toolkit_label'),
+        description: localize('com_ui_educator_starter_toolkit_description'),
+        action: 'open-toolkit',
+      },
+    ];
+  }, [documentsMap, entity, isAgent, localize]);
 
   const methods = useChatFormContext();
   const setConversationStarter = useCallback(
@@ -140,6 +166,19 @@ const ConversationStarters = () => {
       window.requestAnimationFrame(() => document.getElementById(mainTextareaId)?.focus());
     },
     [methods],
+  );
+  const handleStarterClick = useCallback(
+    (starter: StarterCard) => {
+      if (starter.action === 'open-toolkit') {
+        navigate('/agents');
+        return;
+      }
+
+      if (starter.prompt) {
+        setConversationStarter(starter.prompt);
+      }
+    },
+    [navigate, setConversationStarter],
   );
 
   if (!starterCards.length) {
@@ -156,7 +195,7 @@ const ConversationStarters = () => {
           <button
             key={`${starter.label}-${index}`}
             onMouseDown={(event) => event.preventDefault()}
-            onClick={() => setConversationStarter(starter.prompt)}
+            onClick={() => handleStarterClick(starter)}
             className="chat-conversation-starter"
             type="button"
           >

@@ -323,7 +323,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     categoryOptions.find((option) => option.value === selectedCategory)?.label ??
     localize('com_agents_all_category');
   const categoryControl = (
-    <div className="agents-marketplace-category-control" ref={categoryMenuRef}>
+    <div
+      className="agents-marketplace-category-control"
+      data-tour-id="marketplace-categories"
+      ref={categoryMenuRef}
+    >
       <button
         type="button"
         aria-haspopup="listbox"

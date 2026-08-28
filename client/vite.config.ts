@@ -138,6 +138,7 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       preserveEntrySignatures: 'strict',
       output: {
+        onlyExplicitManualChunks: true,
         manualChunks(id: string) {
           const normalizedId = id.replace(/\\/g, '/');
           if (normalizedId.includes('node_modules')) {

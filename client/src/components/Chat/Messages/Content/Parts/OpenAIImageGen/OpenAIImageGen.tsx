@@ -49,13 +49,8 @@ export default function OpenAIImageGen({
     }
   }
 
-  const attachment = attachments?.[0];
-  const {
-    filepath = null,
-    filename = '',
-    width: imgWidth,
-    height: imgHeight,
-  } = (attachment as TFile & TAttachmentMetadata) || {};
+  const attachment = attachments?.[0] as (TFile & TAttachmentMetadata) | undefined;
+  const { filepath = null, filename = '', width: imgWidth, height: imgHeight } = attachment || {};
 
   useEffect(() => {
     if (isSubmitting) {
@@ -130,6 +125,9 @@ export default function OpenAIImageGen({
             height={imgHeight}
             altText={filename}
             imagePath={filepath ?? ''}
+            fileId={attachment?.file_id}
+            userId={attachment?.user}
+            source={attachment?.source}
             className={progress < 1 ? 'invisible absolute' : ''}
           />
         </div>

@@ -1,31 +1,55 @@
+import { lazy, Suspense } from 'react';
+import { Spinner } from '@librechat/client';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import {
-  Login,
-  VerifyEmail,
-  Registration,
-  ResetPassword,
-  ApiErrorWatcher,
-  TwoFactorScreen,
-  RequestPasswordReset,
-} from '~/components/Auth';
-import { MarketplaceProvider } from '~/components/Agents/MarketplaceContext';
-import AgentMarketplace from '~/components/Agents/Marketplace';
-import EssayGraderRoute from '~/components/EssayGrader/EssayGraderRoute';
-import { OAuthSuccess, OAuthError } from '~/components/OAuth';
+import type { ComponentType, LazyExoticComponent, PropsWithChildren } from 'react';
+import Login from '~/components/Auth/Login';
+import ApiErrorWatcher from '~/components/Auth/ApiErrorWatcher';
 import { AuthContextProvider } from '~/hooks/AuthContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
-import ShareRoute from './ShareRoute';
-import ChatRoute from './ChatRoute';
-import Search from './Search';
-import Root from './Root';
-import { ProjectRoute } from '~/components/Projects';
-import AdminConsole from '~/components/Admin/AdminConsole';
-import CoworkLayout from '~/components/Cowork/CoworkLayout'; // cowork
-import CoworkHome from '~/components/Cowork/CoworkHome'; // cowork
-import CoworkProjectView from '~/components/Cowork/CoworkProjectView'; // cowork
+const VerifyEmail = lazy(() => import('~/components/Auth/VerifyEmail'));
+const Registration = lazy(() => import('~/components/Auth/Registration'));
+const ResetPassword = lazy(() => import('~/components/Auth/ResetPassword'));
+const TwoFactorScreen = lazy(() => import('~/components/Auth/TwoFactorScreen'));
+const RequestPasswordReset = lazy(() => import('~/components/Auth/RequestPasswordReset'));
+const OAuthSuccess = lazy(() => import('~/components/OAuth/OAuthSuccess'));
+const OAuthError = lazy(() => import('~/components/OAuth/OAuthError'));
+const ShareRoute = lazy(() => import('./ShareRoute'));
+const ChatRoute = lazy(() => import('./ChatRoute'));
+const Search = lazy(() => import('./Search'));
+const Root = lazy(() => import('./Root'));
+const ProjectRoute = lazy(() => import('~/components/Projects/ProjectRoute'));
+const MarketplaceProvider = lazy(() =>
+  import('~/components/Agents/MarketplaceContext').then(({ MarketplaceProvider }) => ({
+    default: MarketplaceProvider,
+  })),
+);
+const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
+const EssayGraderRoute = lazy(() => import('~/components/EssayGrader/EssayGraderRoute'));
+const AdminConsole = lazy(() => import('~/components/Admin/AdminConsole'));
+const CoworkLayout = lazy(() => import('~/components/Cowork/CoworkLayout'));
+const CoworkHome = lazy(() => import('~/components/Cowork/CoworkHome'));
+const CoworkProjectView = lazy(() => import('~/components/Cowork/CoworkProjectView'));
+
+type LazyRouteComponent = LazyExoticComponent<ComponentType>;
+
+const RouteFallback = () => (
+  <div className="flex min-h-screen items-center justify-center" aria-busy="true">
+    <Spinner />
+  </div>
+);
+
+const RouteSuspense = ({ children }: PropsWithChildren) => (
+  <Suspense fallback={<RouteFallback />}>{children}</Suspense>
+);
+
+const lazyElement = (Component: LazyRouteComponent) => (
+  <RouteSuspense>
+    <Component />
+  </RouteSuspense>
+);
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -41,7 +65,7 @@ export const router = createBrowserRouter(
   [
     {
       path: 'share/:shareId',
-      element: <ShareRoute />,
+      element: lazyElement(ShareRoute),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -50,11 +74,11 @@ export const router = createBrowserRouter(
       children: [
         {
           path: 'success',
-          element: <OAuthSuccess />,
+          element: lazyElement(OAuthSuccess),
         },
         {
           path: 'error',
-          element: <OAuthError />,
+          element: lazyElement(OAuthError),
         },
       ],
     },
@@ -65,21 +89,21 @@ export const router = createBrowserRouter(
       children: [
         {
           path: 'register',
-          element: <Registration />,
+          element: lazyElement(Registration),
         },
         {
           path: 'forgot-password',
-          element: <RequestPasswordReset />,
+          element: lazyElement(RequestPasswordReset),
         },
         {
           path: 'reset-password',
-          element: <ResetPassword />,
+          element: lazyElement(ResetPassword),
         },
       ],
     },
     {
       path: 'verify',
-      element: <VerifyEmail />,
+      element: lazyElement(VerifyEmail),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -96,14 +120,14 @@ export const router = createBrowserRouter(
             },
             {
               path: 'login/2fa',
-              element: <TwoFactorScreen />,
+              element: lazyElement(TwoFactorScreen),
             },
           ],
         },
         dashboardRoutes,
         {
           path: '/',
-          element: <Root />,
+          element: lazyElement(Root),
           children: [
             {
               index: true,
@@ -111,51 +135,55 @@ export const router = createBrowserRouter(
             },
             {
               path: 'c/:conversationId?',
-              element: <ChatRoute />,
+              element: lazyElement(ChatRoute),
             },
             {
               path: 'projects/:projectId',
-              element: <ProjectRoute />,
+              element: lazyElement(ProjectRoute),
             },
             {
               path: 'search',
-              element: <Search />,
+              element: lazyElement(Search),
             },
             {
               path: 'agents',
               element: (
-                <MarketplaceProvider>
-                  <AgentMarketplace />
-                </MarketplaceProvider>
+                <RouteSuspense>
+                  <MarketplaceProvider>
+                    <AgentMarketplace />
+                  </MarketplaceProvider>
+                </RouteSuspense>
               ),
             },
             {
               path: 'agents/:category',
               element: (
-                <MarketplaceProvider>
-                  <AgentMarketplace />
-                </MarketplaceProvider>
+                <RouteSuspense>
+                  <MarketplaceProvider>
+                    <AgentMarketplace />
+                  </MarketplaceProvider>
+                </RouteSuspense>
               ),
             },
             {
               path: 'tools/essay-grader',
-              element: <EssayGraderRoute />,
+              element: lazyElement(EssayGraderRoute),
             },
             {
               path: 'admin',
-              element: <AdminConsole />,
+              element: lazyElement(AdminConsole),
             },
             {
               path: 'cowork',
-              element: <CoworkLayout />,
+              element: lazyElement(CoworkLayout),
               children: [
                 {
                   index: true,
-                  element: <CoworkHome />,
+                  element: lazyElement(CoworkHome),
                 },
                 {
                   path: ':projectId',
-                  element: <CoworkProjectView />,
+                  element: lazyElement(CoworkProjectView),
                 },
               ],
             },
@@ -166,4 +194,3 @@ export const router = createBrowserRouter(
   ],
   { basename: baseHref },
 );
-

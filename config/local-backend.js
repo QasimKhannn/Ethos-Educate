@@ -4,11 +4,28 @@ const dotenv = require('dotenv');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 const rootDir = path.resolve(__dirname, '..');
+// Only a value passed by the shell should override the local runner's config.
+// .env also contains the deployment config path, which must not make
+// `npm run backend:local` initialize remote MCP services.
+const explicitConfigPath = process.env.CONFIG_PATH;
 
 dotenv.config({ path: path.resolve(rootDir, '.env') });
 
+// The Azure endpoint is configured explicitly in YAML. Keep local .env files
+// that still use the legacy key working without enabling the deprecated global
+// Azure configuration path.
+if (!process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_API_KEY) {
+  process.env.AZURE_OPENAI_API_KEY = process.env.AZURE_API_KEY;
+}
+delete process.env.AZURE_API_KEY;
+
 const truthy = new Set(['1', 'true', 'yes', 'on']);
-const isEnabled = (value) => truthy.has(String(value ?? '').trim().toLowerCase());
+const isEnabled = (value) =>
+  truthy.has(
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
 
 const useConfiguredMongo = isEnabled(process.env.LOCAL_USE_CONFIGURED_MONGO);
 const enableOptionalServices = isEnabled(process.env.LOCAL_ENABLE_OPTIONAL_SERVICES);
@@ -65,11 +82,15 @@ function configureOptionalServices() {
 function configureLocalConfig() {
   const rootConfigPath = path.resolve(rootDir, 'librechat.yaml');
 
-  if (process.env.CONFIG_PATH || fs.existsSync(rootConfigPath)) {
+  if (explicitConfigPath) {
+    process.env.CONFIG_PATH = explicitConfigPath;
+    console.info(`[local-backend] Using explicit config at ${process.env.CONFIG_PATH}`);
     return;
   }
 
-  process.env.CONFIG_PATH = path.resolve(__dirname, 'librechat.local.yaml');
+  process.env.CONFIG_PATH = fs.existsSync(rootConfigPath)
+    ? rootConfigPath
+    : path.resolve(__dirname, 'librechat.local.yaml');
   console.info(`[local-backend] Using local config at ${process.env.CONFIG_PATH}`);
 }
 

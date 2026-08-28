@@ -5515,6 +5515,15 @@ html:not(.dark) .chat-presentation-shell::after {
   white-space: pre-wrap;
 }
 
+.chat-landing-tool-context {
+  margin-top: 0.15rem;
+  color: color-mix(in srgb, var(--text-secondary) 88%, var(--text-primary));
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+}
+
 .chat-selected-tool-guide {
   position: relative;
   margin-top: 1rem;
@@ -15768,7 +15777,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
 }
 
 .agents-marketplace-storefront[data-view-mode='large'] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.05rem;
 }
 
@@ -15849,6 +15858,12 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
     width: 5.5rem;
     min-width: 5.5rem;
     height: 5.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .agents-marketplace-storefront[data-view-mode='large'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Download } from 'lucide-react';
 import { Button, Skeleton, TooltipAnchor } from '@librechat/client';
-import { apiBaseUrl } from 'librechat-data-provider';
+import { apiBaseUrl, dataService, FileSources } from 'librechat-data-provider';
 import DialogImage from './DialogImage';
 import { cn } from '~/utils';
 
@@ -9,6 +9,12 @@ import { cn } from '~/utils';
 export const IMAGE_MAX_H = 'max-h-[45vh]' as const;
 /** Matches the `max-w-lg` Tailwind class on the wrapper button (32rem = 512px at 16px base) */
 const IMAGE_MAX_W_PX = 512;
+
+const isEthosManagedFile = (source?: string) =>
+  source != null &&
+  [FileSources.local, FileSources.firebase, FileSources.s3, FileSources.azure_blob].includes(
+    source as FileSources,
+  );
 
 /** Caches image dimensions by src so remounts can reserve space */
 const dimensionCache = new Map<string, { width: number; height: number }>();
@@ -32,6 +38,9 @@ const Image = ({
   args,
   width,
   height,
+  fileId,
+  userId,
+  source,
 }: {
   imagePath: string;
   altText: string;
@@ -45,11 +54,16 @@ const Image = ({
   };
   width?: number;
   height?: number;
+  fileId?: string;
+  userId?: string;
+  source?: string;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [managedPreviewUrl, setManagedPreviewUrl] = useState<string | null>(null);
+  const [managedPreviewFailed, setManagedPreviewFailed] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const absoluteImageUrl = useMemo(() => {
+  const sourceImageUrl = useMemo(() => {
     if (!imagePath) return imagePath;
 
     if (
@@ -63,6 +77,50 @@ const Image = ({
     const baseURL = apiBaseUrl();
     return `${baseURL}${imagePath}`;
   }, [imagePath]);
+
+  const isManagedImage = Boolean(fileId && userId && isEthosManagedFile(source));
+
+  useEffect(() => {
+    if (!isManagedImage || !fileId || !userId) {
+      setManagedPreviewUrl(null);
+      setManagedPreviewFailed(false);
+      return;
+    }
+
+    let previewUrl: string | undefined;
+    let cancelled = false;
+
+    setManagedPreviewUrl(null);
+    setManagedPreviewFailed(false);
+
+    void dataService
+      .getFilePreview(userId, fileId)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+
+        previewUrl = window.URL.createObjectURL(response.data);
+        setManagedPreviewUrl(previewUrl);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('Managed image preview failed:', error);
+          setManagedPreviewFailed(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [fileId, isManagedImage, userId]);
+
+  const absoluteImageUrl = isManagedImage
+    ? (managedPreviewUrl ?? (managedPreviewFailed ? sourceImageUrl : ''))
+    : sourceImageUrl;
 
   const downloadImage = async () => {
     try {
@@ -102,7 +160,7 @@ const Image = ({
   const dims = width && height ? { width, height } : dimensionCache.get(absoluteImageUrl);
   const hasDimensions = !!(dims?.width && dims?.height);
   const heightStyle = hasDimensions ? computeHeightStyle(dims.width, dims.height) : undefined;
-  const showSkeleton = hasDimensions && !paintedUrls.has(absoluteImageUrl);
+  const showSkeleton = hasDimensions && (!absoluteImageUrl || !paintedUrls.has(absoluteImageUrl));
 
   return (
     <div className="relative w-fit max-w-full">
@@ -111,7 +169,7 @@ const Image = ({
         type="button"
         aria-label={`View ${altText} in dialog`}
         aria-haspopup="dialog"
-        onClick={() => setIsOpen(true)}
+        onClick={() => absoluteImageUrl && setIsOpen(true)}
         className={cn(
           'relative mt-1 w-full max-w-lg cursor-pointer overflow-hidden rounded-lg border border-border-light text-text-secondary-alt shadow-md transition-shadow',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary',
@@ -120,17 +178,25 @@ const Image = ({
         style={heightStyle}
       >
         {showSkeleton && <Skeleton className="absolute inset-0" aria-hidden="true" />}
-        <img
-          alt={altText}
-          src={absoluteImageUrl}
-          onLoad={() => paintedUrls.add(absoluteImageUrl)}
-          className={cn(
-            'relative block text-transparent',
-            hasDimensions
-              ? 'size-full object-contain'
-              : cn('h-auto w-auto max-w-full', IMAGE_MAX_H),
-          )}
-        />
+        {absoluteImageUrl && (
+          <img
+            alt={altText}
+            src={absoluteImageUrl}
+            onLoad={() => paintedUrls.add(absoluteImageUrl)}
+            onError={() => {
+              if (isManagedImage && !managedPreviewFailed) {
+                setManagedPreviewUrl(null);
+                setManagedPreviewFailed(true);
+              }
+            }}
+            className={cn(
+              'relative block text-transparent',
+              hasDimensions
+                ? 'size-full object-contain'
+                : cn('h-auto w-auto max-w-full', IMAGE_MAX_H),
+            )}
+          />
+        )}
       </button>
       <TooltipAnchor
         description="Download image"

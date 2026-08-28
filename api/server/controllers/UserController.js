@@ -99,6 +99,39 @@ const acceptTermsController = async (req, res) => {
   }
 };
 
+const getOnboardingTourStatusController = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('onboardingTourCompleted');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ completed: user.onboardingTourCompleted === true });
+  } catch (error) {
+    logger.error('Error fetching onboarding tour status:', error);
+    res.status(500).json({ message: 'Error fetching onboarding tour status' });
+  }
+};
+
+const completeOnboardingTourController = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { onboardingTourCompleted: true },
+      { new: true },
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error('Error completing onboarding tour:', error);
+    res.status(500).json({ message: 'Error completing onboarding tour' });
+  }
+};
+
 const deleteUserFiles = async (req) => {
   try {
     const userFiles = await getFiles({ user: req.user.id });
@@ -414,6 +447,8 @@ module.exports = {
   getUserController,
   getTermsStatusController,
   acceptTermsController,
+  getOnboardingTourStatusController,
+  completeOnboardingTourController,
   deleteUserController,
   verifyEmailController,
   updateUserPluginsController,

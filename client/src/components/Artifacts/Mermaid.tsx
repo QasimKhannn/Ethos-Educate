@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import mermaid from 'mermaid';
 import { Button } from '@librechat/client';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
@@ -19,20 +18,27 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ content, isDarkMode = t
   const bgColor = isDarkMode ? '#212121' : '#FFFFFF';
 
   useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme,
-      securityLevel: 'sandbox',
-      flowchart: artifactFlowchartConfig,
-    });
+    let isActive = true;
 
     const renderDiagram = async () => {
-      if (!mermaidRef.current) {
-        return;
-      }
-
       try {
+        const { default: mermaid } = await import('mermaid');
+        if (!isActive || !mermaidRef.current) {
+          return;
+        }
+
+        mermaid.initialize({
+          startOnLoad: false,
+          theme,
+          securityLevel: 'sandbox',
+          flowchart: artifactFlowchartConfig,
+        });
+
         const { svg } = await mermaid.render('mermaid-diagram', content);
+        if (!isActive || !mermaidRef.current) {
+          return;
+        }
+
         mermaidRef.current.innerHTML = svg;
 
         const svgElement = mermaidRef.current.querySelector('svg');
@@ -43,13 +49,17 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ content, isDarkMode = t
         setIsRendered(true);
       } catch (error) {
         console.error('Mermaid rendering error:', error);
-        if (mermaidRef.current) {
+        if (isActive && mermaidRef.current) {
           mermaidRef.current.innerHTML = 'Error rendering diagram';
         }
       }
     };
 
-    renderDiagram();
+    void renderDiagram();
+
+    return () => {
+      isActive = false;
+    };
   }, [content, theme]);
 
   const centerAndFitDiagram = useCallback(() => {

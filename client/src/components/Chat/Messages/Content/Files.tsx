@@ -27,6 +27,9 @@ const Files = ({ message }: { message?: TMessage }) => {
               height={file.height}
               altText={file.filename ?? 'Uploaded Image'}
               imagePath={cached ?? file.preview ?? file.filepath ?? ''}
+              fileId={file.file_id}
+              userId={file.user}
+              source={file.source}
             />
           );
         })}

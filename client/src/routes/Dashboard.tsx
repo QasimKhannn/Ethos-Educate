@@ -1,15 +1,24 @@
+import { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
-import {
-  PromptsView,
-  PromptForm,
-  CreatePromptForm,
-  EmptyPromptPreview,
-} from '~/components/Prompts';
-import DashboardRoute from './Layouts/Dashboard';
+import type { PropsWithChildren } from 'react';
+
+const DashboardRoute = lazy(() => import('./Layouts/Dashboard'));
+const PromptsView = lazy(() => import('~/components/Prompts/PromptsView'));
+const PromptForm = lazy(() => import('~/components/Prompts/PromptForm'));
+const CreatePromptForm = lazy(() => import('~/components/Prompts/Groups/CreatePromptForm'));
+const EmptyPromptPreview = lazy(() => import('~/components/Prompts/EmptyPromptPreview'));
+
+const DashboardSuspense = ({ children }: PropsWithChildren) => (
+  <Suspense fallback={null}>{children}</Suspense>
+);
 
 const dashboardRoutes = {
   path: 'd/*',
-  element: <DashboardRoute />,
+  element: (
+    <DashboardSuspense>
+      <DashboardRoute />
+    </DashboardSuspense>
+  ),
   children: [
     /*
     {
@@ -56,19 +65,35 @@ const dashboardRoutes = {
     */
     {
       path: 'prompts/*',
-      element: <PromptsView />,
+      element: (
+        <DashboardSuspense>
+          <PromptsView />
+        </DashboardSuspense>
+      ),
       children: [
         {
           index: true,
-          element: <EmptyPromptPreview />,
+          element: (
+            <DashboardSuspense>
+              <EmptyPromptPreview />
+            </DashboardSuspense>
+          ),
         },
         {
           path: 'new',
-          element: <CreatePromptForm />,
+          element: (
+            <DashboardSuspense>
+              <CreatePromptForm />
+            </DashboardSuspense>
+          ),
         },
         {
           path: ':promptId',
-          element: <PromptForm />,
+          element: (
+            <DashboardSuspense>
+              <PromptForm />
+            </DashboardSuspense>
+          ),
         },
       ],
     },

@@ -1,29 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Button, TooltipAnchor } from '@librechat/client';
-import { X, ArrowDownToLine, PanelLeftOpen, PanelLeftClose, RotateCcw } from 'lucide-react';
+import { X, ArrowDownToLine, RotateCcw } from 'lucide-react';
 import { useLocalize } from '~/hooks';
-
-const imageSizeCache = new Map<string, string>();
-
-const getQualityStyles = (quality: string): string => {
-  if (quality === 'high') {
-    return 'bg-green-100 text-green-800';
-  }
-  if (quality === 'low') {
-    return 'bg-orange-100 text-orange-800';
-  }
-  return 'bg-gray-100 text-gray-800';
-};
 
 export default function DialogImage({
   isOpen,
   onOpenChange,
   src = '',
   downloadImage,
-  args,
   triggerRef,
-  showDetails = true,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,8 +25,6 @@ export default function DialogImage({
   showDetails?: boolean;
 }) {
   const localize = useLocalize();
-  const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const [imageSize, setImageSize] = useState<string | null>(null);
 
   // Zoom and pan state
   const [zoom, setZoom] = useState(1);
@@ -50,45 +34,7 @@ export default function DialogImage({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  const getImageSize = useCallback(async (url: string) => {
-    const cached = imageSizeCache.get(url);
-    if (cached) {
-      return cached;
-    }
-    try {
-      const response = await fetch(url, { method: 'HEAD' });
-      const contentLength = response.headers.get('Content-Length');
-
-      if (contentLength) {
-        const bytes = parseInt(contentLength, 10);
-        const result = formatFileSize(bytes);
-        imageSizeCache.set(url, result);
-        return result;
-      }
-
-      const fullResponse = await fetch(url);
-      const blob = await fullResponse.blob();
-      const result = formatFileSize(blob.size);
-      imageSizeCache.set(url, result);
-      return result;
-    } catch (error) {
-      console.error('Error getting image size:', error);
-      return null;
-    }
-  }, []);
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   const resetZoom = useCallback(() => {
     setZoom(1);
@@ -205,10 +151,9 @@ export default function DialogImage({
 
   useEffect(() => {
     if (isOpen && src) {
-      getImageSize(src).then(setImageSize);
       resetZoom();
     }
-  }, [isOpen, src, getImageSize, resetZoom]);
+  }, [isOpen, src, resetZoom]);
 
   useEffect(() => {
     if (zoom === 1) {
@@ -216,13 +161,6 @@ export default function DialogImage({
       setPanY(0);
     }
   }, [zoom]);
-
-  useEffect(() => {
-    if (zoom === 1) {
-      setPanX(0);
-      setPanY(0);
-    }
-  }, [isPromptOpen, zoom]);
 
   // Lock body scroll when dialog is open
   useEffect(() => {
@@ -235,21 +173,6 @@ export default function DialogImage({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
-
-  const imageDetailsLabel = isPromptOpen
-    ? localize('com_ui_hide_image_details')
-    : localize('com_ui_show_image_details');
-
-  // Calculate image max dimensions accounting for side panel (w-80 = 320px)
-  const getImageMaxWidth = () => {
-    if (isPromptOpen) {
-      // On mobile, panel overlays so use full width; on desktop, subtract panel width
-      return typeof window !== 'undefined' && window.innerWidth >= 640
-        ? 'calc(90vw - 320px)'
-        : '90vw';
-    }
-    return '90vw';
-  };
 
   return (
     <DialogPrimitive.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -289,10 +212,8 @@ export default function DialogImage({
             />
           </div>
 
-          {/* Action buttons - top right (336px = 320px panel + 16px gap) */}
-          <div
-            className={`absolute top-4 z-20 flex items-center gap-2 transition-[right] duration-300 ${isPromptOpen ? 'right-[336px]' : 'right-4'}`}
-          >
+          {/* Action buttons - top right */}
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
             {zoom > 1 && (
               <TooltipAnchor
                 description={localize('com_ui_tooltip_reset_zoom')}
@@ -321,32 +242,10 @@ export default function DialogImage({
                 </Button>
               }
             />
-            {showDetails && (
-              <TooltipAnchor
-                description={localize('com_ui_tooltip_image_details')}
-                render={
-                  <Button
-                    onClick={() => setIsPromptOpen(!isPromptOpen)}
-                    variant="ghost"
-                    className="h-10 w-10 p-0 text-white hover:bg-white/10"
-                    aria-label={imageDetailsLabel}
-                  >
-                    {isPromptOpen ? (
-                      <PanelLeftOpen className="size-5" aria-hidden="true" />
-                    ) : (
-                      <PanelLeftClose className="size-5" aria-hidden="true" />
-                    )}
-                  </Button>
-                }
-              />
-            )}
           </div>
 
           {/* Image container - centered */}
-          <div
-            className={`transition-[margin] duration-300 ${isPromptOpen ? 'mr-80' : ''}`}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div onClick={(e) => e.stopPropagation()}>
             <div
               ref={containerRef}
               className="relative"
@@ -366,95 +265,17 @@ export default function DialogImage({
                 }}
               >
                 <img
-                  ref={imageRef}
                   src={src}
                   alt="Image"
                   decoding="async"
                   className="block max-h-[85vh] object-contain"
-                  style={{
-                    maxWidth: getImageMaxWidth(),
-                  }}
+                  style={{ maxWidth: '90vw' }}
                   draggable={false}
                 />
               </div>
             </div>
           </div>
 
-          {/* Side Panel */}
-          {showDetails && (
-            <div
-              data-side-panel
-              className={`fixed right-0 top-0 z-30 h-full w-80 transform border-l border-white/10 bg-surface-primary shadow-2xl transition-transform duration-300 ${
-                isPromptOpen ? 'translate-x-0' : 'translate-x-full'
-              }`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="h-full overflow-y-auto p-6">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    {localize('com_ui_image_details')}
-                  </h3>
-                  <Button
-                    onClick={() => setIsPromptOpen(false)}
-                    variant="ghost"
-                    className="h-10 w-10 p-0 sm:hidden"
-                  >
-                    <X className="size-5" aria-hidden="true" />
-                  </Button>
-                </div>
-                <div className="mb-4 h-px bg-border-medium"></div>
-
-                <div className="space-y-6">
-                  {/* Prompt Section */}
-                  <div>
-                    <h4 className="mb-2 text-sm font-medium text-text-primary">
-                      {localize('com_ui_prompt')}
-                    </h4>
-                    <div className="rounded-md bg-surface-tertiary p-3">
-                      <p className="text-sm leading-relaxed text-text-primary">
-                        {args?.prompt || 'No prompt available'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Generation Settings */}
-                  <div>
-                    <h4 className="mb-3 text-sm font-medium text-text-primary">
-                      {localize('com_ui_generation_settings')}
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-text-primary">
-                          {localize('com_ui_size')}:
-                        </span>
-                        <span className="text-sm font-medium text-text-primary">
-                          {args?.size || 'Unknown'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-text-primary">
-                          {localize('com_ui_quality')}:
-                        </span>
-                        <span
-                          className={`rounded px-2 py-1 text-xs font-medium capitalize ${getQualityStyles(args?.quality || '')}`}
-                        >
-                          {args?.quality || 'Standard'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-text-primary">
-                          {localize('com_ui_file_size')}:
-                        </span>
-                        <span className="text-sm font-medium text-text-primary">
-                          {imageSize || 'Loading...'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

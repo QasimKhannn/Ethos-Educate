@@ -4,6 +4,8 @@ const {
   resendVerificationController,
   getTermsStatusController,
   acceptTermsController,
+  getOnboardingTourStatusController,
+  completeOnboardingTourController,
   verifyEmailController,
   deleteUserController,
   getUserController,
@@ -23,6 +25,8 @@ router.use('/settings', settings);
 router.get('/', requireJwtAuth, getUserController);
 router.get('/terms', requireJwtAuth, getTermsStatusController);
 router.post('/terms/accept', requireJwtAuth, acceptTermsController);
+router.get('/onboarding', requireJwtAuth, getOnboardingTourStatusController);
+router.post('/onboarding/complete', requireJwtAuth, completeOnboardingTourController);
 router.post('/plugins', requireJwtAuth, updateUserPluginsController);
 router.delete('/delete', requireJwtAuth, canDeleteAccount, configMiddleware, deleteUserController);
 router.post('/verify', verifyEmailController);

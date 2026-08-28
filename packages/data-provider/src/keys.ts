@@ -62,6 +62,7 @@ export enum QueryKeys {
   conversationTags = 'conversationTags',
   health = 'health',
   userTerms = 'userTerms',
+  userOnboarding = 'userOnboarding',
   banner = 'banner',
   /* Memories */
   memories = 'memories',
@@ -111,6 +112,7 @@ export enum MutationKeys {
   enableTwoFactor = 'enableTwoFactor',
   verifyTwoFactor = 'verifyTwoFactor',
   updateMemoryPreferences = 'updateMemoryPreferences',
+  completeOnboardingTour = 'completeOnboardingTour',
   createProject = 'createProject',
   updateProject = 'updateProject',
   deleteProject = 'deleteProject',

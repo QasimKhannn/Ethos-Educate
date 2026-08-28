@@ -31,10 +31,7 @@ import type {
   SharedLinksResponse,
 } from 'librechat-data-provider';
 import type { ConversationCursorData } from '~/utils/convos';
-import {
-  isNotFoundError,
-  findConversationInInfinite,
-} from '~/utils';
+import { isNotFoundError, findConversationInInfinite } from '~/utils';
 
 export const useGetPresetsQuery = (
   config?: UseQueryOptions<TPreset[]>,
@@ -578,4 +575,22 @@ export const useUserTermsQuery = (
     refetchOnMount: false,
     ...config,
   });
+};
+
+export const useOnboardingTourStatusQuery = (
+  userId?: string,
+  config?: UseQueryOptions<t.TOnboardingTourStatusResponse>,
+): QueryObserverResult<t.TOnboardingTourStatusResponse> => {
+  return useQuery<t.TOnboardingTourStatusResponse>(
+    [QueryKeys.userOnboarding, userId],
+    () => dataService.getOnboardingTourStatus(),
+    {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+      retry: false,
+      ...config,
+      enabled: (config?.enabled ?? true) && userId != null,
+    },
+  );
 };

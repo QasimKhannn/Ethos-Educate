@@ -205,6 +205,7 @@ export type TUser = {
   provider: string;
   plugins?: string[];
   twoFactorEnabled?: boolean;
+  onboardingTourCompleted?: boolean;
   backupCodes?: TBackupCode[];
   personalization?: {
     memories?: boolean;
@@ -698,6 +699,14 @@ export type TUserTermsResponse = {
 };
 
 export type TAcceptTermsResponse = {
+  success: boolean;
+};
+
+export type TOnboardingTourStatusResponse = {
+  completed: boolean;
+};
+
+export type TCompleteOnboardingTourResponse = {
   success: boolean;
 };
 

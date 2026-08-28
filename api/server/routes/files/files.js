@@ -315,31 +315,38 @@ router.get('/code/download/:session_id/:fileId', async (req, res) => {
   }
 });
 
-router.get('/download/:userId/:file_id', fileAccess, async (req, res) => {
+async function streamStoredFile(req, res, { download }) {
   try {
     const { userId, file_id } = req.params;
-    logger.debug(`File download requested by user ${userId}: ${file_id}`);
+    const action = download ? 'download' : 'preview';
+    logger.debug(`File ${action} requested by user ${userId}: ${file_id}`);
 
     // Access already validated by fileAccess middleware
     const file = req.fileAccess.file;
 
     if (checkOpenAIStorage(file.source) && !file.model) {
-      logger.warn(`File download requested by user ${userId} has no associated model: ${file_id}`);
+      logger.warn(`File ${action} requested by user ${userId} has no associated model: ${file_id}`);
       return res.status(400).send('The model used when creating this file is not available');
     }
 
     const { getDownloadStream } = getStrategyFunctions(file.source);
     if (!getDownloadStream) {
       logger.warn(
-        `File download requested by user ${userId} has no stream method implemented: ${file.source}`,
+        `File ${action} requested by user ${userId} has no stream method implemented: ${file.source}`,
       );
       return res.status(501).send('Not Implemented');
     }
 
     const setHeaders = () => {
       const cleanedFilename = cleanFileName(file.filename);
-      res.setHeader('Content-Disposition', `attachment; filename="${cleanedFilename}"`);
-      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `${download ? 'attachment' : 'inline'}; filename="${cleanedFilename}"`,
+      );
+      res.setHeader(
+        'Content-Type',
+        download ? 'application/octet-stream' : file.type || 'application/octet-stream',
+      );
       res.setHeader('X-File-Metadata', JSON.stringify(file));
     };
 
@@ -377,13 +384,21 @@ router.get('/download/:userId/:file_id', fileAccess, async (req, res) => {
       fileStream.pipe(res);
     }
   } catch (error) {
-    logger.error('[DOWNLOAD ROUTE] Error downloading file:', error);
+    logger.error(`[${download ? 'DOWNLOAD' : 'PREVIEW'} ROUTE] Error streaming file:`, error);
     return sendErrorResponse(res, error, {
       fallbackCode: ERROR_CODES.REQUEST_FAILED,
-      message: "We couldn't download that file.",
+      message: download ? "We couldn't download that file." : "We couldn't load that file.",
       action: 'Try again. If it keeps failing, generate the file again or contact support.',
     });
   }
+}
+
+router.get('/view/:userId/:file_id', fileAccess, async (req, res) => {
+  return streamStoredFile(req, res, { download: false });
+});
+
+router.get('/download/:userId/:file_id', fileAccess, async (req, res) => {
+  return streamStoredFile(req, res, { download: true });
 });
 
 router.post('/', async (req, res) => {

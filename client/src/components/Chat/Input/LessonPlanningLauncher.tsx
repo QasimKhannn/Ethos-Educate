@@ -1,5 +1,3 @@
-/* eslint-disable i18next/no-literal-string */
-
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -22,7 +20,7 @@ import {
   Textarea,
 } from '@librechat/client';
 import { Permissions, PermissionTypes } from 'librechat-data-provider';
-import { useHasAccess } from '~/hooks';
+import { useHasAccess, useLocalize } from '~/hooks';
 import { useBadgeRowContext, useAgentsMapContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
 import { cn } from '~/utils';
@@ -45,6 +43,7 @@ const LONG_REQUEST_TIMEOUT_MS = 310000;
 
 type WizardStep = 'setup' | 'unit' | 'choices' | 'complete';
 type BusyPhase = 'initial' | 'subjects' | 'grades' | 'units' | 'suggestions' | 'generate' | null;
+type RetryAction = Exclude<BusyPhase, null>;
 
 interface LessonPlanningLauncherProps {
   agentId?: string | null;
@@ -210,7 +209,7 @@ async function requestJson<T>(
         payload && typeof payload === 'object' && 'detail' in payload
           ? String((payload as { detail?: unknown }).detail)
           : response.statusText;
-      throw new Error(detail || 'Lesson planning request failed.');
+      throw new Error(detail || response.statusText);
     }
 
     return payload as T;
@@ -247,20 +246,54 @@ function isSpecialsOrElectives(subject: string): boolean {
   return normalized.includes('specials') || normalized.includes('electives');
 }
 
-function frameworkDescription(option: LessonPlanningOption): string {
+function frameworkDescription(
+  option: LessonPlanningOption,
+  localize: ReturnType<typeof useLocalize>,
+): string {
   const normalized = `${option.label} ${option.value}`.toLowerCase();
 
   if (normalized.includes('avid')) {
-    return 'Adds WICOR routines: writing, inquiry, collaboration, organization, and reading.';
+    return localize('com_lesson_planning_framework_avid_description');
   }
   if (normalized.includes('baccalaureate') || normalized === 'ib') {
-    return 'Adds inquiry, learner profile connections, global context, and reflection.';
+    return localize('com_lesson_planning_framework_ib_description');
   }
   if (normalized.includes('classical')) {
-    return 'Adds knowledge-building, discussion, virtue, and structured teacher clarity.';
+    return localize('com_lesson_planning_framework_classical_description');
   }
 
-  return 'Adds instructional guidance for this school framework.';
+  return localize('com_lesson_planning_framework_description');
+}
+
+function localizedDurationLabel(value: string, localize: ReturnType<typeof useLocalize>): string {
+  if (value === '30_min') {
+    return localize('com_lesson_planning_duration_30_min');
+  }
+  if (value === '45_min') {
+    return localize('com_lesson_planning_duration_45_min');
+  }
+  if (value === '60_min') {
+    return localize('com_lesson_planning_duration_60_min');
+  }
+  if (value === '90_min') {
+    return localize('com_lesson_planning_duration_90_min');
+  }
+
+  return value;
+}
+
+function localizedScopeLabel(value: string, localize: ReturnType<typeof useLocalize>): string {
+  if (value === 'one_day') {
+    return localize('com_lesson_planning_scope_one_day');
+  }
+  if (value === 'five_day') {
+    return localize('com_lesson_planning_scope_five_day');
+  }
+  if (value === 'full_unit') {
+    return localize('com_lesson_planning_scope_full_unit');
+  }
+
+  return value;
 }
 
 function formatStrategyForGenerate(choice: LessonPlanningChoice): string {
@@ -393,18 +426,32 @@ function ProgressCard({
 
 function LoadingPanel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4 text-sm text-text-primary">
+    <div
+      className="flex items-center gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4 text-sm text-text-primary"
+      role="status"
+      aria-live="polite"
+    >
       <Loader2 className="h-4 w-4 animate-spin text-sky-500" aria-hidden="true" />
       <span>{children}</span>
     </div>
   );
 }
 
-function ErrorPanel({ message }: { message: string }) {
+function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const localize = useLocalize();
+
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200">
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-      <span>{message}</span>
+    <div
+      className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200"
+      role="alert"
+    >
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>{message}</span>
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        {localize('com_ui_retry')}
+      </Button>
     </div>
   );
 }
@@ -420,17 +467,14 @@ function ChoiceCard({
   multi?: boolean;
   onClick: () => void;
 }) {
+  const localize = useLocalize();
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onClick();
-        }
-      }}
+      aria-pressed={selected}
+      aria-label={localize('com_lesson_planning_select_choice', { label: choice.label })}
       className={cn(
         'group flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50',
@@ -440,13 +484,15 @@ function ChoiceCard({
       )}
     >
       {multi ? (
-        <Checkbox
-          aria-label={`Select ${choice.label}`}
-          checked={selected}
-          onCheckedChange={onClick}
-          onClick={(event) => event.stopPropagation()}
-          className="mt-0.5"
-        />
+        <span
+          className={cn(
+            'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+            selected ? 'border-sky-500 bg-sky-500' : 'border-border-medium',
+          )}
+          aria-hidden="true"
+        >
+          {selected ? <CheckCircle2 className="h-3 w-3 text-white" /> : null}
+        </span>
       ) : (
         <span
           className={cn(
@@ -467,7 +513,7 @@ function ChoiceCard({
           </span>
         )}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -477,6 +523,7 @@ function LessonPlanningLauncher({
   displayMode = 'button',
 }: LessonPlanningLauncherProps) {
   const isEmbedded = displayMode === 'embedded';
+  const localize = useLocalize();
   const canUseMcp = useHasAccess({
     permissionType: PermissionTypes.MCP_SERVERS,
     permission: Permissions.USE,
@@ -499,6 +546,8 @@ function LessonPlanningLauncher({
   const [selectedBenchmarks, setSelectedBenchmarks] = useState<string[]>([]);
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
   const [result, setResult] = useState<LessonPlanningResult | null>(null);
+  const [retryAction, setRetryAction] = useState<RetryAction>('initial');
+  const [retryNonce, setRetryNonce] = useState(0);
   const [formValues, setFormValues] = useState<LessonPlanningLaunchForm>(
     defaultLessonPlanningLaunchForm(),
   );
@@ -523,7 +572,6 @@ function LessonPlanningLauncher({
   });
   const activeAgent = fetchedAgent ?? mappedAgent;
   const activeAgentTools = activeAgent?.tools;
-  const activeAgentRecord = activeAgent as Record<string, unknown> | undefined;
   const hasLessonPlanningMcp = useMemo(
     () =>
       isAgentConversation === true &&
@@ -534,11 +582,11 @@ function LessonPlanningLauncher({
   const hasLessonPlanningIdentity = useMemo(
     () =>
       isLessonPlanningAgentLabel(
-        activeAgentRecord?.name,
-        activeAgentRecord?.description,
-        activeAgentRecord?.toolkit_description,
+        activeAgent?.name,
+        activeAgent?.description,
+        activeAgent?.toolkit_description,
       ),
-    [activeAgentRecord],
+    [activeAgent],
   );
   const isActive = useMemo(
     () => (mcpValues ?? []).some((serverName) => isLessonPlanningServerName(serverName)),
@@ -549,6 +597,10 @@ function LessonPlanningLauncher({
   const isLessonPlanningAvailable =
     canUseMcp &&
     isAgentConversation &&
+    Boolean(agentId) &&
+    (hasLessonPlanningMcp || hasLessonPlanningIdentity);
+  const isLessonPlanningCandidate =
+    isAgentConversation === true &&
     Boolean(agentId) &&
     (hasLessonPlanningMcp || hasLessonPlanningIdentity);
   const isWizardVisible = isLessonPlanningAvailable && (isEmbedded || isOpen);
@@ -569,12 +621,29 @@ function LessonPlanningLauncher({
     !isBusy &&
     (benchmarks.length === 0 || selectedBenchmarkChoices.length > 0) &&
     (strategies.length === 0 || selectedStrategyChoices.length > 0);
+  const lessonDurationOptions = useMemo(
+    () =>
+      LESSON_PLANNING_DURATION_OPTIONS.map((option) => ({
+        ...option,
+        label: localizedDurationLabel(option.value, localize),
+      })),
+    [localize],
+  );
+  const lessonScopeOptions = useMemo(
+    () =>
+      LESSON_PLANNING_SCOPE_OPTIONS.map((option) => ({
+        ...option,
+        label: localizedScopeLabel(option.value, localize),
+      })),
+    [localize],
+  );
 
   const resetWizard = useCallback(() => {
     setOpenDropdown(null);
     setApiBase(deriveLessonApiBase(lessonPlanningMcpUrl));
     setBusyPhase(null);
     setError('');
+    setRetryAction('initial');
     setStep('setup');
     setCatalog(emptyCatalog);
     setUnits([]);
@@ -749,10 +818,11 @@ function LessonPlanningLauncher({
       })
       .catch((requestError) => {
         if (!isCancelled) {
+          setRetryAction('initial');
           setError(
             requestError instanceof Error
               ? requestError.message
-              : 'Could not load lesson-planning options.',
+              : localize('com_lesson_planning_error_load_options'),
           );
         }
       })
@@ -765,7 +835,7 @@ function LessonPlanningLauncher({
     return () => {
       isCancelled = true;
     };
-  }, [isWizardVisible, lessonPlanningMcpUrl]);
+  }, [isWizardVisible, lessonPlanningMcpUrl, localize, retryNonce]);
 
   useEffect(() => {
     if (!isWizardVisible || !formValues.state) {
@@ -791,10 +861,11 @@ function LessonPlanningLauncher({
       })
       .catch((requestError) => {
         if (!isCancelled) {
+          setRetryAction('subjects');
           setError(
             requestError instanceof Error
               ? requestError.message
-              : 'Could not load subjects for the selected state.',
+              : localize('com_lesson_planning_error_load_subjects'),
           );
         }
       })
@@ -807,7 +878,7 @@ function LessonPlanningLauncher({
     return () => {
       isCancelled = true;
     };
-  }, [apiBase, formValues.state, isWizardVisible]);
+  }, [apiBase, formValues.state, isWizardVisible, localize, retryNonce]);
 
   useEffect(() => {
     if (!isWizardVisible || !formValues.state || !formValues.subject) {
@@ -832,10 +903,11 @@ function LessonPlanningLauncher({
       })
       .catch((requestError) => {
         if (!isCancelled) {
+          setRetryAction('grades');
           setError(
             requestError instanceof Error
               ? requestError.message
-              : 'Could not load grades for the selected subject.',
+              : localize('com_lesson_planning_error_load_grades'),
           );
         }
       })
@@ -848,11 +920,12 @@ function LessonPlanningLauncher({
     return () => {
       isCancelled = true;
     };
-  }, [apiBase, formValues.state, formValues.subject, isWizardVisible]);
+  }, [apiBase, formValues.state, formValues.subject, isWizardVisible, localize, retryNonce]);
 
   const loadUnits = useCallback(async () => {
     if (!canContinueSetup) {
-      setError('Choose state, subject, grade, duration, and lesson scope before continuing.');
+      setRetryAction('units');
+      setError(localize('com_lesson_planning_error_complete_setup'));
       return;
     }
 
@@ -879,8 +952,13 @@ function LessonPlanningLauncher({
       const nextUnits = normalizeChoices(payload);
 
       if (nextUnits.length === 0 && !isSpecialsOrElectives(formValues.subject)) {
+        setRetryAction('units');
         setError(
-          `No units were returned for ${formValues.state} / ${formValues.subject} / ${formValues.gradeLevel}.`,
+          localize('com_lesson_planning_error_no_units', {
+            state: formValues.state,
+            subject: formValues.subject,
+            gradeLevel: formValues.gradeLevel,
+          }),
         );
         return;
       }
@@ -908,17 +986,21 @@ function LessonPlanningLauncher({
         setStrategies(normalizeChoices(suggestions.engagement_strategies));
       }
     } catch (requestError) {
+      setRetryAction('units');
       setError(
-        requestError instanceof Error ? requestError.message : 'Could not load matching units.',
+        requestError instanceof Error
+          ? requestError.message
+          : localize('com_lesson_planning_error_load_units'),
       );
     } finally {
       setBusyPhase(null);
     }
-  }, [apiBase, canContinueSetup, formValues]);
+  }, [apiBase, canContinueSetup, formValues, localize]);
 
   const loadSuggestions = useCallback(async () => {
     if (!selectedUnit && !isSpecialsOrElectives(formValues.subject)) {
-      setError('Choose one curriculum unit before continuing.');
+      setRetryAction('suggestions');
+      setError(localize('com_lesson_planning_error_choose_unit'));
       return;
     }
 
@@ -953,19 +1035,21 @@ function LessonPlanningLauncher({
       setBenchmarks(normalizeChoices(suggestions.benchmarks));
       setStrategies(normalizeChoices(suggestions.engagement_strategies));
     } catch (requestError) {
+      setRetryAction('suggestions');
       setError(
         requestError instanceof Error
           ? requestError.message
-          : 'Could not generate benchmark and strategy choices.',
+          : localize('com_lesson_planning_error_load_suggestions'),
       );
     } finally {
       setBusyPhase(null);
     }
-  }, [apiBase, formValues, selectedUnit]);
+  }, [apiBase, formValues, localize, selectedUnit]);
 
   const generateLesson = useCallback(async () => {
     if (!canContinueChoices) {
-      setError('Select at least one benchmark and one engagement strategy before generating.');
+      setRetryAction('generate');
+      setError(localize('com_lesson_planning_error_choose_focus'));
       return;
     }
 
@@ -1005,7 +1089,12 @@ function LessonPlanningLauncher({
       setResult(lessonResult);
       setStep('complete');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Lesson generation failed.');
+      setRetryAction('generate');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : localize('com_lesson_planning_error_generate'),
+      );
     } finally {
       setBusyPhase(null);
     }
@@ -1013,10 +1102,32 @@ function LessonPlanningLauncher({
     apiBase,
     canContinueChoices,
     formValues,
+    localize,
     selectedBenchmarkChoices,
     selectedStrategyChoices,
     selectedUnit,
   ]);
+
+  const retryFailedRequest = useCallback(() => {
+    setError('');
+
+    if (retryAction === 'initial' || retryAction === 'subjects' || retryAction === 'grades') {
+      setRetryNonce((current) => current + 1);
+      return;
+    }
+
+    if (retryAction === 'units') {
+      void loadUnits();
+      return;
+    }
+
+    if (retryAction === 'suggestions') {
+      void loadSuggestions();
+      return;
+    }
+
+    void generateLesson();
+  }, [generateLesson, loadSuggestions, loadUnits, retryAction]);
 
   const handleDisable = useCallback(() => {
     const currentValues = mcpValues ?? [];
@@ -1033,6 +1144,17 @@ function LessonPlanningLauncher({
   }, [mcpValues, setMCPValues]);
 
   if (!isLessonPlanningAvailable) {
+    if (isLessonPlanningCandidate) {
+      return (
+        <span
+          className="inline-flex min-h-9 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-3 text-sm font-medium text-amber-900 dark:text-amber-100"
+          role="status"
+        >
+          {localize('com_lesson_planning_unavailable')}
+        </span>
+      );
+    }
+
     return null;
   }
 
@@ -1048,79 +1170,93 @@ function LessonPlanningLauncher({
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-500">
               {step === 'setup'
-                ? 'Enter lesson details'
+                ? localize('com_lesson_planning_step_setup_title')
                 : step === 'unit'
-                  ? 'Choose curriculum unit'
+                  ? localize('com_lesson_planning_step_unit_title')
                   : step === 'choices'
-                    ? 'Choose lesson focus'
-                    : 'Lesson plan ready'}
+                    ? localize('com_lesson_planning_step_choices_title')
+                    : localize('com_lesson_planning_step_complete_title')}
             </div>
             <p className="mt-1 text-sm text-text-secondary">
               {step === 'setup'
-                ? 'Choose the state, subject, grade, frameworks, duration, and lesson scope.'
+                ? localize('com_lesson_planning_step_setup_description')
                 : step === 'unit'
-                  ? 'Choose one matching unit for the selected course.'
+                  ? localize('com_lesson_planning_step_unit_description')
                   : step === 'choices'
-                    ? 'Select benchmarks and engagement strategies, then generate the DOCX.'
-                    : 'Download the finished lesson plan or start another plan.'}
+                    ? localize('com_lesson_planning_step_choices_description')
+                    : localize('com_lesson_planning_step_complete_description')}
             </p>
           </div>
           <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-600 dark:text-sky-200">
-            Lesson-planning only
+            {localize('com_lesson_planning_only_badge')}
           </span>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <ProgressCard
-            label="1. Lesson details"
-            value={step === 'setup' ? 'Choose basics' : 'Ready'}
+            label={localize('com_lesson_planning_progress_setup_label')}
+            value={
+              step === 'setup'
+                ? localize('com_lesson_planning_progress_setup_pending')
+                : localize('com_lesson_planning_progress_ready')
+            }
             active={step === 'setup'}
             complete={step !== 'setup'}
           />
           <ProgressCard
-            label="2. Curriculum unit"
-            value={step === 'unit' ? 'Pick one unit' : selectedUnit ? 'Ready' : 'Next'}
+            label={localize('com_lesson_planning_progress_unit_label')}
+            value={
+              step === 'unit'
+                ? localize('com_lesson_planning_progress_unit_pending')
+                : selectedUnit
+                  ? localize('com_lesson_planning_progress_ready')
+                  : localize('com_lesson_planning_progress_next')
+            }
             active={step === 'unit'}
             complete={Boolean(selectedUnit) || step === 'choices' || step === 'complete'}
           />
           <ProgressCard
-            label="3. Benchmarks & strategies"
-            value={step === 'choices' ? 'Choose focus' : step === 'complete' ? 'Ready' : 'Next'}
+            label={localize('com_lesson_planning_progress_choices_label')}
+            value={
+              step === 'choices'
+                ? localize('com_lesson_planning_progress_choices_pending')
+                : step === 'complete'
+                  ? localize('com_lesson_planning_progress_ready')
+                  : localize('com_lesson_planning_progress_next')
+            }
             active={step === 'choices'}
             complete={step === 'complete'}
           />
         </div>
       </div>
 
-      {error && <ErrorPanel message={error} />}
+      {error && <ErrorPanel message={error} onRetry={retryFailedRequest} />}
       {busyPhase === 'initial' && (
-        <LoadingPanel>Loading live lesson-planning options...</LoadingPanel>
+        <LoadingPanel>{localize('com_lesson_planning_loading_options')}</LoadingPanel>
       )}
       {busyPhase === 'subjects' && (
-        <LoadingPanel>Loading subjects for the selected state...</LoadingPanel>
+        <LoadingPanel>{localize('com_lesson_planning_loading_subjects')}</LoadingPanel>
       )}
       {busyPhase === 'grades' && (
-        <LoadingPanel>Loading grades and courses for the selected subject...</LoadingPanel>
+        <LoadingPanel>{localize('com_lesson_planning_loading_grades')}</LoadingPanel>
       )}
-      {busyPhase === 'units' && <LoadingPanel>Finding matching curriculum units...</LoadingPanel>}
+      {busyPhase === 'units' && (
+        <LoadingPanel>{localize('com_lesson_planning_loading_units')}</LoadingPanel>
+      )}
       {busyPhase === 'suggestions' && (
-        <LoadingPanel>
-          Planning benchmark and engagement choices from the selected unit...
-        </LoadingPanel>
+        <LoadingPanel>{localize('com_lesson_planning_loading_suggestions')}</LoadingPanel>
       )}
       {busyPhase === 'generate' && (
-        <LoadingPanel>
-          Generating the formatted lesson plan DOCX. This can take a few minutes.
-        </LoadingPanel>
+        <LoadingPanel>{localize('com_lesson_planning_loading_generate')}</LoadingPanel>
       )}
 
       {step === 'setup' && (
         <div className="grid gap-5 md:grid-cols-2">
           <LessonPlanningDropdown
             id="lesson-planning-state"
-            label="State"
+            label={localize('com_lesson_planning_state_label')}
             value={formValues.state}
-            placeholder="Choose state"
+            placeholder={localize('com_lesson_planning_state_placeholder')}
             options={catalog.states}
             isOpen={openDropdown === 'state'}
             disabled={busyPhase === 'initial'}
@@ -1129,9 +1265,13 @@ function LessonPlanningLauncher({
           />
           <LessonPlanningDropdown
             id="lesson-planning-subject"
-            label="Subject"
+            label={localize('com_lesson_planning_subject_label')}
             value={formValues.subject}
-            placeholder={formValues.state ? 'Choose subject' : 'Choose state first'}
+            placeholder={
+              formValues.state
+                ? localize('com_lesson_planning_subject_placeholder')
+                : localize('com_lesson_planning_subject_disabled_placeholder')
+            }
             options={catalog.subjects}
             isOpen={openDropdown === 'subject'}
             disabled={!formValues.state || busyPhase === 'subjects'}
@@ -1140,9 +1280,13 @@ function LessonPlanningLauncher({
           />
           <LessonPlanningDropdown
             id="lesson-planning-grade"
-            label="Grade or course"
+            label={localize('com_lesson_planning_grade_label')}
             value={formValues.gradeLevel}
-            placeholder={formValues.subject ? 'Choose grade or course' : 'Choose subject first'}
+            placeholder={
+              formValues.subject
+                ? localize('com_lesson_planning_grade_placeholder')
+                : localize('com_lesson_planning_grade_disabled_placeholder')
+            }
             options={catalog.grades}
             isOpen={openDropdown === 'grade'}
             disabled={!formValues.subject || busyPhase === 'grades'}
@@ -1151,32 +1295,32 @@ function LessonPlanningLauncher({
           />
           <LessonPlanningDropdown
             id="lesson-planning-duration"
-            label="Preferred lesson duration"
+            label={localize('com_lesson_planning_duration_label')}
             value={formValues.lessonDuration}
-            placeholder="Choose duration"
-            options={LESSON_PLANNING_DURATION_OPTIONS}
+            placeholder={localize('com_lesson_planning_duration_placeholder')}
+            options={lessonDurationOptions}
             isOpen={openDropdown === 'duration'}
             onChange={setFieldValue('lessonDuration')}
             onOpenChange={(open) => setOpenDropdown(open ? 'duration' : null)}
           />
           <LessonPlanningDropdown
             id="lesson-planning-scope"
-            label="Lesson scope"
+            label={localize('com_lesson_planning_scope_label')}
             value={formValues.lessonScope}
-            placeholder="Choose lesson scope"
-            options={LESSON_PLANNING_SCOPE_OPTIONS}
+            placeholder={localize('com_lesson_planning_scope_placeholder')}
+            options={lessonScopeOptions}
             isOpen={openDropdown === 'scope'}
             className="md:col-span-2"
-            helperText="This controls whether the DOCX uses the one-day, five-day, or full-unit template."
+            helperText={localize('com_lesson_planning_scope_helper')}
             onChange={setFieldValue('lessonScope')}
             onOpenChange={(open) => setOpenDropdown(open ? 'scope' : null)}
           />
 
           <div className="space-y-2 md:col-span-2">
             <Label id="lesson-planning-frameworks-label" className="text-sm font-medium">
-              School frameworks
+              {localize('com_lesson_planning_frameworks_label')}
               <span className="ml-1 text-xs font-normal text-text-secondary">
-                (optional, multi-select)
+                {localize('com_lesson_planning_frameworks_optional')}
               </span>
             </Label>
             <div
@@ -1196,7 +1340,9 @@ function LessonPlanningLauncher({
                   )}
                 >
                   <Checkbox
-                    aria-label={`Select ${framework.label} framework`}
+                    aria-label={localize('com_lesson_planning_select_framework', {
+                      framework: framework.label,
+                    })}
                     checked={formValues.frameworks.includes(framework.value)}
                     onCheckedChange={(checked) =>
                       handleFrameworkToggle(framework.value, checked === true)
@@ -1208,7 +1354,7 @@ function LessonPlanningLauncher({
                       {framework.label}
                     </span>
                     <span className="block text-xs leading-5 text-text-secondary">
-                      {frameworkDescription(framework)}
+                      {frameworkDescription(framework, localize)}
                     </span>
                   </span>
                 </label>
@@ -1217,10 +1363,12 @@ function LessonPlanningLauncher({
           </div>
 
           <div className="space-y-1.5 md:col-span-2">
-            <Label htmlFor="lesson-planning-notes">Teacher notes</Label>
+            <Label htmlFor="lesson-planning-notes">
+              {localize('com_lesson_planning_teacher_notes_label')}
+            </Label>
             <Textarea
               id="lesson-planning-notes"
-              placeholder="Add goals, accommodations, materials, or classroom context you want included."
+              placeholder={localize('com_lesson_planning_teacher_notes_placeholder')}
               value={formValues.teacherNotes}
               onChange={handleFieldChange('teacherNotes')}
             />
@@ -1235,7 +1383,7 @@ function LessonPlanningLauncher({
               {selectedLabel(catalog.subjects, formValues.subject)} /{' '}
               {selectedLabel(catalog.grades, formValues.gradeLevel)}
             </span>
-            <span> - choose the exact unit for this lesson plan.</span>
+            <span>{localize('com_lesson_planning_unit_selection_hint')}</span>
           </div>
 
           {units.length > 0 && (
@@ -1260,15 +1408,17 @@ function LessonPlanningLauncher({
         <div className="space-y-5">
           <div className="rounded-2xl border border-border-light bg-surface-secondary p-4 text-sm text-text-secondary">
             <span className="font-semibold text-text-primary">
-              {selectedUnit ? selectedUnit.label : 'No unit required'} selected.
+              {localize('com_lesson_planning_selected_unit', {
+                unit: selectedUnit?.label ?? localize('com_lesson_planning_no_unit_required'),
+              })}
             </span>
-            <span> Pick one or more benchmarks and engagement strategies.</span>
+            <span>{localize('com_lesson_planning_choices_hint')}</span>
           </div>
 
           {benchmarks.length > 0 && (
             <section className="space-y-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                Benchmarks
+                {localize('com_lesson_planning_benchmarks_label')}
               </div>
               <div className="grid gap-3">
                 {benchmarks.map((benchmark) => (
@@ -1287,7 +1437,7 @@ function LessonPlanningLauncher({
           {strategies.length > 0 && (
             <section className="space-y-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                Engagement strategies
+                {localize('com_lesson_planning_strategies_label')}
               </div>
               <div className="grid gap-3">
                 {strategies.map((strategy) => (
@@ -1310,10 +1460,11 @@ function LessonPlanningLauncher({
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
             <div>
-              <h3 className="text-lg font-semibold text-text-primary">Lesson plan ready</h3>
+              <h3 className="text-lg font-semibold text-text-primary">
+                {localize('com_lesson_planning_complete_heading')}
+              </h3>
               <p className="text-sm text-text-secondary">
-                The formatted DOCX is ready from your selected unit, benchmarks, strategies,
-                frameworks, and lesson settings.
+                {localize('com_lesson_planning_complete_description')}
               </p>
             </div>
           </div>
@@ -1326,13 +1477,12 @@ function LessonPlanningLauncher({
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
             >
               <Download className="h-4 w-4" aria-hidden="true" />
-              Download lesson plan
+              {localize('com_lesson_planning_download')}
             </a>
           )}
 
           <div className="rounded-xl border border-border-light bg-surface-primary p-4 text-sm text-text-secondary">
-            Need matching student materials? Download the lesson plan, then upload the DOCX into
-            Worksheet Builder to create corresponding worksheets.
+            {localize('com_lesson_planning_student_materials_hint')}
           </div>
         </div>
       )}
@@ -1342,10 +1492,10 @@ function LessonPlanningLauncher({
           <Sparkles className="h-3.5 w-3.5 text-sky-500" aria-hidden="true" />
           <span>
             {isEmbedded
-              ? 'This guided planner uses only the lesson-planning MCP.'
+              ? localize('com_lesson_planning_embedded_hint')
               : isActive
-                ? 'Lesson planning is active only for this conversation.'
-                : 'Opening this keeps the flow isolated to lesson planning.'}
+                ? localize('com_lesson_planning_active_hint')
+                : localize('com_lesson_planning_isolated_hint')}
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1360,12 +1510,12 @@ function LessonPlanningLauncher({
               }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-              Back
+              {localize('com_ui_back')}
             </Button>
           )}
           {!isEmbedded && isActive && (
             <Button type="button" variant="outline" disabled={isBusy} onClick={handleDisable}>
-              Turn off lesson planning
+              {localize('com_lesson_planning_turn_off')}
             </Button>
           )}
           {!isEmbedded && (
@@ -1375,7 +1525,7 @@ function LessonPlanningLauncher({
               disabled={isBusy}
               onClick={() => setIsOpen(false)}
             >
-              Close
+              {localize('com_ui_close')}
             </Button>
           )}
           {step === 'setup' && (
@@ -1388,7 +1538,9 @@ function LessonPlanningLauncher({
               {setupActionBusy && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               )}
-              {setupActionBusy ? 'Finding units...' : 'Continue to units'}
+              {setupActionBusy
+                ? localize('com_lesson_planning_finding_units')
+                : localize('com_lesson_planning_continue_to_units')}
             </Button>
           )}
           {step === 'unit' && (
@@ -1401,7 +1553,9 @@ function LessonPlanningLauncher({
               {focusActionBusy && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               )}
-              {focusActionBusy ? 'Planning choices...' : 'Continue to focus'}
+              {focusActionBusy
+                ? localize('com_lesson_planning_planning_choices')
+                : localize('com_lesson_planning_continue_to_focus')}
             </Button>
           )}
           {step === 'choices' && (
@@ -1414,12 +1568,14 @@ function LessonPlanningLauncher({
               {generateActionBusy && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               )}
-              {generateActionBusy ? 'Generating DOCX...' : 'Generate DOCX'}
+              {generateActionBusy
+                ? localize('com_lesson_planning_generating_document')
+                : localize('com_lesson_planning_generate_document')}
             </Button>
           )}
           {step === 'complete' && (
             <Button type="button" variant="submit" onClick={restartWizard}>
-              Start another plan
+              {localize('com_lesson_planning_start_another')}
             </Button>
           )}
         </div>
@@ -1431,7 +1587,7 @@ function LessonPlanningLauncher({
     return (
       <section
         className="bg-surface-primary/95 mx-auto w-full max-w-5xl rounded-[2rem] border border-border-light p-5 text-left shadow-xl shadow-black/10 sm:p-6"
-        aria-label="Lesson Planning"
+        aria-label={localize('com_lesson_planning_title')}
       >
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -1439,10 +1595,11 @@ function LessonPlanningLauncher({
               <BookOpen className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-semibold text-text-primary">Lesson Planning</h2>
+              <h2 className="text-xl font-semibold text-text-primary">
+                {localize('com_lesson_planning_title')}
+              </h2>
               <p className="mt-1 max-w-2xl text-sm text-text-secondary">
-                Set up the lesson, choose a matching unit, select the focus, and generate the
-                formatted DOCX.
+                {localize('com_lesson_planning_embedded_description')}
               </p>
             </div>
           </div>
@@ -1469,8 +1626,8 @@ function LessonPlanningLauncher({
         aria-expanded={isOpen}
       >
         <BookOpen className="h-4 w-4" aria-hidden="true" />
-        <span className="hidden md:inline">Lesson Planning</span>
-        <span className="md:hidden">Lesson</span>
+        <span className="hidden md:inline">{localize('com_lesson_planning_title')}</span>
+        <span className="md:hidden">{localize('com_lesson_planning_short_title')}</span>
       </button>
       <OGDialog open={isOpen} onOpenChange={handleOpenChange}>
         <OGDialogContent
@@ -1480,7 +1637,7 @@ function LessonPlanningLauncher({
           <OGDialogHeader>
             <OGDialogTitle className="flex items-center gap-2 text-xl text-text-primary">
               <BookOpen className="h-5 w-5 text-sky-500" aria-hidden="true" />
-              Lesson Planning
+              {localize('com_lesson_planning_title')}
             </OGDialogTitle>
           </OGDialogHeader>
           {wizardBody}

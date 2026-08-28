@@ -1051,6 +1051,26 @@ export const useAcceptTermsMutation = (
   });
 };
 
+export const useCompleteOnboardingTourMutation = (
+  userId?: string,
+): UseMutationResult<t.TCompleteOnboardingTourResponse, unknown, void, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation(() => dataService.completeOnboardingTour(), {
+    mutationKey: [MutationKeys.completeOnboardingTour],
+    onSuccess: () => {
+      queryClient.setQueryData<t.TUser>([QueryKeys.user], (user) =>
+        user == null ? user : { ...user, onboardingTourCompleted: true },
+      );
+      if (userId != null) {
+        queryClient.setQueryData<t.TOnboardingTourStatusResponse>(
+          [QueryKeys.userOnboarding, userId],
+          { completed: true },
+        );
+      }
+    },
+  });
+};
+
 export const useCreateProjectMutation = (
   options?: t.MutationOptions<t.TProject, t.TCreateProjectRequest>,
 ): UseMutationResult<t.TProject, unknown, t.TCreateProjectRequest, unknown> => {

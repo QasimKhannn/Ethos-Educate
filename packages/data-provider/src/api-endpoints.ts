@@ -501,6 +501,9 @@ export const addTagToConversation = (conversationId: string) =>
 
 export const userTerms = () => `${BASE_URL}/api/user/terms`;
 export const acceptUserTerms = () => `${BASE_URL}/api/user/terms/accept`;
+
+export const userOnboarding = () => `${BASE_URL}/api/user/onboarding`;
+export const completeOnboardingTour = () => `${BASE_URL}/api/user/onboarding/complete`;
 export const banner = () => `${BASE_URL}/api/banner`;
 
 // Message Feedback

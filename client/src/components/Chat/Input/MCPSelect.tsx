@@ -80,6 +80,10 @@ function MCPSelectContent() {
     }
     return localize('com_ui_x_selected', { 0: selectedCount });
   }, [selectedCount, selectedServers, localize]);
+  const mobileDisplayText =
+    selectedCount > 0
+      ? localize('com_ui_x_selected', { 0: selectedCount })
+      : localize('com_ui_tools');
 
   if (!isPinned && selectedCount === 0 && !hasInitializingServer) {
     return null;
@@ -107,6 +111,9 @@ function MCPSelectContent() {
           }
         >
           <StackedMCPIcons selectedServers={selectedServers} maxIcons={3} iconSize="sm" />
+          <span className="max-w-[5.5rem] truncate text-text-primary md:hidden">
+            {mobileDisplayText}
+          </span>
           <span className="hidden truncate text-text-primary md:block">
             {displayText || placeholderText}
           </span>
@@ -130,18 +137,26 @@ function MCPSelectContent() {
             'scale-95 data-[leave]:scale-95 data-[leave]:opacity-0',
           )}
         >
-          <div className="flex max-h-[320px] flex-col gap-1 overflow-y-auto">
-            {visibleSelectableServers.map((server) => (
-              <MCPServerMenuItem
-                key={server.serverName}
-                server={server}
-                isSelected={mcpValues?.includes(server.serverName) ?? false}
-                connectionStatus={connectionStatus}
-                isInitializing={isInitializing}
-                statusIconProps={getServerStatusIconProps(server.serverName)}
-                onToggle={handleToggle}
+          <div className="relative">
+            <div className="flex max-h-[320px] flex-col gap-1 overflow-y-auto">
+              {visibleSelectableServers.map((server) => (
+                <MCPServerMenuItem
+                  key={server.serverName}
+                  server={server}
+                  isSelected={mcpValues?.includes(server.serverName) ?? false}
+                  connectionStatus={connectionStatus}
+                  isInitializing={isInitializing}
+                  statusIconProps={getServerStatusIconProps(server.serverName)}
+                  onToggle={handleToggle}
+                />
+              ))}
+            </div>
+            {visibleSelectableServers.length > 4 ? (
+              <span
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-presentation to-transparent"
+                aria-hidden="true"
               />
-            ))}
+            ) : null}
           </div>
         </Ariakit.Menu>
       </Ariakit.MenuProvider>
@@ -169,12 +184,7 @@ function MCPSelect() {
     [selectableServers],
   );
 
-  if (
-    !canUseMcp ||
-    !selectableServers ||
-    selectableServers.length === 0 ||
-    !hasVisibleServers
-  ) {
+  if (!canUseMcp || !selectableServers || selectableServers.length === 0 || !hasVisibleServers) {
     return null;
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import type { ContextType } from '~/common';
 import {
@@ -15,7 +15,12 @@ import {
   SetConvoProvider,
   FileMapContext,
 } from '~/Providers';
-import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
+import {
+  useUserTermsQuery,
+  useGetStartupConfig,
+  useCompleteOnboardingTourMutation,
+  useOnboardingTourStatusQuery,
+} from '~/data-provider';
 import { Nav, MobileNav } from '~/components/Nav';
 import FirstLoginTour from '~/components/Onboarding/FirstLoginTour';
 import { TermsAndConditionsModal } from '~/components/ui';
@@ -37,14 +42,12 @@ export default function Root() {
   const location = useLocation();
   const isCoworkRoute = location.pathname.startsWith('/cowork');
   const onboardingStorageKey = useMemo(() => {
-    const identifier = user?.id ?? user?.email ?? user?.username;
-
-    if (!identifier) {
+    if (!user?.id) {
       return null;
     }
 
-    return `first-login-tour:v1:${identifier}`;
-  }, [user?.email, user?.id, user?.username]);
+    return `first-login-tour:v2:${user.id}`;
+  }, [user?.id]);
 
   // Global health check - runs once per authenticated session
   useHealthCheck(backendQueriesEnabled);
@@ -53,10 +56,28 @@ export default function Root() {
   const agentsMap = useAgentsMap({ isAuthenticated: backendQueriesEnabled });
   const fileMap = useFileMap({ isAuthenticated: backendQueriesEnabled });
 
-  const { data: config } = useGetStartupConfig();
-  const { data: termsData } = useUserTermsQuery({
-    enabled: backendQueriesEnabled && config?.interface?.termsOfService?.modalAcceptance === true,
+  const { data: config, isFetched: isStartupConfigFetched } = useGetStartupConfig();
+  const { mutate: completeOnboardingTour } = useCompleteOnboardingTourMutation(user?.id);
+  const handleCompleteOnboardingTour = useCallback(() => {
+    completeOnboardingTour();
+  }, [completeOnboardingTour]);
+  const termsModalEnabled = config?.interface?.termsOfService?.modalAcceptance === true;
+  const { data: onboardingData, isFetched: isOnboardingFetched } = useOnboardingTourStatusQuery(
+    user?.id,
+    {
+      enabled: backendQueriesEnabled,
+    },
+  );
+  const { data: termsData, isFetched: isTermsFetched } = useUserTermsQuery({
+    enabled: backendQueriesEnabled && termsModalEnabled,
   });
+  const hasUnacceptedTerms = termsModalEnabled && termsData?.termsAccepted === false;
+  const isOnboardingReady =
+    isStartupConfigFetched &&
+    isOnboardingFetched &&
+    onboardingData != null &&
+    (!termsModalEnabled || (isTermsFetched && termsData != null)) &&
+    onboardingStorageKey != null;
 
   useSearchEnabled(backendQueriesEnabled);
 
@@ -115,7 +136,12 @@ export default function Root() {
                   </div>
                 </div>
                 {onboardingStorageKey != null && (
-                  <FirstLoginTour disabled={showTerms} storageKey={onboardingStorageKey} />
+                  <FirstLoginTour
+                    completed={onboardingData?.completed === true}
+                    disabled={showTerms || hasUnacceptedTerms || !isOnboardingReady}
+                    onComplete={handleCompleteOnboardingTour}
+                    storageKey={onboardingStorageKey}
+                  />
                 )}
               </div>
             </PromptGroupsProvider>

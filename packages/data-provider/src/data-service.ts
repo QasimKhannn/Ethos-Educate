@@ -670,6 +670,15 @@ export const getFileDownload = async (userId: string, file_id: string): Promise<
   });
 };
 
+export const getFilePreview = async (userId: string, file_id: string): Promise<AxiosResponse> => {
+  return request.getResponse(`${endpoints.files()}/view/${userId}/${file_id}`, {
+    responseType: 'blob',
+    headers: {
+      Accept: 'image/*',
+    },
+  });
+};
+
 export const getCodeOutputDownload = async (url: string): Promise<AxiosResponse> => {
   return request.getResponse(url, {
     responseType: 'blob',
@@ -1479,6 +1488,14 @@ export function getUserTerms(): Promise<t.TUserTermsResponse> {
 
 export function acceptTerms(): Promise<t.TAcceptTermsResponse> {
   return request.post(endpoints.acceptUserTerms());
+}
+
+export function getOnboardingTourStatus(): Promise<t.TOnboardingTourStatusResponse> {
+  return request.get(endpoints.userOnboarding());
+}
+
+export function completeOnboardingTour(): Promise<t.TCompleteOnboardingTourResponse> {
+  return request.post(endpoints.completeOnboardingTour());
 }
 
 export function getBanner(): Promise<t.TBannerResponse> {

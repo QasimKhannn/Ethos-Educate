@@ -1,4 +1,5 @@
 const express = require('express');
+const { Readable } = require('stream');
 const request = require('supertest');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
@@ -9,6 +10,7 @@ const {
   ResourceType,
   AccessRoleIds,
   PrincipalType,
+  FileSources,
 } = require('librechat-data-provider');
 const { createAgent } = require('~/models/Agent');
 const { createFile } = require('~/models');
@@ -53,6 +55,7 @@ jest.mock('~/config', () => ({
 }));
 
 const { processDeleteRequest } = require('~/server/services/Files/process');
+const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 
 // Import the router after mocks
 const router = require('./files');
@@ -102,7 +105,7 @@ describe('File Routes - Delete with Agent Access', () => {
 
     app.use((req, res, next) => {
       req.user = {
-        id: otherUserId || 'default-user',
+        id: otherUserId?.toString() || 'default-user',
         role: SystemRoles.USER,
       };
       req.app = { locals: {} };
@@ -166,6 +169,39 @@ describe('File Routes - Delete with Agent Access', () => {
       filepath: '/uploads/test.txt',
       bytes: 100,
       type: 'text/plain',
+    });
+  });
+
+  describe('GET /files/view/:userId/:file_id', () => {
+    it('streams an owned image inline through the authenticated file route', async () => {
+      const imageFileId = uuidv4();
+      await createFile({
+        user: otherUserId,
+        file_id: imageFileId,
+        filename: 'generated-image.png',
+        filepath: '/uploads/generated-image.png',
+        bytes: 4,
+        source: FileSources.local,
+        type: 'image/png',
+      });
+
+      getStrategyFunctions.mockImplementationOnce(() => ({
+        getDownloadStream: jest.fn(async () => Readable.from(Buffer.from('test'))),
+      }));
+
+      const response = await request(app)
+        .get(`/files/view/${otherUserId}/${imageFileId}`)
+        .buffer(true)
+        .parse((res, callback) => {
+          const chunks = [];
+          res.on('data', (chunk) => chunks.push(chunk));
+          res.on('end', () => callback(null, Buffer.concat(chunks)));
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('image/png');
+      expect(response.headers['content-disposition']).toContain('inline;');
+      expect(response.body).toEqual(Buffer.from('test'));
     });
   });
 

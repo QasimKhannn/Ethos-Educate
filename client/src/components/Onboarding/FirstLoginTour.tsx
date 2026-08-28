@@ -183,6 +183,9 @@ const readTourStepTarget = (step: TourStepConfig) =>
   readStepTarget(step.selector) ??
   (step.fallbackSelector != null ? readStepTarget(step.fallbackSelector) : null);
 
+const readOpeningTarget = (step: TourStepConfig) =>
+  step.openEvent != null ? readStepTarget(step.selector) : readTourStepTarget(step);
+
 const dispatchTourEvent = (eventName: string | undefined) => {
   if (eventName == null) {
     return;
@@ -389,12 +392,6 @@ const matchesTourScreen = (pathname: string, screen: TourScreen) =>
 const getPathForTourScreen = (screen: TourScreen) =>
   screen === 'marketplace' ? '/agents' : '/c/new';
 
-const isTourOwnedMutation = (mutation: MutationRecord) => {
-  const target = mutation.target;
-
-  return target instanceof Element && target.closest('.first-login-tour') != null;
-};
-
 const isRectInViewport = (rect: DOMRect) =>
   rect.top >= 16 &&
   rect.left >= 16 &&
@@ -403,6 +400,8 @@ const isRectInViewport = (rect: DOMRect) =>
 
 type FirstLoginTourProps = {
   disabled?: boolean;
+  completed?: boolean;
+  onComplete?: () => void;
   storageKey: string;
 };
 
@@ -417,7 +416,12 @@ const readStoredProgress = (storageKey: string) => {
   return clamp(parsedValue, 0, TOUR_STEPS.length);
 };
 
-export default function FirstLoginTour({ disabled = false, storageKey }: FirstLoginTourProps) {
+export default function FirstLoginTour({
+  completed = false,
+  disabled = false,
+  onComplete,
+  storageKey,
+}: FirstLoginTourProps) {
   const localize = useLocalize();
   const location = useLocation();
   const navigate = useNavigate();
@@ -425,7 +429,11 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
   const spotlightMaskId = useId().replace(/:/g, '');
   const cardRef = useRef<HTMLDivElement>(null);
   const layoutFrameRef = useRef<number | null>(null);
+  const transitionTimeoutsRef = useRef(new Set<number>());
+  const isTransitioningRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [completedLocally, setCompletedLocally] = useState(completed);
   const [currentIndex, setCurrentIndex] = useState(() =>
     readStoredProgress(`${storageKey}:progress`),
   );
@@ -455,6 +463,28 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
     [],
   );
 
+  const cancelPendingTransitions = useCallback(() => {
+    transitionTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    transitionTimeoutsRef.current.clear();
+    isTransitioningRef.current = false;
+  }, []);
+
+  const scheduleTransition = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = window.setTimeout(() => {
+      transitionTimeoutsRef.current.delete(timeoutId);
+      callback();
+    }, delay);
+
+    transitionTimeoutsRef.current.add(timeoutId);
+  }, []);
+
+  const finishTransition = useCallback(() => {
+    isTransitioningRef.current = false;
+    setIsTransitioning(false);
+  }, []);
+
+  useEffect(() => cancelPendingTransitions, [cancelPendingTransitions]);
+
   const persistProgress = useCallback(
     (nextIndex: number) => {
       const safeIndex = clamp(nextIndex, 0, TOUR_STEPS.length);
@@ -466,16 +496,41 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
   );
 
   const markComplete = useCallback(() => {
+    cancelPendingTransitions();
     closeAllTourPreviews();
+    setCompletedLocally(true);
     localStorage.setItem(completionStorageKey, JSON.stringify(true));
     localStorage.setItem('newUser', JSON.stringify(false));
     window.dispatchEvent(new StorageEvent('storage', { key: completionStorageKey }));
     window.dispatchEvent(new StorageEvent('storage', { key: 'newUser' }));
     setIsOpen(false);
-  }, [completionStorageKey]);
+    setIsTransitioning(false);
+    onComplete?.();
+  }, [cancelPendingTransitions, completionStorageKey, onComplete]);
+
+  useEffect(() => {
+    setCompletedLocally(completed);
+
+    if (disabled || completed) {
+      return;
+    }
+
+    // The server is authoritative for completion. If an account is reset after
+    // finishing the tour, discard only its stale terminal browser progress so
+    // the tour can begin again instead of immediately marking itself complete.
+    if (localStorage.getItem(completionStorageKey) === JSON.stringify(true)) {
+      localStorage.removeItem(completionStorageKey);
+      localStorage.setItem(progressStorageKey, '0');
+      setCurrentIndex(0);
+    }
+  }, [completed, completionStorageKey, disabled, progressStorageKey]);
 
   const moveToStep = useCallback(
     (targetIndex: number) => {
+      if (isTransitioningRef.current) {
+        return;
+      }
+
       const safeIndex = clamp(targetIndex, 0, TOUR_STEPS.length);
 
       if (safeIndex >= TOUR_STEPS.length) {
@@ -483,78 +538,71 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
         return;
       }
 
+      if (safeIndex === currentIndex) {
+        return;
+      }
+
       const nextStep = TOUR_STEPS[safeIndex];
       closeTourPreview(currentStep);
+      isTransitioningRef.current = true;
+      setIsTransitioning(true);
+      setIsOpen(false);
 
       const shouldClosePanelFirst =
         isSidepanelExpandedStep(currentStep) && !isSidepanelExpandedStep(nextStep);
       const shouldCloseNavFirst = isNavExpandedStep(currentStep) && !isNavExpandedStep(nextStep);
       const shouldNavigate = !matchesTourScreen(location.pathname, nextStep.screen);
 
-      if (shouldClosePanelFirst) {
-        window.dispatchEvent(new CustomEvent('sidepanel-tour-close'));
-        setIsOpen(false);
+      const commitStep = () => {
+        persistProgress(safeIndex);
 
-        window.setTimeout(() => {
-          persistProgress(safeIndex);
+        if (shouldNavigate) {
+          scheduleTransition(() => {
+            navigate(getPathForTourScreen(nextStep.screen), { replace: true });
+            finishTransition();
+          }, SCREEN_SWITCH_DELAY);
+          return;
+        }
 
-          if (shouldNavigate) {
-            window.setTimeout(() => {
-              navigate(getPathForTourScreen(nextStep.screen), { replace: true });
-            }, SCREEN_SWITCH_DELAY);
-            return;
-          }
+        finishTransition();
+      };
 
-          requestLayoutUpdate();
-          setIsOpen(true);
-        }, 220);
+      if (shouldClosePanelFirst || shouldCloseNavFirst) {
+        if (shouldClosePanelFirst) {
+          window.dispatchEvent(new CustomEvent('sidepanel-tour-close'));
+        }
+        if (shouldCloseNavFirst) {
+          window.dispatchEvent(new CustomEvent('nav-tour-close'));
+        }
 
+        scheduleTransition(commitStep, 220);
         return;
       }
 
-      if (shouldCloseNavFirst) {
-        window.dispatchEvent(new CustomEvent('nav-tour-close'));
-        setIsOpen(false);
-
-        window.setTimeout(() => {
-          persistProgress(safeIndex);
-
-          if (shouldNavigate) {
-            window.setTimeout(() => {
-              navigate(getPathForTourScreen(nextStep.screen), { replace: true });
-            }, SCREEN_SWITCH_DELAY);
-            return;
-          }
-
-          requestLayoutUpdate();
-          setIsOpen(true);
-        }, 220);
-
-        return;
-      }
-
-      persistProgress(safeIndex);
-
-      if (shouldNavigate) {
-        setIsOpen(false);
-        window.setTimeout(() => {
-          navigate(getPathForTourScreen(nextStep.screen), { replace: true });
-        }, SCREEN_SWITCH_DELAY);
-      }
+      commitStep();
     },
-    [currentStep, location.pathname, markComplete, navigate, persistProgress, requestLayoutUpdate],
+    [
+      currentIndex,
+      currentStep,
+      finishTransition,
+      location.pathname,
+      markComplete,
+      navigate,
+      persistProgress,
+      scheduleTransition,
+    ],
   );
 
   useEffect(() => {
-    if (disabled) {
+    if (disabled || completedLocally) {
+      cancelPendingTransitions();
       closeAllTourPreviews();
       setIsOpen(false);
+      setIsTransitioning(false);
       return;
     }
 
-    if (localStorage.getItem(completionStorageKey) === JSON.stringify(true)) {
-      closeAllTourPreviews();
-      setIsOpen(false);
+    if (!completed && currentIndex >= TOUR_STEPS.length) {
       return;
     }
 
@@ -563,32 +611,17 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
       return;
     }
 
-    const currentStep = TOUR_STEPS[currentIndex];
-
+    const step = TOUR_STEPS[currentIndex];
     let attempts = 0;
     let timeoutId: number | null = null;
+    let cancelled = false;
 
-    const tryOpen = () => {
-      if (!matchesTourScreen(location.pathname, currentStep.screen)) {
-        setIsOpen(false);
+    const findTarget = () => {
+      if (cancelled || !matchesTourScreen(location.pathname, step.screen)) {
         return;
       }
 
-      if (isNavExpandedStep(currentStep)) {
-        window.dispatchEvent(new CustomEvent('nav-tour-open'));
-      } else {
-        window.dispatchEvent(new CustomEvent('nav-tour-close'));
-      }
-
-      if (isSidepanelExpandedStep(currentStep)) {
-        window.dispatchEvent(new CustomEvent('sidepanel-tour-open'));
-      } else {
-        window.dispatchEvent(new CustomEvent('sidepanel-tour-close'));
-      }
-
-      dispatchTourEvent(currentStep.openEvent);
-
-      const element = readTourStepTarget(currentStep);
+      const element = readOpeningTarget(step);
 
       if (element != null) {
         requestLayoutUpdate();
@@ -597,30 +630,63 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
       }
 
       if (attempts >= OPEN_RETRY_LIMIT) {
-        moveToStep(currentIndex + 1);
+        const fallback =
+          step.fallbackSelector != null ? readStepTarget(step.fallbackSelector) : null;
+
+        if (fallback != null) {
+          requestLayoutUpdate();
+          setIsOpen(true);
+        }
         return;
       }
 
       attempts += 1;
-      timeoutId = window.setTimeout(tryOpen, OPEN_RETRY_DELAY);
+      timeoutId = window.setTimeout(findTarget, OPEN_RETRY_DELAY);
     };
 
-    timeoutId = window.setTimeout(tryOpen, 280);
+    const startStep = () => {
+      if (cancelled || !matchesTourScreen(location.pathname, step.screen)) {
+        return;
+      }
+
+      if (isNavExpandedStep(step)) {
+        window.dispatchEvent(new CustomEvent('nav-tour-open'));
+      } else {
+        window.dispatchEvent(new CustomEvent('nav-tour-close'));
+      }
+
+      if (isSidepanelExpandedStep(step)) {
+        window.dispatchEvent(new CustomEvent('sidepanel-tour-open'));
+      } else {
+        window.dispatchEvent(new CustomEvent('sidepanel-tour-close'));
+      }
+
+      timeoutId = window.setTimeout(() => {
+        if (cancelled) {
+          return;
+        }
+
+        dispatchTourEvent(step.openEvent);
+        findTarget();
+      }, SCREEN_SWITCH_DELAY);
+    };
+
+    timeoutId = window.setTimeout(startStep, 280);
 
     return () => {
+      cancelled = true;
       if (timeoutId != null) {
         window.clearTimeout(timeoutId);
       }
-      closeTourPreview(currentStep);
     };
   }, [
-    completionStorageKey,
+    cancelPendingTransitions,
+    completed,
+    completedLocally,
     currentIndex,
     disabled,
     location.pathname,
     markComplete,
-    moveToStep,
-    navigate,
     requestLayoutUpdate,
   ]);
 
@@ -631,28 +697,11 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
 
     const handleResize = () => requestLayoutUpdate();
     const handleScroll = () => requestLayoutUpdate();
-    const observer = new MutationObserver((mutations) => {
-      if (mutations.every(isTourOwnedMutation)) {
-        return;
-      }
-
-      requestLayoutUpdate();
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: [
-        'class',
-        'style',
-        'data-tour-id',
-        'data-tour-padding',
-        'data-tour-radius',
-        'data-tour-offset-x',
-        'data-tour-offset-y',
-      ],
-    });
+    const observer = new ResizeObserver(requestLayoutUpdate);
+    const target = currentStep != null ? readTourStepTarget(currentStep) : null;
+    if (target != null) {
+      observer.observe(target);
+    }
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleScroll, true);
@@ -662,19 +711,7 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [isOpen, requestLayoutUpdate]);
-
-  useEffect(() => {
-    if (!isOpen || currentStep == null || currentStep.openEvent == null) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      dispatchTourEvent(currentStep.openEvent);
-    }, 120);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [currentIndex, currentStep, isOpen]);
+  }, [currentStep, isOpen, requestLayoutUpdate]);
 
   const currentElement = useMemo(
     () => (currentStep != null ? readTourStepTarget(currentStep) : null),
@@ -897,11 +934,16 @@ export default function FirstLoginTour({ disabled = false, storageKey }: FirstLo
               onClick={() => {
                 moveToStep(clamp(currentIndex - 1, 0, TOUR_STEPS.length - 1));
               }}
-              disabled={currentIndex === 0}
+              disabled={currentIndex === 0 || isTransitioning}
             >
               {localize('com_ui_back')}
             </button>
-            <button type="button" className="first-login-tour-primary" onClick={handleNext}>
+            <button
+              type="button"
+              className="first-login-tour-primary"
+              onClick={handleNext}
+              disabled={isTransitioning}
+            >
               {currentIndex === TOUR_STEPS.length - 1
                 ? localize('com_ui_done')
                 : localize('com_ui_next')}
