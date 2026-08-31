@@ -3,6 +3,7 @@ export * from './context';
 export * from './documents/crud';
 export * from './encode';
 export * from './filter';
+export * from './generatedDocuments';
 export * from './mistral/crud';
 export * from './ocr';
 export * from './parse';

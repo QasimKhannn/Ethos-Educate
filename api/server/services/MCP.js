@@ -34,6 +34,7 @@ const { reinitMCPServer } = require('./Tools/mcp');
 const { getAppConfig } = require('./Config');
 const { isSharedAppMCPServer } = require('./Config/mcp');
 const { getLogStores } = require('~/cache');
+const { persistGeneratedDocuments } = require('./MCPGeneratedDocuments');
 const { ERROR_CODES, createToolErrorOutput } = require('~/server/utils/errorResponse');
 
 function isEmptyObjectSchema(jsonSchema) {
@@ -191,6 +192,7 @@ function createOAuthCallback({ runStepEmitter, runStepDeltaEmitter }) {
 
 /**
  * @param {Object} params
+ * @param {Express.Request} [params.req] - The Express request that created the tools.
  * @param {ServerResponse} params.res - The Express response object for sending events.
  * @param {IUser} params.user - The user from the request object.
  * @param {string} params.serverName
@@ -299,6 +301,7 @@ async function reconnectServer({
  * @returns { Promise<Array<typeof tool | { _call: (toolInput: Object | string) => unknown}>> } An object with `_call` method to execute the tool input.
  */
 async function createMCPTools({
+  req,
   res,
   user,
   index,
@@ -340,6 +343,7 @@ async function createMCPTools({
   const serverTools = [];
   for (const tool of result.tools) {
     const toolInstance = await createMCPTool({
+      req,
       res,
       user,
       provider,
@@ -360,6 +364,7 @@ async function createMCPTools({
 /**
  * Creates a single tool from the specified MCP Server via `toolKey`.
  * @param {Object} params
+ * @param {Express.Request} [params.req] - The Express request that created the tool.
  * @param {ServerResponse} params.res - The Express response object for sending events.
  * @param {IUser} params.user - The user from the request object.
  * @param {string} params.toolKey - The toolKey for the tool.
@@ -374,6 +379,7 @@ async function createMCPTools({
  * @returns { Promise<typeof tool | { _call: (toolInput: Object | string) => unknown}> } An object with `_call` method to execute the tool input.
  */
 async function createMCPTool({
+  req,
   res,
   user,
   index,
@@ -425,6 +431,7 @@ async function createMCPTool({
   }
 
   return createToolInstance({
+    req,
     res,
     provider,
     toolName,
@@ -435,6 +442,7 @@ async function createMCPTool({
 }
 
 function createToolInstance({
+  req,
   res,
   toolName,
   serverName,
@@ -525,13 +533,24 @@ function createToolInstance({
         graphTokenResolver: getGraphApiToken,
       });
 
-      if (isAssistantsEndpoint(provider) && Array.isArray(result)) {
-        return result[0];
+      const managedResult = await persistGeneratedDocuments({
+        req,
+        serverName,
+        response: result,
+        requestBody: config?.configurable?.requestBody,
+      });
+
+      if (isAssistantsEndpoint(provider) && Array.isArray(managedResult)) {
+        return managedResult[0];
       }
-      if (isGoogle && Array.isArray(result[0]) && result[0][0]?.type === ContentTypes.TEXT) {
-        return [result[0][0].text, result[1]];
+      if (
+        isGoogle &&
+        Array.isArray(managedResult[0]) &&
+        managedResult[0][0]?.type === ContentTypes.TEXT
+      ) {
+        return [managedResult[0][0].text, managedResult[1]];
       }
-      return result;
+      return managedResult;
     } catch (error) {
       logger.error(
         `[MCP][${serverName}][${toolName}][User: ${userId}] Error calling MCP tool:`,
@@ -683,11 +702,12 @@ async function getServerConnectionStatus(
   const hasCachedSharedTools =
     isSharedAppMCPServer(config) && Object.keys(config.toolFunctions ?? {}).length > 0;
 
-  const baseConnectionState = !isStaleOrDoNotExist
-    ? connection?.connectionState || 'disconnected'
-    : hasCachedSharedTools
-      ? 'connected'
-      : 'disconnected';
+  let baseConnectionState = 'disconnected';
+  if (!isStaleOrDoNotExist) {
+    baseConnectionState = connection?.connectionState || 'disconnected';
+  } else if (hasCachedSharedTools) {
+    baseConnectionState = 'connected';
+  }
   let finalConnectionState = baseConnectionState;
 
   // connection state overrides specific to OAuth servers

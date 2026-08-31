@@ -1,8 +1,8 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
-import { useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
-import { QueryKeys, EModelEndpoint, PermissionBits } from 'librechat-data-provider';
+import { Constants, QueryKeys, EModelEndpoint, PermissionBits } from 'librechat-data-provider';
 import type {
   AgentListResponse,
   TEndpointsConfig,
@@ -61,6 +61,7 @@ export default function useQueryParams({
 
   const methods = useChatFormContext();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { conversationId } = useParams();
   const getDefaultConversation = useDefaultConvo();
   const modularChat = useRecoilValue(store.modularChat);
   const availableTools = useRecoilValue(store.availableTools);
@@ -76,6 +77,16 @@ export default function useQueryParams({
     }
     return params;
   }, [searchParams]);
+  const getPersistentChatParams = useCallback(() => {
+    const params = getProjectOnlyParams();
+    const agentId = searchParams.get('agent_id');
+
+    if (conversationId === Constants.NEW_CONVO && agentId) {
+      params.set('agent_id', agentId);
+    }
+
+    return params;
+  }, [conversationId, getProjectOnlyParams, searchParams]);
   const getProjectConversationTemplate = useCallback((): Partial<TConversation> => {
     const projectId = searchParams.get('projectId') || conversation?.projectId;
     if (!projectId) {
@@ -253,11 +264,15 @@ export default function useQueryParams({
       }
     })();
 
-    setSearchParams(getProjectOnlyParams(), { replace: true });
-  }, [methods, submitMessage, setSearchParams, getProjectOnlyParams]);
+    setSearchParams(getPersistentChatParams(), { replace: true });
+  }, [methods, submitMessage, setSearchParams, getPersistentChatParams]);
 
   useEffect(() => {
     const processQueryParams = () => {
+      if (conversationId !== Constants.NEW_CONVO) {
+        return { decodedPrompt: '', validSettings: {}, shouldAutoSubmit: false };
+      }
+
       const queryParams: Record<string, string> = {};
       searchParams.forEach((value, key) => {
         queryParams[key] = value;
@@ -309,7 +324,7 @@ export default function useQueryParams({
 
         // Defer URL cleanup until after submission completes (processSubmission handles it)
         if (!pendingSubmitRef.current) {
-          setSearchParams(getProjectOnlyParams(), { replace: true });
+          setSearchParams(getPersistentChatParams(), { replace: true });
         }
       };
 
@@ -371,6 +386,7 @@ export default function useQueryParams({
     };
   }, [
     searchParams,
+    conversationId,
     methods,
     textAreaRef,
     newQueryConvo,
@@ -378,7 +394,7 @@ export default function useQueryParams({
     submitMessage,
     setSearchParams,
     queryClient,
-    getProjectOnlyParams,
+    getPersistentChatParams,
     processSubmission,
     areSettingsApplied,
   ]);

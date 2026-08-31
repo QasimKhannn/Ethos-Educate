@@ -78,6 +78,14 @@ const file: Schema<IMongoFile> = new Schema(
       type: Date,
       expires: 3600, // 1 hour in seconds
     },
+    /**
+     * Used for generated assets that must be removed from both metadata and
+     * the configured file store. This intentionally has no Mongo TTL index.
+     */
+    retentionExpiresAt: {
+      type: Date,
+      index: true,
+    },
   },
   {
     timestamps: true,

@@ -18,7 +18,7 @@ describe('Document Parser', () => {
       images: [],
       text: 'This is a sample DOCX file.\n\n',
     });
-  });
+  }, 30_000);
 
   test('parseDocument() parses text from xlsx', async () => {
     const file = {

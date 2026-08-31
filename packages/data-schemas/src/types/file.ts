@@ -23,6 +23,8 @@ export interface IMongoFile extends Omit<Document, 'model'> {
     fileIdentifier?: string;
   };
   expiresAt?: Date;
+  /** Application-managed retention for generated assets. Unlike expiresAt, this is cleaned from storage too. */
+  retentionExpiresAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

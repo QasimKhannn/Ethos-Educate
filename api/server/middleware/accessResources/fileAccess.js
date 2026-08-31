@@ -1,8 +1,30 @@
 const { logger } = require('@librechat/data-schemas');
-const { PermissionBits, hasPermissions, ResourceType } = require('librechat-data-provider');
+const {
+  FileContext,
+  PermissionBits,
+  hasPermissions,
+  ResourceType,
+} = require('librechat-data-provider');
 const { getEffectivePermissions } = require('~/server/services/PermissionService');
 const { getAgents } = require('~/models/Agent');
 const { getFiles } = require('~/models');
+const {
+  isExpiredGeneratedFile,
+  removeExpiredGeneratedFile,
+} = require('~/server/services/Files/GeneratedImageRetention');
+
+const rejectExpiredGeneratedFile = (req, res, file) => {
+  removeExpiredGeneratedFile(file, req.config).catch((error) => {
+    logger.error(`[fileAccess] Failed to remove expired generated file ${file.file_id}:`, error);
+  });
+  return res.status(410).json({
+    error: 'Gone',
+    message:
+      file.context === FileContext.generated_document
+        ? 'Document expired - generate a new copy.'
+        : 'This generated image expired after 7 days and is no longer available.',
+  });
+};
 
 /**
  * Checks if user has access to a file through agent permissions
@@ -93,6 +115,9 @@ const fileAccess = async (req, res, next) => {
     }
 
     if (file.user && file.user.toString() === userId) {
+      if (isExpiredGeneratedFile(file)) {
+        return rejectExpiredGeneratedFile(req, res, file);
+      }
       req.fileAccess = { file };
       return next();
     }
@@ -100,6 +125,9 @@ const fileAccess = async (req, res, next) => {
     /** Agent-based access (file inherits agent permissions) */
     const hasAgentAccess = await checkAgentBasedFileAccess({ userId, role: userRole, fileId });
     if (hasAgentAccess) {
+      if (isExpiredGeneratedFile(file)) {
+        return rejectExpiredGeneratedFile(req, res, file);
+      }
       req.fileAccess = { file };
       return next();
     }

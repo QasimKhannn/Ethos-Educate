@@ -229,6 +229,7 @@ describe('Conversation Operations', () => {
 
       const beforeSave = new Date();
       const result = await saveConvo(mockReq, mockConversationData);
+      const afterSave = new Date();
 
       expect(result.expiredAt).toBeDefined();
 
@@ -240,7 +241,7 @@ describe('Conversation Operations', () => {
         expectedExpirationTime.getTime() - 1000,
       );
       expect(actualExpirationTime.getTime()).toBeLessThanOrEqual(
-        expectedExpirationTime.getTime() + 1000,
+        new Date(afterSave.getTime() + 48 * 60 * 60 * 1000 + 1000).getTime(),
       );
     });
 
@@ -252,6 +253,7 @@ describe('Conversation Operations', () => {
 
       const beforeSave = new Date();
       const result = await saveConvo(mockReq, mockConversationData);
+      const afterSave = new Date();
 
       expect(result.expiredAt).toBeDefined();
 
@@ -263,7 +265,7 @@ describe('Conversation Operations', () => {
         expectedExpirationTime.getTime() - 1000,
       );
       expect(actualExpirationTime.getTime()).toBeLessThanOrEqual(
-        expectedExpirationTime.getTime() + 1000,
+        new Date(afterSave.getTime() + 1 * 60 * 60 * 1000 + 1000).getTime(),
       );
     });
 

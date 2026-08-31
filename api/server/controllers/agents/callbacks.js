@@ -15,6 +15,10 @@ const {
 } = require('~/server/services/Files/Code/process');
 const { loadAuthValues } = require('~/server/services/Tools/credentials');
 const { saveBase64Image } = require('~/server/services/Files/process');
+const {
+  isImageGenerationMcpTool,
+  getGeneratedImageRetentionExpiry,
+} = require('~/server/services/Files/GeneratedImageRetention');
 
 class ModelEndHandler {
   /**
@@ -362,6 +366,9 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
     if (output.artifact.content) {
       /** @type {FormattedContent[]} */
       const content = output.artifact.content;
+      const retentionExpiresAt = isImageGenerationMcpTool(output.name)
+        ? getGeneratedImageRetentionExpiry()
+        : undefined;
       for (let i = 0; i < content.length; i++) {
         const part = content[i];
         if (!part) {
@@ -381,6 +388,7 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
               filename,
               endpoint: metadata.provider,
               context: FileContext.image_generation,
+              retentionExpiresAt,
             });
             const fileMetadata = Object.assign(file, {
               messageId: metadata.run_id,
@@ -573,6 +581,9 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
     if (output.artifact.content) {
       /** @type {FormattedContent[]} */
       const content = output.artifact.content;
+      const retentionExpiresAt = isImageGenerationMcpTool(output.name)
+        ? getGeneratedImageRetentionExpiry()
+        : undefined;
       for (let i = 0; i < content.length; i++) {
         const part = content[i];
         if (!part) {
@@ -592,6 +603,7 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
               filename,
               endpoint: metadata.provider,
               context: FileContext.image_generation,
+              retentionExpiresAt,
             });
             const fileMetadata = Object.assign(file, {
               toolCallId: output.tool_call_id,

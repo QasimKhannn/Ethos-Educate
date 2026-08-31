@@ -16,11 +16,13 @@ import {
 } from 'librechat-data-provider';
 import type { TMessage, TPayload, TSubmission, EventSubmission } from 'librechat-data-provider';
 import type { EventHandlerParams } from './useEventHandlers';
+import type { GenerationStartedResponse } from './resumableNavigation';
 import { useGetStartupConfig, useGetUserBalance, queueTitleGeneration } from '~/data-provider';
 import { fetchStreamStatus } from '~/data-provider/SSE/queries';
 import type { ActiveJobsResponse } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useEventHandlers from './useEventHandlers';
+import { replacePendingConversationUrl } from './resumableNavigation';
 import store from '~/store';
 
 const clearDraft = (conversationId?: string | null) => {
@@ -423,13 +425,21 @@ export default function useResumableSSE(
 
             // Display the error to user via errorHandler
             errorHandler({
-              data: { text: errorString } as unknown as Parameters<typeof errorHandler>[0]['data'],
+              data: {
+                ...currentSubmission.initialResponse,
+                conversationId: currentStreamId,
+                text: errorString,
+              } as unknown as Parameters<typeof errorHandler>[0]['data'],
               submission: currentSubmission as EventSubmission,
             });
           } catch (parseError) {
             console.error('[ResumableSSE] Failed to parse server error:', parseError);
             errorHandler({
-              data: { text: e.data } as unknown as Parameters<typeof errorHandler>[0]['data'],
+              data: {
+                ...currentSubmission.initialResponse,
+                conversationId: currentStreamId,
+                text: e.data,
+              } as unknown as Parameters<typeof errorHandler>[0]['data'],
               submission: currentSubmission as EventSubmission,
             });
           }
@@ -666,7 +676,8 @@ export default function useResumableSSE(
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           // Use request.post which handles auth token refresh via axios interceptors
-          const data = (await request.post(url, payload)) as { streamId: string };
+          const data = (await request.post(url, payload)) as GenerationStartedResponse;
+          replacePendingConversationUrl(data);
           console.log('[ResumableSSE] Generation started:', { streamId: data.streamId });
           return data.streamId;
         } catch (error) {

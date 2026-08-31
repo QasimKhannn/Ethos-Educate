@@ -330,24 +330,6 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             {description}
           </motion.div>
         )}
-        {selectedToolGuide ? (
-          <motion.p
-            variants={softRevealVariants}
-            initial={shouldReduceMotion ? false : 'hidden'}
-            animate="visible"
-            transition={
-              shouldReduceMotion
-                ? { duration: 0 }
-                : {
-                    ...motionSpring,
-                    delay: 0.14,
-                  }
-            }
-            className="chat-landing-tool-context"
-          >
-            {localize('com_agents_toolkit_opened_tool', { name: selectedToolGuideName })}
-          </motion.p>
-        ) : null}
         <ConversationStarters />
       </div>
     </div>

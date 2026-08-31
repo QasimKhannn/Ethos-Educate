@@ -1,9 +1,11 @@
 import debounce from 'lodash/debounce';
 import { LocalStorageKeys } from 'librechat-data-provider';
 
-export const clearDraft = debounce((id?: string | null) => {
+export const removeDraft = (id?: string | null) => {
   localStorage.removeItem(`${LocalStorageKeys.TEXT_DRAFT}${id ?? ''}`);
-}, 2500);
+};
+
+export const clearDraft = debounce(removeDraft, 2500);
 
 export const encodeBase64 = (plainText: string): string => {
   try {

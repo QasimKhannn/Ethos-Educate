@@ -31,6 +31,7 @@ const initializeMCPs = require('./services/initializeMCPs');
 const configureSocialLogins = require('./socialLogins');
 const { applyAdminSsoEnvOverrides } = require('./services/SsoConfigService');
 const { getAppConfig } = require('./services/Config');
+const { startGeneratedFileRetentionCleanup } = require('./services/Files/GeneratedImageRetention');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const { seedDatabase } = require('~/models');
@@ -275,6 +276,9 @@ const startServer = async () => {
     }
 
     logStartup('Backend startup complete.');
+
+    startGeneratedFileRetentionCleanup(appConfig);
+    logStartup('Generated-file retention cleanup started.');
   });
 };
 

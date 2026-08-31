@@ -89,7 +89,7 @@ mcpServers:
 
       Response guidance:
       - Ethos stores each completed image in the conversation automatically.
-      - Do not output image Markdown, a raw URL, or a download link. Briefly confirm that the image is ready.
+      - Do not output image Markdown, a raw URL, or a download link. Briefly confirm that the image is ready and that it expires after one week.
       - Keep the response short.
       - If generation fails, do not show raw Azure errors, stack traces, model internals, or API details.
       - Give one clear next step such as retrying, simplifying the prompt, reducing the number of images, changing the prompt, or checking the Image Generation MCP configuration.
@@ -301,12 +301,11 @@ mcpServers:
       Simply describe what document you need and the tool will create it for you. Generated files are securely stored and accessible through download links.
 
 
-      **IMPORTANT - Download Link Format:**
-      - When presenting download links to users, ALWAYS display them as a clickable filename (e.g., "AI in 2050.docx")
-      - NEVER show the raw URL or include verbose descriptions with the link
-      - The link should appear as: [filename.extension](url) in markdown format
-      - Example: If the tool returns a link, present it simply as "Here's your document: [AI in 2050.docx](https://...)" or just "[AI in 2050.docx](https://...)"
-      - Do NOT say "Here's the download link" or "Here's the link" - just show the clickable filename directly
+      **Generated document availability:**
+      - Ethos securely stores generated documents for seven days.
+      - Use the clickable filename and the availability date returned by the tool.
+      - Never repeat a temporary source URL from tool output.
+      - After the document expires, tell the user: "Document expired - generate a new copy."
 
   Podcast_Audio:
     description: "Create MP3 podcast audio from text"

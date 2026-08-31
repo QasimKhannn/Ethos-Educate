@@ -12,7 +12,92 @@ const {
 const { disposeClient, clientRegistry, requestDataMap } = require('~/server/cleanup');
 const { handleAbortError } = require('~/server/middleware');
 const { logViolation } = require('~/cache');
-const { saveMessage } = require('~/models');
+const { saveConvo, saveMessage } = require('~/models');
+
+const SLOW_CHAT_REQUEST_MS = 3000;
+
+const createRequestTiming = ({ startedAt, streamId, conversationId, endpoint, agentId }) => {
+  const marks = {};
+
+  const mark = (name) => {
+    if (marks[name] == null) {
+      marks[name] = Date.now() - startedAt;
+    }
+  };
+
+  const log = (outcome, error) => {
+    mark('finished');
+
+    if (outcome === 'completed' && marks.finished < SLOW_CHAT_REQUEST_MS) {
+      return;
+    }
+
+    const timingDetails = {
+      agentId: agentId ?? null,
+      conversationId,
+      endpoint: endpoint ?? null,
+      errorName: error?.name ?? null,
+      marks,
+      outcome,
+      streamId,
+    };
+
+    logger.info(`[AgentChatTiming] ${JSON.stringify(timingDetails)}`);
+  };
+
+  return { log, mark };
+};
+
+const createPendingUserMessage = ({
+  text,
+  conversationId,
+  messageId,
+  parentMessageId,
+  isRegenerate,
+  isContinued,
+  editedContent,
+}) => {
+  if (!messageId || isRegenerate || isContinued || editedContent) {
+    return null;
+  }
+
+  return {
+    conversationId,
+    isCreatedByUser: true,
+    messageId,
+    parentMessageId: parentMessageId ?? Constants.NO_PARENT,
+    sender: 'User',
+    text,
+  };
+};
+
+const persistPendingUserMessage = async ({ req, endpointOption, conversationId, message }) => {
+  if (!message) {
+    return;
+  }
+
+  await saveMessage(req, message, {
+    context: 'api/server/controllers/agents/request.js - pending resumable user message',
+  });
+
+  const conversation = await saveConvo(
+    req,
+    {
+      agent_id: req.body.agent_id,
+      conversationId,
+      endpoint: endpointOption.endpoint,
+      endpointType: endpointOption.endpointType,
+      iconURL: endpointOption.iconURL,
+      model: endpointOption.modelOptions?.model ?? endpointOption.model_parameters?.model,
+      spec: endpointOption.spec,
+    },
+    { context: 'api/server/controllers/agents/request.js - pending resumable conversation' },
+  );
+
+  if (conversation?.message === 'Error saving conversation') {
+    throw new Error('Unable to persist pending conversation');
+  }
+};
 
 function createCloseHandler(abortController) {
   return function (manual) {
@@ -42,6 +127,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     isRegenerate,
     endpointOption,
     conversationId: reqConversationId,
+    messageId,
     isContinued = false,
     editedContent = null,
     parentMessageId = null,
@@ -50,6 +136,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
   } = req.body;
 
   const userId = req.user.id;
+  const requestStartedAt = Date.now();
 
   const { allowed, pendingRequests, limit } = await checkAndIncrementPendingRequest(userId);
   if (!allowed) {
@@ -63,6 +150,13 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
   const conversationId =
     !reqConversationId || reqConversationId === 'new' ? crypto.randomUUID() : reqConversationId;
   const streamId = conversationId;
+  const timing = createRequestTiming({
+    startedAt: requestStartedAt,
+    streamId,
+    conversationId,
+    endpoint: endpointOption.endpoint,
+    agentId: req.body.agent_id,
+  });
 
   let client = null;
 
@@ -75,12 +169,48 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     });
 
     const job = await GenerationJobManager.createJob(streamId, userId, conversationId);
+    timing.mark('jobCreated');
     const jobCreatedAt = job.createdAt; // Capture creation time to detect job replacement
     req._resumableStreamId = streamId;
 
     // Send JSON response IMMEDIATELY so client can connect to SSE stream
     // This is critical: tool loading (MCP OAuth) may emit events that the client needs to receive
     res.json({ streamId, conversationId, status: 'started' });
+    timing.mark('startResponseSent');
+
+    const pendingUserMessage = createPendingUserMessage({
+      text,
+      conversationId,
+      messageId,
+      parentMessageId,
+      isRegenerate,
+      isContinued,
+      editedContent,
+    });
+
+    if (pendingUserMessage) {
+      GenerationJobManager.updateMetadata(streamId, {
+        responseMessageId: editedResponseMessageId ?? `${pendingUserMessage.messageId}_`,
+        userMessage: {
+          conversationId,
+          messageId: pendingUserMessage.messageId,
+          parentMessageId: pendingUserMessage.parentMessageId,
+          text: pendingUserMessage.text,
+        },
+      });
+
+      try {
+        await persistPendingUserMessage({
+          req,
+          endpointOption,
+          conversationId,
+          message: pendingUserMessage,
+        });
+        timing.mark('pendingMessagePersisted');
+      } catch (error) {
+        logger.error('[ResumableAgentController] Unable to persist pending user message:', error);
+      }
+    }
 
     // Note: We no longer use res.on('close') to abort since we send JSON immediately.
     // The response closes normally after res.json(), which is not an abort condition.
@@ -146,6 +276,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     });
 
     /** @type {{ client: TAgentClient; userMCPAuthMap?: Record<string, Record<string, string>> }} */
+    timing.mark('clientInitializationStarted');
     const result = await initializeClient({
       req,
       res,
@@ -153,10 +284,12 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       // Use the job's abort controller signal - allows abort via GenerationJobManager.abortJob()
       signal: job.abortController.signal,
     });
+    timing.mark('clientInitialized');
 
     if (job.abortController.signal.aborted) {
       await GenerationJobManager.completeJob(streamId, 'Request aborted during initialization');
       await decrementPendingRequest(userId);
+      timing.log('aborted');
       return;
     }
 
@@ -206,6 +339,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
               text: userMsg.text,
             },
           });
+          timing.mark('messageCreated');
 
           GenerationJobManager.emitChunk(streamId, {
             created: true,
@@ -238,7 +372,9 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
           },
         };
 
+        timing.mark('generationStarted');
         const response = await client.sendMessage(text, messageOptions);
+        timing.mark('generationCompleted');
 
         const messageId = response.messageId;
         const endpoint = endpointOption.endpoint;
@@ -324,6 +460,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
           await GenerationJobManager.emitDone(streamId, finalEvent);
           await GenerationJobManager.completeJob(streamId, undefined, { retainForRecovery: true });
           await decrementPendingRequest(userId);
+          timing.log('completed');
         } else {
           const finalEvent = {
             final: true,
@@ -344,6 +481,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
           await GenerationJobManager.emitDone(streamId, finalEvent);
           await GenerationJobManager.completeJob(streamId, 'Request aborted');
           await decrementPendingRequest(userId);
+          timing.log('aborted');
         }
 
         if (shouldGenerateTitle) {
@@ -372,10 +510,12 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
         if (wasAborted) {
           logger.debug(`[ResumableAgentController] Generation aborted for ${streamId}`);
           // abortJob already handled emitDone and completeJob
+          timing.log('aborted', error);
         } else {
           logger.error(`[ResumableAgentController] Generation error for ${streamId}:`, error);
           await GenerationJobManager.emitError(streamId, error.message || 'Generation failed');
           await GenerationJobManager.completeJob(streamId, error.message);
+          timing.log('failed', error);
         }
 
         await decrementPendingRequest(userId);
@@ -396,6 +536,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       );
       await GenerationJobManager.completeJob(streamId, err.message);
       await decrementPendingRequest(userId);
+      timing.log('failed', err);
     });
   } catch (error) {
     logger.error('[ResumableAgentController] Initialization error:', error);
@@ -407,6 +548,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     }
     await GenerationJobManager.completeJob(streamId, error.message);
     await decrementPendingRequest(userId);
+    timing.log('failed', error);
     if (client) {
       disposeClient(client);
     }

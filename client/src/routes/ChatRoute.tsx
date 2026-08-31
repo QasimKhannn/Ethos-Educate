@@ -19,6 +19,7 @@ import {
   useGetStartupConfig,
   useGetEndpointsQuery,
 } from '~/data-provider';
+import { useStreamStatus } from '~/data-provider/SSE/queries';
 import {
   getDefaultModelSpec,
   getModelSpecPreset,
@@ -90,6 +91,13 @@ export default function ChatRoute() {
       mockConversation == null &&
       (!hasSetConversation.current || routeNeedsExistingConversation),
   });
+  const streamStatusQuery = useStreamStatus(
+    conversationId,
+    isAuthenticated &&
+      !isRouteNewConvo &&
+      initialConvoQuery.isError &&
+      isNotFoundError(initialConvoQuery.error),
+  );
   const endpointsQuery = useGetEndpointsQuery({ enabled: isAuthenticated });
   const projectQuery = useProjectQuery(projectId, {
     enabled: isAuthenticated && isRouteNewConvo && !!projectId,
@@ -223,7 +231,29 @@ export default function ChatRoute() {
       endpointsQuery.data &&
       modelsQuery.data &&
       initialConvoQuery.isError &&
-      isNotFoundError(initialConvoQuery.error)
+      isNotFoundError(initialConvoQuery.error) &&
+      streamStatusQuery.data?.active
+    ) {
+      const streamingConversation: TConversation = {
+        conversationId,
+        title: 'New Chat',
+        endpoint: EModelEndpoint.agents,
+      };
+
+      logger.log('conversation', 'ChatRoute resuming active stream', conversationId);
+      queryClient.setQueryData<TConversation>(
+        [QueryKeys.conversation, conversationId],
+        streamingConversation,
+      );
+      setConversation(streamingConversation);
+      hasSetConversation.current = true;
+    } else if (
+      conversationId &&
+      endpointsQuery.data &&
+      modelsQuery.data &&
+      initialConvoQuery.isError &&
+      isNotFoundError(initialConvoQuery.error) &&
+      streamStatusQuery.isFetched
     ) {
       const result = getDefaultModelSpec(startupConfig);
       const spec = result?.default ?? result?.last;
@@ -277,6 +307,8 @@ export default function ChatRoute() {
     startupConfig,
     initialConvoQuery.data,
     initialConvoQuery.isError,
+    streamStatusQuery.data,
+    streamStatusQuery.isFetched,
     endpointsQuery.data,
     modelsQuery.data,
     assistantListMap,

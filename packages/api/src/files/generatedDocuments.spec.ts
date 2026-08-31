@@ -1,0 +1,61 @@
+import {
+  buildManagedDocumentText,
+  extractGeneratedDocumentArtifacts,
+  getGeneratedDocumentRetentionExpiry,
+} from './generatedDocuments';
+
+describe('generated document artifacts', () => {
+  const sourceUrl =
+    'https://documents.example.com/files/worksheet.docx?expires=123&token=signed-token';
+
+  test('extracts the MCP document artifact and removes its temporary link', () => {
+    const content = [
+      'Teacher-ready worksheet files created:',
+      `- Document created: [Worksheet.docx](${sourceUrl})`,
+      '<!-- ethos-generated-document {"filename":"Worksheet.docx","mimeType":"application/vnd.openxmlformats-officedocument.wordprocessingml.document","url":"https://documents.example.com/files/worksheet.docx?expires=123&token=signed-token"} -->',
+    ].join('\n');
+
+    expect(extractGeneratedDocumentArtifacts(content)).toEqual({
+      documents: [
+        {
+          filename: 'Worksheet.docx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          sourceUrl,
+        },
+      ],
+      text: 'Teacher-ready worksheet files created:',
+    });
+  });
+
+  test('removes the standard document source link before a managed link is rendered', () => {
+    const content = [
+      `Document created: [Worksheet.docx](${sourceUrl})`,
+      '<!-- ethos-generated-document {"filename":"Worksheet.docx","mimeType":"application/vnd.openxmlformats-officedocument.wordprocessingml.document","url":"https://documents.example.com/files/worksheet.docx?expires=123&token=signed-token"} -->',
+    ].join('\n');
+
+    const extracted = extractGeneratedDocumentArtifacts(content);
+    const expiresAt = getGeneratedDocumentRetentionExpiry(Date.UTC(2026, 7, 28, 12, 0, 0));
+    const managed = buildManagedDocumentText({
+      sourceText: extracted.text,
+      documents: [
+        {
+          filename: 'Worksheet.docx',
+          downloadPath: '/api/files/download/user-123/file-123',
+        },
+      ],
+      expiresAt,
+    });
+
+    expect(managed).toBe(
+      '[Worksheet.docx](/api/files/download/user-123/file-123)\n\nAvailable until 2026-09-04 12:00:00 UTC. Document expired - generate a new copy.',
+    );
+    expect(managed).not.toContain(sourceUrl);
+  });
+
+  test('rejects document artifacts with non-http source URLs', () => {
+    const content =
+      '<!-- ethos-generated-document {"filename":"Worksheet.docx","mimeType":"application/octet-stream","url":"file:///private/worksheet.docx"} -->';
+
+    expect(extractGeneratedDocumentArtifacts(content)).toEqual({ documents: [], text: '' });
+  });
+});

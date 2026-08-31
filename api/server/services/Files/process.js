@@ -243,20 +243,37 @@ const processDeleteRequest = async ({ req, files }) => {
  * references in the file handling process.
  * @param {string} params.URL - The URL of the file to be processed.
  * @param {string} params.fileName - The name that will be used to save the file (including extension)
+ * @param {string} [params.storageFileName] - Internal storage name. Defaults to fileName.
  * @param {string} params.basePath - The base path or directory where the file will be saved or retrieved from.
  * @param {FileContext} params.context - The context of the file (e.g., 'avatar', 'image_generation', etc.)
+ * @param {string} [params.fileType] - MIME type to use when the source does not provide one.
+ * @param {string} [params.conversationId] - Conversation associated with the generated file.
+ * @param {string} [params.messageId] - Message associated with the generated file.
+ * @param {Date} [params.retentionExpiresAt] - Application-managed retention expiry for the generated file.
  * @returns {Promise<MongoFile>} A promise that resolves to the DB representation (MongoFile)
  *  of the processed file. It throws an error if the file processing fails at any stage.
  */
-const processFileURL = async ({ fileStrategy, userId, URL, fileName, basePath, context }) => {
+const processFileURL = async ({
+  fileStrategy,
+  userId,
+  URL,
+  fileName,
+  storageFileName = fileName,
+  basePath,
+  context,
+  fileType,
+  conversationId,
+  messageId,
+  retentionExpiresAt,
+}) => {
   const { saveURL, getFileURL } = getStrategyFunctions(fileStrategy);
   try {
     const {
       bytes = 0,
       type = '',
       dimensions = {},
-    } = (await saveURL({ userId, URL, fileName, basePath })) || {};
-    const filepath = await getFileURL({ fileName: `${userId}/${fileName}`, basePath });
+    } = (await saveURL({ userId, URL, fileName: storageFileName, basePath })) || {};
+    const filepath = await getFileURL({ fileName: `${userId}/${storageFileName}`, basePath });
     return await createFile(
       {
         user: userId,
@@ -265,10 +282,13 @@ const processFileURL = async ({ fileStrategy, userId, URL, fileName, basePath, c
         filepath,
         filename: fileName,
         source: fileStrategy,
-        type,
+        type: type || fileType || 'application/octet-stream',
         context,
+        conversationId,
+        messageId,
         width: dimensions.width,
         height: dimensions.height,
+        retentionExpiresAt,
       },
       true,
     );
@@ -510,7 +530,9 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     const runtime = resolveCodeExecutionRuntime({ codeApiKey });
 
     if (runtime === 'remote') {
-      const { handleFileUpload: uploadCodeEnvFile } = getStrategyFunctions(FileSources.execute_code);
+      const { handleFileUpload: uploadCodeEnvFile } = getStrategyFunctions(
+        FileSources.execute_code,
+      );
       const stream = fs.createReadStream(file.path);
       const fileIdentifier = await uploadCodeEnvFile({
         req,
@@ -946,7 +968,15 @@ function base64ToBuffer(base64String) {
 
 async function saveBase64Image(
   url,
-  { req, file_id: _file_id, filename: _filename, endpoint, context, resolution },
+  {
+    req,
+    file_id: _file_id,
+    filename: _filename,
+    endpoint,
+    context,
+    resolution,
+    retentionExpiresAt,
+  },
 ) {
   const appConfig = req.config;
   const effectiveResolution = resolution ?? appConfig.fileConfig?.imageGeneration ?? 'high';
@@ -982,6 +1012,7 @@ async function saveBase64Image(
       bytes: image.bytes,
       width: image.width,
       height: image.height,
+      retentionExpiresAt,
     },
     true,
   );

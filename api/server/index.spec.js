@@ -1,4 +1,5 @@
 const fs = require('fs');
+const express = require('express');
 const request = require('supertest');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
@@ -38,10 +39,19 @@ describe('Server Configuration', () => {
 
   let mongoServer;
   let app;
+  let httpServer;
 
   /** Mocked fs.readFileSync for index.html */
   const originalReadFileSync = fs.readFileSync;
+  const originalListen = express.application.listen;
+  let listenSpy;
+
   beforeAll(() => {
+    listenSpy = jest.spyOn(express.application, 'listen').mockImplementation(function (...args) {
+      httpServer = originalListen.apply(this, args);
+      return httpServer;
+    });
+
     fs.readFileSync = function (filepath, options) {
       if (filepath.includes('index.html')) {
         return '<!DOCTYPE html><html><head><title>LibreChat</title></head><body><div id="root"></div></body></html>';
@@ -51,7 +61,7 @@ describe('Server Configuration', () => {
   });
 
   afterAll(() => {
-    // Restore original fs.readFileSync
+    listenSpy.mockRestore();
     fs.readFileSync = originalReadFileSync;
   });
 
@@ -82,8 +92,14 @@ describe('Server Configuration', () => {
   });
 
   afterAll(async () => {
-    await mongoServer.stop();
+    if (httpServer?.listening) {
+      await new Promise((resolve, reject) => {
+        httpServer.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+
     await mongoose.disconnect();
+    await mongoServer.stop();
   });
 
   it('should return OK for /health', async () => {

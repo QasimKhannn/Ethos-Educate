@@ -79,6 +79,10 @@ jest.mock('./GraphTokenService', () => ({
   getGraphApiToken: jest.fn(),
 }));
 
+jest.mock('./MCPGeneratedDocuments', () => ({
+  persistGeneratedDocuments: jest.fn(({ response }) => Promise.resolve(response)),
+}));
+
 describe('tests for the new helper functions used by the MCP connection status endpoints', () => {
   let mockGetMCPManager;
   let mockGetFlowStateManager;

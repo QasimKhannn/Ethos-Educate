@@ -553,6 +553,7 @@ const loadTools = async ({
         const mcpParams = {
           index,
           signal,
+          req: options.req,
           user: safeUser,
           userMCPAuthMap,
           res: options.res,

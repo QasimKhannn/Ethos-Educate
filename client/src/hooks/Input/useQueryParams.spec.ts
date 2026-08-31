@@ -18,7 +18,7 @@ jest.mock('~/store', () => ({
 }));
 
 import { renderHook, act } from '@testing-library/react';
-import { useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRecoilValue } from 'recoil';
 import useQueryParams from './useQueryParams';
@@ -29,6 +29,7 @@ import store from '~/store';
 
 // Other mocks
 jest.mock('react-router-dom', () => ({
+  useParams: jest.fn(),
   useSearchParams: jest.fn(),
 }));
 
@@ -87,6 +88,7 @@ jest.mock('librechat-data-provider', () => {
       shape: {
         model: { parse: jest.fn((value) => value) },
         endpoint: { parse: jest.fn((value) => value) },
+        agent_id: { parse: jest.fn((value) => value) },
         temperature: { parse: jest.fn((value) => value) },
       },
     },
@@ -139,13 +141,15 @@ describe('useQueryParams', () => {
     // Create mocks for all dependencies
     const mockSearchParams = new URLSearchParams();
     (useSearchParams as jest.Mock).mockReturnValue([mockSearchParams, jest.fn()]);
+    (useParams as jest.Mock).mockReturnValue({ conversationId: 'new' });
 
     const mockQueryClient = {
       getQueryData: jest.fn().mockImplementation((key) => {
-        if (key === 'startupConfig') {
+        const queryKey = Array.isArray(key) ? key[0] : key;
+        if (queryKey === 'startupConfig') {
           return { modelSpecs: { list: [] } };
         }
-        if (key === 'endpoints') {
+        if (queryKey === 'endpoints') {
           return {};
         }
         return null;
@@ -248,6 +252,61 @@ describe('useQueryParams', () => {
     );
     const mockSetSearchParams = (useSearchParams as jest.Mock).mock.results[0].value[1];
     const [params, options] = mockSetSearchParams.mock.calls[0];
+    expect(params).toBeInstanceOf(URLSearchParams);
+    expect(params.toString()).toBe('');
+    expect(options).toEqual(expect.objectContaining({ replace: true }));
+  });
+
+  it('preserves the agent identifier after initializing a new agent chat', () => {
+    const mockTextAreaRef = {
+      current: {
+        focus: jest.fn(),
+        setSelectionRange: jest.fn(),
+      } as unknown as HTMLTextAreaElement,
+    };
+
+    setUrlParams({ agent_id: 'agent_123' });
+
+    renderHook(() => useQueryParams({ textAreaRef: mockTextAreaRef }));
+
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    const mockSetSearchParams = (useSearchParams as jest.Mock).mock.results[0].value[1];
+    const [params, options] = mockSetSearchParams.mock.calls[0];
+
+    expect(params).toBeInstanceOf(URLSearchParams);
+    expect(params.toString()).toBe('agent_id=agent_123');
+    expect(options).toEqual(expect.objectContaining({ replace: true }));
+  });
+
+  it('does not relaunch an agent from a saved conversation URL', () => {
+    const mockTextAreaRef = {
+      current: {
+        focus: jest.fn(),
+        setSelectionRange: jest.fn(),
+      } as unknown as HTMLTextAreaElement,
+    };
+    const mockNewConversation = jest.fn();
+
+    (useParams as jest.Mock).mockReturnValue({ conversationId: 'conversation-123' });
+    (useChatContext as jest.Mock).mockReturnValue({
+      conversation: { agent_id: 'agent_123', endpoint: 'agents' },
+      newConversation: mockNewConversation,
+    });
+    setUrlParams({ agent_id: 'agent_123' });
+
+    renderHook(() => useQueryParams({ textAreaRef: mockTextAreaRef }));
+
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    const mockSetSearchParams = (useSearchParams as jest.Mock).mock.results[0].value[1];
+    const [params, options] = mockSetSearchParams.mock.calls[0];
+
+    expect(mockNewConversation).not.toHaveBeenCalled();
     expect(params).toBeInstanceOf(URLSearchParams);
     expect(params.toString()).toBe('');
     expect(options).toEqual(expect.objectContaining({ replace: true }));

@@ -32,7 +32,7 @@ import type { TAskFunction, ExtendedFile } from '~/common';
 import useSetFilesToDelete from '~/hooks/Files/useSetFilesToDelete';
 import useGetSender from '~/hooks/Conversations/useGetSender';
 import { getAutoSelectedMCPServerNames } from '~/hooks/MCP/autoSelect';
-import { logger, createDualMessageContent } from '~/utils';
+import { logger, removeDraft, createDualMessageContent } from '~/utils';
 import store, { ephemeralAgentByConvoId, useGetEphemeralAgent } from '~/store';
 import { useMCPServersQuery } from '~/data-provider';
 import useUserKey from '~/hooks/Input/useUserKey';
@@ -169,6 +169,8 @@ export default function useChatFunctions({
     }
 
     submissionLockRef.current = true;
+    removeDraft(conversationId ?? Constants.NEW_CONVO);
+    removeDraft(Constants.PENDING_CONVO);
     setIsSubmitting(true);
 
     const conversationKey = conversationId ?? Constants.NEW_CONVO;

@@ -38,8 +38,15 @@ jest.mock('~/server/services/Files/process', () => ({
   saveBase64Image: jest.fn(),
 }));
 
+jest.mock('~/server/services/Files/GeneratedImageRetention', () => ({
+  isImageGenerationMcpTool: jest.fn(
+    (toolName) => toolName === 'generate_images_mcp_Image_Generation',
+  ),
+  getGeneratedImageRetentionExpiry: jest.fn(() => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+}));
+
 describe('createToolEndCallback', () => {
-  let req, res, artifactPromises, createToolEndCallback;
+  let req, res, artifactPromises, createToolEndCallback, createResponsesToolEndCallback;
   let logger;
 
   beforeEach(() => {
@@ -51,6 +58,7 @@ describe('createToolEndCallback', () => {
     // Now require the module after all mocks are set up
     const callbacks = require('../callbacks');
     createToolEndCallback = callbacks.createToolEndCallback;
+    createResponsesToolEndCallback = callbacks.createResponsesToolEndCallback;
 
     req = {
       user: { id: 'user123' },
@@ -226,6 +234,86 @@ describe('createToolEndCallback', () => {
 
       expect(artifactPromises).toHaveLength(0);
       expect(res.write).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('generated image artifact retention', () => {
+    it('sets a seven-day retention timestamp for Image Generation MCP images', async () => {
+      const { saveBase64Image } = require('~/server/services/Files/process');
+      saveBase64Image.mockResolvedValue({
+        file_id: 'image-file',
+        filename: 'generated.png',
+        filepath: '/uploads/user123/generated.png',
+      });
+
+      const toolEndCallback = createToolEndCallback({ req, res, artifactPromises });
+      const before = Date.now();
+
+      await toolEndCallback(
+        {
+          output: {
+            name: 'generate_images_mcp_Image_Generation',
+            tool_call_id: 'tool123',
+            artifact: {
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: 'data:image/png;base64,aGVsbG8=' },
+                },
+              ],
+            },
+          },
+        },
+        { run_id: 'run456', thread_id: 'thread789', provider: 'azureOpenAI' },
+      );
+
+      await Promise.all(artifactPromises);
+
+      const call = saveBase64Image.mock.calls[0];
+      const retentionExpiresAt = call[1].retentionExpiresAt;
+      expect(retentionExpiresAt).toBeInstanceOf(Date);
+      expect(retentionExpiresAt.getTime()).toBeGreaterThanOrEqual(before + 7 * 24 * 60 * 60 * 1000);
+      expect(retentionExpiresAt.getTime()).toBeLessThanOrEqual(
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
+      );
+    });
+
+    it('sets the same retention timestamp for Responses API image artifacts', async () => {
+      const { saveBase64Image } = require('~/server/services/Files/process');
+      saveBase64Image.mockResolvedValue({
+        file_id: 'image-file',
+        filename: 'generated.png',
+        filepath: '/uploads/user123/generated.png',
+      });
+
+      const toolEndCallback = createResponsesToolEndCallback({
+        req,
+        res,
+        tracker: { nextSequence: jest.fn() },
+        artifactPromises,
+      });
+
+      await toolEndCallback(
+        {
+          output: {
+            name: 'generate_images_mcp_Image_Generation',
+            tool_call_id: 'tool123',
+            artifact: {
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: 'data:image/png;base64,aGVsbG8=' },
+                },
+              ],
+            },
+          },
+        },
+        { run_id: 'run456', thread_id: 'thread789', provider: 'azureOpenAI' },
+      );
+
+      await Promise.all(artifactPromises);
+
+      expect(saveBase64Image.mock.calls[0][1].retentionExpiresAt).toBeInstanceOf(Date);
     });
   });
 

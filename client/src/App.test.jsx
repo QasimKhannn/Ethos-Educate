@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 const mockQueryClients = [];
 const mockStartupQuery = jest.fn();
@@ -34,7 +34,7 @@ jest.mock('react-router-dom', () => {
 
 jest.mock('@radix-ui/react-toast', () => ({
   Provider: ({ children }) => children,
-  Viewport: () => null,
+  Viewport: (props) => <div data-testid="toast-viewport" {...props} />,
 }));
 
 jest.mock('@tanstack/react-query-devtools', () => ({
@@ -79,5 +79,14 @@ describe('App', () => {
 
     expect(new Set(mockQueryClients)).toEqual(new Set([initialQueryClient]));
     expect(mockStartupQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the toast viewport outside the isolated application root', () => {
+    render(<App />);
+
+    const viewport = screen.getByTestId('toast-viewport');
+
+    expect(viewport.parentElement).toBe(document.body);
+    expect(viewport).toHaveClass('z-[1000]');
   });
 });
