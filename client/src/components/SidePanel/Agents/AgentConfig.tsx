@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
+import { EModelEndpoint } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
 import {
   removeFocusOutlines,
