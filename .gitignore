@@ -166,6 +166,10 @@ helm/**/.values.yaml
 # Removed Windows wrapper files per user request
 hive-mind-prompt-*.txt
 
+# Local audit artifacts and development-only Codex skill
+/outputs/
+/api/lib/skills/teacher-focused-e2e-ux-testing/
+
 # Claude Flow generated files
 .claude/settings.local.json
 .mcp.json
