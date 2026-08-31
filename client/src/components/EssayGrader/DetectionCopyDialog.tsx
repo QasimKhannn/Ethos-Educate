@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { OGDialog, OGDialogContent, OGDialogTitle } from '@librechat/client';
 import { cn } from '~/utils';
 import type { DetectionResponse } from './types';
 
@@ -82,14 +82,21 @@ export function DetectionCopyDialog({
     }
   }
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="detection-copy-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6"
+  return (
+    <OGDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      modal
     >
-      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-primary shadow-2xl dark:border-white/10 sm:flex-row">
+      <OGDialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/45"
+        className="relative flex max-h-[85vh] max-w-2xl flex-col gap-0 overflow-hidden rounded-2xl border border-border-light bg-surface-primary p-0 shadow-2xl dark:border-white/10 sm:flex-row"
+      >
         <button
           type="button"
           onClick={onClose}
@@ -100,14 +107,17 @@ export function DetectionCopyDialog({
         </button>
 
         <div className="w-full shrink-0 overflow-y-auto border-b border-border-light p-5 pr-10 dark:border-white/10 sm:w-56 sm:border-b-0 sm:border-r sm:pr-5">
-          <h2 id="detection-copy-title" className="text-base font-bold text-text-primary">
+          <OGDialogTitle
+            id="detection-copy-title"
+            className="text-base font-bold text-text-primary"
+          >
             Copy result
-          </h2>
+          </OGDialogTitle>
           <p className="mt-1 text-xs leading-relaxed text-text-secondary">
             Choose what&apos;s included. The disclaimer is always added at the end.
           </p>
 
-          <label className="mt-4 flex items-center gap-2.5 rounded-xl border border-border-light bg-surface-secondary/60 px-3 py-2.5 dark:border-white/10">
+          <label className="bg-surface-secondary/60 mt-4 flex items-center gap-2.5 rounded-xl border border-border-light px-3 py-2.5 dark:border-white/10">
             <input
               type="checkbox"
               checked={allOn}
@@ -152,7 +162,9 @@ export function DetectionCopyDialog({
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 overflow-y-auto p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">Preview</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+              Preview
+            </p>
             {preview ? (
               <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-primary">
                 {preview}
@@ -163,7 +175,7 @@ export function DetectionCopyDialog({
               </p>
             )}
           </div>
-          <div className="border-t border-border-light bg-surface-secondary/40 p-4 dark:border-white/10">
+          <div className="bg-surface-secondary/40 border-t border-border-light p-4 dark:border-white/10">
             <button
               type="button"
               onClick={() => void copy()}
@@ -177,9 +189,8 @@ export function DetectionCopyDialog({
             </button>
           </div>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </OGDialogContent>
+    </OGDialog>
   );
 }
 
@@ -280,7 +291,9 @@ function buildDetectionHtml(
   }
 
   // Never optional, same rule as the plain-text version.
-  blocks.push(`<p style="margin:0;font-style:italic;color:#666;">${escapeHtml(result.disclaimer)}</p>`);
+  blocks.push(
+    `<p style="margin:0;font-style:italic;color:#666;">${escapeHtml(result.disclaimer)}</p>`,
+  );
 
   return blocks.join('');
 }

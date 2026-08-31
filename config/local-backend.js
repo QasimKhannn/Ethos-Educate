@@ -95,6 +95,13 @@ function configureLocalConfig() {
 }
 
 async function start() {
+  const startupStartedAt = process.hrtime.bigint();
+  const logStartup = (message) => {
+    const elapsedMs = Number(process.hrtime.bigint() - startupStartedAt) / 1_000_000;
+    console.info(`[local-backend +${elapsedMs.toFixed(0)}ms] ${message}`);
+  };
+
+  logStartup('Preparing local backend configuration.');
   process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   process.env.HOST = process.env.HOST || 'localhost';
   process.env.PORT = process.env.PORT || '3080';
@@ -105,7 +112,9 @@ async function start() {
   configureOptionalServices();
   await configureMongo();
 
+  logStartup('Loading backend server modules.');
   require('../api/server/index.js');
+  logStartup('Backend server modules loaded; application initialization is continuing.');
 }
 
 process.once('SIGINT', shutdown);

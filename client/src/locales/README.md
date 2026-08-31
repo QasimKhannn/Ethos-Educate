@@ -64,34 +64,11 @@ Example:
 - `client/src/locales/bo/translation.json`
 - `client/src/locales/uk/translation.json`
 
-### 5. Configure i18n
+### 5. Locale Loading
 
-Update `client/src/locales/i18n.ts`:
+Translation files other than English are discovered by `client/src/locales/i18n.ts` and loaded only when a user selects that language. No static import or `resources` entry is required for a new `translation.json` file.
 
-1. Import the new translation file:
-```typescript
-import translationLanguageCode from './language-code/translation.json';
-```
-
-2. Add it to the `resources` object:
-```typescript
-export const resources = {
-  // ... existing languages
-  'language-code': { translation: translationLanguageCode },
-} as const;
-```
-
-Example:
-```typescript
-import translationBo from './bo/translation.json';
-import translationUk from './uk/translation.json';
-
-export const resources = {
-  // ... existing languages
-  bo: { translation: translationBo },
-  uk: { translation: translationUk },
-} as const;
-```
+If the new language requires a browser-language fallback that does not match its folder name, add that mapping to `localeAliases` in `client/src/locales/i18n.ts`. For example, `zh-TW` maps to the existing `zh-Hant` translation file.
 
 ### 6. Handle Fallback Languages (Optional)
 

@@ -39,6 +39,12 @@ const routes = require('./routes');
 
 const { PORT, HOST, ALLOW_SOCIAL_LOGIN, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
 
+const startupStartedAt = process.hrtime.bigint();
+const logStartup = (message) => {
+  const elapsedMs = Number(process.hrtime.bigint() - startupStartedAt) / 1_000_000;
+  console.info(`[backend-startup +${elapsedMs.toFixed(0)}ms] ${message}`);
+};
+
 // Allow PORT=0 to be used for automatic free port assignment
 const port = isNaN(Number(PORT)) ? 3080 : Number(PORT);
 const host = HOST || 'localhost';
@@ -47,35 +53,57 @@ const trusted_proxy = Number(TRUST_PROXY) || 1; /* trust first proxy by default 
 const app = express();
 
 const startServer = async () => {
+  logStartup('Starting application initialization.');
   if (typeof Bun !== 'undefined') {
     axios.defaults.headers.common['Accept-Encoding'] = 'gzip';
   }
+
+  logStartup('Connecting to MongoDB.');
   await connectDb();
 
   logger.info('Connected to MongoDB');
+  logStartup('MongoDB connected.');
 
   /**
    * Apply admin-managed OpenID config (from DB) to process.env BEFORE social
    * logins bootstrap. No-op when DB SSO config is absent/disabled, so env-driven
    * behavior is preserved. Returns true when DB OpenID config was applied.
    */
+  logStartup('Loading administrator SSO configuration.');
   const adminSsoApplied = await applyAdminSsoEnvOverrides();
+  logStartup('Administrator SSO configuration loaded.');
 
   indexSync().catch((err) => {
     logger.error('[indexSync] Background sync failed:', err);
   });
+  logStartup('Database index synchronization scheduled in the background.');
 
   app.disable('x-powered-by');
   app.set('trust proxy', trusted_proxy);
 
+  logStartup('Checking database seed data.');
   await seedDatabase();
-  const appConfig = await getAppConfig();
-  initializeFileStorage(appConfig);
-  await performStartupChecks(appConfig);
-  await updateInterfacePermissions(appConfig);
+  logStartup('Database seed-data check complete.');
 
+  logStartup('Loading application configuration.');
+  const appConfig = await getAppConfig();
+  logStartup('Application configuration loaded.');
+
+  initializeFileStorage(appConfig);
+  logStartup('File-storage initialization scheduled.');
+
+  logStartup('Running startup checks.');
+  await performStartupChecks(appConfig);
+  logStartup('Startup checks complete.');
+
+  logStartup('Updating interface permissions.');
+  await updateInterfacePermissions(appConfig);
+  logStartup('Interface permissions updated.');
+
+  logStartup('Loading the frontend HTML shell.');
   const indexPath = path.join(appConfig.paths.dist, 'index.html');
   let indexHTML = fs.readFileSync(indexPath, 'utf8');
+  logStartup('Frontend HTML shell loaded.');
 
   // In order to provide support to serving the application in a sub-directory
   // We need to update the base href if the DOMAIN_CLIENT is specified and not the root path
@@ -141,7 +169,9 @@ const startServer = async () => {
   }
 
   if (isEnabled(ALLOW_SOCIAL_LOGIN) || adminSsoApplied) {
+    logStartup('Configuring social login providers.');
     await configureSocialLogins(app);
+    logStartup('Social login providers configured.');
   }
 
   app.use('/oauth', routes.oauth);
@@ -165,7 +195,9 @@ const startServer = async () => {
   app.use('/api/models', routes.models);
   app.use('/api/config', routes.config);
   app.use('/api/assistants', routes.assistants);
+  logStartup('Initializing file API routes.');
   app.use('/api/files', await routes.files.initialize());
+  logStartup('File API routes initialized.');
   app.use('/api/invites', routes.invites);
   app.use('/images/', createValidateImageRequest(appConfig.secureImageLinks), routes.staticRoute);
   app.use('/api/share', routes.share);
@@ -214,22 +246,35 @@ const startServer = async () => {
       logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
     }
 
+    logStartup('HTTP listener is ready. Initializing MCP services.');
     await initializeMCPs();
+    logStartup('MCP services initialized.');
+
+    logStartup('Initializing OAuth reconnect manager.');
     await initializeOAuthReconnectManager();
+    logStartup('OAuth reconnect manager initialized.');
+
+    logStartup('Checking database migrations.');
     await checkMigrations();
+    logStartup('Database migration check complete.');
 
     // Configure stream services (auto-detects Redis from USE_REDIS env var)
+    logStartup('Configuring generation-job services.');
     const streamServices = createStreamServices();
     GenerationJobManager.configure(streamServices);
     GenerationJobManager.initialize();
+    logStartup('Generation-job services initialized.');
 
     // cowork — start the Routines scheduler (no-op unless COWORK_ROUTINES_ENABLED is set).
     startCoworkRoutineScheduler();
+    logStartup('Cowork routine scheduler evaluated.');
 
     const inspectFlags = process.execArgv.some((arg) => arg.startsWith('--inspect'));
     if (inspectFlags || isEnabled(process.env.MEM_DIAG)) {
       memoryDiagnostics.start();
     }
+
+    logStartup('Backend startup complete.');
   });
 };
 

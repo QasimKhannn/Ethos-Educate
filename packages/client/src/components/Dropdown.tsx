@@ -18,6 +18,7 @@ interface DropdownProps {
   ariaLabel?: string;
   'aria-labelledby'?: string;
   portal?: boolean;
+  disabled?: boolean;
 }
 
 const isDivider = (item: string | Option | { divider: true }): item is { divider: true } =>
@@ -40,6 +41,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   ariaLabel,
   'aria-labelledby': ariaLabelledBy,
   portal = true,
+  disabled = false,
 }) => {
   const handleChange = (value: string) => {
     onChange(value);
@@ -74,12 +76,14 @@ const Dropdown: React.FC<DropdownProps> = ({
         store={selectProps}
         className={cn(
           'focus:ring-offset-ring-offset relative inline-flex items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm text-text-primary transition-all duration-200 ease-in-out hover:bg-accent hover:text-accent-foreground focus:ring-ring-primary',
+          'disabled:cursor-not-allowed disabled:opacity-50',
           iconOnly ? 'h-full w-10' : 'w-fit gap-2',
           className,
         )}
         data-testid={testId}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
+        disabled={disabled}
       >
         <div className="flex w-full items-center gap-2">
           {icon}

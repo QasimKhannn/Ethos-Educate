@@ -1,5 +1,5 @@
-import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { OGDialog, OGDialogContent, OGDialogTitle } from '@librechat/client';
 import { cn } from '~/utils';
 
 const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
@@ -32,23 +32,22 @@ export function EssayReviewDialog({
 }) {
   const words = countWords(text);
 
-  // Portaled straight to `document.body`. This dialog opens from deep
-  // inside the wizard's step-2 form, which sits under an app-shell ancestor
-  // with a CSS transform (used for the shell's page-transition animation).
-  // A transformed ancestor becomes the containing block for any `fixed`
-  // descendant, so left un-portaled `fixed inset-0` resolves against that
-  // ancestor's box instead of the real viewport — the overlay only covers
-  // part of the screen and the card sits pinned near the top instead of
-  // centered. Rendering into `document.body` escapes that ancestor chain
-  // entirely, so `fixed inset-0` means the actual screen again.
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="essay-review-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6"
+  return (
+    <OGDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      modal
     >
-      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-primary shadow-2xl dark:border-white/10">
+      <OGDialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/45"
+        className="relative flex max-h-[85vh] max-w-2xl flex-col gap-0 overflow-hidden rounded-2xl border border-border-light bg-surface-primary p-0 shadow-2xl dark:border-white/10"
+      >
+        <OGDialogTitle className="sr-only">{filename}</OGDialogTitle>
         <button
           type="button"
           onClick={onClose}
@@ -85,7 +84,7 @@ export function EssayReviewDialog({
           </p>
         </div>
 
-        <div className="border-t border-border-light bg-surface-secondary/40 p-4 dark:border-white/10">
+        <div className="bg-surface-secondary/40 border-t border-border-light p-4 dark:border-white/10">
           <button
             type="button"
             onClick={onClose}
@@ -97,8 +96,7 @@ export function EssayReviewDialog({
             Done
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </OGDialogContent>
+    </OGDialog>
   );
 }

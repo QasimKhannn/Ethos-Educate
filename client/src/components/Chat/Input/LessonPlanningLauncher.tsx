@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   BookOpen,
   CheckCircle2,
-  ChevronDown,
   Download,
   Loader2,
   Sparkles,
@@ -17,6 +16,11 @@ import {
   OGDialogContent,
   OGDialogHeader,
   OGDialogTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
 } from '@librechat/client';
 import { Permissions, PermissionTypes } from 'librechat-data-provider';
@@ -40,6 +44,7 @@ import {
 const DEFAULT_LESSON_API_BASE = 'https://backend-lesson-3fixl7mkma-uc.a.run.app';
 const SHORT_REQUEST_TIMEOUT_MS = 45000;
 const LONG_REQUEST_TIMEOUT_MS = 310000;
+const CLEAR_LESSON_PLANNING_SELECTION = '__clear_lesson_planning_selection__';
 
 type WizardStep = 'setup' | 'unit' | 'choices' | 'complete';
 type BusyPhase = 'initial' | 'subjects' | 'grades' | 'units' | 'suggestions' | 'generate' | null;
@@ -57,12 +62,10 @@ interface LessonPlanningDropdownProps {
   value: string;
   placeholder: string;
   options: LessonPlanningOption[];
-  isOpen: boolean;
   disabled?: boolean;
   helperText?: string;
   className?: string;
   onChange: (value: string) => void;
-  onOpenChange: (open: boolean) => void;
 }
 
 interface LessonPlanningChoice extends LessonPlanningOption {
@@ -309,89 +312,48 @@ function LessonPlanningDropdown({
   value,
   placeholder,
   options,
-  isOpen,
   disabled = false,
   helperText,
   className,
   onChange,
-  onOpenChange,
 }: LessonPlanningDropdownProps) {
-  const labelText = selectedLabel(options, value, placeholder);
-
   return (
     <div className={cn('relative space-y-1.5', className)}>
-      <Label id={`${id}-label`} className="text-sm font-medium text-text-primary">
+      <Label htmlFor={id} className="text-sm font-medium text-text-primary">
         {label}
       </Label>
-      <button
-        id={id}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-labelledby={`${id}-label ${id}`}
+      <Select
+        value={value || undefined}
         disabled={disabled}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (!disabled) {
-            onOpenChange(!isOpen);
-          }
-        }}
-        className={cn(
-          'flex h-11 w-full items-center justify-between rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-left text-sm transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50',
-          'disabled:cursor-not-allowed disabled:opacity-55',
-          value ? 'text-text-primary' : 'text-text-secondary',
-        )}
+        onValueChange={(nextValue) =>
+          onChange(nextValue === CLEAR_LESSON_PLANNING_SELECTION ? '' : nextValue)
+        }
       >
-        <span className="truncate">{labelText}</span>
-        <ChevronDown
-          className={cn('h-4 w-4 shrink-0 transition-transform', isOpen && 'rotate-180')}
-          aria-hidden="true"
-        />
-      </button>
-      {helperText && <p className="text-xs text-text-secondary">{helperText}</p>}
-      {isOpen && (
-        <div
-          role="listbox"
-          aria-labelledby={`${id}-label`}
-          className="absolute left-0 right-0 top-full z-[220] mt-1 max-h-64 overflow-y-auto rounded-xl border border-border-medium bg-surface-primary p-1 shadow-xl"
-          onClick={(event) => event.stopPropagation()}
+        <SelectTrigger
+          id={id}
+          aria-label={label}
+          className={cn(
+            'h-11 w-full rounded-xl border-border-medium bg-surface-primary px-3 py-2 text-left text-sm text-text-primary shadow-none transition-colors',
+            'hover:bg-surface-primary focus:ring-2 focus:ring-sky-500/50',
+            'disabled:cursor-not-allowed disabled:opacity-55',
+            !value && 'text-text-secondary',
+          )}
         >
-          <button
-            type="button"
-            role="option"
-            aria-selected={value === ''}
-            className={cn(
-              'w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-secondary',
-              value === '' && 'bg-surface-secondary font-medium',
-            )}
-            onClick={() => {
-              onChange('');
-              onOpenChange(false);
-            }}
-          >
-            {placeholder}
-          </button>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent
+          aria-label={label}
+          className="z-[220] max-h-64 rounded-xl border-border-medium bg-surface-primary shadow-xl"
+        >
+          <SelectItem value={CLEAR_LESSON_PLANNING_SELECTION}>{placeholder}</SelectItem>
           {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={value === option.value}
-              className={cn(
-                'w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-secondary',
-                value === option.value && 'bg-surface-secondary font-medium',
-              )}
-              onClick={() => {
-                onChange(option.value);
-                onOpenChange(false);
-              }}
-            >
+            <SelectItem key={option.value} value={option.value}>
               {option.label}
-            </button>
+            </SelectItem>
           ))}
-        </div>
-      )}
+        </SelectContent>
+      </Select>
+      {helperText && <p className="text-xs text-text-secondary">{helperText}</p>}
     </div>
   );
 }
@@ -533,7 +495,6 @@ function LessonPlanningLauncher({
   const agentsMap = useAgentsMapContext();
 
   const [isOpen, setIsOpen] = useState(isEmbedded);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [apiBase, setApiBase] = useState(DEFAULT_LESSON_API_BASE);
   const [busyPhase, setBusyPhase] = useState<BusyPhase>(null);
   const [error, setError] = useState('');
@@ -639,7 +600,6 @@ function LessonPlanningLauncher({
   );
 
   const resetWizard = useCallback(() => {
-    setOpenDropdown(null);
     setApiBase(deriveLessonApiBase(lessonPlanningMcpUrl));
     setBusyPhase(null);
     setError('');
@@ -660,7 +620,6 @@ function LessonPlanningLauncher({
     const nextFormValues = defaultLessonPlanningLaunchForm();
     const onlyState = catalog.states.length === 1 ? catalog.states[0].value : '';
 
-    setOpenDropdown(null);
     setBusyPhase(null);
     setError('');
     setStep('setup');
@@ -685,7 +644,6 @@ function LessonPlanningLauncher({
         setMCPValues([lessonPlanningServerName]);
       }
 
-      setOpenDropdown(null);
       setIsOpen(open);
     },
     [lessonPlanningServerName, mcpValues, resetWizard, setMCPValues],
@@ -1258,10 +1216,8 @@ function LessonPlanningLauncher({
             value={formValues.state}
             placeholder={localize('com_lesson_planning_state_placeholder')}
             options={catalog.states}
-            isOpen={openDropdown === 'state'}
             disabled={busyPhase === 'initial'}
             onChange={setFieldValue('state')}
-            onOpenChange={(open) => setOpenDropdown(open ? 'state' : null)}
           />
           <LessonPlanningDropdown
             id="lesson-planning-subject"
@@ -1273,10 +1229,8 @@ function LessonPlanningLauncher({
                 : localize('com_lesson_planning_subject_disabled_placeholder')
             }
             options={catalog.subjects}
-            isOpen={openDropdown === 'subject'}
             disabled={!formValues.state || busyPhase === 'subjects'}
             onChange={setFieldValue('subject')}
-            onOpenChange={(open) => setOpenDropdown(open ? 'subject' : null)}
           />
           <LessonPlanningDropdown
             id="lesson-planning-grade"
@@ -1288,10 +1242,8 @@ function LessonPlanningLauncher({
                 : localize('com_lesson_planning_grade_disabled_placeholder')
             }
             options={catalog.grades}
-            isOpen={openDropdown === 'grade'}
             disabled={!formValues.subject || busyPhase === 'grades'}
             onChange={setFieldValue('gradeLevel')}
-            onOpenChange={(open) => setOpenDropdown(open ? 'grade' : null)}
           />
           <LessonPlanningDropdown
             id="lesson-planning-duration"
@@ -1299,9 +1251,7 @@ function LessonPlanningLauncher({
             value={formValues.lessonDuration}
             placeholder={localize('com_lesson_planning_duration_placeholder')}
             options={lessonDurationOptions}
-            isOpen={openDropdown === 'duration'}
             onChange={setFieldValue('lessonDuration')}
-            onOpenChange={(open) => setOpenDropdown(open ? 'duration' : null)}
           />
           <LessonPlanningDropdown
             id="lesson-planning-scope"
@@ -1309,11 +1259,9 @@ function LessonPlanningLauncher({
             value={formValues.lessonScope}
             placeholder={localize('com_lesson_planning_scope_placeholder')}
             options={lessonScopeOptions}
-            isOpen={openDropdown === 'scope'}
             className="md:col-span-2"
             helperText={localize('com_lesson_planning_scope_helper')}
             onChange={setFieldValue('lessonScope')}
-            onOpenChange={(open) => setOpenDropdown(open ? 'scope' : null)}
           />
 
           <div className="space-y-2 md:col-span-2">

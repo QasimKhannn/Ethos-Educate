@@ -16,6 +16,7 @@ import {
   ExternalLink,
   FileText,
 } from 'lucide-react';
+import { Button, Checkbox, Dropdown, Input, Label, Textarea } from '@librechat/client';
 import type {
   TCoworkRoutine,
   TCoworkRoutineRun,
@@ -98,13 +99,7 @@ const DELIVERY_OPTIONS: { id: TCoworkDeliveryTarget; label: string }[] = [
 // Create form
 // ---------------------------------------------------------------------------
 
-function CreateRoutineForm({
-  projectId,
-  onClose,
-}: {
-  projectId: string;
-  onClose: () => void;
-}) {
+function CreateRoutineForm({ projectId, onClose }: { projectId: string; onClose: () => void }) {
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [presetId, setPresetId] = useState('manual');
@@ -157,45 +152,59 @@ function CreateRoutineForm({
 
   return (
     <div className="mb-3 rounded-lg border border-border-medium bg-surface-secondary p-3">
-      <label className="mb-1 block text-xs font-medium text-text-secondary">Name</label>
-      <input
+      <Label
+        htmlFor="cowork-routine-name"
+        className="mb-1 block text-xs font-medium text-text-secondary"
+      >
+        Name
+      </Label>
+      <Input
+        id="cowork-routine-name"
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Morning standup summary"
-        className="mb-3 w-full rounded-md border border-border-medium bg-surface-primary px-2.5 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary focus:border-blue-500 focus:outline-none"
+        className="mb-3 h-auto rounded-md border-border-medium bg-surface-primary px-2.5 py-1.5 text-text-primary placeholder:text-text-tertiary focus-visible:border-blue-500"
       />
 
-      <label className="mb-1 block text-xs font-medium text-text-secondary">Instruction</label>
-      <textarea
+      <Label
+        htmlFor="cowork-routine-instruction"
+        className="mb-1 block text-xs font-medium text-text-secondary"
+      >
+        Instruction
+      </Label>
+      <Textarea
+        id="cowork-routine-instruction"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Summarize new files added to the workspace since yesterday and list any action items."
         rows={3}
-        className="mb-3 w-full resize-y rounded-md border border-border-medium bg-surface-primary px-2.5 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary focus:border-blue-500 focus:outline-none"
+        className="mb-3 h-auto resize-y rounded-md border-border-medium bg-surface-primary px-2.5 py-1.5 text-text-primary placeholder:text-text-tertiary focus:border-blue-500 focus:outline-none"
       />
 
-      <label className="mb-1 block text-xs font-medium text-text-secondary">Schedule</label>
-      <select
-        value={presetId}
-        onChange={(e) => setPresetId(e.target.value)}
-        className="mb-2 w-full rounded-md border border-border-medium bg-surface-primary px-2.5 py-1.5 text-sm text-text-primary focus:border-blue-500 focus:outline-none"
+      <Label
+        id="cowork-routine-schedule-label"
+        className="mb-1 block text-xs font-medium text-text-secondary"
       >
-        {SCHEDULE_PRESETS.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.label}
-          </option>
-        ))}
-      </select>
+        Schedule
+      </Label>
+      <Dropdown
+        value={presetId}
+        onChange={setPresetId}
+        options={SCHEDULE_PRESETS.map(({ id, label }) => ({ value: id, label }))}
+        className="mb-2 w-full border-border-medium bg-surface-primary text-text-primary"
+        aria-labelledby="cowork-routine-schedule-label"
+      />
 
       {isCustom && (
         <div className="mb-2">
-          <input
+          <Input
+            id="cowork-routine-custom-cron"
             type="text"
             value={customCron}
             onChange={(e) => setCustomCron(e.target.value)}
             placeholder="*/30 * * * *"
-            className="w-full rounded-md border border-border-medium bg-surface-primary px-2.5 py-1.5 font-mono text-sm text-text-primary placeholder:text-text-tertiary focus:border-blue-500 focus:outline-none"
+            className="h-auto rounded-md border-border-medium bg-surface-primary px-2.5 py-1.5 font-mono text-text-primary placeholder:text-text-tertiary focus-visible:border-blue-500"
           />
           <p className="mt-1 text-xs text-text-tertiary">
             Five values: minute, hour, day-of-month, month, day-of-week (use{' '}
@@ -205,59 +214,57 @@ function CreateRoutineForm({
         </div>
       )}
 
-      <label className="mb-1 block text-xs font-medium text-text-secondary">Deliver result to</label>
-      <select
-        value={deliveryTarget}
-        onChange={(e) => setDeliveryTarget(e.target.value as TCoworkDeliveryTarget)}
-        className="mb-3 w-full rounded-md border border-border-medium bg-surface-primary px-2.5 py-1.5 text-sm text-text-primary focus:border-blue-500 focus:outline-none"
+      <Label
+        id="cowork-routine-delivery-label"
+        className="mb-1 block text-xs font-medium text-text-secondary"
       >
-        {DELIVERY_OPTIONS.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        Deliver result to
+      </Label>
+      <Dropdown
+        value={deliveryTarget}
+        onChange={(value) => setDeliveryTarget(value as TCoworkDeliveryTarget)}
+        options={DELIVERY_OPTIONS.map(({ id, label }) => ({ value: id, label }))}
+        className="mb-3 w-full border-border-medium bg-surface-primary text-text-primary"
+        aria-labelledby="cowork-routine-delivery-label"
+      />
 
-      <label className="mb-3 flex cursor-pointer items-start gap-2">
-        <input
-          type="checkbox"
+      <div className="mb-3 flex items-start gap-2">
+        <Checkbox
+          id="cowork-routine-auto-approve"
           checked={autoApprove}
-          onChange={(e) => setAutoApprove(e.target.checked)}
-          className="mt-0.5 size-3.5 flex-none accent-amber-500"
+          onCheckedChange={(checked) => setAutoApprove(checked === true)}
+          aria-labelledby="cowork-routine-auto-approve-label"
+          className="mt-0.5 size-3.5 flex-none data-[state=checked]:bg-amber-500"
         />
-        <span className="text-xs text-text-secondary">
+        <span id="cowork-routine-auto-approve-label" className="text-xs text-text-secondary">
           Auto-approve connector writes
           <span className="mt-0.5 block text-text-tertiary">
             Off by default, scheduled runs can’t publish/send/update on connectors. Turn on only if
             you want this routine to make those changes automatically, with no review.
           </span>
         </span>
-      </label>
+      </div>
 
       {error && (
-        <div className="mb-2 flex items-start gap-1.5 text-xs text-red-400">
+        <div className="mb-2 flex items-start gap-1.5 text-xs text-red-400" role="alert">
           <AlertCircle className="mt-0.5 size-3.5 flex-none" />
           <span>{error}</span>
         </div>
       )}
 
       <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md px-2.5 py-1.5 text-sm text-text-secondary hover:bg-surface-tertiary"
-        >
+        <Button variant="ghost" size="sm" onClick={onClose} className="text-text-secondary">
           Cancel
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
           onClick={handleSubmit}
           disabled={createMutation.isLoading}
-          className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-blue-600 text-white hover:bg-blue-500"
         >
           {createMutation.isLoading && <Loader2 className="size-3.5 animate-spin" />}
           Create routine
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -385,7 +392,10 @@ function RoutineRow({ projectId, routine }: { projectId: string; routine: TCowor
               <span className="break-words">{describeSchedule(routine.cronExpression)}</span>
             </span>
             {routine.deliveryTarget === 'file' && (
-              <span className="flex items-center gap-1" title="Each run is also saved as a workspace file">
+              <span
+                className="flex items-center gap-1"
+                title="Each run is also saved as a workspace file"
+              >
                 <FileText className="size-3" /> file
               </span>
             )}

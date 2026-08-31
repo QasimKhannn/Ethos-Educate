@@ -84,7 +84,7 @@ export default defineConfig(({ command }) => ({
           'assets/maskable-icon.png',
           'manifest.webmanifest',
         ],
-        globIgnores: ['images/**/*', '**/*.map', 'index.html'],
+        globIgnores: ['images/**/*', '**/*.map'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
       },
@@ -162,9 +162,6 @@ export default defineConfig(({ command }) => ({
             }
             if (normalizedId.includes('react-virtualized')) {
               return 'virtualization';
-            }
-            if (normalizedId.includes('i18next') || normalizedId.includes('react-i18next')) {
-              return 'i18n';
             }
             // Only regular lodash (not lodash-es which goes to mermaid chunk)
             if (normalizedId.includes('/lodash/')) {
@@ -278,10 +275,6 @@ export default defineConfig(({ command }) => ({
 
             // Everything else falls into a generic vendor chunk.
             return 'vendor';
-          }
-          // Create a separate chunk for all locale files under src/locales.
-          if (normalizedId.includes('/src/locales/')) {
-            return 'locales';
           }
           // Let Rollup decide automatically for any other files.
           return null;

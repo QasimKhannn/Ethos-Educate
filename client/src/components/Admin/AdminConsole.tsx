@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useOutletContext } from 'react-router-dom';
-import { Button, useMediaQuery, useToastContext } from '@librechat/client';
+import { Button, Dropdown, useMediaQuery, useToastContext } from '@librechat/client';
 import { SystemRoles } from 'librechat-data-provider';
 import {
   useAdminAuditLogsQuery,
@@ -151,15 +151,17 @@ const UserCard = ({
         </div>
 
         <div className="flex flex-col gap-2 lg:w-52">
-          <select
+          <Dropdown
             value={user.role}
-            className="rounded-xl border border-border-light bg-surface-secondary px-3 py-2 text-sm text-text-primary"
+            className="w-full border-border-light bg-surface-secondary text-text-primary lg:w-52"
+            options={[
+              { value: SystemRoles.USER, label: 'USER' },
+              { value: SystemRoles.ADMIN, label: 'ADMIN' },
+            ]}
+            onChange={(role) => onChangeRole(user, role as SystemRoles)}
+            aria-label="User role"
             disabled={disableActions}
-            onChange={(event) => onChangeRole(user, event.target.value as SystemRoles)}
-          >
-            <option value={SystemRoles.USER}>USER</option>
-            <option value={SystemRoles.ADMIN}>ADMIN</option>
-          </select>
+          />
           <Button
             type="button"
             variant="outline"

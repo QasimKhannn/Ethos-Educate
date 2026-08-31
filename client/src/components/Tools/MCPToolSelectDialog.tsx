@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
+import { OGDialog, OGDialogContent, OGDialogTitle } from '@librechat/client';
 import { Constants, EModelEndpoint, QueryKeys } from 'librechat-data-provider';
 import { useUpdateUserPluginsMutation } from 'librechat-data-provider/react-query';
 import type { TError, AgentToolType } from 'librechat-data-provider';
@@ -281,144 +282,139 @@ function MCPToolSelectDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="mcp-tool-dialog-title"
-      aria-describedby="mcp-tool-dialog-description"
-      className="relative z-[1001]"
+    <OGDialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeDialog();
+        }
+      }}
+      modal
     >
-      <button
-        type="button"
-        aria-label={localize('com_ui_close')}
-        className="fixed inset-0 bg-surface-primary opacity-60 transition-opacity dark:opacity-80"
-        onClick={closeDialog}
-      />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <div
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-          className="relative max-h-[90vh] w-[min(100%,72rem)] transform overflow-hidden overflow-y-auto rounded-lg bg-surface-secondary text-left shadow-xl transition-all max-sm:h-full"
-          style={{ minHeight: '610px' }}
-        >
-          <div className="flex items-center justify-between border-b-[1px] border-border-medium px-4 pb-4 pt-5 sm:p-6">
-            <div className="flex items-center">
-              <div className="text-center sm:text-left">
-                <h2
-                  id="mcp-tool-dialog-title"
-                  className="text-lg font-medium leading-6 text-text-primary"
-                >
-                  {localize('com_nav_tool_dialog_mcp_server_tools')}
-                </h2>
-                <p id="mcp-tool-dialog-description" className="text-sm text-text-secondary">
-                  {localize('com_nav_tool_dialog_description')}
-                </p>
-              </div>
-            </div>
-            <div>
-              <button
-                onClick={closeDialog}
-                className="inline-block rounded-full text-text-secondary transition-colors hover:text-text-primary"
-                aria-label={localize('com_ui_close')}
-                type="button"
+      <OGDialogContent
+        aria-describedby="mcp-tool-dialog-description"
+        showCloseButton={false}
+        overlayClassName="bg-surface-primary/60 dark:bg-surface-primary/80"
+        className="max-h-[90vh] w-[min(calc(100%-2rem),72rem)] max-w-none gap-0 overflow-hidden rounded-lg bg-surface-secondary p-0 text-left shadow-xl max-sm:h-full"
+        style={{ minHeight: '610px' }}
+      >
+        <div className="flex items-center justify-between border-b-[1px] border-border-medium px-4 pb-4 pt-5 sm:p-6">
+          <div className="flex items-center">
+            <div className="text-center sm:text-left">
+              <OGDialogTitle
+                id="mcp-tool-dialog-title"
+                className="text-lg font-medium leading-6 text-text-primary"
               >
-                <X aria-hidden="true" />
-              </button>
+                {localize('com_nav_tool_dialog_mcp_server_tools')}
+              </OGDialogTitle>
+              <p id="mcp-tool-dialog-description" className="text-sm text-text-secondary">
+                {localize('com_nav_tool_dialog_description')}
+              </p>
             </div>
           </div>
-
-          {error && (
-            <div
-              className="relative m-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700"
-              role="alert"
+          <div>
+            <button
+              onClick={closeDialog}
+              className="inline-block rounded-full text-text-secondary transition-colors hover:text-text-primary"
+              aria-label={localize('com_ui_close')}
+              type="button"
             >
-              {localize('com_nav_plugin_auth_error')} {errorMessage}
-            </div>
-          )}
-
-          {configuringServer && (
-            <div className="p-4 sm:p-6 sm:pt-4">
-              <div className="mb-4">
-                <p className="text-sm text-text-secondary">
-                  {localize('com_ui_mcp_configure_server_description', { 0: configuringServer })}
-                </p>
-              </div>
-              <CustomUserVarsSection
-                serverName={configuringServer}
-                isSubmitting={isSavingCustomVars}
-                fields={availableMCPServersMap?.[configuringServer]?.customUserVars || {}}
-                onSave={(authData) => handleSaveCustomVars(configuringServer, authData)}
-                onRevoke={() => handleRevokeCustomVars(configuringServer)}
-              />
-            </div>
-          )}
-
-          <div className="p-4 sm:p-6 sm:pt-4">
-            <div className="mt-4 flex flex-col gap-4">
-              <div className="mx-auto flex w-full max-w-xl items-center gap-3">
-                <Search className="h-6 w-6 flex-none text-text-tertiary" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchValue}
-                  onChange={handleSearch}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onClick={(event) => event.stopPropagation()}
-                  onFocus={(event) => event.stopPropagation()}
-                  placeholder={localize('com_nav_tool_search')}
-                  className="h-10 min-w-0 flex-1 rounded border border-border-medium bg-transparent px-3 py-2 text-text-primary focus:outline-none"
-                />
-              </div>
-
-              <div
-                ref={gridRef}
-                className="grid min-h-[22rem] grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              >
-                {filteredServers
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((serverInfo) => {
-                    const isInstalled = installedToolsSet.has(serverInfo.serverName);
-                    const isConfiguring = configuringServer === serverInfo.serverName;
-                    const isServerInitializing = isInitializing === serverInfo.serverName;
-
-                    const tool: AgentToolType = {
-                      agent_id: agentId,
-                      tool_id: serverInfo.serverName,
-                      metadata: {
-                        ...serverInfo.metadata,
-                      },
-                    };
-
-                    return (
-                      <MCPToolItem
-                        tool={tool}
-                        isInstalled={isInstalled}
-                        key={serverInfo.serverName}
-                        isConfiguring={isConfiguring}
-                        isInitializing={isServerInitializing}
-                        onAddTool={() => onAddTool(serverInfo.serverName)}
-                        onRemoveTool={() => removeTool(serverInfo.serverName)}
-                      />
-                    );
-                  })}
-              </div>
-            </div>
-
-            <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-              {maxPage > 0 ? (
-                <PluginPagination
-                  currentPage={currentPage}
-                  maxPage={maxPage}
-                  onChangePage={handleChangePage}
-                />
-              ) : (
-                <div style={{ height: '21px' }}></div>
-              )}
-            </div>
+              <X aria-hidden="true" />
+            </button>
           </div>
         </div>
-      </div>
-    </div>
+
+        {error && (
+          <div
+            className="relative m-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700"
+            role="alert"
+          >
+            {localize('com_nav_plugin_auth_error')} {errorMessage}
+          </div>
+        )}
+
+        {configuringServer && (
+          <div className="p-4 sm:p-6 sm:pt-4">
+            <div className="mb-4">
+              <p className="text-sm text-text-secondary">
+                {localize('com_ui_mcp_configure_server_description', { 0: configuringServer })}
+              </p>
+            </div>
+            <CustomUserVarsSection
+              serverName={configuringServer}
+              isSubmitting={isSavingCustomVars}
+              fields={availableMCPServersMap?.[configuringServer]?.customUserVars || {}}
+              onSave={(authData) => handleSaveCustomVars(configuringServer, authData)}
+              onRevoke={() => handleRevokeCustomVars(configuringServer)}
+            />
+          </div>
+        )}
+
+        <div className="p-4 sm:p-6 sm:pt-4">
+          <div className="mt-4 flex flex-col gap-4">
+            <div className="mx-auto flex w-full max-w-xl items-center gap-3">
+              <Search className="h-6 w-6 flex-none text-text-tertiary" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchValue}
+                onChange={handleSearch}
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                onFocus={(event) => event.stopPropagation()}
+                placeholder={localize('com_nav_tool_search')}
+                className="h-10 min-w-0 flex-1 rounded border border-border-medium bg-transparent px-3 py-2 text-text-primary focus:outline-none"
+              />
+            </div>
+
+            <div
+              ref={gridRef}
+              className="grid min-h-[22rem] grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
+              {filteredServers
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map((serverInfo) => {
+                  const isInstalled = installedToolsSet.has(serverInfo.serverName);
+                  const isConfiguring = configuringServer === serverInfo.serverName;
+                  const isServerInitializing = isInitializing === serverInfo.serverName;
+
+                  const tool: AgentToolType = {
+                    agent_id: agentId,
+                    tool_id: serverInfo.serverName,
+                    metadata: {
+                      ...serverInfo.metadata,
+                    },
+                  };
+
+                  return (
+                    <MCPToolItem
+                      tool={tool}
+                      isInstalled={isInstalled}
+                      key={serverInfo.serverName}
+                      isConfiguring={isConfiguring}
+                      isInitializing={isServerInitializing}
+                      onAddTool={() => onAddTool(serverInfo.serverName)}
+                      onRemoveTool={() => removeTool(serverInfo.serverName)}
+                    />
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+            {maxPage > 0 ? (
+              <PluginPagination
+                currentPage={currentPage}
+                maxPage={maxPage}
+                onChangePage={handleChangePage}
+              />
+            ) : (
+              <div style={{ height: '21px' }}></div>
+            )}
+          </div>
+        </div>
+      </OGDialogContent>
+    </OGDialog>
   );
 }
 

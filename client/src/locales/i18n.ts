@@ -1,97 +1,134 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-
-// Import your JSON translations
 import translationEn from './en/translation.json';
-import translationAr from './ar/translation.json';
-import translationCa from './ca/translation.json';
-import translationCs from './cs/translation.json';
-import translationDa from './da/translation.json';
-import translationDe from './de/translation.json';
-import translationEs from './es/translation.json';
-import translationEt from './et/translation.json';
-import translationFa from './fa/translation.json';
-import translationFr from './fr/translation.json';
-import translationIt from './it/translation.json';
-import translationPl from './pl/translation.json';
-import translationPt_BR from './pt-BR/translation.json';
-import translationPt_PT from './pt-PT/translation.json';
-import translationRu from './ru/translation.json';
-import translationJa from './ja/translation.json';
-import translationKa from './ka/translation.json';
-import translationSv from './sv/translation.json';
-import translationKo from './ko/translation.json';
-import translationLt from './lt/translation.json';
-import translationLv from './lv/translation.json';
-import translationTh from './th/translation.json';
-import translationTr from './tr/translation.json';
-import translationUg from './ug/translation.json';
-import translationVi from './vi/translation.json';
-import translationNl from './nl/translation.json';
-import translationNn from './nn/translation.json';
-import translationId from './id/translation.json';
-import translationIs from './is/translation.json';
-import translationHe from './he/translation.json';
-import translationHu from './hu/translation.json';
-import translationHy from './hy/translation.json';
-import translationFi from './fi/translation.json';
-import translationZh_Hans from './zh-Hans/translation.json';
-import translationZh_Hant from './zh-Hant/translation.json';
-import translationSk from './sk/translation.json';
-import translationBo from './bo/translation.json';
-import translationUk from './uk/translation.json';
-import translationBs from './bs/translation.json';
-import translationNb from './nb/translation.json';
-import translationSl from './sl/translation.json';
 
 export const defaultNS = 'translation';
 
 export const resources = {
   en: { translation: translationEn },
-  ar: { translation: translationAr },
-  bs: { translation: translationBs },
-  ca: { translation: translationCa },
-  cs: { translation: translationCs },
-  'zh-Hans': { translation: translationZh_Hans },
-  'zh-Hant': { translation: translationZh_Hant },
-  da: { translation: translationDa },
-  de: { translation: translationDe },
-  es: { translation: translationEs },
-  et: { translation: translationEt },
-  fa: { translation: translationFa },
-  fr: { translation: translationFr },
-  it: { translation: translationIt },
-  nb: { translation: translationNb },
-  pl: { translation: translationPl },
-  'pt-BR': { translation: translationPt_BR },
-  'pt-PT': { translation: translationPt_PT },
-  ru: { translation: translationRu },
-  ja: { translation: translationJa },
-  ka: { translation: translationKa },
-  sv: { translation: translationSv },
-  ko: { translation: translationKo },
-  lt: { translation: translationLt },
-  lv: { translation: translationLv },
-  th: { translation: translationTh },
-  tr: { translation: translationTr },
-  ug: { translation: translationUg },
-  vi: { translation: translationVi },
-  nl: { translation: translationNl },
-  nn: { translation: translationNn },
-  id: { translation: translationId },
-  is: { translation: translationIs },
-  he: { translation: translationHe },
-  hu: { translation: translationHu },
-  hy: { translation: translationHy },
-  fi: { translation: translationFi },
-  sk: { translation: translationSk },
-  bo: { translation: translationBo },
-  sl: { translation: translationSl },
-  uk: { translation: translationUk },
 } as const;
 
-i18n
+type TranslationResource = Record<string, string>;
+
+type LocaleLoader = () => Promise<{ default: TranslationResource }>;
+
+type LocaleLoaderEntry = {
+  language: string;
+  loader: LocaleLoader;
+};
+
+const localeLoaders = new Map<string, LocaleLoader>([
+  ['ar', () => import('./ar/translation.json')],
+  ['bo', () => import('./bo/translation.json')],
+  ['bs', () => import('./bs/translation.json')],
+  ['ca', () => import('./ca/translation.json')],
+  ['cs', () => import('./cs/translation.json')],
+  ['da', () => import('./da/translation.json')],
+  ['de', () => import('./de/translation.json')],
+  ['es', () => import('./es/translation.json')],
+  ['et', () => import('./et/translation.json')],
+  ['fa', () => import('./fa/translation.json')],
+  ['fi', () => import('./fi/translation.json')],
+  ['fr', () => import('./fr/translation.json')],
+  ['he', () => import('./he/translation.json')],
+  ['hu', () => import('./hu/translation.json')],
+  ['hy', () => import('./hy/translation.json')],
+  ['id', () => import('./id/translation.json')],
+  ['is', () => import('./is/translation.json')],
+  ['it', () => import('./it/translation.json')],
+  ['ja', () => import('./ja/translation.json')],
+  ['ka', () => import('./ka/translation.json')],
+  ['ko', () => import('./ko/translation.json')],
+  ['lt', () => import('./lt/translation.json')],
+  ['lv', () => import('./lv/translation.json')],
+  ['nb', () => import('./nb/translation.json')],
+  ['nl', () => import('./nl/translation.json')],
+  ['nn', () => import('./nn/translation.json')],
+  ['pl', () => import('./pl/translation.json')],
+  ['pt-BR', () => import('./pt-BR/translation.json')],
+  ['pt-PT', () => import('./pt-PT/translation.json')],
+  ['ru', () => import('./ru/translation.json')],
+  ['sk', () => import('./sk/translation.json')],
+  ['sl', () => import('./sl/translation.json')],
+  ['sv', () => import('./sv/translation.json')],
+  ['th', () => import('./th/translation.json')],
+  ['tr', () => import('./tr/translation.json')],
+  ['ug', () => import('./ug/translation.json')],
+  ['uk', () => import('./uk/translation.json')],
+  ['vi', () => import('./vi/translation.json')],
+  ['zh-Hans', () => import('./zh-Hans/translation.json')],
+  ['zh-Hant', () => import('./zh-Hant/translation.json')],
+]);
+
+const localeLoaderEntries = new Map<string, LocaleLoaderEntry>(
+  Array.from(localeLoaders, ([language, loader]) => [language.toLowerCase(), { language, loader }]),
+);
+
+const localeAliases = new Map<string, string>([
+  ['zh-tw', 'zh-Hant'],
+  ['zh-hk', 'zh-Hant'],
+  ['zh', 'zh-Hans'],
+]);
+
+const localeLoadPromises = new Map<string, Promise<void>>();
+
+const getLocaleLoader = (language: string) => {
+  const normalizedLanguage = language.replace('_', '-');
+  const baseLanguage = normalizedLanguage.split('-')[0];
+  const candidates = [
+    normalizedLanguage,
+    localeAliases.get(normalizedLanguage.toLowerCase()),
+    baseLanguage,
+    localeAliases.get(baseLanguage.toLowerCase()),
+  ];
+
+  const localeLanguage = candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === 'string' && localeLoaderEntries.has(candidate.toLowerCase()),
+  );
+
+  return localeLanguage ? localeLoaderEntries.get(localeLanguage.toLowerCase()) : undefined;
+};
+
+export const isLanguageLoaded = (language: string) => {
+  const localeLoader = getLocaleLoader(language);
+  return !localeLoader || i18n.hasResourceBundle(localeLoader.language, defaultNS);
+};
+
+export const loadLanguage = async (language: string) => {
+  const localeLoader = getLocaleLoader(language);
+  if (!localeLoader || i18n.hasResourceBundle(localeLoader.language, defaultNS)) {
+    return;
+  }
+
+  const activeLoad = localeLoadPromises.get(localeLoader.language);
+  if (activeLoad) {
+    return activeLoad;
+  }
+
+  const loadPromise = localeLoader
+    .loader()
+    .then(({ default: translation }) => {
+      i18n.addResourceBundle(localeLoader.language, defaultNS, translation, true, true);
+    })
+    .catch(() => {
+      console.error(`Unable to load ${localeLoader.language} translations`);
+    })
+    .finally(() => {
+      localeLoadPromises.delete(localeLoader.language);
+    });
+
+  localeLoadPromises.set(localeLoader.language, loadPromise);
+  return loadPromise;
+};
+
+export const changeLanguage = async (language: string) => {
+  await loadLanguage(language);
+  return i18n.changeLanguage(language);
+};
+
+const i18nInitialization = i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -108,5 +145,10 @@ i18n
     resources,
     interpolation: { escapeValue: false },
   });
+
+export const initializeI18n = async () => {
+  await i18nInitialization;
+  await changeLanguage(i18n.language);
+};
 
 export default i18n;
