@@ -1,3 +1,5 @@
+const redisIntegrationTestsEnabled = process.env.RUN_REDIS_INTEGRATION_TESTS === 'true';
+
 export default {
   collectCoverageFrom: ['src/**/*.{js,jsx,ts,tsx}', '!<rootDir>/node_modules/'],
   coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
@@ -7,6 +9,9 @@ export default {
     '\\.dev\\.ts$',
     '\\.helper\\.ts$',
     '\\.helper\\.d\\.ts$',
+    ...(redisIntegrationTestsEnabled
+      ? []
+      : ['\\.cache_integration\\.spec\\.ts$', '\\.stream_integration\\.spec\\.ts$']),
   ],
   coverageReporters: ['text', 'cobertura'],
   testResultsProcessor: 'jest-junit',

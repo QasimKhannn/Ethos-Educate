@@ -3,6 +3,10 @@ const { logger } = require('@librechat/data-schemas');
 const DALLE3 = require('../DALLE3');
 
 jest.mock('openai');
+jest.mock('@librechat/api', () => ({
+  extractBaseURL: jest.fn((url) => url),
+  getImageBasename: jest.fn((url) => url.split('/').pop()),
+}));
 jest.mock('@librechat/data-schemas', () => {
   return {
     logger: {

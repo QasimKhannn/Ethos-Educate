@@ -132,26 +132,37 @@ class ExtendedPgVector(PGVector):
        ExtendedPgVector._query_logging_setup = True
 
 
-   def get_all_ids(self) -> list[str]:
+   def _user_id_filter(self, user_id: str):
+       return self.EmbeddingStore.cmetadata["user_id"].astext == user_id
+
+
+   def get_all_ids(self, user_id: str) -> list[str]:
        with Session(self._bind) as session:
-           results = session.query(self.EmbeddingStore.custom_id).all()
+           results = (
+               session.query(self.EmbeddingStore.custom_id)
+               .filter(self._user_id_filter(user_id))
+               .all()
+           )
            return [result[0] for result in results if result[0] is not None]
 
 
-   def get_filtered_ids(self, ids: list[str]) -> list[str]:
+   def get_filtered_ids(self, ids: list[str], user_id: str) -> list[str]:
        with Session(self._bind) as session:
            query = session.query(self.EmbeddingStore.custom_id).filter(
-               self.EmbeddingStore.custom_id.in_(ids)
+               self.EmbeddingStore.custom_id.in_(ids), self._user_id_filter(user_id)
            )
            results = query.all()
            return [result[0] for result in results if result[0] is not None]
 
 
-   def get_documents_by_ids(self, ids: list[str]) -> list[Document]:
+   def get_documents_by_ids(self, ids: list[str], user_id: str) -> list[Document]:
        with Session(self._bind) as session:
            results = (
                session.query(self.EmbeddingStore)
-               .filter(self.EmbeddingStore.custom_id.in_(ids))
+               .filter(
+                   self.EmbeddingStore.custom_id.in_(ids),
+                   self._user_id_filter(user_id),
+               )
                .all()
            )
            return [
@@ -161,8 +172,21 @@ class ExtendedPgVector(PGVector):
            ]
 
 
+   def delete(
+       self,
+       ids: Optional[list[str]] = None,
+       *,
+       user_id: str,
+       collection_only: bool = False,
+   ) -> None:
+       self._delete_multiple(ids, user_id, collection_only)
+
+
    def _delete_multiple(
-       self, ids: Optional[list[str]] = None, collection_only: bool = False
+       self,
+       ids: Optional[list[str]],
+       user_id: str,
+       collection_only: bool = False,
    ) -> None:
        with Session(self._bind) as session:
            if ids is not None:
@@ -179,7 +203,9 @@ class ExtendedPgVector(PGVector):
                    stmt = stmt.where(
                        self.EmbeddingStore.collection_id == collection.uuid
                    )
-               stmt = stmt.where(self.EmbeddingStore.custom_id.in_(ids))
+               stmt = stmt.where(
+                   self.EmbeddingStore.custom_id.in_(ids), self._user_id_filter(user_id)
+               )
                session.execute(stmt)
            session.commit()
 

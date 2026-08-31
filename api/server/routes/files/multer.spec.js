@@ -447,14 +447,19 @@ describe('Multer Configuration', () => {
     });
 
     it('should handle file system errors when directory creation fails', () => {
-      // Test with a non-existent parent directory to simulate fs issues
-      const invalidPath = '/nonexistent/path/that/should/not/exist';
-      mockReq.config.paths.uploads = invalidPath;
+      const existsSyncSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+      const mkdirSyncSpy = jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {
+        throw new Error('EACCES: permission denied');
+      });
 
-      // The current implementation doesn't catch errors, so they're thrown synchronously
-      expect(() => {
-        storage.getDestination(mockReq, mockFile, jest.fn());
-      }).toThrow();
+      try {
+        expect(() => {
+          storage.getDestination(mockReq, mockFile, jest.fn());
+        }).toThrow('EACCES: permission denied');
+      } finally {
+        existsSyncSpy.mockRestore();
+        mkdirSyncSpy.mockRestore();
+      }
     });
 
     it('should handle malformed filenames with real sanitization', (done) => {

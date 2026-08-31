@@ -23,25 +23,34 @@ class AsyncPgVector(ExtendedPgVector):
                pass
        return self._thread_pool
   
-   async def get_all_ids(self, executor=None) -> list[str]:
+   async def get_all_ids(self, user_id: str, executor=None) -> list[str]:
        executor = executor or self._get_thread_pool()
-       return await run_in_executor(executor, super().get_all_ids)
+       return await run_in_executor(executor, super().get_all_ids, user_id)
   
-   async def get_filtered_ids(self, ids: list[str], executor=None) -> list[str]:
+   async def get_filtered_ids(
+       self, ids: list[str], user_id: str, executor=None
+   ) -> list[str]:
        executor = executor or self._get_thread_pool()
-       return await run_in_executor(executor, super().get_filtered_ids, ids)
+       return await run_in_executor(executor, super().get_filtered_ids, ids, user_id)
 
 
-   async def get_documents_by_ids(self, ids: list[str], executor=None) -> list[Document]:
+   async def get_documents_by_ids(
+       self, ids: list[str], user_id: str, executor=None
+   ) -> list[Document]:
        executor = executor or self._get_thread_pool()
-       return await run_in_executor(executor, super().get_documents_by_ids, ids)
+       return await run_in_executor(executor, super().get_documents_by_ids, ids, user_id)
 
 
    async def delete(
-       self, ids: Optional[list[str]] = None, collection_only: bool = False, executor=None
+       self,
+       ids: Optional[list[str]] = None,
+       *,
+       user_id: str,
+       collection_only: bool = False,
+       executor=None,
    ) -> None:
        executor = executor or self._get_thread_pool()
-       await run_in_executor(executor, self._delete_multiple, ids, collection_only)
+       await run_in_executor(executor, self._delete_multiple, ids, user_id, collection_only)
   
    async def asimilarity_search_with_score_by_vector(
        self,

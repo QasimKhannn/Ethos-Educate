@@ -10,6 +10,8 @@ import {
 } from '@azure/storage-blob';
 import type { ContainerClient, UserDelegationKey } from '@azure/storage-blob';
 
+import { mapWithConcurrency } from '../utils/promise';
+
 type AzureBlobReference = {
   containerName: string;
   blobName: string;
@@ -20,6 +22,7 @@ let sharedKeyCredential: StorageSharedKeyCredential | null = null;
 let azureWarningLogged = false;
 let azureUrlExpirySeconds = 2 * 60;
 let userDelegationKeyCache: { key: UserDelegationKey; expiresOn: Date } | null = null;
+const azureBlobRefreshConcurrency = 4;
 
 if (process.env.AZURE_BLOB_URL_EXPIRY_SECONDS !== undefined) {
   const parsed = parseInt(process.env.AZURE_BLOB_URL_EXPIRY_SECONDS, 10);
@@ -289,25 +292,23 @@ export const refreshAzureBlobUrls = async (
   }
 
   const filesToUpdate: Array<{ file_id: string; filepath: string }> = [];
-  await Promise.all(
-    files.map(async (file) => {
-      if (!file.file_id || file.source !== FileSources.azure_blob || !file.filepath) {
+  await mapWithConcurrency(files, azureBlobRefreshConcurrency, async (file) => {
+    if (!file.file_id || file.source !== FileSources.azure_blob || !file.filepath) {
+      return;
+    }
+
+    try {
+      const filepath = await refreshAzureBlobUrl(file, bufferSeconds);
+      if (!filepath || filepath === file.filepath) {
         return;
       }
 
-      try {
-        const filepath = await refreshAzureBlobUrl(file, bufferSeconds);
-        if (!filepath || filepath === file.filepath) {
-          return;
-        }
-
-        filesToUpdate.push({ file_id: file.file_id, filepath });
-        file.filepath = filepath;
-      } catch (error) {
-        logger.error(`Error refreshing Azure Blob URL for file ${file.file_id}:`, error);
-      }
-    }),
-  );
+      filesToUpdate.push({ file_id: file.file_id, filepath });
+      file.filepath = filepath;
+    } catch (error) {
+      logger.error(`Error refreshing Azure Blob URL for file ${file.file_id}:`, error);
+    }
+  });
 
   if (filesToUpdate.length > 0) {
     await batchUpdateFiles(filesToUpdate);

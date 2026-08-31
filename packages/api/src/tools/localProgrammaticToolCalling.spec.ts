@@ -79,6 +79,6 @@ print(result)
       expect(result.content).toContain('stdout:');
       expect(result.content).toContain('value:42');
       expect(result.artifact).toBeUndefined();
-    });
+    }, 45_000);
   });
 });

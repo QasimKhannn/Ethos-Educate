@@ -92,6 +92,13 @@ jest.mock('../AgentCard', () => ({
   ),
 }));
 
+jest.mock('../EssayGraderToolCard', () => ({
+  __esModule: true,
+  default: ({ variant, viewMode }: { variant: string; viewMode?: string }) => (
+    <div data-testid={`essay-grader-tool-card-${variant}`} data-view-mode={viewMode} />
+  ),
+}));
+
 jest.mock('../useStartAgentChat', () => ({
   __esModule: true,
   default: () => mockStartAgentChat,
@@ -609,7 +616,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         render(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}
@@ -656,7 +663,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         const { rerender } = render(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}
@@ -683,7 +690,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         rerender(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}
@@ -712,7 +719,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         render(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}
@@ -767,7 +774,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         const { rerender } = render(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}
@@ -799,7 +806,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         rerender(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}
@@ -840,7 +847,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         render(
           <Wrapper>
             <AgentGrid
-              category="all"
+              category="finance"
               searchQuery=""
               onSelectAgent={mockOnSelectAgent}
               scrollElementRef={scrollElementRef}

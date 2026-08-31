@@ -9,6 +9,7 @@ beforeAll(() => {
 const mockShowToast = jest.fn();
 const mockSetFilesLoading = jest.fn();
 const mockMutate = jest.fn();
+const mockFileConfig = {};
 
 let mockConversation: Record<string, string | null | undefined> = {};
 
@@ -44,7 +45,7 @@ jest.mock('@tanstack/react-query', () => ({
 }));
 
 jest.mock('~/data-provider', () => ({
-  useGetFileConfig: jest.fn(() => ({ data: null })),
+  useGetFileConfig: jest.fn(() => ({ data: mockFileConfig })),
   useUploadFileMutation: jest.fn((_opts: Record<string, unknown>) => ({
     mutate: mockMutate,
   })),
@@ -125,7 +126,7 @@ describe('useFileHandling', () => {
       const configResult = getEndpointFileConfig({
         endpoint: 'openAI',
         endpointType: 'custom',
-        fileConfig: null,
+        fileConfig: mockFileConfig,
       });
       expect(validateCall.endpointFileConfig).toEqual(configResult);
     });
@@ -153,7 +154,7 @@ describe('useFileHandling', () => {
       const agentsConfig = getEndpointFileConfig({
         endpoint: EModelEndpoint.agents,
         endpointType: EModelEndpoint.agents,
-        fileConfig: null,
+        fileConfig: mockFileConfig,
       });
       expect(validateCall.endpointFileConfig).toEqual(agentsConfig);
     });
@@ -179,7 +180,7 @@ describe('useFileHandling', () => {
       const anthropicConfig = getEndpointFileConfig({
         endpoint: 'anthropic',
         endpointType: undefined,
-        fileConfig: null,
+        fileConfig: mockFileConfig,
       });
       expect(validateCall.endpointFileConfig).toEqual(anthropicConfig);
     });

@@ -32,6 +32,14 @@ jest.mock('@librechat/api', () => ({
 }));
 jest.mock('~/models', () => ({
   findUser: jest.fn(),
+  countUsers: jest.fn().mockResolvedValue(0),
+}));
+jest.mock('~/models/userMembership', () => ({
+  isUserActive: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('~/server/services/AdminConfigService', () => ({
+  canCreateAccountEffective: jest.fn().mockResolvedValue(true),
+  getEffectiveAllowedDomains: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('~/server/services/Config', () => ({
   getAppConfig: jest.fn().mockResolvedValue({

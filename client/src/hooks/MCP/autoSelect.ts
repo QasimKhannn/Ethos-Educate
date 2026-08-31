@@ -126,6 +126,28 @@ const collectAliases = (
   return [...aliases];
 };
 
+const collectDescriptionAliases = (value: string | undefined): string[] => {
+  const aliases = new Set(collectAliases(value, MIN_DESCRIPTION_TOKEN_LENGTH));
+  const words = value ? getWords(value) : [];
+
+  for (let start = 0; start < words.length - 1; start++) {
+    let compact = words[start];
+    let includesIgnoredWord = IGNORED_TOKENS.has(words[start]);
+    const endLimit = Math.min(words.length, start + MAX_COMPOUND_WORDS);
+
+    for (let end = start + 1; end < endLimit; end++) {
+      compact += words[end];
+      includesIgnoredWord ||= IGNORED_TOKENS.has(words[end]);
+
+      if (!includesIgnoredWord && isMeaningfulToken(compact, MIN_DESCRIPTION_TOKEN_LENGTH)) {
+        aliases.add(compact);
+      }
+    }
+  }
+
+  return [...aliases];
+};
+
 const promptContainsAlias = (prompt: PromptIndex, alias: string): boolean => {
   if (alias.includes(' ')) {
     return prompt.padded.includes(` ${alias} `);
@@ -150,7 +172,7 @@ const serverMatchesPrompt = (
     }
   }
 
-  const descriptionAliases = collectAliases(server.description, MIN_DESCRIPTION_TOKEN_LENGTH);
+  const descriptionAliases = collectDescriptionAliases(server.description);
   for (const alias of descriptionAliases) {
     if (promptContainsAlias(prompt, alias)) {
       return true;

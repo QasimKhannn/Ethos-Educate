@@ -5,6 +5,7 @@ jest.mock('path');
 jest.mock('node-fetch');
 jest.mock('@node-saml/passport-saml');
 jest.mock('@librechat/data-schemas', () => ({
+  createModels: jest.fn(() => ({})),
   logger: {
     info: jest.fn(),
     debug: jest.fn(),
@@ -16,6 +17,12 @@ jest.mock('~/models', () => ({
   findUser: jest.fn(),
   createUser: jest.fn(),
   updateUser: jest.fn(),
+}));
+jest.mock('~/models/userMembership', () => ({
+  isUserActive: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('~/server/services/AdminConfigService', () => ({
+  getEffectiveAllowedDomains: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('~/server/services/Config', () => ({
   config: {

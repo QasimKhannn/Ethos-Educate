@@ -18,6 +18,7 @@ jest.mock('https-proxy-agent', () => ({
   HttpsProxyAgent: jest.fn(),
 }));
 jest.mock('@librechat/data-schemas', () => ({
+  createModels: jest.fn(() => ({})),
   logger: { info: jest.fn(), warn: jest.fn(), debug: jest.fn(), error: jest.fn() },
 }));
 jest.mock('@librechat/api', () => ({

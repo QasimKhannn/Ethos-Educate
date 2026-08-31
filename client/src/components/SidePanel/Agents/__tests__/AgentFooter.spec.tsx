@@ -158,6 +158,17 @@ jest.mock('../DuplicateAgent', () => ({
 }));
 
 jest.mock('@librechat/client', () => ({
+  Button: ({
+    children,
+    size: _size,
+    variant: _variant,
+    ...props
+  }: React.PropsWithChildren<
+    React.ButtonHTMLAttributes<HTMLButtonElement> & {
+      size?: string;
+      variant?: string;
+    }
+  >) => <button {...props}>{children}</button>,
   Spinner: () => <div data-testid="spinner" />,
 }));
 

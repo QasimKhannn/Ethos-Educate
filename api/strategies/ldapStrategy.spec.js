@@ -1,5 +1,6 @@
 // --- Mocks ---
 jest.mock('@librechat/data-schemas', () => ({
+  createModels: jest.fn(() => ({})),
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -22,8 +23,17 @@ jest.mock('~/models', () => ({
   countUsers: jest.fn(),
 }));
 
+jest.mock('~/models/userMembership', () => ({
+  isUserActive: jest.fn().mockResolvedValue(true),
+}));
+
 jest.mock('~/server/services/Config', () => ({
   getAppConfig: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('~/server/services/AdminConfigService', () => ({
+  canCreateAccountEffective: jest.fn().mockResolvedValue(true),
+  getEffectiveAllowedDomains: jest.fn().mockResolvedValue([]),
 }));
 
 // Mock passport-ldapauth to capture verify callback

@@ -3,7 +3,6 @@ const express = require('express');
 const request = require('supertest');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
-const { getBasePath } = require('@librechat/api');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 function generateTestCsrfToken(flowId) {
@@ -12,6 +11,30 @@ function generateTestCsrfToken(flowId) {
     .update(flowId)
     .digest('hex')
     .slice(0, 32);
+}
+
+function expectMCPError(response, { status, code, message, action }) {
+  expect(response.status).toBe(status);
+  expect(response.body).toEqual({
+    success: false,
+    code,
+    message,
+    action,
+    error: message,
+  });
+}
+
+function expectOAuthErrorRedirect(response, error) {
+  expect(response.status).toBe(302);
+  expect(response.headers.location).toBe(
+    `http://localhost:3090/oauth/error?error=${error}&serverName=test-server`,
+  );
+}
+
+function expectOAuthSuccessPage(response) {
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/html/);
+  expect(response.text).toContain('Authentication Successful');
 }
 
 const mockRegistryInstance = {
@@ -41,6 +64,7 @@ jest.mock('@librechat/api', () => {
     },
     getUserMCPAuthMap: jest.fn(),
     generateCheckAccess: jest.fn(() => (req, res, next) => next()),
+    checkAccess: jest.fn().mockResolvedValue(true),
     MCPServersRegistry: {
       getInstance: () => mockRegistryInstance,
     },
@@ -267,8 +291,12 @@ describe('MCP Routes', () => {
         flowId: 'test-user-id:test-server',
       });
 
-      expect(response.status).toBe(403);
-      expect(response.body).toEqual({ error: 'User mismatch' });
+      expectMCPError(response, {
+        status: 403,
+        code: 'PERMISSION_DENIED',
+        message: 'This OAuth request does not match your account.',
+        action: 'Start the connection again from your current session.',
+      });
     });
 
     it('should return 404 when flow state is not found', async () => {
@@ -284,8 +312,12 @@ describe('MCP Routes', () => {
         flowId: 'non-existent-flow-id',
       });
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ error: 'Flow not found' });
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that sign-in request.",
+        action: 'Start the connection again and try once more.',
+      });
     });
 
     it('should return 400 when flow state has missing OAuth config', async () => {
@@ -305,8 +337,12 @@ describe('MCP Routes', () => {
         flowId: 'test-user-id:test-server',
       });
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Invalid flow state' });
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'This sign-in request is missing required details.',
+        action: 'Start the connection again and try once more.',
+      });
     });
 
     it('should return 500 when OAuth initiation throws unexpected error', async () => {
@@ -322,8 +358,12 @@ describe('MCP Routes', () => {
         flowId: 'test-user-id:test-server',
       });
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to initiate OAuth' });
+      expectMCPError(response, {
+        status: 503,
+        code: 'SERVICE_UNAVAILABLE',
+        message: "We couldn't start the sign-in process for this MCP server.",
+        action: 'Please try again in a moment.',
+      });
     });
 
     it('should return 400 when flow state metadata is null', async () => {
@@ -342,8 +382,12 @@ describe('MCP Routes', () => {
         flowId: 'test-user-id:test-server',
       });
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Invalid flow state' });
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'This sign-in request is missing required details.',
+        action: 'Start the connection again and try once more.',
+      });
     });
   });
 
@@ -356,30 +400,21 @@ describe('MCP Routes', () => {
         error: 'access_denied',
         state: 'test-user-id:test-server',
       });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/error?error=access_denied`);
+      expectOAuthErrorRedirect(response, 'access_denied');
     });
 
     it('should redirect to error page when code is missing', async () => {
       const response = await request(app).get('/api/mcp/test-server/oauth/callback').query({
         state: 'test-user-id:test-server',
       });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/error?error=missing_code`);
+      expectOAuthErrorRedirect(response, 'missing_code');
     });
 
     it('should redirect to error page when state is missing', async () => {
       const response = await request(app).get('/api/mcp/test-server/oauth/callback').query({
         code: 'test-auth-code',
       });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/error?error=missing_state`);
+      expectOAuthErrorRedirect(response, 'missing_state');
     });
 
     it('should redirect to error page when CSRF cookie is missing', async () => {
@@ -387,12 +422,7 @@ describe('MCP Routes', () => {
         code: 'test-auth-code',
         state: 'test-user-id:test-server',
       });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(
-        `${basePath}/oauth/error?error=csrf_validation_failed`,
-      );
+      expectOAuthErrorRedirect(response, 'csrf_validation_failed');
     });
 
     it('should redirect to error page when CSRF cookie does not match state', async () => {
@@ -404,12 +434,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: 'test-user-id:test-server',
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(
-        `${basePath}/oauth/error?error=csrf_validation_failed`,
-      );
+      expectOAuthErrorRedirect(response, 'csrf_validation_failed');
     });
 
     it('should redirect to error page when flow state is not found', async () => {
@@ -424,10 +449,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/error?error=invalid_state`);
+      expectOAuthErrorRedirect(response, 'invalid_state');
     });
 
     it('should handle OAuth callback successfully', async () => {
@@ -488,10 +510,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/success?serverName=test-server`);
+      expectOAuthSuccessPage(response);
       expect(MCPOAuthHandler.completeOAuthFlow).toHaveBeenCalledWith(
         flowId,
         'test-auth-code',
@@ -533,10 +552,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/error?error=callback_failed`);
+      expectOAuthErrorRedirect(response, 'callback_failed');
     });
 
     it('should handle system-level OAuth completion', async () => {
@@ -575,10 +591,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/success?serverName=test-server`);
+      expectOAuthSuccessPage(response);
       expect(mockFlowManager.deleteFlow).toHaveBeenCalledWith(flowId, 'mcp_get_tokens');
     });
 
@@ -627,10 +640,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/success?serverName=test-server`);
+      expectOAuthSuccessPage(response);
       expect(MCPTokenStorage.storeTokens).toHaveBeenCalled();
       expect(mockFlowManager.deleteFlow).toHaveBeenCalledWith(flowId, 'mcp_get_tokens');
     });
@@ -675,10 +685,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/error?error=callback_failed`);
+      expectOAuthErrorRedirect(response, 'callback_failed');
       expect(mockMcpManager.getUserConnection).not.toHaveBeenCalled();
     });
 
@@ -740,10 +747,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/success?serverName=test-server`);
+      expectOAuthSuccessPage(response);
 
       expect(MCPTokenStorage.storeTokens).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -787,10 +791,7 @@ describe('MCP Routes', () => {
           code: 'test-auth-code',
           state: flowId,
         });
-      const basePath = getBasePath();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`${basePath}/oauth/success?serverName=test-server`);
+      expectOAuthSuccessPage(response);
 
       expect(MCPOAuthHandler.completeOAuthFlow).not.toHaveBeenCalled();
       expect(MCPTokenStorage.storeTokens).not.toHaveBeenCalled();
@@ -836,15 +837,23 @@ describe('MCP Routes', () => {
 
       const response = await request(unauthApp).get('/api/mcp/oauth/tokens/test-flow-id');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User not authenticated' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
 
     it('should return 403 when user tries to access flow they do not own', async () => {
       const response = await request(app).get('/api/mcp/oauth/tokens/other-user-id:flow-123');
 
-      expect(response.status).toBe(403);
-      expect(response.body).toEqual({ error: 'Access denied' });
+      expectMCPError(response, {
+        status: 403,
+        code: 'PERMISSION_DENIED',
+        message: "You don't have access to this sign-in request.",
+        action: 'Start a new connection from your own account.',
+      });
     });
 
     it('should return 404 when flow is not found', async () => {
@@ -859,8 +868,12 @@ describe('MCP Routes', () => {
         '/api/mcp/oauth/tokens/test-user-id:non-existent-flow',
       );
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ error: 'Flow not found' });
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that sign-in request.",
+        action: 'Start the connection again and try once more.',
+      });
     });
 
     it('should return 400 when flow is not completed', async () => {
@@ -876,8 +889,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/oauth/tokens/test-user-id:pending-flow');
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Flow not completed' });
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'This sign-in request is not ready yet.',
+        action: 'Finish the sign-in flow and try again.',
+      });
     });
 
     it('should return 500 when token retrieval throws an unexpected error', async () => {
@@ -887,8 +904,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/oauth/tokens/test-user-id:error-flow');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to get tokens' });
+      expectMCPError(response, {
+        status: 503,
+        code: 'SERVICE_UNAVAILABLE',
+        message: "We couldn't finish this MCP sign-in request.",
+        action: 'Try again in a moment.',
+      });
     });
   });
 
@@ -920,8 +941,12 @@ describe('MCP Routes', () => {
     it('should return 403 when flowId does not match authenticated user', async () => {
       const response = await request(app).get('/api/mcp/oauth/status/other-user-id:test-server');
 
-      expect(response.status).toBe(403);
-      expect(response.body).toEqual({ error: 'Access denied' });
+      expectMCPError(response, {
+        status: 403,
+        code: 'PERMISSION_DENIED',
+        message: "You don't have access to this sign-in request.",
+        action: 'Start a new connection from your own account.',
+      });
     });
 
     it('should return 404 when flow is not found', async () => {
@@ -934,8 +959,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/oauth/status/test-user-id:non-existent');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ error: 'Flow not found' });
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that sign-in request.",
+        action: 'Start the connection again and try once more.',
+      });
     });
 
     it('should return 500 when status check fails', async () => {
@@ -948,8 +977,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/oauth/status/test-user-id:error-server');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to get flow status' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't check the sign-in status for this MCP server.",
+        action: 'Try again in a moment.',
+      });
     });
   });
 
@@ -1014,8 +1047,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/oauth/cancel/test-server');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to cancel OAuth flow' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't cancel the sign-in request.",
+        action: 'Try again in a moment.',
+      });
     });
 
     it('should return 401 when user is not authenticated', async () => {
@@ -1029,8 +1066,12 @@ describe('MCP Routes', () => {
 
       const response = await request(unauthApp).post('/api/mcp/oauth/cancel/test-server');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User not authenticated' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
   });
 
@@ -1089,9 +1130,11 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/non-existent-server/reinitialize');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({
-        error: "MCP server 'non-existent-server' not found in configuration",
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that MCP server.",
+        action: 'Check the server name and try again.',
       });
     });
 
@@ -1148,9 +1191,11 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/error-server/reinitialize');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({
-        error: 'Failed to reinitialize MCP server for user',
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't reconnect that MCP server.",
+        action: 'Try again in a moment.',
       });
     });
 
@@ -1166,8 +1211,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/test-server/reinitialize');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Internal server error' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't reconnect that MCP server.",
+        action: 'Try again in a moment.',
+      });
     });
 
     it('should return 401 when user is not authenticated', async () => {
@@ -1181,8 +1230,12 @@ describe('MCP Routes', () => {
 
       const response = await request(unauthApp).post('/api/mcp/test-server/reinitialize');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User not authenticated' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
 
     it('should successfully reinitialize server and cache tools', async () => {
@@ -1341,8 +1394,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/connection/status');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ error: 'MCP config not found' });
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find your MCP server settings.",
+        action: 'Refresh the page and try again.',
+      });
     });
 
     it('should return 500 when connection status check fails', async () => {
@@ -1350,8 +1407,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/connection/status');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to get connection status' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't check the MCP connection status.",
+        action: 'Try again in a moment.',
+      });
     });
 
     it('should return 401 when user is not authenticated', async () => {
@@ -1365,8 +1426,12 @@ describe('MCP Routes', () => {
 
       const response = await request(unauthApp).get('/api/mcp/connection/status');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User not authenticated' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
   });
 
@@ -1413,9 +1478,11 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/connection/status/non-existent-server');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({
-        error: "MCP server 'non-existent-server' not found in configuration",
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that MCP server.",
+        action: 'Check the server name and try again.',
       });
     });
 
@@ -1424,8 +1491,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/connection/status/test-server');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ error: 'MCP config not found' });
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find your MCP server settings.",
+        action: 'Refresh the page and try again.',
+      });
     });
 
     it('should return 500 when connection status check fails', async () => {
@@ -1433,8 +1504,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/connection/status/test-server');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to get connection status' });
+      expectMCPError(response, {
+        status: 503,
+        code: 'SERVICE_UNAVAILABLE',
+        message: "We couldn't check the MCP connection status.",
+        action: 'Try again in a moment.',
+      });
     });
 
     it('should return 401 when user is not authenticated', async () => {
@@ -1448,8 +1523,12 @@ describe('MCP Routes', () => {
 
       const response = await request(unauthApp).get('/api/mcp/connection/status/test-server');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User not authenticated' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
   });
 
@@ -1492,9 +1571,11 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/non-existent-server/auth-values');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({
-        error: "MCP server 'non-existent-server' not found in configuration",
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that MCP server.",
+        action: 'Check the server name and try again.',
       });
     });
 
@@ -1531,8 +1612,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/test-server/auth-values');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Failed to check auth value flags' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't check the saved sign-in details for this MCP server.",
+        action: 'Try again in a moment.',
+      });
     });
 
     it('should handle customUserVars that is not an object', async () => {
@@ -1560,8 +1645,12 @@ describe('MCP Routes', () => {
 
       const response = await request(appWithoutAuth).get('/api/mcp/test-server/auth-values');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User not authenticated' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
   });
 
@@ -1606,13 +1695,10 @@ describe('MCP Routes', () => {
 
       const response = await request(app)
         .get(`/api/mcp/test-server/oauth/callback?code=test-code&state=${flowId}`)
-        .set('Cookie', [`oauth_csrf=${csrfToken}`])
-        .expect(302);
+        .set('Cookie', [`oauth_csrf=${csrfToken}`]);
 
-      const basePath = getBasePath();
-
+      expectOAuthSuccessPage(response);
       expect(mockFlowManager.completeFlow).not.toHaveBeenCalled();
-      expect(response.headers.location).toContain(`${basePath}/oauth/success`);
     });
 
     it('should handle null cached tools in OAuth callback (triggers || {} fallback)', async () => {
@@ -1660,12 +1746,9 @@ describe('MCP Routes', () => {
 
       const response = await request(app)
         .get(`/api/mcp/test-server/oauth/callback?code=test-code&state=${flowId}`)
-        .set('Cookie', [`oauth_csrf=${csrfToken}`])
-        .expect(302);
+        .set('Cookie', [`oauth_csrf=${csrfToken}`]);
 
-      const basePath = getBasePath();
-
-      expect(response.headers.location).toContain(`${basePath}/oauth/success`);
+      expectOAuthSuccessPage(response);
     });
   });
 
@@ -1713,8 +1796,12 @@ describe('MCP Routes', () => {
 
       const response = await request(unauthApp).get('/api/mcp/servers');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ message: 'Unauthorized' });
+      expectMCPError(response, {
+        status: 401,
+        code: 'AUTH_REQUIRED',
+        message: 'Your connection has expired or needs to be signed in again.',
+        action: 'Reconnect your account and try again.',
+      });
     });
 
     it('should return 500 when server config retrieval fails', async () => {
@@ -1722,8 +1809,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/servers');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Database error' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't load the MCP server list.",
+        action: 'Try again in a moment.',
+      });
     });
   });
 
@@ -1769,9 +1860,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/servers').send({ config: stdioConfig });
 
-      // Stdio transport is not allowed via API - only admins can configure it via YAML
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Invalid configuration');
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'Some MCP server settings are missing or invalid.',
+        action: 'Review the server details and try again.',
+      });
     });
 
     it('should return 400 for invalid configuration', async () => {
@@ -1783,9 +1877,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/servers').send({ config: invalidConfig });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Invalid configuration');
-      expect(response.body.errors).toBeDefined();
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'Some MCP server settings are missing or invalid.',
+        action: 'Review the server details and try again.',
+      });
     });
 
     it('should return 400 for SSE config with invalid URL protocol', async () => {
@@ -1797,8 +1894,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/servers').send({ config: invalidConfig });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Invalid configuration');
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'Some MCP server settings are missing or invalid.',
+        action: 'Review the server details and try again.',
+      });
     });
 
     it('should return 500 when registry throws error', async () => {
@@ -1812,8 +1913,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).post('/api/mcp/servers').send({ config: validConfig });
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ message: 'Database connection failed' });
+      expectMCPError(response, {
+        status: 503,
+        code: 'SERVICE_UNAVAILABLE',
+        message: "We couldn't create that MCP server.",
+        action: 'Try again after checking the server details.',
+      });
     });
   });
 
@@ -1842,8 +1947,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/servers/non-existent-server');
 
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ message: 'MCP server not found' });
+      expectMCPError(response, {
+        status: 404,
+        code: 'NOT_FOUND',
+        message: "We couldn't find that MCP server.",
+        action: 'Check the server name and try again.',
+      });
     });
 
     it('should return 500 when registry throws error', async () => {
@@ -1851,8 +1960,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).get('/api/mcp/servers/error-server');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ message: 'Database error' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't load that MCP server.",
+        action: 'Try again in a moment.',
+      });
     });
   });
 
@@ -1895,9 +2008,12 @@ describe('MCP Routes', () => {
         .patch('/api/mcp/servers/test-server')
         .send({ config: invalidConfig });
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Invalid configuration');
-      expect(response.body.errors).toBeDefined();
+      expectMCPError(response, {
+        status: 400,
+        code: 'INVALID_INPUT',
+        message: 'Some MCP server settings are missing or invalid.',
+        action: 'Review the server details and try again.',
+      });
     });
 
     it('should return 500 when registry throws error', async () => {
@@ -1913,8 +2029,12 @@ describe('MCP Routes', () => {
         .patch('/api/mcp/servers/test-server')
         .send({ config: validConfig });
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ message: 'Update failed' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't update that MCP server.",
+        action: 'Try again after checking the server details.',
+      });
     });
   });
 
@@ -1938,8 +2058,12 @@ describe('MCP Routes', () => {
 
       const response = await request(app).delete('/api/mcp/servers/error-server');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({ message: 'Deletion failed' });
+      expectMCPError(response, {
+        status: 500,
+        code: 'REQUEST_FAILED',
+        message: "We couldn't remove that MCP server.",
+        action: 'Try again in a moment.',
+      });
     });
   });
 });

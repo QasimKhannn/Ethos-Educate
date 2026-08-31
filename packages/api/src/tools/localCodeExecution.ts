@@ -209,7 +209,7 @@ const getPythonBaseEnv = (
 // cowork — operational env an interpreter needs, WITHOUT app secrets. Used when
 // `cleanEnv` is requested (Cowork) so executed code can't read backend secrets.
 const CLEAN_ENV_ALLOWLIST = new Set<string>([
-  'PATH', 'HOME', 'SHELL', 'USER', 'LOGNAME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'LANGUAGE',
+  'PATH', 'Path', 'HOME', 'SHELL', 'USER', 'LOGNAME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'LANGUAGE',
   'SystemRoot', 'SYSTEMROOT', 'COMSPEC', 'PATHEXT', 'WINDIR', 'SystemDrive', 'SYSTEMDRIVE',
   'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE',
 ]);

@@ -17,7 +17,7 @@ The five highest-impact application issues are:
 2. **High — React Query cache is recreated during application rendering.** This can discard cache state and contributes to duplicate startup configuration/banner calls.
 3. **Critical — RAG contains fail-open auth and isolation/path safety risks if reachable.** A missing JWT secret permits requests, a caller can supply another entity namespace, and raw upload names are used in filesystem paths.
 4. **Medium — Azure Blob signed-link renewal uses unbounded parallel work.** A user with many expired files can cause a burst of storage calls and metadata writes on a list request.
-5. **Medium — the conversation-list index does not yet match the normal history query shape.** It is not a current bottleneck at the measured data size, but it needs query telemetry before usage grows.
+5. **Medium — the conversation-list index does not yet match the normal history query shape.** Redacted timing telemetry is now in source; collect actual usage data before deciding whether an index is justified.
 
 The recommended response is not a rewrite. First close the contained application security and performance gaps, then instrument, test, and optimize in reversible batches. No user-facing workflow needs to be removed or redesigned.
 
@@ -38,6 +38,25 @@ No deployment, CI/CD, infrastructure, production environment, secret, scaling, A
 | AI, authenticated use, upload/OCR/RAG, lesson generation | Not run | Would create data, incur paid external work, or require an approved test identity |
 
 Measured statements use observed values. Static statements are direct source/configuration evidence. Hypotheses are explicitly labeled and should not be implemented without instrumentation.
+
+## Implementation progress
+
+The following small, reversible source-level fixes are complete. Deployment configuration, infrastructure, CI/CD, and deployment secrets were not changed.
+
+* **P0 stable React Query client:** completed previously with a re-render regression test.
+* **P0 RAG authentication, ownership, and upload-path safety:** completed in the current source. RAG now refuses to start without `JWT_SECRET`, except when both `NODE_ENV=development` and `RAG_ALLOW_UNAUTHENTICATED_DEVELOPMENT=true` are explicitly set. This opt-in bypass is for isolated local development only and defaults to disabled.
+* RAG derives document ownership only from the signed JWT `id` claim. Existing endpoint URLs and payload fields, including `entity_id`, remain accepted, but `entity_id` can no longer select another user's namespace.
+* Document IDs, reads, search, context retrieval, deletion, rollback, and uploads are filtered by the authenticated user. New uploads use generated filenames under a resolved, hashed per-user temporary root; displayed filenames and file-processing behavior remain unchanged.
+* Focused RAG security tests cover missing-secret rejection, development-only bypass, signed user identity, owner filters, safe upload paths, traversal rejection, and valid bearer tokens.
+* **P1 Azure Blob signed-link renewal:** completed in the current source. A file-list request renews at most four expired Blob links concurrently, preserves list order and response shape, and retains the existing single batch Mongo update.
+* Azure Blob and concurrency tests plus focused ESLint checks pass. The repository-wide `packages/api` TypeScript check remains blocked by pre-existing errors in unrelated cache, MCP, OIDC, and utility test files.
+* **P1 conversation-history query telemetry:** completed in the current source. `getConvosByCursor` now records its Mongo execution time, fetched/returned counts, pagination state, requested limit, and a redacted query shape. It never logs a user ID, project ID, tag, search text, cursor, title, or conversation ID. No index or response behavior changed.
+* **Release-gate resolution (2026-08-31) — production startup and PWA:** the sandbox's `createContext`/blank-page outage was caused by an unsafe Vite manual-chunk graph, not by the backend or deployment environment. The forced chunks created React dependency cycles (`react-vendor -> vendor -> react-vendor`), so a React-dependent chunk could execute before its React export was initialized. The custom `manualChunks` and `onlyExplicitManualChunks` overrides were removed; Vite/Rollup now creates its dependency-safe default graph while retaining the existing filenames, routes, APIs, build command, and deployment contract. A fresh local production browser load of `/c/new` and a reload both mount successfully, redirect an anonymous visitor to login as before, and produce no console errors.
+* **PWA release hygiene:** the five existing logo PNGs were mechanically regenerated from the existing SVG at their manifest-declared dimensions (16×16, 32×32, 180×180, 192×192, and 512×512). The existing public directory is now available when Workbox creates the precache. The final service worker precaches `index.html` and all five icons, preventing the observed `non-precached-url: index.html` reload error. The post-build copy remains unchanged, so deployment uses the same command and artifact contract. This changes only PWA/icon artifacts; routes, application behavior, API behavior, and service-worker navigation behavior are preserved.
+* **Final release validation (2026-08-31):** the exact client production build succeeds (9,576 transformed modules; Workbox precache: 230 entries / 15,282.88 KiB). Its initial entry graph is two emitted assets totaling 4.02 MiB raw, 1.03 MiB gzip, and 745 KiB Brotli. A fresh Vite preview browser session and an immediate reload were both verified with no console errors. `client` passes 112 suites / 1,247 tests; `packages/api` passes 113 suites / 2,804 tests with one intentionally skipped test; `packages/data-provider` passes 14 suites / 828 tests (one skipped); and `packages/data-schemas` passes 13 suites / 373 tests (three skipped). The legacy `api` run passed 92 suites with two skipped; its only full-run gap was a resource-exhausted worker for `loadConfigModels`, whose 9 tests pass when run in isolation.
+* The complete `api/models/Conversation.spec.js` suite passes (44 tests), including the new telemetry redaction and unchanged-pagination regression test. Existing uncommitted user work was preserved throughout verification.
+
+Before promoting this batch, run the existing RAG workflow with a non-production test account against the configured vector store. Documents whose stored metadata lacks `user_id` will deliberately be inaccessible until re-embedded, preventing cross-tenant fallback.
 
 ## Technology and architecture inventory
 
@@ -116,14 +135,14 @@ The configured database is small: 91 conversations, 621 messages, 29 files, 17 u
 
 ### Critical
 
-#### C-1 — RAG authentication is fail-open
+#### C-1 — RAG authentication is fail-open *(implemented locally; deployment validation pending)*
 
 * **Evidence:** rag-api/app/middleware.py lines 21–24 logs a missing JWT secret and forwards every request. rag-api/docker-compose.yml and rag-api/api-compose.yml expose port 8000.
 * **Risk:** A secret provisioning failure becomes unauthenticated document ingest, retrieval, query, and delete access.
 * **Fix:** Fail startup outside explicit development mode if JWT_SECRET is missing. Use a documented development-only bypass defaulting false. Restrict RAG to private ingress/network policy.
 * **Preserve/verify/rollback:** Existing valid bearer-token calls and endpoint shapes remain unchanged. Test no-secret startup, valid/invalid/missing token statuses and private reachability. The local bypass remains a separately gated rollback for isolated development only.
 
-#### C-2 — RAG user namespace and upload path are caller controlled
+#### C-2 — RAG user namespace and upload path are caller controlled *(implemented locally; deployment validation pending)*
 
 * **Evidence:** rag-api/app/routes/document_routes.py lines 73–77 prefers supplied entity_id over the authenticated subject. Upload handlers near lines 885, 1025, and 1148 join file.filename directly into filesystem paths.
 * **Risk:** Cross-tenant vector namespace access and path traversal/file overwrite opportunities if RAG is reachable.
@@ -187,14 +206,14 @@ The configured database is small: 91 conversations, 621 messages, 29 files, 17 u
 
 ### Medium
 
-#### M-1 — Conversation history index does not match principal query shape
+#### M-1 — Conversation-history telemetry implemented; index decision pending observation
 
-* **Evidence:** api/models/Conversation.js lines 151–233 filters user, archive state, Cowork, project/expiry/tags/cursor then sorts. schema/convo.ts has user/projectId/updatedAt but no unprojected history compound index. Observed explain includes SORT.
+* **Evidence:** api/models/Conversation.js lines 217–367 filters user, archive state, Cowork, project/expiry/tags/cursor then sorts. schema/convo.ts has user/projectId/updatedAt but no unprojected history compound index. Observed explain includes SORT.
 * **Impact:** Negligible today but can become a history-list latency/CPU hotspot.
-* **Fix:** Collect query hash/cardinality/slow-plan telemetry first. Add only an evidence-backed compound index beginning with user and relevant state/order fields; build online.
-* **Preserve/verify/rollback:** Pagination result/order must remain exactly stable. Shadow explains and index monitoring precede rollout; remove only after an observation window.
+* **Fix:** The normal history path now emits redacted execution timing, fetched/returned counts, pagination state, requested limit, and query-shape flags. Observe these logs for representative usage, then run targeted `explain` plans only for demonstrated slow shapes. Add only an evidence-backed compound index beginning with user and relevant state/order fields; build online.
+* **Preserve/verify/rollback:** Pagination result/order and endpoint payload are unchanged. The new log contains no raw identifiers or content. Review the added redaction/pagination test, then shadow explains and index monitoring before any index rollout; remove any later index only after an observation window.
 
-#### M-2 — Azure Blob refresh is unbounded per file-list request
+#### M-2 — Azure Blob refresh is unbounded per file-list request *(implemented locally; release validation pending)*
 
 * **Evidence:** packages/api/src/cdn/azure.ts lines 181–211 uses Promise.all for every file; routes/files/files.js lines 42–70 invokes it after cache expiry.
 * **Impact:** Users with many expired files can burst Azure calls and database writes on a list endpoint.
@@ -239,7 +258,7 @@ The configured database is small: 91 conversations, 621 messages, 29 files, 17 u
 |---|---|---|
 | Package-manager divergence | npm package manager declaration plus bun.lock and duplicate scripts | Choose one production lock/toolchain only after reproducible builds pass. |
 | Browser data stale | Vite warns caniuse-lite is six months old | Automate Browserslist refresh. |
-| PWA globs unmatched | Build warns four favicon/icon patterns match nothing | Fix/remove globs and verify install/update/offline. |
+| PWA icon/precache mismatch | **Resolved in source.** Public icons are available during Workbox generation; the final precache contains `index.html` and all declared icons | Run one clean-browser install/offline acceptance check after the normal sandbox deployment. |
 | Dependency risk status unproven | Audit command did not return parsable advisory output in this runner | Require npm audit JSON, Python audit, SBOM, license policy, and image scan artifacts in CI; do not claim clean status before that. |
 | Multiple client state libraries | Recoil, Jotai, React Query, SWR all have source usage | Do not consolidate first; define boundaries and remove only after usage tracing/tests. |
 | Local debug logging | DEBUG_LOGGING is true locally | Enforce production/staging log policy and PII/prompt redaction. |
@@ -273,18 +292,18 @@ The configured database is small: 91 conversations, 621 messages, 29 files, 17 u
 | Priority | Work | Impact | Effort/risk/dependency | Preservation and verification |
 |---|---|---|---|---|
 | P0 | Stable QueryClient | Reduces duplicate requests/cache loss | <1 day; low | Unit + browser request-count test; isolated rollback |
-| P0 | RAG subject namespace and filename safety | Removes cross-tenant/file-write risk without changing endpoint contracts | 1–2 days; medium compatibility | Contracts and fixtures; preserve routes/payloads; version storage keys |
-| P1 | Login landmarks/PWA warnings | Accessibility/release hygiene | <1 day; low | Axe plus offline install test |
-| P1 | Conversation-query telemetry | Confirms the exact index need before a schema change | 1–2 days; low | Capture only aggregate timings and plan shape; no index change |
+| P0 | RAG subject namespace and filename safety | **Complete in source.** Removes cross-tenant/file-write risk without changing endpoint contracts | 1–2 days; medium compatibility | Focused unit tests pass; validate an authenticated synthetic RAG workflow before release |
+| P1 | Login landmarks and final PWA acceptance | Accessibility/release hygiene | <1 day; low | PWA artifact defect is complete; run Axe plus one clean-browser install/offline check after normal sandbox deployment |
+| P1 | Conversation-query telemetry | **Complete in source.** Confirms the exact index need before a schema change | 1–2 days; low | Capture only aggregate timings and plan shape; no index change |
 
 ### Stabilization: 1–2 weeks
 
 | Priority | Work | Impact | Effort/risk/dependency | Preservation and verification |
 |---|---|---|---|---|
 | P1 | Route lazy loading | Largest client performance win | 4–7 days; chunk-cycle risk | Per-route smoke, PWA/mobile, bundle budget; incremental revert |
-| P1 | Bounded Azure Blob renewal | Prevents a large file list from monopolizing storage/DB work | 1–2 days; low | Preserve signed URL response shape; large-file-list test |
+| P1 | Bounded Azure Blob renewal | **Complete in source.** Caps expired-link renewals at four concurrent Azure calls and keeps one batch metadata update | 1–2 days; low | Utility and Azure module tests pass; verify a large synthetic list before release |
 | P1 | Application request/provider timing | Identifies slow AI and document paths without a telemetry-platform change | 2–4 days; low | Redacted structured timings; overhead test |
-| P2 | Query telemetry/index analysis | Avoids premature indexes | 2–3 days; low | Shadow explain and online index rollout |
+| P2 | Query telemetry/index analysis | Avoids premature indexes | 2–3 days after a representative observation window; low | Review redacted timings, shadow explain demonstrated slow shapes, then use an online index rollout only if justified |
 
 ### Production-grade: 2–6 weeks
 
@@ -315,7 +334,7 @@ React, Express, MongoDB, MCP, Azure Blob, and current AI providers remain in pla
 
 * Do not add Mongo indexes before production query/cardinality telemetry proves the exact winning shape.
 * Do not mechanically split every vendor chunk; lazy-load route features first, then measure login/chat/PWA.
-* Do not defer KaTeX again until the Vite manual-chunk graph is corrected and a production build proves both KaTeX and Mermaid are absent from the initial graph.
+* Do not reintroduce custom Vite manual-chunk rules without a fresh production build and clean-browser load/reload check; the previous rules caused the sandbox outage.
 * Do not change deployment, CI/CD, infrastructure, environment values, secrets, scaling, or release processes; they are owned by the deployment developer.
 * Do not change registration, sharing, moderation, user limits, provider models, MCP scope, lesson prompts, file retention, or SAS lifetime without owner decisions.
 * Do not perform AI/RAG/upload/lesson load testing against the configured tenant until a synthetic account, budget, cleanup process, and data classification are approved.
@@ -328,11 +347,10 @@ React, Express, MongoDB, MCP, Azure Blob, and current AI providers remain in pla
 
 ## Approval gate
 
-No broad refactoring has started. Recommended first reversible application batch:
+No broad refactoring is authorized. Completed reversible application batches are the stable React Query client, RAG subject/path safety, bounded Azure Blob renewal, conversation-history timing telemetry, and the PWA/production-startup release correction. The next unimplemented batch is:
 
-1. Stable React Query client and startup-request regression test.
-2. RAG subject binding and filename safety, preserving existing API contracts.
-3. Login accessibility/PWA warnings and bundle/request measurement guard.
-4. Aggregate conversation-query timing to decide whether an index is justified.
+1. Redacted API, AI, MCP, document, and file-operation timings, followed by backend module-load profiling.
+2. Login accessibility checks and a bundle/request measurement guard.
+3. Aggregate conversation-query timing to decide whether an index is justified.
 
 Approve this order, or specify another, before implementation begins.

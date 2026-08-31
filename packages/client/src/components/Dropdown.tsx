@@ -6,10 +6,16 @@ import './Dropdown.css';
 
 interface DropdownProps {
   value?: string;
-  label?: string;
+  label?: React.ReactNode;
   onChange: (value: string) => void;
   options: (string | Option | { divider: true })[];
   className?: string;
+  containerClassName?: string;
+  triggerClassName?: string;
+  contentClassName?: string;
+  itemClassName?: string;
+  arrowClassName?: string;
+  'data-tour-id'?: string;
   sizeClasses?: string;
   testId?: string;
   icon?: React.ReactNode;
@@ -19,6 +25,7 @@ interface DropdownProps {
   'aria-labelledby'?: string;
   portal?: boolean;
   disabled?: boolean;
+  showSelectedIndicator?: boolean;
 }
 
 const isDivider = (item: string | Option | { divider: true }): item is { divider: true } =>
@@ -33,6 +40,12 @@ const Dropdown: React.FC<DropdownProps> = ({
   onChange,
   options,
   className = '',
+  containerClassName = '',
+  triggerClassName = '',
+  contentClassName = '',
+  itemClassName = '',
+  arrowClassName = '',
+  'data-tour-id': dataTourId,
   sizeClasses,
   testId = 'dropdown-menu',
   icon,
@@ -42,6 +55,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   'aria-labelledby': ariaLabelledBy,
   portal = true,
   disabled = false,
+  showSelectedIndicator = true,
 }) => {
   const handleChange = (value: string) => {
     onChange(value);
@@ -71,7 +85,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   };
 
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('relative', className, containerClassName)} data-tour-id={dataTourId}>
       <Select.Select
         store={selectProps}
         className={cn(
@@ -79,6 +93,7 @@ const Dropdown: React.FC<DropdownProps> = ({
           'disabled:cursor-not-allowed disabled:opacity-50',
           iconOnly ? 'h-full w-10' : 'w-fit gap-2',
           className,
+          triggerClassName,
         )}
         data-testid={testId}
         aria-label={ariaLabel}
@@ -100,7 +115,7 @@ const Dropdown: React.FC<DropdownProps> = ({
             </span>
           )}
         </div>
-        {!iconOnly && <Select.SelectArrow />}
+        {!iconOnly && <Select.SelectArrow className={arrowClassName} />}
       </Select.Select>
       <Select.SelectPopover
         portal={portal}
@@ -109,6 +124,7 @@ const Dropdown: React.FC<DropdownProps> = ({
           'popover-ui z-40',
           sizeClasses,
           className,
+          contentClassName,
           'max-h-[80vh] overflow-y-auto',
           '[pointer-events:auto]', // Override body's pointer-events:none when in modal
         )}
@@ -127,13 +143,13 @@ const Dropdown: React.FC<DropdownProps> = ({
             <Select.SelectItem
               key={`option-${index}`}
               value={String(option.value)}
-              className="select-item"
+              className={cn('select-item', itemClassName)}
               data-theme={option.value}
             >
               <div className="flex w-full items-center gap-2">
                 {option.icon != null && <span>{option.icon as React.ReactNode}</span>}
                 <span className="block truncate">{option.label}</span>
-                {selectedValue === option.value && (
+                {showSelectedIndicator && selectedValue === option.value && (
                   <span className="ml-auto pl-2">
                     <svg
                       width="24"

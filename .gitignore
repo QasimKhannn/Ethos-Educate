@@ -115,6 +115,8 @@ config.local.ts
 junit.xml
 **/.venv/
 **/venv/
+__pycache__/
+*.py[cod]
 
 # docker override file
 docker-compose.override.yaml

@@ -14,6 +14,7 @@ describe('coworkConnectors catalog', () => {
       [
         'airtable',
         'canva',
+        'github',
         // 'google_workspace', // hidden — commented out in the catalog for now
         'mailchimp',
         'monday',

@@ -7,6 +7,7 @@ import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import { useMarketplaceAgentsInfiniteQuery } from '~/data-provider/Agents';
 import { useLocalize } from '~/hooks';
+import { getFriendlyAgentCategoryLabel } from '~/hooks/Agents/useAgentCategories';
 import {
   marketplaceCardRevealVariants,
   marketplaceCardStackVariants,
@@ -56,6 +57,13 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   scrollElementRef,
 }) => {
   const localize = useLocalize();
+  const activeCategory = category ?? 'all';
+  const categoryLabel = getFriendlyAgentCategoryLabel({
+    value: activeCategory,
+    localize,
+  });
+  const tabPanelId = `tabpanel-${activeCategory}`;
+  const tabId = `category-tab-${activeCategory}`;
   const shouldReduceMotion = useReducedMotion();
   const isDesktopCatalog = useMediaQuery('(min-width: 960px)');
   const pageSize = isDesktopCatalog ? 10 : 9;
@@ -75,6 +83,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       category?: string;
       search?: string;
       limit: number;
+      promoted?: 1;
       sortBy?: 'createdAt' | 'updatedAt';
       sortDirection?: 'asc' | 'desc';
     } = {
@@ -84,9 +93,12 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
     if (searchQuery) {
       params.search = searchQuery;
-    }
-
-    if (category && category !== 'all') {
+      if (category && category !== 'all' && category !== 'promoted') {
+        params.category = category;
+      }
+    } else if (category === 'promoted') {
+      params.promoted = 1;
+    } else if (category && category !== 'all') {
       params.category = category;
     }
 
@@ -407,6 +419,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         className="agents-marketplace-empty"
         role="status"
         aria-live="polite"
+        aria-label={emptyStateHeading}
         aria-labelledby={emptyStateHeadingId}
       >
         <motion.div
@@ -437,6 +450,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
   const listAnnouncement = localize('com_agents_grid_announcement', {
     count: displayedAgents.length + (shouldShowEssayGraderTool ? 1 : 0),
+    category: categoryLabel,
   });
   const loadingCardIndexes = Array.from(
     { length: isDesktopCatalog ? pageSize : 4 },
@@ -489,7 +503,8 @@ const AgentGrid: React.FC<AgentGridProps> = ({
           data-tour-padding="0"
           data-tour-radius="22"
           role="tabpanel"
-          id="agents-panel"
+          id={tabPanelId}
+          aria-labelledby={tabId}
           aria-live="polite"
           aria-busy={isLoading && !hasData}
         >
@@ -527,6 +542,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({
               </motion.div>
             ))}
           </motion.div>
+          {isFetchingNextPage ? (
+            <div role="status" aria-live="polite" aria-label={loadingAnnouncement}>
+              <span className="sr-only">{loadingAnnouncement}</span>
+            </div>
+          ) : null}
         </div>
         <AgentIntakeDialog
           agent={intakeAgent}
@@ -579,7 +599,8 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       data-tour-padding="0"
       data-tour-radius="22"
       role="tabpanel"
-      id="agents-panel"
+      id={tabPanelId}
+      aria-labelledby={tabId}
       aria-live="polite"
       aria-busy={isLoading && !hasData}
     >

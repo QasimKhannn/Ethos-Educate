@@ -29,7 +29,7 @@ describe('cowork executor options', () => {
   describe('buildCleanEnv', () => {
     it('keeps operational vars and drops app secrets', () => {
       const clean = buildCleanEnv();
-      expect(clean.PATH).toBeDefined();
+      expect(clean.PATH ?? clean.Path).toBeDefined();
       expect(clean[SECRET_KEY]).toBeUndefined();
       // CODE_EXECUTION_* config is allowed through (prefix allowlist)
       expect(clean.CODE_EXECUTION_ALLOW_PIP_INSTALLS).toBe('false');

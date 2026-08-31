@@ -105,6 +105,9 @@ const storeCodeOutputBuffer = async ({
 
   const { saveBuffer } = getStrategyFunctions(appConfig.fileStrategy);
   if (!saveBuffer) {
+    logger.warn(
+      `[storeCodeOutputBuffer] saveBuffer not available for strategy ${appConfig.fileStrategy}; falling back to download URL`,
+    );
     throw new Error(
       `[storeCodeOutputBuffer] saveBuffer not available for strategy ${appConfig.fileStrategy}`,
     );

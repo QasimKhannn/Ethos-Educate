@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const { EModelEndpoint } = require('librechat-data-provider');
+const { logger } = require('@librechat/data-schemas');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const {
   deleteNullOrEmptyConversations,
@@ -642,6 +643,65 @@ describe('Conversation Operations', () => {
       });
       return Conversation.findOne({ conversationId }).lean();
     };
+
+    it('logs redacted query telemetry without changing pagination results', async () => {
+      const infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => undefined);
+      const createdAt = new Date('2026-01-01T00:00:00.000Z');
+      const projectId = 'project-should-not-be-logged';
+      const tag = 'tag-should-not-be-logged';
+      const firstConversation = await createConvoWithTimestamps(1, createdAt, createdAt);
+      const secondConversation = await createConvoWithTimestamps(2, createdAt, createdAt);
+      const conversationIds = [firstConversation.conversationId, secondConversation.conversationId];
+
+      await Conversation.updateMany(
+        { conversationId: { $in: conversationIds } },
+        { $set: { projectId, tags: [tag] } },
+      );
+      Conversation.meiliSearch = jest.fn().mockResolvedValue({
+        hits: conversationIds.map((conversationId) => ({ conversationId })),
+      });
+
+      try {
+        const result = await getConvosByCursor('user123', {
+          limit: 1,
+          projectId,
+          search: 'search-should-not-be-logged',
+          tags: [tag],
+        });
+        const telemetryCall = infoSpy.mock.calls.find(
+          ([message]) => message === '[getConvosByCursor] Mongo query timing',
+        );
+        const telemetry = telemetryCall?.[1];
+
+        expect(result.conversations).toHaveLength(1);
+        expect(result.nextCursor).toBeTruthy();
+        expect(telemetry).toEqual(
+          expect.objectContaining({
+            durationMs: expect.any(Number),
+            fetchedCount: 2,
+            hasNextPage: true,
+            operation: 'conversation_history_list',
+            requestedLimit: 1,
+            returnedCount: 1,
+          }),
+        );
+        expect(telemetry.queryShape).toEqual({
+          hasCursor: false,
+          hasProjectFilter: true,
+          hasSearch: true,
+          isArchived: false,
+          sortBy: 'updatedAt',
+          sortDirection: 'desc',
+          tagFilterCount: 1,
+        });
+        expect(JSON.stringify(telemetry)).not.toContain('user123');
+        expect(JSON.stringify(telemetry)).not.toContain('project-should-not-be-logged');
+        expect(JSON.stringify(telemetry)).not.toContain('search-should-not-be-logged');
+        expect(JSON.stringify(telemetry)).not.toContain('tag-should-not-be-logged');
+      } finally {
+        infoSpy.mockRestore();
+      }
+    });
 
     it('should not skip conversations at page boundaries', async () => {
       // Create 30 conversations to ensure pagination (limit is 25)

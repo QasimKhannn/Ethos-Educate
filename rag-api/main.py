@@ -24,6 +24,7 @@ from app.config import (
    logger,
 )
 from app.middleware import security_middleware
+from app.security import validate_security_configuration
 from app.routes import document_routes, pgvector_routes
 from app.services.database import PSQLDatabase, ensure_vector_indexes
 
@@ -32,6 +33,7 @@ from app.services.database import PSQLDatabase, ensure_vector_indexes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+   validate_security_configuration()
    # Startup logic goes here
    # Create bounded thread pool executor based on CPU cores
    max_workers = min(

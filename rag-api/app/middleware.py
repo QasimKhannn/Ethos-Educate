@@ -1,66 +1,58 @@
-# app/middleware.py
+import logging
 import os
+
 import jwt
-from jwt import PyJWTError
 from fastapi import Request
-from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
-from app.config import logger
+from jwt import PyJWTError
+
+from app.security import is_development_bypass_enabled, validate_security_configuration
 
 
+logger = logging.getLogger(__name__)
+PUBLIC_PATHS = frozenset({"/docs", "/openapi.json", "/health"})
 
 
 async def security_middleware(request: Request, call_next):
-   async def next_middleware_call():
-       return await call_next(request)
+    if request.url.path in PUBLIC_PATHS:
+        return await call_next(request)
 
+    try:
+        validate_security_configuration()
+    except RuntimeError:
+        logger.error("RAG authentication is not configured")
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "RAG authentication is not configured"},
+        )
 
-   if request.url.path in {"/docs", "/openapi.json", "/health"}:
-       return await next_middleware_call()
+    if is_development_bypass_enabled():
+        return await call_next(request)
 
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        logger.info("Unauthorized request with invalid Authorization header to: %s", request.url.path)
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Missing or invalid Authorization header"},
+        )
 
-   jwt_secret = os.getenv("JWT_SECRET")
-   if not jwt_secret:
-       logger.warn("JWT_SECRET not found in environment variables")
-       return await next_middleware_call()
+    token = authorization.removeprefix("Bearer ")
+    try:
+        payload = jwt.decode(token, os.getenv("JWT_SECRET"), algorithms=["HS256"])
+        user_id = payload.get("id")
+        if not isinstance(user_id, str) or not user_id.strip():
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Token is missing the user identity"},
+            )
+        request.state.user = payload
+    except PyJWTError as error:
+        logger.info(
+            "Unauthorized request with invalid token to %s: %s",
+            request.url.path,
+            type(error).__name__,
+        )
+        return JSONResponse(status_code=401, content={"detail": "Invalid token"})
 
-
-   authorization = request.headers.get("Authorization")
-   if not authorization or not authorization.startswith("Bearer "):
-       logger.info(
-           f"Unauthorized request with missing or invalid Authorization header to: {request.url.path}"
-       )
-       return JSONResponse(
-           status_code=401,
-           content={"detail": "Missing or invalid Authorization header"},
-       )
-
-
-   token = authorization.split(" ")[1]
-   try:
-       payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
-       exp_timestamp = payload.get("exp")
-       if exp_timestamp and datetime.now(tz=timezone.utc) > datetime.fromtimestamp(
-           exp_timestamp, tz=timezone.utc
-       ):
-           logger.info(
-               f"Unauthorized request with expired token to: {request.url.path}"
-           )
-           return JSONResponse(
-               status_code=401, content={"detail": "Token has expired"}
-           )
-
-
-       request.state.user = payload
-       logger.debug(f"{request.url.path} - {payload}")
-   except PyJWTError as e:
-       logger.info(
-           f"Unauthorized request with invalid token to: {request.url.path}, reason: {str(e)}"
-       )
-       return JSONResponse(
-           status_code=401, content={"detail": f"Invalid token: {str(e)}"}
-       )
-
-
-   return await next_middleware_call()
-
+    return await call_next(request)

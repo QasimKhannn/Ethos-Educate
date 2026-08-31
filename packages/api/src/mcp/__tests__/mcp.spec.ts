@@ -770,6 +770,7 @@ describe('Environment Variable Extraction (MCP)', () => {
     });
 
     it('should correctly process a mix of all variable types', () => {
+      process.env.PATH = '/test/system/path';
       const user = createTestUser({ id: 'userXYZ', username: 'john.doe' });
       const customUserVars = {
         CUSTOM_ENDPOINT_ID: 'ep123',
@@ -816,7 +817,7 @@ describe('Environment Variable Extraction (MCP)', () => {
       expect('env' in result && result.env).toEqual({
         PROCESS_MODE: 'production',
         USER_HOME_DIR: '/home/john.doe',
-        SYSTEM_PATH: process.env.PATH, // Actual value of PATH from the test environment
+        SYSTEM_PATH: '/test/system/path',
       });
     });
 

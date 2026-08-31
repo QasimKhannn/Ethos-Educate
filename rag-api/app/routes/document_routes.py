@@ -47,6 +47,12 @@ from app.models import (
    QueryMultipleBody,
 )
 from app.services.vector_store.async_pg_vector import AsyncPgVector
+from app.security import (
+   create_upload_path,
+   get_authenticated_user_id,
+   get_document_filter,
+   resolve_user_upload_path,
+)
 from app.utils.document_loader import (
    get_loader,
    clean_text,
@@ -71,11 +77,7 @@ def calculate_num_batches(total: int, batch_size: int) -> int:
 
 
 def get_user_id(request: Request, entity_id: str = None) -> str:
-   """Extract user ID from request or entity_id."""
-   if not hasattr(request.state, "user"):
-       return entity_id if entity_id else "public"
-   else:
-       return entity_id if entity_id else request.state.user.get("id")
+   return get_authenticated_user_id(request)
 
 
 
@@ -176,10 +178,13 @@ async def cleanup_temp_file_async(file_path: str) -> None:
 @router.get("/ids")
 async def get_all_ids(request: Request):
    try:
+       user_id = get_user_id(request)
        if isinstance(vector_store, AsyncPgVector):
-           ids = await vector_store.get_all_ids(executor=request.app.state.thread_pool)
+           ids = await vector_store.get_all_ids(
+               user_id, executor=request.app.state.thread_pool
+           )
        else:
-           ids = vector_store.get_all_ids()
+           ids = vector_store.get_all_ids(user_id)
 
 
        return list(set(ids))
@@ -223,16 +228,17 @@ async def health_check():
 @router.get("/documents", response_model=list[DocumentResponse])
 async def get_documents_by_ids(request: Request, ids: list[str] = Query(...)):
    try:
+       user_id = get_user_id(request)
        if isinstance(vector_store, AsyncPgVector):
            existing_ids = await vector_store.get_filtered_ids(
-               ids, executor=request.app.state.thread_pool
+               ids, user_id, executor=request.app.state.thread_pool
            )
            documents = await vector_store.get_documents_by_ids(
-               ids, executor=request.app.state.thread_pool
+               ids, user_id, executor=request.app.state.thread_pool
            )
        else:
-           existing_ids = vector_store.get_filtered_ids(ids)
-           documents = vector_store.get_documents_by_ids(ids)
+           existing_ids = vector_store.get_filtered_ids(ids, user_id)
+           documents = vector_store.get_documents_by_ids(ids, user_id)
 
 
        # Ensure all requested ids exist
@@ -270,20 +276,26 @@ async def get_documents_by_ids(request: Request, ids: list[str] = Query(...)):
 @router.delete("/documents")
 async def delete_documents(request: Request, document_ids: List[str] = Body(...)):
    try:
+       user_id = get_user_id(request)
        if isinstance(vector_store, AsyncPgVector):
            existing_ids = await vector_store.get_filtered_ids(
-               document_ids, executor=request.app.state.thread_pool
-           )
-           await vector_store.delete(
-               ids=document_ids, executor=request.app.state.thread_pool
+               document_ids, user_id, executor=request.app.state.thread_pool
            )
        else:
-           existing_ids = vector_store.get_filtered_ids(document_ids)
-           vector_store.delete(ids=document_ids)
+           existing_ids = vector_store.get_filtered_ids(document_ids, user_id)
 
 
        if not all(id in existing_ids for id in document_ids):
            raise HTTPException(status_code=404, detail="One or more IDs not found")
+
+       if isinstance(vector_store, AsyncPgVector):
+           await vector_store.delete(
+               ids=document_ids,
+               user_id=user_id,
+               executor=request.app.state.thread_pool,
+           )
+       else:
+           vector_store.delete(ids=document_ids, user_id=user_id)
 
 
        file_count = len(document_ids)
@@ -322,18 +334,8 @@ async def query_embeddings_by_file_id(
    body: QueryRequestBody,
    request: Request,
 ):
-   if not hasattr(request.state, "user"):
-       user_authorized = body.entity_id if body.entity_id else "public"
-   else:
-       user_authorized = (
-           body.entity_id if body.entity_id else request.state.user.get("id")
-       )
-
-
-   authorized_documents = []
-
-
    try:
+       user_id = get_user_id(request, body.entity_id)
        embedding = get_cached_query_embedding(body.query)
 
 
@@ -341,48 +343,18 @@ async def query_embeddings_by_file_id(
            documents = await vector_store.asimilarity_search_with_score_by_vector(
                embedding,
                k=body.k,
-               filter={"file_id": body.file_id},
+               filter=get_document_filter(user_id, [body.file_id]),
                executor=request.app.state.thread_pool,
            )
        else:
            documents = vector_store.similarity_search_with_score_by_vector(
-               embedding, k=body.k, filter={"file_id": body.file_id}
+               embedding,
+               k=body.k,
+               filter=get_document_filter(user_id, [body.file_id]),
            )
 
 
-       if not documents:
-           return authorized_documents
-
-
-       document, score = documents[0]
-       doc_metadata = document.metadata
-       doc_user_id = doc_metadata.get("user_id")
-
-
-       if doc_user_id is None or doc_user_id == user_authorized:
-           authorized_documents = documents
-       else:
-           # If using entity_id and access denied, try again with user's actual ID
-           if body.entity_id and hasattr(request.state, "user"):
-               user_authorized = request.state.user.get("id")
-               if doc_user_id == user_authorized:
-                   authorized_documents = documents
-               else:
-                   if body.entity_id == doc_user_id:
-                       logger.warning(
-                           f"Entity ID {body.entity_id} matches document user_id but user {user_authorized} is not authorized"
-                       )
-                   else:
-                       logger.warning(
-                           f"Access denied for both entity ID {body.entity_id} and user {user_authorized} to document with user_id {doc_user_id}"
-                       )
-           else:
-               logger.warning(
-                   f"Unauthorized access attempt by user {user_authorized} to a document with user_id {doc_user_id}"
-               )
-
-
-       return authorized_documents
+       return documents
 
 
    except HTTPException as http_exc:
@@ -408,6 +380,7 @@ async def query_embeddings_by_file_id(
 async def _process_documents_async_pipeline(
    documents: List[Document],
    file_id: str,
+   user_id: str,
    vector_store: "AsyncPgVector",
    executor: "ThreadPoolExecutor",
 ) -> List[str]:
@@ -577,7 +550,9 @@ async def _process_documents_async_pipeline(
        if all_ids:
            try:
                logger.warning("Performing rollback of file %s", file_id)
-               await vector_store.delete(ids=[file_id], executor=executor)
+               await vector_store.delete(
+                   ids=[file_id], user_id=user_id, executor=executor
+               )
                logger.info("Rollback completed for file %s", file_id)
            except Exception as cleanup_error:
                logger.error("Rollback failed for file %s: %s", file_id, cleanup_error)
@@ -592,6 +567,7 @@ async def _process_documents_async_pipeline(
 async def _process_documents_batched_sync(
    documents: List[Document],
    file_id: str,
+   user_id: str,
    vector_store: "PgVector",
    executor: "ThreadPoolExecutor",
 ) -> List[str]:
@@ -668,7 +644,8 @@ async def _process_documents_batched_sync(
                logger.warning("Rolling back file %s due to batch failure", file_id)
                try:
                    await loop.run_in_executor(
-                       executor, lambda: vector_store.delete(ids=[file_id])
+                       executor,
+                       lambda: vector_store.delete(ids=[file_id], user_id=user_id),
                    )
                    logger.info("Rollback completed for file %s", file_id)
                except Exception as rollback_error:
@@ -724,10 +701,10 @@ def _prepare_documents_sync(
        Document(
            page_content=doc.page_content,
            metadata={
+               **(doc.metadata or {}),
                "file_id": file_id,
                "user_id": user_id,
                "digest": generate_digest(doc.page_content),
-               **(doc.metadata or {}),
            },
        )
        for doc in documents
@@ -772,12 +749,12 @@ async def store_data_in_vector_db(
 
            if isinstance(vector_store, AsyncPgVector):
                ids = await _process_documents_async_pipeline(
-                   docs, file_id, vector_store, executor
+                   docs, file_id, user_id, vector_store, executor
                )
            else:
                # Fallback to batched processing for sync vector stores
                ids = await _process_documents_batched_sync(
-                   docs, file_id, vector_store, executor
+                   docs, file_id, user_id, vector_store, executor
                )
 
 
@@ -786,9 +763,8 @@ async def store_data_in_vector_db(
 
    except Exception as e:
        logger.error(
-           "Failed to store data in vector DB | File ID: %s | User ID: %s | Error: %s | Traceback: %s",
+           "Failed to store data in vector DB | File ID: %s | Error: %s | Traceback: %s",
            file_id,
-           user_id,
            str(e),
            traceback.format_exc(),
        )
@@ -801,23 +777,17 @@ async def store_data_in_vector_db(
 async def embed_local_file(
    document: StoreDocument, request: Request, entity_id: str = None
 ):
+   user_id = get_user_id(request, entity_id)
+   file_path = resolve_user_upload_path(RAG_UPLOAD_DIR, user_id, document.filepath)
    # Check if the file exists
-   if not os.path.exists(document.filepath):
+   if not os.path.exists(file_path):
        raise HTTPException(
            status_code=status.HTTP_404_NOT_FOUND,
            detail=ERROR_MESSAGES.FILE_NOT_FOUND,
        )
-
-
-   if not hasattr(request.state, "user"):
-       user_id = entity_id if entity_id else "public"
-   else:
-       user_id = entity_id if entity_id else request.state.user.get("id")
-
-
    try:
        loader, known_type, file_ext = get_loader(
-           document.filename, document.file_content_type, document.filepath
+           document.filename, document.file_content_type, file_path
        )
        data = await run_in_executor(request.app.state.thread_pool, loader.load)
 
@@ -883,9 +853,7 @@ async def embed_file(
 
 
    user_id = get_user_id(request, entity_id)
-   temp_base_path = os.path.join(RAG_UPLOAD_DIR, user_id)
-   os.makedirs(temp_base_path, exist_ok=True)
-   temp_file_path = os.path.join(RAG_UPLOAD_DIR, user_id, file.filename)
+   temp_file_path = create_upload_path(RAG_UPLOAD_DIR, user_id, file.filename)
 
 
    await save_upload_file_async(file, temp_file_path)
@@ -966,16 +934,17 @@ async def embed_file(
 async def load_document_context(request: Request, id: str):
    ids = [id]
    try:
+       user_id = get_user_id(request)
        if isinstance(vector_store, AsyncPgVector):
            existing_ids = await vector_store.get_filtered_ids(
-               ids, executor=request.app.state.thread_pool
+               ids, user_id, executor=request.app.state.thread_pool
            )
            documents = await vector_store.get_documents_by_ids(
-               ids, executor=request.app.state.thread_pool
+               ids, user_id, executor=request.app.state.thread_pool
            )
        else:
-           existing_ids = vector_store.get_filtered_ids(ids)
-           documents = vector_store.get_documents_by_ids(ids)
+           existing_ids = vector_store.get_filtered_ids(ids, user_id)
+           documents = vector_store.get_documents_by_ids(ids, user_id)
 
 
        # Ensure the requested id exists
@@ -1023,7 +992,9 @@ async def embed_file_upload(
    entity_id: str = Form(None),
 ):
    user_id = get_user_id(request, entity_id)
-   temp_file_path = os.path.join(RAG_UPLOAD_DIR, uploaded_file.filename)
+   temp_file_path = create_upload_path(
+       RAG_UPLOAD_DIR, user_id, uploaded_file.filename
+   )
 
 
    await save_upload_file_async(uploaded_file, temp_file_path)
@@ -1088,6 +1059,7 @@ async def embed_file_upload(
 @router.post("/query_multiple")
 async def query_embeddings_by_file_ids(request: Request, body: QueryMultipleBody):
    try:
+       user_id = get_user_id(request)
        # Get the embedding of the query text
        embedding = get_cached_query_embedding(body.query)
 
@@ -1097,12 +1069,14 @@ async def query_embeddings_by_file_ids(request: Request, body: QueryMultipleBody
            documents = await vector_store.asimilarity_search_with_score_by_vector(
                embedding,
                k=body.k,
-               filter={"file_id": {"$in": body.file_ids}},
+               filter=get_document_filter(user_id, body.file_ids),
                executor=request.app.state.thread_pool,
            )
        else:
            documents = vector_store.similarity_search_with_score_by_vector(
-               embedding, k=body.k, filter={"file_id": {"$in": body.file_ids}}
+               embedding,
+               k=body.k,
+               filter=get_document_filter(user_id, body.file_ids),
            )
 
 
@@ -1146,9 +1120,7 @@ async def extract_text_from_file(
    Returns the raw text content for text parsing purposes.
    """
    user_id = get_user_id(request, entity_id)
-   temp_base_path = os.path.join(RAG_UPLOAD_DIR, user_id)
-   os.makedirs(temp_base_path, exist_ok=True)
-   temp_file_path = os.path.join(RAG_UPLOAD_DIR, user_id, file.filename)
+   temp_file_path = create_upload_path(RAG_UPLOAD_DIR, user_id, file.filename)
 
 
    await save_upload_file_async(file, temp_file_path)

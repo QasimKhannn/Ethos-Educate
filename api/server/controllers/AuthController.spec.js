@@ -1,4 +1,5 @@
 jest.mock('@librechat/data-schemas', () => ({
+  createModels: jest.fn(() => ({})),
   logger: { error: jest.fn(), debug: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 jest.mock('~/server/services/GraphTokenService', () => ({
@@ -19,6 +20,9 @@ jest.mock('~/models', () => ({
   findSession: jest.fn(),
   updateUser: jest.fn(),
   findUser: jest.fn(),
+}));
+jest.mock('~/models/userMembership', () => ({
+  isUserActive: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('@librechat/api', () => ({
   isEnabled: jest.fn(),

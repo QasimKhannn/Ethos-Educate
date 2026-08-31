@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import useAgentCategories from '../useAgentCategories';
+import useAgentCategories, { commonAgentCategories } from '../useAgentCategories';
 import { EMPTY_AGENT_CATEGORY } from '~/constants/agentCategories';
 
 // Mock the useLocalize hook
@@ -53,24 +53,24 @@ describe('useAgentCategories', () => {
     });
 
     await waitFor(() => {
-      // Check that we have the expected number of categories (excluding 'promoted' and 'all')
-      expect(result.current.categories.length).toBe(7);
+      expect(result.current.categories).toHaveLength(commonAgentCategories.length);
     });
 
-    // Check that the first category has the expected structure
+    // Check that the supported marketplace categories have the expected structure.
     const firstCategory = result.current.categories[0];
-    expect(firstCategory.value).toBe('general');
-    expect(firstCategory.label).toBe('com_ui_agent_category_general');
+    expect(firstCategory.value).toBe('teaching_learning');
+    expect(firstCategory.label).toBe('Teaching & Learning');
     expect(firstCategory.className).toBe('w-full');
 
-    // Verify special categories are filtered out
     const categoryValues = result.current.categories.map((cat) => cat.value);
+    expect(categoryValues).toEqual(commonAgentCategories.map((category) => category.value));
     expect(categoryValues).not.toContain('promoted');
     expect(categoryValues).not.toContain('all');
+    expect(categoryValues).not.toContain('general');
 
     // Check the empty category
     expect(result.current.emptyCategory.value).toBe(EMPTY_AGENT_CATEGORY.value);
-    expect(result.current.emptyCategory.label).toBe('General (Translated)');
+    expect(result.current.emptyCategory.label).toBe(EMPTY_AGENT_CATEGORY.label);
     expect(result.current.emptyCategory.className).toBe('w-full');
 
     // Check loading state

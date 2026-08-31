@@ -1,4 +1,4 @@
-import { withTimeout } from './promise';
+import { mapWithConcurrency, withTimeout } from './promise';
 
 describe('withTimeout', () => {
   beforeEach(() => {
@@ -110,6 +110,31 @@ describe('withTimeout', () => {
 
     await expect(withTimeout(promise, 100, 'No logger provided')).rejects.toThrow(
       'No logger provided',
+    );
+  });
+});
+
+describe('mapWithConcurrency', () => {
+  it('limits in-flight work and preserves input order', async () => {
+    let active = 0;
+    let maximumActive = 0;
+    const items = [1, 2, 3, 4, 5, 6];
+
+    const result = await mapWithConcurrency(items, 3, async (item) => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return item * 2;
+    });
+
+    expect(result).toEqual([2, 4, 6, 8, 10, 12]);
+    expect(maximumActive).toBe(3);
+  });
+
+  it('rejects invalid concurrency values', async () => {
+    await expect(mapWithConcurrency([1], 0, async (item) => item)).rejects.toThrow(
+      'Concurrency must be a positive integer',
     );
   });
 });

@@ -27,7 +27,7 @@ function staticCache(staticPath, options = {}) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       return;
     }
-    if (filePath && filePath.includes('/dist/images/')) {
+    if (filePath?.replace(/\\/g, '/').includes('/dist/images/')) {
       return;
     }
     const fileName = filePath ? path.basename(filePath) : '';

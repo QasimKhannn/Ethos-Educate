@@ -45,16 +45,18 @@ class AtlasMongoVector(MongoDBAtlasVectorSearch):
        return processed_documents
 
 
-   def get_all_ids(self) -> list[str]:
+   def get_all_ids(self, user_id: str) -> list[str]:
        # Return unique file_id fields in self._collection
-       return self._collection.distinct("file_id")
+       return self._collection.distinct("file_id", {"user_id": user_id})
   
-   def get_filtered_ids(self, ids: list[str]) -> list[str]:
+   def get_filtered_ids(self, ids: list[str], user_id: str) -> list[str]:
        # Return unique file_id fields filtered by the provided ids
-       return self._collection.distinct("file_id", {"file_id": {"$in": ids}})
+       return self._collection.distinct(
+           "file_id", {"file_id": {"$in": ids}, "user_id": user_id}
+       )
 
 
-   def get_documents_by_ids(self, ids: list[str]) -> list[Document]:
+   def get_documents_by_ids(self, ids: list[str], user_id: str) -> list[Document]:
        # Return documents filtered by file_id
        return [
            Document(
@@ -67,12 +69,16 @@ class AtlasMongoVector(MongoDBAtlasVectorSearch):
                    "page": int(doc.get("page", 0)),
                },
            )
-           for doc in self._collection.find({"file_id": {"$in": ids}})
+           for doc in self._collection.find(
+               {"file_id": {"$in": ids}, "user_id": user_id}
+           )
        ]
 
 
-   def delete(self, ids: Optional[list[str]] = None) -> None:
+   def delete(self, ids: Optional[list[str]] = None, *, user_id: str) -> None:
        # Delete documents by file_id
        if ids is not None:
-           self._collection.delete_many({"file_id": {"$in": ids}})
+           self._collection.delete_many(
+               {"file_id": {"$in": ids}, "user_id": user_id}
+           )
 

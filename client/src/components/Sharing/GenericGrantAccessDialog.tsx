@@ -18,9 +18,9 @@ import {
   usePeoplePickerPermissions,
   useResourcePermissionState,
   useCopyToClipboard,
-  useCanSharePublic,
   useLocalize,
 } from '~/hooks';
+import { useCanSharePublic } from '~/hooks/Sharing/useCanSharePublic';
 import UnifiedPeopleSearch from './PeoplePicker/UnifiedPeopleSearch';
 import PeoplePickerAdminSettings from './PeoplePickerAdminSettings';
 import PublicSharingToggle from './PublicSharingToggle';

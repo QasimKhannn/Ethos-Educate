@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ChevronDown, ListFilter } from 'lucide-react';
-import { useMediaQuery } from '@librechat/client';
+import { ArrowUpDown, ListFilter } from 'lucide-react';
+import { Dropdown, useMediaQuery } from '@librechat/client';
 import {
   Constants,
   EModelEndpoint,
@@ -112,14 +112,10 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const [sortOption, setSortOption] = useState<AgentSortOption>('featured');
-  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
-  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isMarketplacePanelOpen, setIsMarketplacePanelOpen] = useState(false);
 
   // Ref for the scrollable container to enable infinite scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const sortMenuRef = useRef<HTMLDivElement>(null);
-  const categoryMenuRef = useRef<HTMLDivElement>(null);
 
   // Set page title
   useDocumentTitle(`${localize('com_agents_marketplace')}`);
@@ -197,39 +193,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     marketplaceSidePanelContext.endpointType,
     setConversation,
   ]);
-
-  useEffect(() => {
-    if (!isSortMenuOpen && !isCategoryMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        sortMenuRef.current?.contains(event.target as Node) ||
-        categoryMenuRef.current?.contains(event.target as Node)
-      ) {
-        return;
-      }
-
-      setIsSortMenuOpen(false);
-      setIsCategoryMenuOpen(false);
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSortMenuOpen(false);
-        setIsCategoryMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isCategoryMenuOpen, isSortMenuOpen]);
 
   /**
    * Handle agent card selection - updates URL for deep linking
@@ -309,9 +272,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     { value: 'name', label: localize('com_agents_sort_name') },
     { value: 'name_desc', label: localize('com_agents_sort_name_desc') },
   ];
-  const activeSortLabel =
-    sortOptions.find((option) => option.value === sortOption)?.label ??
-    localize('com_agents_sort_featured');
   const categoryOptions = [
     { value: 'all', label: localize('com_agents_all_category') },
     ...agentCategories.map((category) => ({
@@ -319,100 +279,62 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       label: category.label,
     })),
   ];
-  const activeCategoryLabel =
-    categoryOptions.find((option) => option.value === selectedCategory)?.label ??
-    localize('com_agents_all_category');
   const categoryControl = (
-    <div
-      className="agents-marketplace-category-control"
+    <Dropdown
       data-tour-id="marketplace-categories"
-      ref={categoryMenuRef}
-    >
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={isCategoryMenuOpen}
-        aria-label={localize('com_agents_filter_by_category')}
-        className="agents-marketplace-category-trigger"
-        onClick={() => {
-          setIsCategoryMenuOpen((currentValue) => !currentValue);
-          setIsSortMenuOpen(false);
-        }}
-      >
+      value={selectedCategory}
+      onChange={handleCategoryChange}
+      options={categoryOptions}
+      icon={
         <span className="agents-marketplace-category-icon" aria-hidden="true">
           <ListFilter />
         </span>
+      }
+      label=""
+      renderValue={(option) => (
         <span className="agents-marketplace-category-copy">
           <span className="agents-marketplace-category-label">
             {localize('com_agents_filter_by_category')}
           </span>
-          <span className="agents-marketplace-category-value">{activeCategoryLabel}</span>
+          <span className="agents-marketplace-category-value">{option.label}</span>
         </span>
-        <ChevronDown aria-hidden="true" className="agents-marketplace-category-chevron" />
-      </button>
-      {isCategoryMenuOpen && (
-        <div className="agents-marketplace-category-menu" role="listbox">
-          {categoryOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={option.value === selectedCategory}
-              className="agents-marketplace-category-option"
-              onClick={() => {
-                handleCategoryChange(option.value);
-                setIsCategoryMenuOpen(false);
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       )}
-    </div>
+      ariaLabel={localize('com_agents_filter_by_category')}
+      containerClassName="agents-marketplace-category-control"
+      triggerClassName="agents-marketplace-category-trigger"
+      contentClassName="agents-marketplace-category-menu"
+      itemClassName="agents-marketplace-category-option"
+      arrowClassName="agents-marketplace-category-chevron"
+      showSelectedIndicator={false}
+      portal={false}
+    />
   );
   const sortControl = (
-    <div className="agents-marketplace-sort-control" ref={sortMenuRef}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={isSortMenuOpen}
-        aria-label={localize('com_agents_sort_by')}
-        className="agents-marketplace-sort-trigger"
-        onClick={() => {
-          setIsSortMenuOpen((currentValue) => !currentValue);
-          setIsCategoryMenuOpen(false);
-        }}
-      >
+    <Dropdown
+      value={sortOption}
+      onChange={(value) => setSortOption(value as AgentSortOption)}
+      options={sortOptions}
+      icon={
         <span className="agents-marketplace-sort-icon" aria-hidden="true">
           <ArrowUpDown />
         </span>
+      }
+      label=""
+      renderValue={(option) => (
         <span className="agents-marketplace-sort-copy">
           <span className="agents-marketplace-sort-label">{localize('com_agents_sort_by')}</span>
-          <span className="agents-marketplace-sort-value">{activeSortLabel}</span>
+          <span className="agents-marketplace-sort-value">{option.label}</span>
         </span>
-        <ChevronDown aria-hidden="true" className="agents-marketplace-sort-chevron" />
-      </button>
-      {isSortMenuOpen && (
-        <div className="agents-marketplace-sort-menu" role="listbox">
-          {sortOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={option.value === sortOption}
-              className="agents-marketplace-sort-option"
-              onClick={() => {
-                setSortOption(option.value);
-                setIsSortMenuOpen(false);
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       )}
-    </div>
+      ariaLabel={localize('com_agents_sort_by')}
+      containerClassName="agents-marketplace-sort-control"
+      triggerClassName="agents-marketplace-sort-trigger"
+      contentClassName="agents-marketplace-sort-menu"
+      itemClassName="agents-marketplace-sort-option"
+      arrowClassName="agents-marketplace-sort-chevron"
+      showSelectedIndicator={false}
+      portal={false}
+    />
   );
   const renderResultsControls = () => (
     <div className="agents-marketplace-results-controls">

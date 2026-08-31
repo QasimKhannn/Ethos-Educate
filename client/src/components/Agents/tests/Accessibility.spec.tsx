@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CategoryTabs from '../CategoryTabs';
 import AgentGrid from '../AgentGrid';
@@ -128,6 +129,10 @@ jest.mock('~/data-provider/Agents', () => ({
 jest.mock('~/utils/agents', () => ({
   renderAgentAvatar: jest.fn(() => <div data-testid="agent-avatar" />),
   getContactDisplayName: jest.fn((agent) => agent.authorName),
+  getAgentDisplayName: jest.fn((agent) => agent.name ?? ''),
+  getAgentToolkitDescription: jest.fn(
+    (agent) => agent.toolkit_description?.trim() || agent.description?.trim() || '',
+  ),
 }));
 
 // Mock SmartLoader
@@ -159,7 +164,9 @@ const createWrapper = () => {
   });
 
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </MemoryRouter>
   );
 };
 
@@ -337,7 +344,7 @@ describe('Accessibility Improvements', () => {
       const card = screen.getByRole('button');
       expect(card).toHaveAttribute('aria-label', 'Test Agent agent. A test agent for testing');
       expect(card).toHaveAttribute('aria-describedby', 'agent-test-agent-description');
-      expect(card).toHaveAttribute('role', 'button');
+      expect(card.tagName).toBe('BUTTON');
     });
 
     it('supports keyboard interaction', () => {
@@ -385,7 +392,7 @@ describe('Accessibility Improvements', () => {
 
       // Check tabpanel role
       const tabpanel = screen.getByRole('tabpanel');
-      expect(tabpanel).toHaveAttribute('id', 'category-panel-all');
+      expect(tabpanel).toHaveAttribute('id', 'tabpanel-all');
       expect(tabpanel).toHaveAttribute('aria-labelledby', 'category-tab-all');
       expect(tabpanel).toHaveAttribute('aria-live', 'polite');
     });
@@ -401,11 +408,11 @@ describe('Accessibility Improvements', () => {
       // Check grid role
       const grid = screen.getByRole('grid');
       expect(grid).toBeInTheDocument();
-      expect(grid).toHaveAttribute('aria-label', 'Showing 2 agents in All category');
+      expect(grid).toHaveAttribute('aria-label', 'Showing 3 agents in All category');
 
       // Check gridcells
       const gridcells = screen.getAllByRole('gridcell');
-      expect(gridcells).toHaveLength(2);
+      expect(gridcells).toHaveLength(3);
     });
 
     it('announces loading states to screen readers', () => {
@@ -451,14 +458,14 @@ describe('Accessibility Improvements', () => {
       const Wrapper = createWrapper();
       render(
         <Wrapper>
-          <AgentGrid category="all" searchQuery="" onSelectAgent={jest.fn()} />
+          <AgentGrid category="all" searchQuery="no matching agent" onSelectAgent={jest.fn()} />
         </Wrapper>,
       );
 
       // Check empty state accessibility
       const emptyState = screen.getByRole('status');
       expect(emptyState).toHaveAttribute('aria-live', 'polite');
-      expect(emptyState).toHaveAttribute('aria-label', 'No agents found');
+      expect(emptyState).toHaveAccessibleName('No search results');
     });
   });
 

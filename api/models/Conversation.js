@@ -4,6 +4,37 @@ const { getMessages, deleteMessages } = require('./Message');
 const { getUserProject, addConversationIdToProject } = require('./Project');
 const { Conversation } = require('~/db/models');
 
+const createConvoListQueryTelemetry = ({
+  cursor,
+  limit,
+  isArchived,
+  tags,
+  search,
+  projectId,
+  sortBy,
+  sortDirection,
+  durationMs,
+  fetchedCount,
+  returnedCount,
+  hasNextPage,
+}) => ({
+  durationMs: Math.round(durationMs * 100) / 100,
+  fetchedCount,
+  hasNextPage,
+  operation: 'conversation_history_list',
+  queryShape: {
+    hasCursor: Boolean(cursor),
+    hasProjectFilter: Boolean(projectId),
+    hasSearch: Boolean(search),
+    isArchived,
+    sortBy,
+    sortDirection,
+    tagFilterCount: Array.isArray(tags) ? tags.length : 0,
+  },
+  requestedLimit: limit,
+  returnedCount,
+});
+
 /**
  * Searches for a conversation by conversationId and returns a lean document with only conversationId and user.
  * @param {string} conversationId - The conversation's ID.
@@ -265,7 +296,7 @@ module.exports = {
             },
           ],
         };
-      } catch (err) {
+      } catch (_err) {
         logger.warn('[getConvosByCursor] Invalid cursor format, starting from beginning');
       }
       if (cursorFilter) {
@@ -283,6 +314,7 @@ module.exports = {
         sortObj.updatedAt = sortOrder;
       }
 
+      const mongoQueryStartedAt = process.hrtime.bigint();
       const convos = await Conversation.find(query)
         .select(
           'conversationId endpoint title createdAt updatedAt user projectId model agent_id assistant_id spec iconURL',
@@ -290,9 +322,13 @@ module.exports = {
         .sort(sortObj)
         .limit(limit + 1)
         .lean();
+      const mongoQueryDurationMs =
+        Number(process.hrtime.bigint() - mongoQueryStartedAt) / 1_000_000;
+      const fetchedCount = convos.length;
 
       let nextCursor = null;
-      if (convos.length > limit) {
+      const hasNextPage = convos.length > limit;
+      if (hasNextPage) {
         convos.pop(); // Remove extra item used to detect next page
         // Create cursor from the last RETURNED item (not the popped one)
         const lastReturned = convos[convos.length - 1];
@@ -302,6 +338,24 @@ module.exports = {
         const composite = { primary: primaryStr, secondary: secondaryStr };
         nextCursor = Buffer.from(JSON.stringify(composite)).toString('base64');
       }
+
+      logger.info(
+        '[getConvosByCursor] Mongo query timing',
+        createConvoListQueryTelemetry({
+          cursor,
+          durationMs: mongoQueryDurationMs,
+          fetchedCount,
+          hasNextPage,
+          isArchived,
+          limit,
+          projectId,
+          returnedCount: convos.length,
+          search,
+          sortBy: finalSortBy,
+          sortDirection: finalSortDirection,
+          tags,
+        }),
+      );
 
       return { conversations: convos, nextCursor };
     } catch (error) {

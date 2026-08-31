@@ -1,5 +1,5 @@
 const { logger } = require('@librechat/data-schemas');
-const { ErrorTypes } = require('librechat-data-provider');
+const { ErrorTypes, SystemRoles } = require('librechat-data-provider');
 const { createSocialUser, handleExistingUser } = require('./process');
 const socialLogin = require('./socialLogin');
 const { findUser } = require('~/models');
@@ -29,6 +29,14 @@ jest.mock('@librechat/api', () => ({
 
 jest.mock('~/models', () => ({
   findUser: jest.fn(),
+  countUsers: jest.fn().mockResolvedValue(0),
+}));
+jest.mock('~/models/userMembership', () => ({
+  isUserActive: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('~/server/services/AdminConfigService', () => ({
+  canCreateAccountEffective: jest.fn().mockResolvedValue(true),
+  getEffectiveAllowedDomains: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock('~/server/services/Config', () => ({
@@ -227,6 +235,7 @@ describe('socialLogin', () => {
         name: 'New User',
         emailVerified: true,
         appConfig: expect.any(Object),
+        role: SystemRoles.ADMIN,
       });
 
       expect(callback).toHaveBeenCalledWith(null, newUser);

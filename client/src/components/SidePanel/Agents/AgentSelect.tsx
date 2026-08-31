@@ -1,4 +1,5 @@
 import { EarthIcon, SearchIcon, XIcon } from 'lucide-react';
+import * as Ariakit from '@ariakit/react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { AgentCapabilities, defaultAgentFormValues } from 'librechat-data-provider';
@@ -26,6 +27,7 @@ function AgentSelect({
   const localize = useLocalize();
   const lastSelectedAgent = useRef<string | null>(null);
   const [agentSearch, setAgentSearch] = useState('');
+  const combobox = Ariakit.useComboboxStore({ resetValueOnHide: false });
   const { reset } = useFormContext();
   const permissionLevel = useAgentDefaultPermissionLevel();
 
@@ -230,7 +232,6 @@ function AgentSelect({
   }, [selectedAgentId, agents, onSelect]);
 
   const hasAgentSearch = agentSearch.trim().length > 0;
-  const searchResultsId = 'agent-builder-search-results';
   const visibleSearchResults = hasAgentSearch ? (filteredAgents ?? []).slice(0, 10) : [];
 
   const handleSearchResultSelect = useCallback(
@@ -242,91 +243,94 @@ function AgentSelect({
   );
 
   return (
-    <div className="agent-builder-agent-search">
-      <div className="relative">
-        <SearchIcon
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
-          value={agentSearch}
-          onChange={(event) => setAgentSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter') {
-              return;
-            }
+    <Ariakit.ComboboxProvider store={combobox}>
+      <div className="agent-builder-agent-search">
+        <div className="relative">
+          <SearchIcon
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
+            aria-hidden="true"
+          />
+          <Ariakit.Combobox
+            store={combobox}
+            setValueOnClick={false}
+            setValueOnChange={false}
+            value={agentSearch}
+            onChange={(event) => setAgentSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') {
+                return;
+              }
 
-            event.preventDefault();
-            const firstAgent = visibleSearchResults[0];
-            const firstAgentId = `${firstAgent?.value ?? firstAgent?.id ?? ''}`;
-            if (firstAgentId) {
-              handleSearchResultSelect(firstAgentId);
-            }
-          }}
-          aria-controls={hasAgentSearch ? searchResultsId : undefined}
-          aria-expanded={hasAgentSearch && visibleSearchResults.length > 0}
-          role="combobox"
-          placeholder={localize('com_agents_search_name')}
-          aria-label={localize('com_agents_search_name')}
-          className="agent-builder-agent-search-input"
-        />
-        {hasAgentSearch ? (
-          <button
-            type="button"
-            onClick={() => setAgentSearch('')}
-            className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
-            aria-label={localize('com_agents_clear_search')}
+              event.preventDefault();
+              setAgentSearch('');
+            }}
+            placeholder={localize('com_agents_search_name')}
+            aria-label={localize('com_agents_search_name')}
+            className="agent-builder-agent-search-input"
+          />
+          {hasAgentSearch ? (
+            <button
+              type="button"
+              onClick={() => setAgentSearch('')}
+              className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
+              aria-label={localize('com_agents_clear_search')}
+            >
+              <XIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ) : null}
+          <Ariakit.ComboboxPopover
+            store={combobox}
+            portal={false}
+            gutter={4}
+            sameWidth
+            open={hasAgentSearch && visibleSearchResults.length > 0}
+            unmountOnHide
+            autoFocusOnShow={false}
+            modal={false}
+            className="z-[60] max-h-72 overflow-y-auto rounded-md border border-border-light bg-surface-secondary py-1 shadow-lg"
           >
-            <XIcon className="h-4 w-4" aria-hidden="true" />
-          </button>
-        ) : null}
-        {visibleSearchResults.length > 0 ? (
-          <div
-            id={searchResultsId}
-            role="listbox"
-            className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-72 overflow-y-auto rounded-md border border-border-light bg-surface-secondary py-1 shadow-lg"
-          >
-            {visibleSearchResults.map((agent) => {
-              const agentId = `${agent.value ?? agent.id ?? ''}`;
-              const label = agent.label ?? agent.name ?? agent.id ?? '';
-              const description = agent.toolkit_description ?? agent.description ?? '';
+            <Ariakit.ComboboxList>
+              {visibleSearchResults.map((agent) => {
+                const agentId = `${agent.value ?? agent.id ?? ''}`;
+                const label = agent.label ?? agent.name ?? agent.id ?? '';
+                const description = agent.toolkit_description ?? agent.description ?? '';
 
-              return (
-                <button
-                  key={agentId}
-                  type="button"
-                  role="option"
-                  aria-selected={agentId === selectedAgentId}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => handleSearchResultSelect(agentId)}
-                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
-                >
-                  {agent.icon ? (
-                    <span className="flex h-5 w-5 flex-none items-center justify-center overflow-hidden rounded-full">
-                      {agent.icon}
-                    </span>
-                  ) : null}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{label}</span>
-                    {description ? (
-                      <span className="block truncate text-xs text-text-secondary">
-                        {description}
+                return (
+                  <Ariakit.ComboboxItem
+                    key={agentId}
+                    value={agentId}
+                    focusOnHover
+                    selectValueOnClick={false}
+                    aria-selected={agentId === selectedAgentId}
+                    onClick={() => handleSearchResultSelect(agentId)}
+                    className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
+                  >
+                    {agent.icon ? (
+                      <span className="flex h-5 w-5 flex-none items-center justify-center overflow-hidden rounded-full">
+                        {agent.icon}
                       </span>
                     ) : null}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{label}</span>
+                      {description ? (
+                        <span className="block truncate text-xs text-text-secondary">
+                          {description}
+                        </span>
+                      ) : null}
+                    </span>
+                  </Ariakit.ComboboxItem>
+                );
+              })}
+            </Ariakit.ComboboxList>
+          </Ariakit.ComboboxPopover>
+        </div>
+        {hasAgentSearch && filteredAgents?.length === 0 ? (
+          <p className="px-1 text-xs text-text-secondary">
+            {localize('com_agents_search_no_results', { query: agentSearch.trim() })}
+          </p>
         ) : null}
       </div>
-      {hasAgentSearch && filteredAgents?.length === 0 ? (
-        <p className="px-1 text-xs text-text-secondary">
-          {localize('com_agents_search_no_results', { query: agentSearch.trim() })}
-        </p>
-      ) : null}
-    </div>
+    </Ariakit.ComboboxProvider>
   );
 }
 

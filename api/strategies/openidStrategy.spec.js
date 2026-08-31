@@ -1,7 +1,7 @@
 const undici = require('undici');
 const fetch = require('node-fetch');
 const jwtDecode = require('jsonwebtoken/decode');
-const { ErrorTypes } = require('librechat-data-provider');
+const { ErrorTypes, SystemRoles } = require('librechat-data-provider');
 const { findUser, createUser, updateUser } = require('~/models');
 const { setupOpenId } = require('./openidStrategy');
 
@@ -33,9 +33,17 @@ jest.mock('~/models', () => ({
   findUser: jest.fn(),
   createUser: jest.fn(),
   updateUser: jest.fn(),
+  countUsers: jest.fn().mockResolvedValue(0),
+}));
+jest.mock('~/models/userMembership', () => ({
+  isUserActive: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('~/server/services/AdminConfigService', () => ({
+  canCreateAccountEffective: jest.fn().mockResolvedValue(true),
+  getEffectiveAllowedDomains: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@librechat/data-schemas', () => ({
-  ...jest.requireActual('@librechat/api'),
+  createModels: jest.fn(() => ({})),
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -903,7 +911,7 @@ describe('setupOpenId', () => {
     expect(user.role).toBe('ADMIN');
   });
 
-  it('should not set user role if OPENID_ADMIN_ROLE is set but the user does not have that role', async () => {
+  it('should keep the user role when OPENID_ADMIN_ROLE is set but the user does not have that role', async () => {
     // Arrange – simulate a token without the admin permission
     jwtDecode.mockReturnValue({
       roles: ['requiredRole'],
@@ -913,8 +921,7 @@ describe('setupOpenId', () => {
     // Act
     const { user } = await validate(tokenset);
 
-    // Assert – verify that the user role is not defined
-    expect(user.role).toBeUndefined();
+    expect(user.role).toBe(SystemRoles.USER);
   });
 
   it('should demote existing admin user when admin role is removed from token', async () => {
@@ -1202,7 +1209,7 @@ describe('setupOpenId', () => {
 
       const { user } = await validate(tokenset);
 
-      expect(user.role).toBeUndefined();
+      expect(user.role).toBe(SystemRoles.USER);
     });
 
     it('should handle array admin role value', async () => {
@@ -1236,7 +1243,7 @@ describe('setupOpenId', () => {
 
       const { user } = await validate(tokenset);
 
-      expect(user.role).toBeUndefined();
+      expect(user.role).toBe(SystemRoles.USER);
     });
 
     it('should grant admin when admin role claim is a space-separated string containing the admin role', async () => {
@@ -1275,8 +1282,7 @@ describe('setupOpenId', () => {
       // Act
       const { user } = await validate(tokenset);
 
-      // Assert – admin role is not granted
-      expect(user.role).toBeUndefined();
+      expect(user.role).toBe(SystemRoles.USER);
     });
 
     it('should handle nested path with special characters in keys', async () => {

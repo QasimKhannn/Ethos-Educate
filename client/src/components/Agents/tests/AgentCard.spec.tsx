@@ -354,7 +354,7 @@ describe('AgentCard', () => {
     expect(screen.queryByTestId('dialog-wrapper')).not.toBeInTheDocument();
   });
 
-  it('displays localized category label', () => {
+  it('does not render category metadata in the compact card', () => {
     const agentWithCategory = {
       ...mockAgent,
       category: 'general',
@@ -366,10 +366,10 @@ describe('AgentCard', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText('General')).toBeInTheDocument();
+    expect(screen.queryByText('General')).not.toBeInTheDocument();
   });
 
-  it('displays custom category label', () => {
+  it('does not render custom category metadata in the compact card', () => {
     const agentWithCustomCategory = {
       ...mockAgent,
       category: 'custom',
@@ -381,10 +381,10 @@ describe('AgentCard', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText('Custom Category')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Category')).not.toBeInTheDocument();
   });
 
-  it('displays capitalized fallback for unknown category', () => {
+  it('does not render unknown category metadata in the compact card', () => {
     const agentWithUnknownCategory = {
       ...mockAgent,
       category: 'unknown',
@@ -396,7 +396,7 @@ describe('AgentCard', () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText('Unknown')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
   });
 
   it('does not display category tag when category is not provided', () => {
