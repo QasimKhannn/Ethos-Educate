@@ -111,6 +111,12 @@ type TAnchorProps = {
   children: React.ReactNode;
 };
 
+const getAnchorText = (children: React.ReactNode): string =>
+  React.Children.toArray(children)
+    .map((child) => (typeof child === 'string' || typeof child === 'number' ? String(child) : ''))
+    .join('')
+    .trim();
+
 export const a: React.ElementType = memo(function MarkdownAnchor({ href, children }: TAnchorProps) {
   const user = useRecoilValue(store.user);
   const { showToast } = useToastContext();
@@ -121,6 +127,18 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
     filename = '',
     filepath,
   } = useMemo(() => {
+    const managedDownloadPattern = /\/api\/files\/download\/([^/?#]+)\/([^/?#]+)/;
+    const managedDownloadMatch = href.match(managedDownloadPattern);
+    if (managedDownloadMatch) {
+      const ownerId = decodeURIComponent(managedDownloadMatch[1]);
+      const file_id = decodeURIComponent(managedDownloadMatch[2]);
+      return {
+        file_id,
+        filename: getAnchorText(children) || file_id,
+        filepath: `download/${user?.id ?? ownerId}/${file_id}`,
+      };
+    }
+
     const pattern = new RegExp(`(?:files|outputs)/${user?.id}/([^\\s]+)`);
     const match = href.match(pattern);
     if (match && match[0]) {
@@ -131,7 +149,7 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
       return { file_id, filename: name, filepath: path };
     }
     return { file_id: '', filename: '', filepath: '' };
-  }, [user?.id, href]);
+  }, [children, user?.id, href]);
 
   const { refetch: downloadFile } = useFileDownload(user?.id ?? '', file_id);
   const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_blank' };
