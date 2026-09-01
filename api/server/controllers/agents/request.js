@@ -212,6 +212,8 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       }
     }
 
+    const userMessageIdOverride = pendingUserMessage?.messageId ?? overrideParentMessageId;
+
     // Note: We no longer use res.on('close') to abort since we send JSON immediately.
     // The response closes normally after res.json(), which is not an abort condition.
     // Abort handling is done through GenerationJobManager via the SSE stream connection.
@@ -358,7 +360,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
           conversationId,
           parentMessageId,
           abortController: job.abortController,
-          overrideParentMessageId,
+          overrideParentMessageId: userMessageIdOverride,
           isEdited: !!editedContent,
           userMCPAuthMap: result.userMCPAuthMap,
           responseMessageId: editedResponseMessageId,

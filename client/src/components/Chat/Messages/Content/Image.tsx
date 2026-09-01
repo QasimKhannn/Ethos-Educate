@@ -16,8 +16,10 @@ const isEthosManagedFile = (source?: string) =>
     source as FileSources,
   );
 
-/** Caches image dimensions by src so remounts can reserve space */
-const dimensionCache = new Map<string, { width: number; height: number }>();
+type ImageDimensions = { width: number; height: number };
+
+/** Caches browser-decoded dimensions by src so remounts use the real image ratio. */
+const dimensionCache = new Map<string, ImageDimensions>();
 /** Tracks URLs that have been fully painted — skip skeleton on remount */
 const paintedUrls = new Set<string>();
 
@@ -61,6 +63,9 @@ const Image = ({
   const [isOpen, setIsOpen] = useState(false);
   const [managedPreviewUrl, setManagedPreviewUrl] = useState<string | null>(null);
   const [managedPreviewFailed, setManagedPreviewFailed] = useState(false);
+  const [loadedDimensions, setLoadedDimensions] = useState<
+    (ImageDimensions & { source: string }) | null
+  >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const sourceImageUrl = useMemo(() => {
@@ -151,16 +156,32 @@ const Image = ({
     }
   };
 
-  useEffect(() => {
-    if (width && height && absoluteImageUrl) {
-      dimensionCache.set(absoluteImageUrl, { width, height });
-    }
-  }, [absoluteImageUrl, width, height]);
-
-  const dims = width && height ? { width, height } : dimensionCache.get(absoluteImageUrl);
+  const actualDimensions =
+    loadedDimensions?.source === absoluteImageUrl
+      ? loadedDimensions
+      : dimensionCache.get(absoluteImageUrl);
+  const suppliedDimensions = width && height ? { width, height } : undefined;
+  const dims = actualDimensions ?? suppliedDimensions;
   const hasDimensions = !!(dims?.width && dims?.height);
   const heightStyle = hasDimensions ? computeHeightStyle(dims.width, dims.height) : undefined;
   const showSkeleton = hasDimensions && (!absoluteImageUrl || !paintedUrls.has(absoluteImageUrl));
+
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    if (!absoluteImageUrl) {
+      return;
+    }
+
+    paintedUrls.add(absoluteImageUrl);
+
+    const { naturalHeight, naturalWidth } = event.currentTarget;
+    if (!naturalWidth || !naturalHeight) {
+      return;
+    }
+
+    const dimensions = { width: naturalWidth, height: naturalHeight };
+    dimensionCache.set(absoluteImageUrl, dimensions);
+    setLoadedDimensions({ source: absoluteImageUrl, ...dimensions });
+  };
 
   return (
     <div className="relative w-fit max-w-full">
@@ -182,7 +203,7 @@ const Image = ({
           <img
             alt={altText}
             src={absoluteImageUrl}
-            onLoad={() => paintedUrls.add(absoluteImageUrl)}
+            onLoad={handleImageLoad}
             onError={() => {
               if (isManagedImage && !managedPreviewFailed) {
                 setManagedPreviewUrl(null);

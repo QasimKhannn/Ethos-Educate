@@ -12,7 +12,6 @@ import type { AgentForm, AgentPanelProps } from '~/common';
 import { useLocalize, useAuthContext, useHasAccess, useResourcePermissions } from '~/hooks';
 import { GenericGrantAccessDialog } from '~/components/Sharing';
 import { useUpdateAgentMutation } from '~/data-provider';
-import AdvancedButton from './Advanced/AdvancedButton';
 import VersionButton from './Version/VersionButton';
 import DuplicateAgent from './DuplicateAgent';
 import AdminSettings from './AdminSettings';
@@ -77,7 +76,6 @@ export default function AgentFooter({
 
   return (
     <div className="mb-1 flex w-full flex-col gap-2">
-      {showButtons && <AdvancedButton setActivePanel={setActivePanel} />}
       {showButtons && agent_id && <VersionButton setActivePanel={setActivePanel} />}
       {user?.role === SystemRoles.ADMIN && showButtons && <AdminSettings />}
       {/* Context Button */}

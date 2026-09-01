@@ -10,6 +10,7 @@ import {
   ContentTypes,
   EModelEndpoint,
   getEndpointField,
+  isEphemeralAgentId,
   isAgentsEndpoint,
   parseCompactConvo,
   replaceSpecialVars,
@@ -176,12 +177,15 @@ export default function useChatFunctions({
     const conversationKey = conversationId ?? Constants.NEW_CONVO;
     const availableMCPServers =
       loadedMCPServers ?? queryClient.getQueryData<MCPServersListResponse>([QueryKeys.mcpServers]);
-    const ephemeralAgent =
-      applyAutoMCPSelection({
-        prompt: text,
-        conversationKey,
-        servers: availableMCPServers,
-      }) ?? getEphemeralAgent(conversationKey);
+    const isPersistentAgent =
+      isAgentsEndpoint(endpoint) && !isEphemeralAgentId(conversation?.agent_id ?? '');
+    const ephemeralAgent = isPersistentAgent
+      ? null
+      : (applyAutoMCPSelection({
+          prompt: text,
+          conversationKey,
+          servers: availableMCPServers,
+        }) ?? getEphemeralAgent(conversationKey));
     const isEditOrContinue = isEdited || isContinued;
 
     let currentMessages: TMessage[] | null = overrideMessages ?? getMessages() ?? [];

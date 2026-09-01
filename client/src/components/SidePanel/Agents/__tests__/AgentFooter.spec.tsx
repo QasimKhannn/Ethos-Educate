@@ -128,11 +128,6 @@ jest.mock('~/data-provider', () => ({
   useUpdateAgentMutation: () => createBaseMutation<Agent, any>(),
 }));
 
-jest.mock('../Advanced/AdvancedButton', () => ({
-  __esModule: true,
-  default: jest.fn(() => <div data-testid="advanced-button" />),
-}));
-
 jest.mock('../Version/VersionButton', () => ({
   __esModule: true,
   default: jest.fn(() => <div data-testid="version-button" />),
@@ -281,7 +276,7 @@ describe('AgentFooter', () => {
     test('renders with standard components based on default state', () => {
       render(<AgentFooter {...defaultProps} />);
       expect(screen.getByText('Save')).toBeInTheDocument();
-      expect(screen.getByTestId('advanced-button')).toBeInTheDocument();
+      expect(screen.queryByTestId('advanced-button')).not.toBeInTheDocument();
       expect(screen.getByTestId('version-button')).toBeInTheDocument();
       expect(screen.getByTestId('delete-button')).toBeInTheDocument();
       expect(screen.queryByTestId('admin-settings')).not.toBeInTheDocument();

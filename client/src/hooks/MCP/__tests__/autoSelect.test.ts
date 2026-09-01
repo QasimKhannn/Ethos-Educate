@@ -65,6 +65,36 @@ describe('getAutoSelectedMCPServerNames', () => {
     ).toEqual([]);
   });
 
+  it('does not select every creation-related server from a generic create request', () => {
+    const servers: MCPServersListResponse = {
+      downloadableFiles: createServer({ description: 'Create Microsoft Office documents' }),
+      podcastAudio: createServer({ description: 'Create MP3 podcast audio from text' }),
+      imageGeneration: createServer({ description: 'Generate AI images' }),
+    };
+
+    expect(
+      getAutoSelectedMCPServerNames({
+        servers,
+        prompt: 'Create a poster for Multicultural Literacy Night.',
+      }),
+    ).toEqual([]);
+  });
+
+  it('selects image generation without adding unrelated creation tools', () => {
+    const servers: MCPServersListResponse = {
+      downloadableFiles: createServer({ description: 'Create Microsoft Office documents' }),
+      podcastAudio: createServer({ description: 'Create MP3 podcast audio from text' }),
+      imageGeneration: createServer({ description: 'Generate AI images' }),
+    };
+
+    expect(
+      getAutoSelectedMCPServerNames({
+        servers,
+        prompt: 'Generate an image of a car in the rain.',
+      }),
+    ).toEqual(['imageGeneration']);
+  });
+
   it('can use meaningful description terms when the server name is generic', () => {
     const servers: MCPServersListResponse = {
       companyFiles: createServer({ description: 'Search SharePoint files and documents' }),

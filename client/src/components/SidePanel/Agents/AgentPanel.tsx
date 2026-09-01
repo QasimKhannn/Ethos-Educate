@@ -20,7 +20,6 @@ import { useResourcePermissions } from '~/hooks/useResourcePermissions';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers/AgentPanelContext';
 import AgentPanelSkeleton from './AgentPanelSkeleton';
-import AdvancedPanel from './Advanced/AdvancedPanel';
 import { Panel, isEphemeralAgent } from '~/common';
 import AgentConfig from './AgentConfig';
 import AgentSelect from './AgentSelect';
@@ -322,6 +321,12 @@ export default function AgentPanel() {
     initializedColdCreateRef.current = true;
   }, [current_agent_id, reset]);
 
+  useEffect(() => {
+    if (activePanel === Panel.advanced) {
+      setActivePanel(Panel.builder);
+    }
+  }, [activePanel, setActivePanel]);
+
   /* Mutations */
   const update = useUpdateAgentMutation({
     onMutate: () => {
@@ -525,9 +530,6 @@ export default function AgentPanel() {
         )}
         {canEditAgent && !agentQuery.isInitialLoading && activePanel === Panel.builder && (
           <AgentConfig />
-        )}
-        {canEditAgent && !agentQuery.isInitialLoading && activePanel === Panel.advanced && (
-          <AdvancedPanel />
         )}
         {canEditAgent && !agentQuery.isInitialLoading && (
           <AgentFooter

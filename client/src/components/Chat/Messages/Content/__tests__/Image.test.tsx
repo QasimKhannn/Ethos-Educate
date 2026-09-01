@@ -114,6 +114,21 @@ describe('Image', () => {
       expect(img.className).toContain('object-contain');
     });
 
+    it('uses browser-decoded dimensions when MCP metadata has the wrong aspect ratio', () => {
+      render(<Image {...defaultProps} width={1024} height={1792} />);
+      const button = screen.getByRole('button', { name: 'View Test image in dialog' });
+      const img = screen.getByRole('img');
+
+      Object.defineProperties(img, {
+        naturalWidth: { configurable: true, value: 1024 },
+        naturalHeight: { configurable: true, value: 1536 },
+      });
+      fireEvent.load(img);
+
+      expect(button.style.height).toContain('150vw');
+      expect(button.style.height).toContain('768px');
+    });
+
     it('skeleton is absolute inset-0', () => {
       render(<Image {...defaultProps} width={512} height={512} />);
       const skeleton = screen.getByTestId('skeleton');
