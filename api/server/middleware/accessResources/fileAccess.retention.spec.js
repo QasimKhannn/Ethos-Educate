@@ -64,7 +64,7 @@ describe('fileAccess generated image retention', () => {
     expect(res.status).toHaveBeenCalledWith(410);
     expect(res.json).toHaveBeenCalledWith({
       error: 'Gone',
-      message: 'This generated image expired after 7 days and is no longer available.',
+      message: 'This generated image expired after 24 hours and is no longer available.',
     });
   });
 
@@ -120,7 +120,7 @@ describe('fileAccess generated image retention', () => {
     expect(res.status).toHaveBeenCalledWith(410);
     expect(res.json).toHaveBeenCalledWith({
       error: 'Gone',
-      message: 'Document expired - generate a new copy.',
+      message: 'Document expired after 24 hours - generate a new copy.',
     });
   });
 });

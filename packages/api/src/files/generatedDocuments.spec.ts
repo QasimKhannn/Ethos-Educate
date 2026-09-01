@@ -12,6 +12,7 @@ describe('generated document artifacts', () => {
     const content = [
       'Teacher-ready worksheet files created:',
       `- Document created: [Worksheet.docx](${sourceUrl})`,
+      'This document expires after 24 hours and will be deleted.',
       '<!-- ethos-generated-document {"filename":"Worksheet.docx","mimeType":"application/vnd.openxmlformats-officedocument.wordprocessingml.document","url":"https://documents.example.com/files/worksheet.docx?expires=123&token=signed-token"} -->',
     ].join('\n');
 
@@ -47,7 +48,7 @@ describe('generated document artifacts', () => {
     });
 
     expect(managed).toBe(
-      '[Worksheet.docx](/api/files/download/user-123/file-123)\n\nAvailable until 2026-09-04 12:00:00 UTC. Document expired - generate a new copy.',
+      '[Worksheet.docx](/api/files/download/user-123/file-123)\n\nAvailable until 2026-08-29 12:00:00 UTC. This document expires after 24 hours and will be deleted. After expiry, generate a new copy.',
     );
     expect(managed).not.toContain(sourceUrl);
   });

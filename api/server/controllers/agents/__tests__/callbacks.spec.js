@@ -42,7 +42,7 @@ jest.mock('~/server/services/Files/GeneratedImageRetention', () => ({
   isImageGenerationMcpTool: jest.fn(
     (toolName) => toolName === 'generate_images_mcp_Image_Generation',
   ),
-  getGeneratedImageRetentionExpiry: jest.fn(() => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+  getGeneratedImageRetentionExpiry: jest.fn(() => new Date(Date.now() + 24 * 60 * 60 * 1000)),
 }));
 
 describe('createToolEndCallback', () => {
@@ -238,7 +238,7 @@ describe('createToolEndCallback', () => {
   });
 
   describe('generated image artifact retention', () => {
-    it('sets a seven-day retention timestamp for Image Generation MCP images', async () => {
+    it('sets a 24-hour retention timestamp for Image Generation MCP images', async () => {
       const { saveBase64Image } = require('~/server/services/Files/process');
       saveBase64Image.mockResolvedValue({
         file_id: 'image-file',
@@ -272,9 +272,9 @@ describe('createToolEndCallback', () => {
       const call = saveBase64Image.mock.calls[0];
       const retentionExpiresAt = call[1].retentionExpiresAt;
       expect(retentionExpiresAt).toBeInstanceOf(Date);
-      expect(retentionExpiresAt.getTime()).toBeGreaterThanOrEqual(before + 7 * 24 * 60 * 60 * 1000);
+      expect(retentionExpiresAt.getTime()).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000);
       expect(retentionExpiresAt.getTime()).toBeLessThanOrEqual(
-        Date.now() + 7 * 24 * 60 * 60 * 1000,
+        Date.now() + 24 * 60 * 60 * 1000,
       );
     });
 

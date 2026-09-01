@@ -3,7 +3,8 @@ const { FileContext } = require('librechat-data-provider');
 const { getFiles, deleteFile } = require('~/models');
 const { getStrategyFunctions } = require('./strategies');
 
-const GENERATED_FILE_RETENTION_DAYS = 7;
+const GENERATED_FILE_RETENTION_HOURS = 24;
+const GENERATED_FILE_RETENTION_DAYS = GENERATED_FILE_RETENTION_HOURS / 24;
 const GENERATED_IMAGE_RETENTION_DAYS = GENERATED_FILE_RETENTION_DAYS;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const RETAINED_GENERATED_FILE_CONTEXTS = new Set([
@@ -16,7 +17,7 @@ function isImageGenerationMcpTool(toolName) {
 }
 
 function getGeneratedFileRetentionExpiry(now = Date.now()) {
-  return new Date(now + GENERATED_FILE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  return new Date(now + GENERATED_FILE_RETENTION_HOURS * 60 * 60 * 1000);
 }
 
 function getGeneratedImageRetentionExpiry(now = Date.now()) {
@@ -126,6 +127,7 @@ function startGeneratedImageRetentionCleanup(appConfig) {
 }
 
 module.exports = {
+  GENERATED_FILE_RETENTION_HOURS,
   GENERATED_FILE_RETENTION_DAYS,
   GENERATED_IMAGE_RETENTION_DAYS,
   isImageGenerationMcpTool,

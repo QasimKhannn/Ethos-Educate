@@ -21,8 +21,8 @@ const rejectExpiredGeneratedFile = (req, res, file) => {
     error: 'Gone',
     message:
       file.context === FileContext.generated_document
-        ? 'Document expired - generate a new copy.'
-        : 'This generated image expired after 7 days and is no longer available.',
+        ? 'Document expired after 24 hours - generate a new copy.'
+        : 'This generated image expired after 24 hours and is no longer available.',
   });
 };
 

@@ -20,6 +20,7 @@ const { getFiles, deleteFile } = require('~/models');
 const { getStrategyFunctions } = require('./strategies');
 const {
   GENERATED_FILE_RETENTION_DAYS,
+  GENERATED_FILE_RETENTION_HOURS,
   GENERATED_IMAGE_RETENTION_DAYS,
   isImageGenerationMcpTool,
   getGeneratedFileRetentionExpiry,
@@ -41,13 +42,14 @@ describe('GeneratedImageRetention', () => {
     ).toBe(false);
   });
 
-  test('sets generated image retention to seven days', () => {
+  test('sets generated image retention to 24 hours', () => {
     const now = Date.UTC(2026, 7, 28, 12, 0, 0);
     const expiry = getGeneratedImageRetentionExpiry(now);
 
-    expect(GENERATED_IMAGE_RETENTION_DAYS).toBe(7);
-    expect(GENERATED_FILE_RETENTION_DAYS).toBe(7);
-    expect(expiry.getTime()).toBe(now + 7 * 24 * 60 * 60 * 1000);
+    expect(GENERATED_FILE_RETENTION_DAYS).toBe(1);
+    expect(GENERATED_FILE_RETENTION_HOURS).toBe(24);
+    expect(GENERATED_IMAGE_RETENTION_DAYS).toBe(1);
+    expect(expiry.getTime()).toBe(now + 24 * 60 * 60 * 1000);
     expect(getGeneratedFileRetentionExpiry(now)).toEqual(expiry);
   });
 
