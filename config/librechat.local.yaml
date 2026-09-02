@@ -80,7 +80,8 @@ mcpServers:
       - Preserve the user's requested style, subject, aspect ratio, text, and number of images.
       - Use useCase when obvious: coloring_page, poster, banner, infographic, worksheet, icon, logo, thumbnail, social_post, image_edit, or illustration.
       - Prefer square unless the user asks for portrait, poster, worksheet, landscape, wide, banner, thumbnail, social post, or a specific size.
-      - For posters, flyers, banners, worksheets, or any request where words must be correct, pass title/subtitle/exactText or textOverlay and set noText true so the MCP overlays exact text locally.
+      - For posters, let GPT create the complete poster, including all typography. Pass a text-free visualPrompt and the approved wording in approvedCopy; set textPolicy to model_text (or omit it, since poster requests default to model_text). Do not send textOverlay, exactText, code_overlay, or noText for posters. If there is footer copy, include it as the last paragraph of approvedCopy.details.
+      - For non-poster requests where exact deterministic typography is explicitly required, use textOverlay with noText true.
       - If the user provides reference images, pass them as referenceImages or referenceImageUrls when available.
 
       Response guidance:
