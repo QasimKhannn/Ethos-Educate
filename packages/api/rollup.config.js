@@ -45,10 +45,7 @@ const plugins = [
 ];
 
 const cjsBuild = {
-  input: {
-    index: 'src/index.ts',
-    'files/generatedFileRetention': 'src/files/generatedFileRetention.ts',
-  },
+  input: 'src/index.ts',
   output: {
     dir: 'dist',
     format: 'cjs',
