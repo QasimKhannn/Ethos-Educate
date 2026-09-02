@@ -5,7 +5,7 @@ const {
   getGeneratedFileCleanupIntervalMinutes,
   getGeneratedFileRetentionMinutes,
   getGeneratedFileRetentionExpiry,
-} = require('@librechat/api');
+} = require('@librechat/api/files/generatedFileRetention');
 const { FileContext } = require('librechat-data-provider');
 const { getFiles, deleteFile } = require('~/models');
 const { getStrategyFunctions } = require('./strategies');

@@ -10,6 +10,10 @@
     ".": {
       "require": "./dist/index.js",
       "types": "./dist/types/index.d.ts"
+    },
+    "./files/generatedFileRetention": {
+      "require": "./dist/files/generatedFileRetention.js",
+      "types": "./dist/types/files/generatedFileRetention.d.ts"
     }
   },
   "scripts": {
