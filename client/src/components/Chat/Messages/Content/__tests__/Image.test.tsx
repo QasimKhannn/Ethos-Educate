@@ -82,15 +82,15 @@ describe('Image', () => {
       expect(img.className).toContain('h-auto');
     });
 
-    it('does not show skeleton without dimensions', () => {
+    it('shows a fallback skeleton without dimensions until the image is ready', () => {
       render(<Image {...defaultProps} />);
-      expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument();
+      expect(screen.getByTestId('skeleton')).toBeInTheDocument();
     });
 
-    it('does not apply heightStyle without dimensions', () => {
+    it('reserves fallback space without dimensions while the image loads', () => {
       render(<Image {...defaultProps} />);
       const button = screen.getByRole('button', { name: 'View Test image in dialog' });
-      expect(button.style.height).toBeFalsy();
+      expect(button.style.height).toContain('min(45vh');
     });
   });
 
@@ -114,7 +114,7 @@ describe('Image', () => {
       expect(img.className).toContain('object-contain');
     });
 
-    it('uses browser-decoded dimensions when MCP metadata has the wrong aspect ratio', () => {
+    it('uses browser-decoded dimensions when MCP metadata has the wrong aspect ratio', async () => {
       render(<Image {...defaultProps} width={1024} height={1792} />);
       const button = screen.getByRole('button', { name: 'View Test image in dialog' });
       const img = screen.getByRole('img');
@@ -125,8 +125,10 @@ describe('Image', () => {
       });
       fireEvent.load(img);
 
-      expect(button.style.height).toContain('150vw');
-      expect(button.style.height).toContain('768px');
+      await waitFor(() => {
+        expect(button.style.height).toContain('150vw');
+        expect(button.style.height).toContain('768px');
+      });
     });
 
     it('skeleton is absolute inset-0', () => {
@@ -136,13 +138,38 @@ describe('Image', () => {
       expect(skeleton.className).toContain('inset-0');
     });
 
-    it('marks URL as painted on load and skips skeleton on rerender', () => {
+    it('hides the skeleton only after the image has loaded and decoded', async () => {
       const { rerender } = render(<Image {...defaultProps} width={512} height={512} />);
       const img = screen.getByRole('img');
+      let finishDecode: (() => void) | undefined;
+
+      Object.defineProperty(img, 'decode', {
+        configurable: true,
+        value: jest.fn(
+          () =>
+            new Promise<void>((resolve) => {
+              finishDecode = resolve;
+            }),
+        ),
+      });
 
       expect(screen.getByTestId('skeleton')).toBeInTheDocument();
+      expect(img.className).toContain('opacity-0');
+      expect(screen.getByRole('button', { name: 'View Test image in dialog' })).toHaveAttribute(
+        'aria-busy',
+        'true',
+      );
 
       fireEvent.load(img);
+      expect(screen.getByTestId('skeleton')).toBeInTheDocument();
+      finishDecode?.();
+
+      await waitFor(() => expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument());
+      expect(img.className).toContain('opacity-100');
+      expect(screen.getByRole('button', { name: 'View Test image in dialog' })).toHaveAttribute(
+        'aria-busy',
+        'false',
+      );
 
       // Rerender same component — skeleton should not show (URL painted)
       rerender(<Image {...defaultProps} width={512} height={512} />);

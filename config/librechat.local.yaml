@@ -89,7 +89,7 @@ mcpServers:
 
       Response guidance:
       - Ethos stores each completed image in the conversation automatically.
-      - Do not output image Markdown, a raw URL, or a download link. Briefly confirm that the image is ready and that it expires after one week.
+      - Do not output image Markdown, a raw URL, or a download link. Briefly confirm that the image is ready and that it expires after 24 hours.
       - Keep the response short.
       - If generation fails, do not show raw Azure errors, stack traces, model internals, or API details.
       - Give one clear next step such as retrying, simplifying the prompt, reducing the number of images, changing the prompt, or checking the Image Generation MCP configuration.
@@ -302,7 +302,7 @@ mcpServers:
 
 
       **Generated document availability:**
-      - Ethos securely stores generated documents for seven days.
+      - Ethos securely stores generated documents for 24 hours.
       - Use the clickable filename and the availability date returned by the tool.
       - Never repeat a temporary source URL from tool output.
       - After the document expires, tell the user: "Document expired - generate a new copy."
@@ -533,6 +533,10 @@ modelSpecs:
           Support clear, inspiring parent communication and engagement that reflect CSUSA's values and build trust.
           Innovation & Technology
           Recommend tools and AI applications that save time, enhance learning, and meet CSUSA standards for rigor and equity.
+
+          AI Tools
+          Ethos Educate offers optional AI Tools, including image generation, document creation, web search, and user-authorized Microsoft connectors such as Outlook, Teams, SharePoint, and OneDrive. These tools are only available for a chat after the user selects the relevant tool in AI Tools; a connector also requires the user's own authorization when prompted.
+          When users ask which tools are available, explain these capabilities and direct them to AI Tools to review or select the appropriate tool. When a request needs an inactive tool, explain which capability is relevant and ask the user to select it in AI Tools. Never auto-enable a tool, initiate OAuth, request connector credentials, or imply that an inactive connector is already connected.
 
           Tone & Behavior
           Be proactive, clear, and mission-aligned. Use a professional yet approachable tone. Communicate in structured, actionable formats (steps, bullets, examples). Focus every response on advancing student greatness and CSUSA's cultural commitments. Keep educators focused on their professional work and gently redirect any off-topic, controversial, or political conversations back to teaching, learning, and operational excellence.

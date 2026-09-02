@@ -8,7 +8,13 @@ import { Constants, buildTree } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
-import { useAddedResponse, useResumeOnLoad, useAdaptiveSSE, useChatHelpers } from '~/hooks';
+import {
+  useAddedResponse,
+  useResumeOnLoad,
+  useAdaptiveSSE,
+  useChatHelpers,
+  useLocalize,
+} from '~/hooks';
 import { useGetMessagesByConvoId } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
@@ -30,6 +36,23 @@ function LoadingSpinner() {
   );
 }
 
+function MessageLoadError({ onRetry }: { onRetry: () => void }) {
+  const localize = useLocalize();
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+      <p className="text-sm text-text-secondary">{localize('com_ui_error_connection')}</p>
+      <button
+        className="rounded-md border border-border-light px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onRetry}
+        type="button"
+      >
+        {localize('com_ui_retry')}
+      </button>
+    </div>
+  );
+}
+
 function ChatView({ index = 0 }: { index?: number }) {
   const { conversationId } = useParams();
   const rootSubmission = useRecoilValue(store.submissionByIndex(index));
@@ -38,7 +61,12 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   const fileMap = useFileMapContext();
 
-  const { data: messagesTree = null, isLoading } = useGetMessagesByConvoId(conversationId ?? '', {
+  const {
+    data: messagesTree = null,
+    isError: hasMessagesError,
+    isLoading,
+    refetch: refetchMessages,
+  } = useGetMessagesByConvoId(conversationId ?? '', {
     select: useCallback(
       (data: TMessage[]) => {
         const dataTree = buildTree({ messages: data, fileMap });
@@ -66,12 +94,11 @@ function ChatView({ index = 0 }: { index?: number }) {
   const isLandingPage =
     (!messagesTree || messagesTree.length === 0) &&
     (conversationId === Constants.NEW_CONVO || !conversationId);
-  const isNavigating = (!messagesTree || messagesTree.length === 0) && conversationId != null;
 
   if (isLoading && conversationId !== Constants.NEW_CONVO) {
     content = <LoadingSpinner />;
-  } else if ((isLoading || isNavigating) && !isLandingPage) {
-    content = <LoadingSpinner />;
+  } else if (hasMessagesError) {
+    content = <MessageLoadError onRetry={() => void refetchMessages()} />;
   } else if (!isLandingPage) {
     content = <MessagesView messagesTree={messagesTree} />;
   } else {

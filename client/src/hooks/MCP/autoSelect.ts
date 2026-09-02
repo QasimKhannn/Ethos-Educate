@@ -204,6 +204,11 @@ const serverMatchesPrompt = (
   return false;
 };
 
+const requiresUserAuthentication = (server: MCPServersListResponse[string]): boolean =>
+  server.requiresOAuth === true ||
+  server.apiKey?.source === 'user' ||
+  Object.keys(server.customUserVars ?? {}).length > 0;
+
 export const getAutoSelectedMCPServerNames = ({
   prompt,
   servers,
@@ -218,7 +223,12 @@ export const getAutoSelectedMCPServerNames = ({
   const matches: string[] = [];
 
   for (const [serverName, server] of Object.entries(servers)) {
-    if (server.chatMenu === false || server.consumeOnly || selected.has(serverName)) {
+    if (
+      server.chatMenu === false ||
+      server.consumeOnly ||
+      requiresUserAuthentication(server) ||
+      selected.has(serverName)
+    ) {
       continue;
     }
 

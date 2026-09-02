@@ -9,6 +9,19 @@ import { cn } from '~/utils';
 export const IMAGE_MAX_H = 'max-h-[45vh]' as const;
 /** Matches the `max-w-lg` Tailwind class on the wrapper button (32rem = 512px at 16px base) */
 const IMAGE_MAX_W_PX = 512;
+const IMAGE_LOADING_STYLE: React.CSSProperties = {
+  height: 'min(45vh, 75vw, 20rem)',
+  width: 'min(100%, 20rem)',
+};
+
+const requestAfterPaint = (callback: FrameRequestCallback): void => {
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(callback);
+    return;
+  }
+
+  callback(0);
+};
 
 const isEthosManagedFile = (source?: string) =>
   source != null &&
@@ -66,7 +79,10 @@ const Image = ({
   const [loadedDimensions, setLoadedDimensions] = useState<
     (ImageDimensions & { source: string }) | null
   >(null);
+  const [readyImageUrl, setReadyImageUrl] = useState<string | null>(null);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const activeImageUrlRef = useRef('');
 
   const sourceImageUrl = useMemo(() => {
     if (!imagePath) return imagePath;
@@ -127,6 +143,17 @@ const Image = ({
     ? (managedPreviewUrl ?? (managedPreviewFailed ? sourceImageUrl : ''))
     : sourceImageUrl;
 
+  useEffect(() => {
+    activeImageUrlRef.current = absoluteImageUrl;
+    setFailedImageUrl(null);
+
+    return () => {
+      if (activeImageUrlRef.current === absoluteImageUrl) {
+        activeImageUrlRef.current = '';
+      }
+    };
+  }, [absoluteImageUrl]);
+
   const downloadImage = async () => {
     try {
       const response = await fetch(absoluteImageUrl);
@@ -163,24 +190,61 @@ const Image = ({
   const suppliedDimensions = width && height ? { width, height } : undefined;
   const dims = actualDimensions ?? suppliedDimensions;
   const hasDimensions = !!(dims?.width && dims?.height);
-  const heightStyle = hasDimensions ? computeHeightStyle(dims.width, dims.height) : undefined;
-  const showSkeleton = hasDimensions && (!absoluteImageUrl || !paintedUrls.has(absoluteImageUrl));
+  const isImageFailed = failedImageUrl === absoluteImageUrl;
+  const isImageReady =
+    absoluteImageUrl !== '' &&
+    !isImageFailed &&
+    (readyImageUrl === absoluteImageUrl || paintedUrls.has(absoluteImageUrl));
+  const showSkeleton = !isImageReady && !isImageFailed;
+  const imageStyle = hasDimensions
+    ? computeHeightStyle(dims.width, dims.height)
+    : showSkeleton
+      ? IMAGE_LOADING_STYLE
+      : undefined;
 
-  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    if (!absoluteImageUrl) {
+  const handleImageLoad = async (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const imageUrl = absoluteImageUrl;
+    if (!imageUrl) {
       return;
     }
 
-    paintedUrls.add(absoluteImageUrl);
+    const image = event.currentTarget;
+    const decoded = image.decode?.();
+    if (decoded) {
+      await decoded.catch(() => undefined);
+    }
 
-    const { naturalHeight, naturalWidth } = event.currentTarget;
-    if (!naturalWidth || !naturalHeight) {
+    if (activeImageUrlRef.current !== imageUrl) {
       return;
     }
 
-    const dimensions = { width: naturalWidth, height: naturalHeight };
-    dimensionCache.set(absoluteImageUrl, dimensions);
-    setLoadedDimensions({ source: absoluteImageUrl, ...dimensions });
+    const { naturalHeight, naturalWidth } = image;
+    const dimensions =
+      naturalWidth && naturalHeight ? { width: naturalWidth, height: naturalHeight } : null;
+
+    requestAfterPaint(() => {
+      if (activeImageUrlRef.current !== imageUrl) {
+        return;
+      }
+
+      paintedUrls.add(imageUrl);
+      setReadyImageUrl(imageUrl);
+      setFailedImageUrl(null);
+      if (dimensions) {
+        dimensionCache.set(imageUrl, dimensions);
+        setLoadedDimensions({ source: imageUrl, ...dimensions });
+      }
+    });
+  };
+
+  const handleImageError = () => {
+    if (isManagedImage && !managedPreviewFailed) {
+      setManagedPreviewUrl(null);
+      setManagedPreviewFailed(true);
+      return;
+    }
+
+    setFailedImageUrl(absoluteImageUrl);
   };
 
   return (
@@ -190,28 +254,26 @@ const Image = ({
         type="button"
         aria-label={`View ${altText} in dialog`}
         aria-haspopup="dialog"
+        aria-busy={!isImageReady && !isImageFailed}
         onClick={() => absoluteImageUrl && setIsOpen(true)}
         className={cn(
-          'relative mt-1 w-full max-w-lg cursor-pointer overflow-hidden rounded-lg border border-border-light text-text-secondary-alt shadow-md transition-shadow',
+          'relative mt-1 w-full max-w-lg overflow-hidden rounded-lg border border-border-light text-text-secondary-alt shadow-md transition-shadow',
+          isImageReady || isImageFailed ? 'cursor-pointer' : 'cursor-wait',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary',
           className,
         )}
-        style={heightStyle}
+        style={imageStyle}
       >
-        {showSkeleton && <Skeleton className="absolute inset-0" aria-hidden="true" />}
+        {showSkeleton && <Skeleton className="absolute inset-0 z-10" aria-hidden="true" />}
         {absoluteImageUrl && (
           <img
             alt={altText}
             src={absoluteImageUrl}
             onLoad={handleImageLoad}
-            onError={() => {
-              if (isManagedImage && !managedPreviewFailed) {
-                setManagedPreviewUrl(null);
-                setManagedPreviewFailed(true);
-              }
-            }}
+            onError={handleImageError}
             className={cn(
-              'relative block text-transparent',
+              'relative z-0 block text-transparent transition-opacity duration-200 ease-out',
+              isImageReady || isImageFailed ? 'opacity-100' : 'opacity-0',
               hasDimensions
                 ? 'size-full object-contain'
                 : cn('h-auto w-auto max-w-full', IMAGE_MAX_H),

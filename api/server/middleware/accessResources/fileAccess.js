@@ -10,6 +10,7 @@ const { getAgents } = require('~/models/Agent');
 const { getFiles } = require('~/models');
 const {
   isExpiredGeneratedFile,
+  getExpiredGeneratedFileMessage,
   removeExpiredGeneratedFile,
 } = require('~/server/services/Files/GeneratedImageRetention');
 
@@ -17,13 +18,7 @@ const rejectExpiredGeneratedFile = (req, res, file) => {
   removeExpiredGeneratedFile(file, req.config).catch((error) => {
     logger.error(`[fileAccess] Failed to remove expired generated file ${file.file_id}:`, error);
   });
-  return res.status(410).json({
-    error: 'Gone',
-    message:
-      file.context === FileContext.generated_document
-        ? 'Document expired after 24 hours - generate a new copy.'
-        : 'This generated image expired after 24 hours and is no longer available.',
-  });
+  return res.status(410).json({ error: 'Gone', message: getExpiredGeneratedFileMessage(file) });
 };
 
 /**

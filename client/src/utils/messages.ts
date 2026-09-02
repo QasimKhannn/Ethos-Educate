@@ -163,9 +163,9 @@ export const scrollToEnd = (callback?: () => void) => {
 };
 
 /**
- * Clears messages for both the specified conversation ID and the NEW_CONVO query key.
- * This ensures that messages are properly cleared in all contexts, preventing stale data
- * from persisting in the NEW_CONVO cache.
+ * Removes messages for both the specified conversation ID and the NEW_CONVO query key.
+ * Removing the queries ensures a later visit fetches persisted messages instead of treating
+ * an empty cached array as a loaded conversation.
  *
  * @param queryClient - The React Query client instance
  * @param conversationId - The conversation ID to clear messages for
@@ -176,12 +176,10 @@ export const clearMessagesCache = (
 ): void => {
   const convoId = conversationId ?? Constants.NEW_CONVO;
 
-  // Clear messages for the current conversation
-  queryClient.setQueryData<TMessage[]>([QueryKeys.messages, convoId], []);
+  queryClient.removeQueries([QueryKeys.messages, convoId]);
 
-  // Also clear NEW_CONVO messages if we're not already on NEW_CONVO
   if (convoId !== Constants.NEW_CONVO) {
-    queryClient.setQueryData<TMessage[]>([QueryKeys.messages, Constants.NEW_CONVO], []);
+    queryClient.removeQueries([QueryKeys.messages, Constants.NEW_CONVO]);
   }
 };
 

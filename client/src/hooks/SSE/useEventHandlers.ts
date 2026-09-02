@@ -42,6 +42,7 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { MESSAGE_UPDATE_INTERVAL } from '~/common';
 import { useLiveAnnouncer } from '~/Providers';
 import store from '~/store';
+import { reconcileFinalMessages } from './reconcileFinalMessages';
 
 type TSyncData = {
   sync: boolean;
@@ -442,6 +443,8 @@ export default function useEventHandlers({
         messages,
         conversation: submissionConvo,
         isRegenerate = false,
+        isEdited = false,
+        isContinued = false,
         isTemporary: _isTemporary = false,
       } = submission;
 
@@ -533,10 +536,15 @@ export default function useEventHandlers({
         let finalMessages: TMessage[] = [];
         if (runMessages) {
           finalMessages = [...runMessages];
-        } else if (isRegenerate && responseMessage) {
-          finalMessages = [...messages, responseMessage];
-        } else if (requestMessage != null && responseMessage != null) {
-          finalMessages = [...messages, requestMessage, responseMessage];
+        } else {
+          finalMessages = reconcileFinalMessages({
+            messages,
+            requestMessage,
+            responseMessage,
+            isRegenerate,
+            isEdited,
+            isContinued,
+          });
         }
 
         /* Preserve files from current messages when server response lacks them */

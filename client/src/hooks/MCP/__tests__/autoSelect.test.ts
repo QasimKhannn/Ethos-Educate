@@ -24,6 +24,55 @@ describe('getAutoSelectedMCPServerNames', () => {
     ).toEqual(['sharepoint']);
   });
 
+  it('does not automatically select an authenticated MCP even when its name is requested', () => {
+    const servers: MCPServersListResponse = {
+      sharepoint: createServer({ title: 'SharePoint', requiresOAuth: true }),
+      onedrive: createServer({ title: 'OneDrive', requiresOAuth: true }),
+      outlook: createServer({ title: 'Outlook', requiresOAuth: true }),
+    };
+
+    expect(
+      getAutoSelectedMCPServerNames({
+        servers,
+        prompt: 'Search SharePoint and OneDrive, then check my Outlook email.',
+      }),
+    ).toEqual([]);
+  });
+
+  it('does not automatically select tools that require user-provided credentials', () => {
+    const servers: MCPServersListResponse = {
+      privateKnowledgeBase: createServer({
+        title: 'Private Knowledge Base',
+        apiKey: {
+          source: 'user',
+          authorization_type: 'bearer',
+        },
+      }),
+    };
+
+    expect(
+      getAutoSelectedMCPServerNames({
+        servers,
+        prompt: 'Search my private knowledge base.',
+      }),
+    ).toEqual([]);
+  });
+
+  it('does not select tools for a tool-inventory question', () => {
+    const servers: MCPServersListResponse = {
+      sharepoint: createServer({ title: 'SharePoint', requiresOAuth: true }),
+      imageGeneration: createServer({ title: 'Image Generation' }),
+      webSearch: createServer({ title: 'Web Search' }),
+    };
+
+    expect(
+      getAutoSelectedMCPServerNames({
+        servers,
+        prompt: 'What tools and MCPs do you have?',
+      }),
+    ).toEqual([]);
+  });
+
   it('matches compact names when users type them as separate words', () => {
     const servers: MCPServersListResponse = {
       onedrive: createServer({ title: 'OneDrive' }),

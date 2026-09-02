@@ -9,7 +9,7 @@ import {
   useAssistantsMapContext,
 } from '~/Providers';
 import { useGetAssistantDocsQuery, useGetEndpointsQuery } from '~/data-provider';
-import { getIconEndpoint, getEntity } from '~/utils';
+import { getIconEndpoint, getEntity, getEntityEndpoint } from '~/utils';
 import { mainTextareaId } from '~/common';
 import { useLocalize } from '~/hooks';
 
@@ -111,7 +111,10 @@ const ConversationStarters = () => {
   });
 
   const { entity, isAgent } = getEntity({
-    endpoint: endpointType,
+    endpoint: getEntityEndpoint({
+      conversationEndpoint: conversation?.endpoint,
+      displayEndpoint: endpointType,
+    }),
     agentsMap,
     assistantMap,
     agent_id: conversation?.agent_id,

@@ -1,12 +1,18 @@
 const { logger } = require('@librechat/data-schemas');
+const {
+  DEFAULT_GENERATED_FILE_RETENTION_MINUTES,
+  formatGeneratedFileRetentionDuration,
+  getGeneratedFileCleanupIntervalMinutes,
+  getGeneratedFileRetentionMinutes,
+  getGeneratedFileRetentionExpiry,
+} = require('@librechat/api');
 const { FileContext } = require('librechat-data-provider');
 const { getFiles, deleteFile } = require('~/models');
 const { getStrategyFunctions } = require('./strategies');
 
-const GENERATED_FILE_RETENTION_HOURS = 24;
+const GENERATED_FILE_RETENTION_HOURS = DEFAULT_GENERATED_FILE_RETENTION_MINUTES / 60;
 const GENERATED_FILE_RETENTION_DAYS = GENERATED_FILE_RETENTION_HOURS / 24;
 const GENERATED_IMAGE_RETENTION_DAYS = GENERATED_FILE_RETENTION_DAYS;
-const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const RETAINED_GENERATED_FILE_CONTEXTS = new Set([
   FileContext.image_generation,
   FileContext.generated_document,
@@ -16,12 +22,15 @@ function isImageGenerationMcpTool(toolName) {
   return typeof toolName === 'string' && toolName.endsWith('_mcp_Image_Generation');
 }
 
-function getGeneratedFileRetentionExpiry(now = Date.now()) {
-  return new Date(now + GENERATED_FILE_RETENTION_HOURS * 60 * 60 * 1000);
-}
-
 function getGeneratedImageRetentionExpiry(now = Date.now()) {
   return getGeneratedFileRetentionExpiry(now);
+}
+
+function getExpiredGeneratedFileMessage(file) {
+  const duration = formatGeneratedFileRetentionDuration();
+  return file?.context === FileContext.generated_document
+    ? `Document expired after ${duration} - generate a new copy.`
+    : `This generated image expired after ${duration} and is no longer available.`;
 }
 
 function isExpiredGeneratedFile(file, now = Date.now()) {
@@ -117,7 +126,7 @@ function startGeneratedFileRetentionCleanup(appConfig) {
   };
 
   runCleanup();
-  const timer = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
+  const timer = setInterval(runCleanup, getGeneratedFileCleanupIntervalMinutes() * 60 * 1000);
   timer.unref?.();
   return timer;
 }
@@ -130,9 +139,12 @@ module.exports = {
   GENERATED_FILE_RETENTION_HOURS,
   GENERATED_FILE_RETENTION_DAYS,
   GENERATED_IMAGE_RETENTION_DAYS,
+  getGeneratedFileCleanupIntervalMinutes,
+  getGeneratedFileRetentionMinutes,
   isImageGenerationMcpTool,
   getGeneratedFileRetentionExpiry,
   getGeneratedImageRetentionExpiry,
+  getExpiredGeneratedFileMessage,
   isExpiredGeneratedFile,
   isExpiredGeneratedImage,
   isExpiredGeneratedDocument,

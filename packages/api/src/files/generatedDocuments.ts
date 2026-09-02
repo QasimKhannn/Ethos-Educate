@@ -1,8 +1,15 @@
-export const GENERATED_DOCUMENT_RETENTION_HOURS = 24;
+import {
+  DEFAULT_GENERATED_FILE_RETENTION_MINUTES,
+  formatGeneratedFileRetentionDuration,
+  getGeneratedFileRetentionExpiry,
+} from './generatedFileRetention';
+
+export const GENERATED_DOCUMENT_RETENTION_HOURS = DEFAULT_GENERATED_FILE_RETENTION_MINUTES / 60;
 export const GENERATED_DOCUMENT_RETENTION_DAYS = GENERATED_DOCUMENT_RETENTION_HOURS / 24;
 
 const GENERATED_DOCUMENT_MARKER = 'ethos-generated-document';
-const GENERATED_DOCUMENT_RETENTION_NOTICE = 'This document expires after 24 hours and will be deleted.';
+const GENERATED_DOCUMENT_RETENTION_NOTICE =
+  /This document expires after [^.]+ and will be deleted\./gi;
 const MARKER_PATTERN = new RegExp(
   `<!--\\s*${GENERATED_DOCUMENT_MARKER}\\s+({[\\s\\S]*?})\\s*-->`,
   'gi',
@@ -80,7 +87,7 @@ function normalizeText(value: string): string {
 }
 
 function removeGeneratedDocumentRetentionNotice(value: string): string {
-  return value.replaceAll(GENERATED_DOCUMENT_RETENTION_NOTICE, '');
+  return value.replace(GENERATED_DOCUMENT_RETENTION_NOTICE, '');
 }
 
 export function extractGeneratedDocumentArtifacts(content: string): GeneratedDocumentExtraction {
@@ -102,7 +109,7 @@ export function extractGeneratedDocumentArtifacts(content: string): GeneratedDoc
 }
 
 export function getGeneratedDocumentRetentionExpiry(now: number = Date.now()): Date {
-  return new Date(now + GENERATED_DOCUMENT_RETENTION_HOURS * 60 * 60 * 1000);
+  return getGeneratedFileRetentionExpiry(now);
 }
 
 export function formatGeneratedDocumentExpiry(date: Date): string {
@@ -124,7 +131,7 @@ export function buildManagedDocumentText({
   const documentLinks = documents
     .map(({ downloadPath, filename }) => `[${filename}](${downloadPath})`)
     .join('\n');
-  const availability = `Available until ${formatGeneratedDocumentExpiry(expiresAt)}. This document expires after 24 hours and will be deleted. After expiry, generate a new copy.`;
+  const availability = `Available until ${formatGeneratedDocumentExpiry(expiresAt)}. This document expires after ${formatGeneratedFileRetentionDuration()} and will be deleted. After expiry, generate a new copy.`;
 
   return [sourceText, documentLinks, availability].filter(Boolean).join('\n\n');
 }

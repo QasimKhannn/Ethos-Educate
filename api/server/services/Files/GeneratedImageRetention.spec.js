@@ -22,17 +22,39 @@ const {
   GENERATED_FILE_RETENTION_DAYS,
   GENERATED_FILE_RETENTION_HOURS,
   GENERATED_IMAGE_RETENTION_DAYS,
+  getGeneratedFileCleanupIntervalMinutes,
+  getGeneratedFileRetentionMinutes,
   isImageGenerationMcpTool,
   getGeneratedFileRetentionExpiry,
   isExpiredGeneratedFile,
   getGeneratedImageRetentionExpiry,
   isExpiredGeneratedImage,
   cleanupExpiredGeneratedFiles,
+  startGeneratedFileRetentionCleanup,
 } = require('./GeneratedImageRetention');
+
+const originalRetentionMinutes = process.env.GENERATED_FILE_RETENTION_MINUTES;
+const originalCleanupIntervalMinutes = process.env.GENERATED_FILE_CLEANUP_INTERVAL_MINUTES;
 
 describe('GeneratedImageRetention', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.GENERATED_FILE_RETENTION_MINUTES;
+    delete process.env.GENERATED_FILE_CLEANUP_INTERVAL_MINUTES;
+  });
+
+  afterEach(() => {
+    if (originalRetentionMinutes === undefined) {
+      delete process.env.GENERATED_FILE_RETENTION_MINUTES;
+    } else {
+      process.env.GENERATED_FILE_RETENTION_MINUTES = originalRetentionMinutes;
+    }
+
+    if (originalCleanupIntervalMinutes === undefined) {
+      delete process.env.GENERATED_FILE_CLEANUP_INTERVAL_MINUTES;
+    } else {
+      process.env.GENERATED_FILE_CLEANUP_INTERVAL_MINUTES = originalCleanupIntervalMinutes;
+    }
   });
 
   test('recognizes only images produced by the configured image MCP', () => {
@@ -51,6 +73,28 @@ describe('GeneratedImageRetention', () => {
     expect(GENERATED_IMAGE_RETENTION_DAYS).toBe(1);
     expect(expiry.getTime()).toBe(now + 24 * 60 * 60 * 1000);
     expect(getGeneratedFileRetentionExpiry(now)).toEqual(expiry);
+  });
+
+  test('uses the configured retention minutes for generated files', () => {
+    process.env.GENERATED_FILE_RETENTION_MINUTES = '5';
+    const now = Date.UTC(2026, 8, 2, 12, 0, 0);
+
+    expect(getGeneratedFileRetentionMinutes()).toBe(5);
+    expect(getGeneratedImageRetentionExpiry(now).getTime()).toBe(now + 5 * 60 * 1000);
+  });
+
+  test('schedules cleanup using the configured interval', () => {
+    const timer = { unref: jest.fn() };
+    const setIntervalSpy = jest.spyOn(global, 'setInterval').mockReturnValue(timer);
+    process.env.GENERATED_FILE_CLEANUP_INTERVAL_MINUTES = '2';
+    getFiles.mockResolvedValue([]);
+
+    expect(startGeneratedFileRetentionCleanup({ paths: {} })).toBe(timer);
+    expect(getGeneratedFileCleanupIntervalMinutes()).toBe(2);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 2 * 60 * 1000);
+    expect(timer.unref).toHaveBeenCalled();
+
+    setIntervalSpy.mockRestore();
   });
 
   test('recognizes an expired retained generated image', () => {

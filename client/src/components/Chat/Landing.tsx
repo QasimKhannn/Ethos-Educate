@@ -12,6 +12,7 @@ import { motionSpring, softRevealVariants } from '~/utils/motion';
 import {
   getIconEndpoint,
   getEntity,
+  getEntityEndpoint,
   isExpiringAgentAvatarUrl,
   normalizeAgentAvatarUrl,
   getStaticAgentIconUrlForName,
@@ -84,7 +85,10 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   }, [conversation?.endpoint, conversation?.iconURL, endpointsConfig]);
 
   const { entity } = getEntity({
-    endpoint: endpointType,
+    endpoint: getEntityEndpoint({
+      conversationEndpoint: conversation?.endpoint,
+      displayEndpoint: endpointType,
+    }),
     agentsMap,
     assistantMap,
     agent_id: conversation?.agent_id,

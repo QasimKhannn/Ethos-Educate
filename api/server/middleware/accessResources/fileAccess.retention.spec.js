@@ -19,6 +19,11 @@ jest.mock('~/models', () => ({
 }));
 
 jest.mock('~/server/services/Files/GeneratedImageRetention', () => ({
+  getExpiredGeneratedFileMessage: jest.fn((file) =>
+    file?.context === 'generated_document'
+      ? 'Document expired after 24 hours - generate a new copy.'
+      : 'This generated image expired after 24 hours and is no longer available.',
+  ),
   isExpiredGeneratedFile: jest.fn(),
   removeExpiredGeneratedFile: jest.fn(),
 }));
@@ -26,6 +31,7 @@ jest.mock('~/server/services/Files/GeneratedImageRetention', () => ({
 const { getFiles } = require('~/models');
 const { getAgents } = require('~/models/Agent');
 const {
+  getExpiredGeneratedFileMessage,
   isExpiredGeneratedFile,
   removeExpiredGeneratedFile,
 } = require('~/server/services/Files/GeneratedImageRetention');
@@ -62,6 +68,7 @@ describe('fileAccess generated image retention', () => {
     expect(removeExpiredGeneratedFile).toHaveBeenCalledWith(file, req.config);
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(410);
+    expect(getExpiredGeneratedFileMessage).toHaveBeenCalledWith(file);
     expect(res.json).toHaveBeenCalledWith({
       error: 'Gone',
       message: 'This generated image expired after 24 hours and is no longer available.',

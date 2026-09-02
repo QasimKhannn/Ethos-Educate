@@ -85,6 +85,14 @@ function buildSubmissionFromResumeState(
   } as TSubmission & { resumeStreamId: string };
 }
 
+export const matchesActiveSubmission = (
+  submissionMessageId: string | undefined,
+  resumeState: Agents.ResumeState | undefined,
+) =>
+  submissionMessageId != null &&
+  resumeState?.userMessage?.messageId != null &&
+  submissionMessageId === resumeState.userMessage.messageId;
+
 /**
  * Hook to resume streaming if navigating to a conversation with active generation.
  * Checks stream status via React Query and sets submission if active job found.
@@ -188,6 +196,14 @@ export default function useResumeOnLoad(
     // This prevents stale cache data from blocking subsequent resume attempts
     if (!streamStatus.active || !streamStatus.streamId) {
       console.log('[ResumeOnLoad] No active job to resume for:', conversationId);
+      return;
+    }
+
+    if (
+      matchesActiveSubmission(currentSubmission?.userMessage?.messageId, streamStatus.resumeState)
+    ) {
+      console.log('[ResumeOnLoad] Current submission already owns the active stream');
+      processedConvoRef.current = conversationId;
       return;
     }
 

@@ -4,6 +4,7 @@ export * from './documents/crud';
 export * from './encode';
 export * from './filter';
 export * from './generatedDocuments';
+export * from './generatedFileRetention';
 export * from './mistral/crud';
 export * from './ocr';
 export * from './parse';

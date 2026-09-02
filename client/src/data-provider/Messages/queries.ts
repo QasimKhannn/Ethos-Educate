@@ -35,7 +35,7 @@ export const useGetMessagesByConvoId = <TData = t.TMessage[]>(
     {
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
-      refetchOnMount: false,
+      refetchOnMount: (query) => (query.state.data?.length === 0 ? 'always' : false),
       ...config,
     },
   );

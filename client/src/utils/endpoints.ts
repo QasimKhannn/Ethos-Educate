@@ -335,6 +335,17 @@ export function getIconEndpoint({
   return (endpointsConfig?.[iconURL ?? ''] ? (iconURL ?? endpoint) : endpoint) ?? '';
 }
 
+/** Keeps agent identity independent from the provider/model used for its display icon. */
+export function getEntityEndpoint({
+  conversationEndpoint,
+  displayEndpoint,
+}: {
+  conversationEndpoint?: EModelEndpoint | string | null;
+  displayEndpoint: EModelEndpoint | string;
+}): EModelEndpoint | string {
+  return isAgentsEndpoint(conversationEndpoint) ? conversationEndpoint : displayEndpoint;
+}
+
 /** Gets the key to use for the default endpoint iconURL, as defined by the custom config */
 export function getIconKey({
   endpoint,

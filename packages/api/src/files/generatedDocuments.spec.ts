@@ -4,6 +4,17 @@ import {
   getGeneratedDocumentRetentionExpiry,
 } from './generatedDocuments';
 
+const originalRetentionMinutes = process.env.GENERATED_FILE_RETENTION_MINUTES;
+
+afterEach(() => {
+  if (originalRetentionMinutes === undefined) {
+    delete process.env.GENERATED_FILE_RETENTION_MINUTES;
+    return;
+  }
+
+  process.env.GENERATED_FILE_RETENTION_MINUTES = originalRetentionMinutes;
+});
+
 describe('generated document artifacts', () => {
   const sourceUrl =
     'https://documents.example.com/files/worksheet.docx?expires=123&token=signed-token';
@@ -58,5 +69,18 @@ describe('generated document artifacts', () => {
       '<!-- ethos-generated-document {"filename":"Worksheet.docx","mimeType":"application/octet-stream","url":"file:///private/worksheet.docx"} -->';
 
     expect(extractGeneratedDocumentArtifacts(content)).toEqual({ documents: [], text: '' });
+  });
+
+  test('uses the configured minute retention in managed document output', () => {
+    process.env.GENERATED_FILE_RETENTION_MINUTES = '5';
+    const expiresAt = getGeneratedDocumentRetentionExpiry(Date.UTC(2026, 8, 2, 12, 0, 0));
+    const managed = buildManagedDocumentText({
+      sourceText: '',
+      documents: [{ filename: 'Worksheet.docx', downloadPath: '/api/files/download/user/file' }],
+      expiresAt,
+    });
+
+    expect(expiresAt.toISOString()).toBe('2026-09-02T12:05:00.000Z');
+    expect(managed).toContain('This document expires after 5 minutes and will be deleted.');
   });
 });
