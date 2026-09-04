@@ -4,6 +4,7 @@ import { render, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import useAuthRedirect from '../useAuthRedirect';
 import { useAuthContext } from '~/hooks';
+import { LOGOUT_SESSION_KEY } from '~/utils';
 
 // Polyfill Request for React Router in test environment
 if (typeof Request === 'undefined') {
@@ -65,6 +66,7 @@ describe('useAuthRedirect', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    sessionStorage.clear();
     (window as any).__testResult = undefined;
   });
 
@@ -220,6 +222,25 @@ describe('useAuthRedirect', () => {
         const redirectTo = params.get('redirect_to');
         expect(redirectTo).not.toBeNull();
         expect(decodeURIComponent(redirectTo!)).toBe('/c/abc123');
+      },
+      { timeout: 1000 },
+    );
+  });
+
+  it('starts a new chat after an explicit logout instead of restoring the prior conversation', async () => {
+    (useAuthContext as jest.Mock).mockReturnValue({
+      user: null,
+      isAuthenticated: false,
+    });
+    sessionStorage.setItem(LOGOUT_SESSION_KEY, 'true');
+
+    const router = createTestRouter('/', '/c/abc123');
+    render(<RouterProvider router={router} />);
+
+    await waitFor(
+      () => {
+        expect(router.state.location.pathname).toBe('/login');
+        expect(router.state.location.search).toBe('?redirect=false');
       },
       { timeout: 1000 },
     );

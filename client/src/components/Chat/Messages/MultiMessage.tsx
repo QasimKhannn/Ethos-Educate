@@ -1,5 +1,5 @@
 import { useRecoilState } from 'recoil';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { isAssistantsEndpoint } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { TMessageProps } from '~/common';
@@ -7,6 +7,7 @@ import MessageContent from '~/components/Messages/MessageContent';
 import MessageParts from './MessageParts';
 import Message from './Message';
 import store from '~/store';
+import { filterStaleToolCallSiblings } from '~/utils';
 
 export default function MultiMessage({
   // messageId is used recursively here
@@ -16,30 +17,36 @@ export default function MultiMessage({
   setCurrentEditId,
 }: TMessageProps) {
   const [siblingIdx, setSiblingIdx] = useRecoilState(store.messagesSiblingIdxFamily(messageId));
+  const visibleMessagesTree = useMemo(
+    () => filterStaleToolCallSiblings(messagesTree),
+    [messagesTree],
+  );
 
   const setSiblingIdxRev = useCallback(
     (value: number) => {
-      setSiblingIdx((messagesTree?.length ?? 0) - value - 1);
+      setSiblingIdx((visibleMessagesTree?.length ?? 0) - value - 1);
     },
-    [messagesTree?.length, setSiblingIdx],
+    [visibleMessagesTree?.length, setSiblingIdx],
   );
 
   useEffect(() => {
     // reset siblingIdx when the tree changes, mostly when a new message is submitting.
     setSiblingIdx(0);
-  }, [messagesTree?.length, setSiblingIdx]);
+  }, [visibleMessagesTree?.length, setSiblingIdx]);
 
   useEffect(() => {
-    if (messagesTree?.length && siblingIdx >= messagesTree.length) {
+    if (visibleMessagesTree?.length && siblingIdx >= visibleMessagesTree.length) {
       setSiblingIdx(0);
     }
-  }, [siblingIdx, messagesTree?.length, setSiblingIdx]);
+  }, [siblingIdx, visibleMessagesTree?.length, setSiblingIdx]);
 
-  if (!(messagesTree && messagesTree.length)) {
+  if (!(visibleMessagesTree && visibleMessagesTree.length)) {
     return null;
   }
 
-  const message = messagesTree[messagesTree.length - siblingIdx - 1] as TMessage | undefined;
+  const message = visibleMessagesTree[visibleMessagesTree.length - siblingIdx - 1] as
+    | TMessage
+    | undefined;
 
   if (!message) {
     return null;
@@ -52,8 +59,8 @@ export default function MultiMessage({
         message={message}
         currentEditId={currentEditId}
         setCurrentEditId={setCurrentEditId}
-        siblingIdx={messagesTree.length - siblingIdx - 1}
-        siblingCount={messagesTree.length}
+        siblingIdx={visibleMessagesTree.length - siblingIdx - 1}
+        siblingCount={visibleMessagesTree.length}
         setSiblingIdx={setSiblingIdxRev}
       />
     );
@@ -64,8 +71,8 @@ export default function MultiMessage({
         message={message}
         currentEditId={currentEditId}
         setCurrentEditId={setCurrentEditId}
-        siblingIdx={messagesTree.length - siblingIdx - 1}
-        siblingCount={messagesTree.length}
+        siblingIdx={visibleMessagesTree.length - siblingIdx - 1}
+        siblingCount={visibleMessagesTree.length}
         setSiblingIdx={setSiblingIdxRev}
       />
     );
@@ -77,8 +84,8 @@ export default function MultiMessage({
       message={message}
       currentEditId={currentEditId}
       setCurrentEditId={setCurrentEditId}
-      siblingIdx={messagesTree.length - siblingIdx - 1}
-      siblingCount={messagesTree.length}
+      siblingIdx={visibleMessagesTree.length - siblingIdx - 1}
+      siblingCount={visibleMessagesTree.length}
       setSiblingIdx={setSiblingIdxRev}
     />
   );

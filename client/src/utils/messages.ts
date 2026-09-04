@@ -72,6 +72,90 @@ export const getAllContentText = (message?: TMessage | null): string => {
   return '';
 };
 
+type ToolCallContentPart = Extract<TMessageContentParts, { type: ContentTypes.TOOL_CALL }>;
+
+const getToolCallContentParts = (message: TMessage): ToolCallContentPart[] =>
+  message.content?.filter(
+    (part): part is ToolCallContentPart => part?.type === ContentTypes.TOOL_CALL,
+  ) ?? [];
+
+const hasCompletedToolCall = (part: ToolCallContentPart): boolean => {
+  const { progress, output } = part.tool_call;
+
+  if (progress === 1) {
+    return true;
+  }
+
+  if (typeof output !== 'string' || output.trim().length === 0) {
+    return false;
+  }
+
+  const normalizedOutput = output.trim().toLowerCase();
+  return (
+    !normalizedOutput.startsWith('error:') && !normalizedOutput.includes('error processing tool')
+  );
+};
+
+const hasToolCallOutcome = (part: ToolCallContentPart): boolean => {
+  const { progress, output } = part.tool_call;
+  return progress === 1 || (typeof output === 'string' && output.trim().length > 0);
+};
+
+const hasVisibleMessageContent = (message: TMessage): boolean => {
+  if (getAllContentText(message).trim().length > 0) {
+    return true;
+  }
+
+  return (
+    message.content?.some(
+      (part) => part?.type === ContentTypes.ERROR || part?.type === ContentTypes.IMAGE_FILE,
+    ) ?? false
+  );
+};
+
+/**
+ * Hides an incomplete duplicate tool-only sibling once another sibling has completed the same tool.
+ * This preserves real regenerations and errors while preventing interrupted stream placeholders from
+ * being presented as a separate cancelled response.
+ */
+export const filterStaleToolCallSiblings = (messages?: TMessage[]): TMessage[] | undefined => {
+  if (!messages || messages.length < 2) {
+    return messages;
+  }
+
+  const completedToolNames = new Set<string>();
+
+  for (const message of messages) {
+    for (const part of getToolCallContentParts(message)) {
+      if (part.tool_call.name && hasCompletedToolCall(part)) {
+        completedToolNames.add(part.tool_call.name);
+      }
+    }
+  }
+
+  if (completedToolNames.size === 0) {
+    return messages;
+  }
+
+  const visibleMessages = messages.filter((message) => {
+    const toolCallParts = getToolCallContentParts(message);
+
+    if (
+      toolCallParts.length === 0 ||
+      hasVisibleMessageContent(message) ||
+      toolCallParts.some(hasToolCallOutcome)
+    ) {
+      return true;
+    }
+
+    return !toolCallParts.every(
+      (part) => part.tool_call.name && completedToolNames.has(part.tool_call.name),
+    );
+  });
+
+  return visibleMessages.length === messages.length ? messages : visibleMessages;
+};
+
 const getLatestContentForKey = (message: TMessage): string => {
   const formatText = (str: string, index: number): string => {
     if (str.length === 0) {

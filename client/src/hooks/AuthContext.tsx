@@ -30,6 +30,8 @@ import {
   SESSION_KEY,
   isSafeRedirect,
   getPostLoginRedirect,
+  consumePostLogoutStartNewChat,
+  markPostLogoutStartNewChat,
 } from '~/utils';
 import useTimeout from './useTimeout';
 import store from '~/store';
@@ -70,14 +72,16 @@ const AuthContextProvider = ({
 
         const searchParams = new URLSearchParams(window.location.search);
         const postLoginRedirect = getPostLoginRedirect(searchParams);
+        const shouldStartNewChat = consumePostLogoutStartNewChat();
 
         const logoutRedirect = logoutRedirectRef.current;
         logoutRedirectRef.current = undefined;
 
-        const finalRedirect =
-          logoutRedirect ??
-          postLoginRedirect ??
-          (redirect && isSafeRedirect(redirect) ? redirect : null);
+        const finalRedirect = shouldStartNewChat
+          ? '/c/new'
+          : (logoutRedirect ??
+            postLoginRedirect ??
+            (redirect && isSafeRedirect(redirect) ? redirect : null));
 
         if (finalRedirect == null) {
           return;
@@ -146,6 +150,7 @@ const AuthContextProvider = ({
 
   const logout = useCallback(
     (redirect?: string) => {
+      markPostLogoutStartNewChat();
       if (redirect) {
         logoutRedirectRef.current = redirect;
       }

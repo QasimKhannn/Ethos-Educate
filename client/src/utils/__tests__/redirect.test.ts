@@ -1,7 +1,10 @@
 import {
+  consumePostLogoutStartNewChat,
   persistRedirectToSession,
   getPostLoginRedirect,
   isSafeRedirect,
+  LOGOUT_SESSION_KEY,
+  markPostLogoutStartNewChat,
   SESSION_KEY,
 } from '../redirect';
 
@@ -180,5 +183,22 @@ describe('persistRedirectToSession', () => {
   it('rejects /login paths', () => {
     persistRedirectToSession('/login?redirect_to=/c/new');
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+});
+
+describe('post-logout new-chat redirect', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it('clears a pending conversation redirect and consumes the logout marker once', () => {
+    sessionStorage.setItem(SESSION_KEY, '/c/previous-conversation');
+
+    markPostLogoutStartNewChat();
+
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(sessionStorage.getItem(LOGOUT_SESSION_KEY)).toBe('true');
+    expect(consumePostLogoutStartNewChat()).toBe(true);
+    expect(consumePostLogoutStartNewChat()).toBe(false);
   });
 });

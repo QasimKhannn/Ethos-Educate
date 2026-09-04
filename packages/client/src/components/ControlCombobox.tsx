@@ -25,6 +25,7 @@ interface ControlComboboxProps {
   iconSide?: 'left' | 'right';
   selectId?: string;
   popoverPortal?: boolean;
+  popoverClassName?: string;
 }
 
 const ROW_HEIGHT = 36;
@@ -47,6 +48,7 @@ function ControlCombobox({
   iconSide = 'left',
   selectId,
   popoverPortal = true,
+  popoverClassName,
 }: ControlComboboxProps) {
   const [searchValue, setSearchValue] = useState('');
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -137,6 +139,7 @@ function ControlCombobox({
         portal={popoverPortal}
         className={cn(
           'animate-popover z-[120] overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg [pointer-events:auto]',
+          popoverClassName,
         )}
         style={{ width: isCollapsed ? '300px' : (buttonWidth ?? '300px') }}
       >

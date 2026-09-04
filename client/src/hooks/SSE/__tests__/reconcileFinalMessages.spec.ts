@@ -1,3 +1,4 @@
+import { ContentTypes } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import { reconcileFinalMessages } from '../reconcileFinalMessages';
 
@@ -73,6 +74,41 @@ describe('reconcileFinalMessages', () => {
     expect(result.map((message) => message.messageId)).toEqual([
       'user-message-id',
       'user-message-id_',
+      'completed-response-id',
+    ]);
+  });
+
+  it('removes a persisted unfinished duplicate tool sibling when the final sibling completes', () => {
+    const staleResponse = createMessage({
+      messageId: 'stale-response-id',
+      parentMessageId: requestMessage.messageId,
+      content: [
+        {
+          type: ContentTypes.TOOL_CALL,
+          tool_call: { id: 'stale-tool-id', name: 'generate_images', args: '{}', progress: 0.1 },
+        },
+      ],
+    });
+    const completedResponse = createMessage({
+      messageId: 'completed-response-id',
+      parentMessageId: requestMessage.messageId,
+      content: [
+        {
+          type: ContentTypes.TOOL_CALL,
+          tool_call: { id: 'completed-tool-id', name: 'generate_images', args: '{}', progress: 1 },
+        },
+      ],
+    });
+
+    const result = reconcileFinalMessages({
+      messages: [requestMessage, staleResponse],
+      requestMessage,
+      responseMessage: completedResponse,
+      isRegenerate: false,
+    });
+
+    expect(result.map((message) => message.messageId)).toEqual([
+      'user-message-id',
       'completed-response-id',
     ]);
   });

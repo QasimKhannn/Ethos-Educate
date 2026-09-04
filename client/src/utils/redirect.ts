@@ -1,5 +1,6 @@
 export const REDIRECT_PARAM = 'redirect_to';
 export const SESSION_KEY = 'post_login_redirect_to';
+export const LOGOUT_SESSION_KEY = 'post_logout_start_new_chat';
 
 /** Matches `/login` as a full path segment, with optional basename prefix (e.g. `/librechat/login/2fa`) */
 const LOGIN_PATH_RE = /(?:^|\/)login(?:\/|$)/;
@@ -38,4 +39,20 @@ export function persistRedirectToSession(value: string): void {
   if (isSafeRedirect(value)) {
     sessionStorage.setItem(SESSION_KEY, value);
   }
+}
+
+export function markPostLogoutStartNewChat(): void {
+  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.setItem(LOGOUT_SESSION_KEY, 'true');
+}
+
+export function consumePostLogoutStartNewChat(): boolean {
+  const shouldStartNewChat = sessionStorage.getItem(LOGOUT_SESSION_KEY) === 'true';
+  if (!shouldStartNewChat) {
+    return false;
+  }
+
+  sessionStorage.removeItem(LOGOUT_SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  return true;
 }

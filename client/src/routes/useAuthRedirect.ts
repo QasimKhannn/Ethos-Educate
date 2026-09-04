@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildLoginRedirectUrl } from 'librechat-data-provider';
 import { useAuthContext } from '~/hooks';
+import { consumePostLogoutStartNewChat } from '~/utils';
 
 export default function useAuthRedirect() {
   const { user, roles, isAuthenticated } = useAuthContext();
@@ -11,6 +12,11 @@ export default function useAuthRedirect() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isAuthenticated) {
+        return;
+      }
+
+      if (consumePostLogoutStartNewChat()) {
+        navigate('/login?redirect=false', { replace: true });
         return;
       }
 

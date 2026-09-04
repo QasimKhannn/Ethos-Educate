@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRecoilState } from 'recoil';
 import type { TMessage } from 'librechat-data-provider';
 import type { TMessageProps } from '~/common';
 
 import Message from './Message';
 import store from '~/store';
+import { filterStaleToolCallSiblings } from '~/utils';
 
 export default function MultiMessage({
   // messageId is used recursively here
@@ -14,28 +15,34 @@ export default function MultiMessage({
   setCurrentEditId,
 }: TMessageProps) {
   const [siblingIdx, setSiblingIdx] = useRecoilState(store.messagesSiblingIdxFamily(messageId));
+  const visibleMessagesTree = useMemo(
+    () => filterStaleToolCallSiblings(messagesTree),
+    [messagesTree],
+  );
 
   const setSiblingIdxRev = (value: number) => {
-    setSiblingIdx((messagesTree?.length ?? 0) - value - 1);
+    setSiblingIdx((visibleMessagesTree?.length ?? 0) - value - 1);
   };
 
   useEffect(() => {
     // reset siblingIdx when the tree changes, mostly when a new message is submitting.
     setSiblingIdx(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messagesTree?.length]);
+  }, [visibleMessagesTree?.length]);
 
   useEffect(() => {
-    if (messagesTree?.length != null && siblingIdx >= messagesTree.length) {
+    if (visibleMessagesTree?.length != null && siblingIdx >= visibleMessagesTree.length) {
       setSiblingIdx(0);
     }
-  }, [siblingIdx, messagesTree?.length, setSiblingIdx]);
+  }, [siblingIdx, visibleMessagesTree?.length, setSiblingIdx]);
 
-  if (!(messagesTree && messagesTree.length)) {
+  if (!(visibleMessagesTree && visibleMessagesTree.length)) {
     return null;
   }
 
-  const message = messagesTree[messagesTree.length - siblingIdx - 1] as TMessage | null;
+  const message = visibleMessagesTree[
+    visibleMessagesTree.length - siblingIdx - 1
+  ] as TMessage | null;
   if (!message) {
     return null;
   }
@@ -46,8 +53,8 @@ export default function MultiMessage({
       message={message}
       currentEditId={currentEditId}
       setCurrentEditId={setCurrentEditId}
-      siblingIdx={messagesTree.length - siblingIdx - 1}
-      siblingCount={messagesTree.length}
+      siblingIdx={visibleMessagesTree.length - siblingIdx - 1}
+      siblingCount={visibleMessagesTree.length}
       setSiblingIdx={setSiblingIdxRev}
     />
   );

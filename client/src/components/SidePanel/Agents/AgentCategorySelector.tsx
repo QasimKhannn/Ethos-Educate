@@ -57,6 +57,7 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
             isCollapsed={false}
             showCarat={true}
             popoverPortal
+            popoverClassName="z-[160]"
           />
         );
       }}

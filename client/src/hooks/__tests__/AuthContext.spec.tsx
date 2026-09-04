@@ -10,7 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { TAuthConfig } from '~/common';
 
 import { AuthContextProvider, useAuthContext } from '../AuthContext';
-import { SESSION_KEY } from '~/utils';
+import { LOGOUT_SESSION_KEY, SESSION_KEY } from '~/utils';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
@@ -181,6 +181,26 @@ describe('AuthContextProvider — login onError redirect handling', () => {
     const navigatedUrl = mockNavigate.mock.calls[0][0] as string;
     const params = new URLSearchParams(navigatedUrl.split('?')[1]);
     expect(decodeURIComponent(params.get('redirect_to')!)).toBe(target);
+  });
+
+  it('starts a new chat after logout even when the login URL still names a prior conversation', () => {
+    jest.useFakeTimers();
+    window.history.replaceState({}, '', '/login?redirect_to=%2Fc%2Fabc123');
+    sessionStorage.setItem(LOGOUT_SESSION_KEY, 'true');
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLoginOptions.onSuccess({
+        user: { id: '1', role: 'USER' },
+        token: 'new-token',
+      });
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/c/new', { replace: true });
+    expect(sessionStorage.getItem(LOGOUT_SESSION_KEY)).toBeNull();
+    jest.useRealTimers();
   });
 });
 

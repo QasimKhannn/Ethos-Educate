@@ -1,4 +1,5 @@
 import type { TMessage } from 'librechat-data-provider';
+import { filterStaleToolCallSiblings } from '~/utils';
 
 type ReconcileFinalMessagesParams = {
   messages: TMessage[];
@@ -61,5 +62,20 @@ export function reconcileFinalMessages({
   }
 
   finalMessages.push(responseMessage);
-  return finalMessages;
+
+  const responseSiblings = finalMessages.filter(
+    (message) => !message.isCreatedByUser && message.parentMessageId === requestMessage.messageId,
+  );
+  const visibleSiblingIds = new Set(
+    (filterStaleToolCallSiblings(responseSiblings) ?? responseSiblings).map(
+      (message) => message.messageId,
+    ),
+  );
+
+  return finalMessages.filter(
+    (message) =>
+      message.isCreatedByUser ||
+      message.parentMessageId !== requestMessage.messageId ||
+      visibleSiblingIds.has(message.messageId),
+  );
 }
