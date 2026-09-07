@@ -13,6 +13,8 @@ import type { AgentListResponse } from 'librechat-data-provider';
 import { clearMessagesCache, getAgentAvatarImageUrl, getAgentDisplayName } from '~/utils';
 import { useDefaultConvo, useLocalize } from '~/hooks';
 import { useChatContext } from '~/Providers';
+import { getAgentIntakeTemplate } from './agentIntake';
+import { createAgentIntakeLaunch } from './agentIntakeLaunch';
 
 const selectedToolGuideKey = 'eduToolkitSelectedToolGuide';
 
@@ -56,6 +58,24 @@ export default function useStartAgentChat() {
       queryClient.invalidateQueries([QueryKeys.messages]);
 
       if (initialPrompt?.trim()) {
+        const intakeTemplate = getAgentIntakeTemplate(agent);
+        const intakeLaunch = intakeTemplate
+          ? createAgentIntakeLaunch({
+              agentId: agent.id,
+              template: intakeTemplate,
+              prompt: initialPrompt.trim(),
+            })
+          : null;
+
+        if (intakeLaunch) {
+          const params = new URLSearchParams({
+            agent_id: agent.id,
+            intake: intakeLaunch.id,
+          });
+          navigate(`/c/new?${params.toString()}`);
+          return;
+        }
+
         const params = new URLSearchParams({
           agent_id: agent.id,
           prompt: initialPrompt.trim(),

@@ -224,6 +224,31 @@ describe('useStepHandler', () => {
       );
     });
 
+    it('should show a tool call when the response has not reached the messages state yet', () => {
+      mockGetMessages.mockReturnValue([]);
+
+      const { result } = renderHook(() => useStepHandler(createHookParams()));
+
+      act(() => {
+        result.current.stepHandler(
+          { event: 'on_run_step', data: createToolCallRunStep() },
+          createSubmission(),
+        );
+      });
+
+      const lastCall = mockSetMessages.mock.calls[mockSetMessages.mock.calls.length - 1][0];
+      const responseMsg = lastCall.find(
+        (message: TMessage) => message.messageId === 'response-msg-1',
+      );
+
+      expect(responseMsg?.content).toContainEqual(
+        expect.objectContaining({
+          type: ContentTypes.TOOL_CALL,
+          tool_call: expect.objectContaining({ name: 'test_tool' }),
+        }),
+      );
+    });
+
     it('should replay buffered deltas after registering step', () => {
       const responseMessage = createResponseMessage();
       mockGetMessages.mockReturnValue([responseMessage]);

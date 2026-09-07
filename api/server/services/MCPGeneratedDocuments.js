@@ -77,6 +77,7 @@ async function persistGeneratedDocuments({ req, requestBody, response, serverNam
     sourceText: extracted.text,
     documents: files.map((file) => ({
       downloadPath: `/api/files/download/${req.user.id}/${file.file_id}`,
+      fileId: file.file_id,
       filename: file.filename,
     })),
     expiresAt: retentionExpiresAt,

@@ -28,6 +28,7 @@ jest.mock('~/server/utils/getFileStrategy', () => ({
 }));
 
 const {
+  buildManagedDocumentText,
   extractGeneratedDocumentArtifacts,
   getGeneratedDocumentRetentionExpiry,
 } = require('@librechat/api');
@@ -92,6 +93,17 @@ describe('persistGeneratedDocuments', () => {
       conversationId: 'conversation-123',
       messageId: 'message-123',
       retentionExpiresAt: expiresAt,
+    });
+    expect(buildManagedDocumentText).toHaveBeenCalledWith({
+      sourceText: 'Teacher-ready worksheet files created:',
+      documents: [
+        {
+          downloadPath: '/api/files/download/user-123/file-456',
+          fileId: 'file-456',
+          filename: 'Worksheet.docx',
+        },
+      ],
+      expiresAt,
     });
   });
 

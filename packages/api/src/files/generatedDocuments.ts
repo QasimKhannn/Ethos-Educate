@@ -125,11 +125,17 @@ export function buildManagedDocumentText({
   expiresAt,
 }: {
   sourceText: string;
-  documents: Array<{ downloadPath: string; filename: string }>;
+  documents: Array<{ downloadPath: string; fileId: string; filename: string }>;
   expiresAt: Date;
 }): string {
   const documentLinks = documents
-    .map(({ downloadPath, filename }) => `[${filename}](${downloadPath})`)
+    .map(
+      ({ downloadPath, fileId, filename }) =>
+        `[${filename}](${downloadPath})\n<!-- ethos-generated-document-expiry ${JSON.stringify({
+          expiresAt: expiresAt.toISOString(),
+          fileId,
+        })} -->`,
+    )
     .join('\n');
   const availability = `Available until ${formatGeneratedDocumentExpiry(expiresAt)}. This document expires after ${formatGeneratedFileRetentionDuration()} and will be deleted. After expiry, generate a new copy.`;
 

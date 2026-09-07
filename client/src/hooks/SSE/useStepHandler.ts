@@ -54,6 +54,15 @@ type AllContentTypes =
   | ContentTypes.IMAGE_URL
   | ContentTypes.ERROR;
 
+const upsertResponseMessage = (messages: TMessage[], response: TMessage): TMessage[] => {
+  const responseIndex = messages.findIndex((message) => message.messageId === response.messageId);
+  if (responseIndex === -1) {
+    return [...messages, response];
+  }
+
+  return [...messages.slice(0, responseIndex), response, ...messages.slice(responseIndex + 1)];
+};
+
 export default function useStepHandler({
   setMessages,
   getMessages,
@@ -278,6 +287,7 @@ export default function useStepHandler({
         const contentIndex = runStep.index + initialContent.length;
 
         let response = messageMap.current.get(responseMessageId);
+        let responseMessages = messages;
 
         if (!response) {
           // Find the actual response message - check if last message is a response, otherwise use initialResponse
@@ -316,7 +326,8 @@ export default function useStepHandler({
             updatedMessages = [...updatedMessages, userMessage as TMessage];
           }
 
-          setMessages([...updatedMessages, response]);
+          responseMessages = [...updatedMessages, response];
+          setMessages(responseMessages);
         }
 
         // Store tool call IDs if present
@@ -348,11 +359,7 @@ export default function useStepHandler({
           });
 
           messageMap.current.set(responseMessageId, updatedResponse);
-          const updatedMessages = messages.map((msg) =>
-            msg.messageId === responseMessageId ? updatedResponse : msg,
-          );
-
-          setMessages(updatedMessages);
+          setMessages(upsertResponseMessage(responseMessages, updatedResponse));
         }
 
         const bufferedDeltas = pendingDeltaBuffer.current.get(runStep.id);
@@ -391,7 +398,7 @@ export default function useStepHandler({
           );
           messageMap.current.set(responseMessageId, updatedResponse);
           const currentMessages = getMessages() || [];
-          setMessages([...currentMessages.slice(0, -1), updatedResponse]);
+          setMessages(upsertResponseMessage(currentMessages, updatedResponse));
         }
       } else if (event === 'on_message_delta') {
         const messageDelta = data as Agents.MessageDeltaEvent;
@@ -434,7 +441,7 @@ export default function useStepHandler({
           );
           messageMap.current.set(responseMessageId, updatedResponse);
           const currentMessages = getMessages() || [];
-          setMessages([...currentMessages.slice(0, -1), updatedResponse]);
+          setMessages(upsertResponseMessage(currentMessages, updatedResponse));
         }
       } else if (event === 'on_reasoning_delta') {
         const reasoningDelta = data as Agents.ReasoningDeltaEvent;
@@ -477,7 +484,7 @@ export default function useStepHandler({
           );
           messageMap.current.set(responseMessageId, updatedResponse);
           const currentMessages = getMessages() || [];
-          setMessages([...currentMessages.slice(0, -1), updatedResponse]);
+          setMessages(upsertResponseMessage(currentMessages, updatedResponse));
         }
       } else if (event === 'on_run_step_delta') {
         const runStepDelta = data as Agents.RunStepDeltaEvent;
@@ -532,11 +539,7 @@ export default function useStepHandler({
           });
 
           messageMap.current.set(responseMessageId, updatedResponse);
-          const updatedMessages = messages.map((msg) =>
-            msg.messageId === responseMessageId ? updatedResponse : msg,
-          );
-
-          setMessages(updatedMessages);
+          setMessages(upsertResponseMessage(messages, updatedResponse));
         }
       } else if (event === 'on_run_step_completed') {
         const { result } = data as unknown as { result: Agents.ToolEndEvent };
@@ -575,11 +578,7 @@ export default function useStepHandler({
           );
 
           messageMap.current.set(responseMessageId, updatedResponse);
-          const updatedMessages = messages.map((msg) =>
-            msg.messageId === responseMessageId ? updatedResponse : msg,
-          );
-
-          setMessages(updatedMessages);
+          setMessages(upsertResponseMessage(messages, updatedResponse));
         }
       }
 

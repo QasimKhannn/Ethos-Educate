@@ -10,8 +10,10 @@ import {
 import type { TAttachment } from 'librechat-data-provider';
 import { useLocalize, useProgress } from '~/hooks';
 import { AttachmentGroup } from './Parts';
+import Markdown from './Markdown';
 import ToolCallInfo from './ToolCallInfo';
 import ProgressText from './ProgressText';
+import { getGeneratedDocumentLinks } from './generatedArtifacts';
 import { logger, cn } from '~/utils';
 
 export default function ToolCall({
@@ -98,6 +100,12 @@ export default function ToolCall({
   const error =
     typeof output === 'string' &&
     (output.toLowerCase().includes('error processing tool') || output.startsWith('Error:'));
+
+  const generatedDocuments = useMemo(() => getGeneratedDocumentLinks(output), [output]);
+  const generatedDocumentMarkdown = useMemo(
+    () => generatedDocuments.map(({ filename, href }) => `[${filename}](${href})`).join('\n\n'),
+    [generatedDocuments],
+  );
 
   const args = useMemo(() => {
     if (typeof _args === 'string') {
@@ -261,6 +269,11 @@ export default function ToolCall({
           </div>
         </div>
       </div>
+      {generatedDocumentMarkdown && (
+        <div className="my-2 rounded-xl border border-border-light bg-surface-secondary px-3 py-2 text-sm">
+          <Markdown content={generatedDocumentMarkdown} isLatestMessage={isLast} />
+        </div>
+      )}
       {auth != null && auth && progress < 1 && !cancelled && (
         <div className="flex w-full flex-col gap-2.5">
           <div className="mb-1 mt-2">

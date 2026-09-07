@@ -1,4 +1,5 @@
 import React, { lazy, memo, Suspense, useMemo, useRef, useEffect, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { Download } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
 import { Button, TooltipAnchor, useToastContext } from '@librechat/client';
@@ -6,9 +7,11 @@ import { PermissionTypes, Permissions, apiBaseUrl } from 'librechat-data-provide
 import MermaidErrorBoundary from '~/components/Messages/Content/MermaidErrorBoundary';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import DialogImage from './DialogImage';
+import ExpiredGeneratedArtifact from './ExpiredGeneratedArtifact';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
-import { useCodeBlockContext } from '~/Providers';
+import { useCodeBlockContext, useMessageContext } from '~/Providers';
+import { isGeneratedArtifactExpired } from './generatedArtifacts';
 import { handleDoubleClick } from '~/utils';
 import { useLocalize } from '~/hooks';
 import store from '~/store';
@@ -120,7 +123,9 @@ const getAnchorText = (children: React.ReactNode): string =>
 export const a: React.ElementType = memo(function MarkdownAnchor({ href, children }: TAnchorProps) {
   const user = useRecoilValue(store.user);
   const { showToast } = useToastContext();
+  const { generatedArtifactExpiries } = useMessageContext();
   const localize = useLocalize();
+  const [expiredFromResponse, setExpiredFromResponse] = useState(false);
 
   const {
     file_id = '',
@@ -152,6 +157,13 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
   }, [children, user?.id, href]);
 
   const { refetch: downloadFile } = useFileDownload(user?.id ?? '', file_id);
+  const retentionExpiresAt = generatedArtifactExpiries?.get(file_id);
+  const hasExpiredRetention = isGeneratedArtifactExpired(retentionExpiresAt);
+
+  useEffect(() => {
+    setExpiredFromResponse(false);
+  }, [file_id, retentionExpiresAt]);
+
   const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_blank' };
   const isUnavailableDownloadHref = useMemo(() => {
     if (!href || href === '/') {
@@ -192,6 +204,10 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
     );
   }
 
+  if (hasExpiredRetention || expiredFromResponse) {
+    return <ExpiredGeneratedArtifact artifactType="document" inline />;
+  }
+
   const handleDownload = async (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     try {
@@ -213,6 +229,11 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
       window.URL.revokeObjectURL(stream.data);
     } catch (error) {
       console.error('Error downloading file:', error);
+      if (isAxiosError(error) && error.response?.status === 410) {
+        setExpiredFromResponse(true);
+        return;
+      }
+
       showToast({
         status: 'error',
         message: localize('com_ui_download_error'),
@@ -284,28 +305,6 @@ function getImageFilename(src: string) {
   }
 }
 
-async function downloadGeneratedImage(src: string) {
-  try {
-    const response = await fetch(src);
-    if (!response.ok) {
-      throw new Error(`Download failed with status ${response.status}`);
-    }
-
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = objectUrl;
-    link.download = getImageFilename(src);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(objectUrl);
-  } catch (error) {
-    console.error('Error downloading generated image:', error);
-    window.open(src, '_blank', 'noopener,noreferrer');
-  }
-}
-
 function GeneratedImage({
   src,
   alt,
@@ -313,8 +312,38 @@ function GeneratedImage({
   style,
 }: Pick<TImageProps, 'src' | 'alt' | 'title' | 'style'> & { src: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const imageAlt = alt || 'Generated image';
+
+  const downloadImage = async () => {
+    try {
+      const response = await fetch(src);
+      if (response.status === 410) {
+        setIsUnavailable(true);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Download failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = getImageFilename(src);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Error downloading generated image:', error);
+    }
+  };
+
+  if (isUnavailable) {
+    return <ExpiredGeneratedArtifact artifactType="image" />;
+  }
 
   return (
     <>
@@ -332,6 +361,7 @@ function GeneratedImage({
               src={src}
               alt={imageAlt}
               title={title}
+              onError={() => setIsUnavailable(true)}
               className="max-h-[45vh] max-w-full object-contain"
               style={style}
             />
@@ -343,7 +373,7 @@ function GeneratedImage({
                 type="button"
                 size="icon"
                 variant="ghost"
-                onClick={() => void downloadGeneratedImage(src)}
+                onClick={() => void downloadImage()}
                 aria-label="Download image"
                 className="absolute right-2 top-2 size-8 bg-black/55 text-white shadow-sm hover:bg-black/75"
               >
@@ -357,7 +387,7 @@ function GeneratedImage({
         isOpen={isOpen}
         onOpenChange={setIsOpen}
         src={src}
-        downloadImage={() => void downloadGeneratedImage(src)}
+        downloadImage={() => void downloadImage()}
         triggerRef={triggerRef}
         showDetails={false}
       />

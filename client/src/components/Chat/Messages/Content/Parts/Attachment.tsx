@@ -59,6 +59,8 @@ const ImageAttachment = memo(({ attachment }: { attachment: TAttachment }) => {
     file_id,
     user,
     source,
+    context,
+    retentionExpiresAt,
   } = attachment as TFile & TAttachmentMetadata;
 
   useEffect(() => {
@@ -86,6 +88,8 @@ const ImageAttachment = memo(({ attachment }: { attachment: TAttachment }) => {
         fileId={file_id}
         userId={user}
         source={source}
+        context={context}
+        retentionExpiresAt={retentionExpiresAt}
         width={width}
         height={height}
         className="mb-4"

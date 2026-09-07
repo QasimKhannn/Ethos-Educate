@@ -1,8 +1,11 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { isAxiosError } from 'axios';
 import { Download } from 'lucide-react';
 import { Button, Skeleton, TooltipAnchor } from '@librechat/client';
-import { apiBaseUrl, dataService, FileSources } from 'librechat-data-provider';
+import { apiBaseUrl, dataService, FileContext, FileSources } from 'librechat-data-provider';
+import ExpiredGeneratedArtifact from './ExpiredGeneratedArtifact';
 import DialogImage from './DialogImage';
+import { isGeneratedArtifactExpired } from './generatedArtifacts';
 import { cn } from '~/utils';
 
 /** Max display height for chat images (Tailwind JIT class) */
@@ -56,6 +59,8 @@ const Image = ({
   fileId,
   userId,
   source,
+  context,
+  retentionExpiresAt,
 }: {
   imagePath: string;
   altText: string;
@@ -72,10 +77,13 @@ const Image = ({
   fileId?: string;
   userId?: string;
   source?: string;
+  context?: FileContext;
+  retentionExpiresAt?: string | Date;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [managedPreviewUrl, setManagedPreviewUrl] = useState<string | null>(null);
   const [managedPreviewFailed, setManagedPreviewFailed] = useState(false);
+  const [managedPreviewExpired, setManagedPreviewExpired] = useState(false);
   const [loadedDimensions, setLoadedDimensions] = useState<
     (ImageDimensions & { source: string }) | null
   >(null);
@@ -100,11 +108,14 @@ const Image = ({
   }, [imagePath]);
 
   const isManagedImage = Boolean(fileId && userId && isEthosManagedFile(source));
+  const isGeneratedImage = context === FileContext.image_generation;
+  const hasExpiredRetention = isGeneratedImage && isGeneratedArtifactExpired(retentionExpiresAt);
 
   useEffect(() => {
-    if (!isManagedImage || !fileId || !userId) {
+    if (!isManagedImage || !fileId || !userId || hasExpiredRetention) {
       setManagedPreviewUrl(null);
       setManagedPreviewFailed(false);
+      setManagedPreviewExpired(false);
       return;
     }
 
@@ -113,6 +124,7 @@ const Image = ({
 
     setManagedPreviewUrl(null);
     setManagedPreviewFailed(false);
+    setManagedPreviewExpired(false);
 
     void dataService
       .getFilePreview(userId, fileId)
@@ -126,6 +138,11 @@ const Image = ({
       })
       .catch((error) => {
         if (!cancelled) {
+          if (isAxiosError(error) && error.response?.status === 410) {
+            setManagedPreviewExpired(true);
+            return;
+          }
+
           console.error('Managed image preview failed:', error);
           setManagedPreviewFailed(true);
         }
@@ -137,7 +154,7 @@ const Image = ({
         window.URL.revokeObjectURL(previewUrl);
       }
     };
-  }, [fileId, isManagedImage, userId]);
+  }, [fileId, hasExpiredRetention, isManagedImage, userId]);
 
   const absoluteImageUrl = isManagedImage
     ? (managedPreviewUrl ?? (managedPreviewFailed ? sourceImageUrl : ''))
@@ -196,11 +213,13 @@ const Image = ({
     !isImageFailed &&
     (readyImageUrl === absoluteImageUrl || paintedUrls.has(absoluteImageUrl));
   const showSkeleton = !isImageReady && !isImageFailed;
-  const imageStyle = hasDimensions
-    ? computeHeightStyle(dims.width, dims.height)
-    : showSkeleton
-      ? IMAGE_LOADING_STYLE
-      : undefined;
+  let imageStyle: React.CSSProperties | undefined;
+  if (hasDimensions && dims) {
+    imageStyle = computeHeightStyle(dims.width, dims.height);
+  } else if (showSkeleton) {
+    imageStyle = IMAGE_LOADING_STYLE;
+  }
+  const isExpired = hasExpiredRetention || managedPreviewExpired;
 
   const handleImageLoad = async (event: React.SyntheticEvent<HTMLImageElement>) => {
     const imageUrl = absoluteImageUrl;
@@ -246,6 +265,10 @@ const Image = ({
 
     setFailedImageUrl(absoluteImageUrl);
   };
+
+  if (isExpired) {
+    return <ExpiredGeneratedArtifact artifactType="image" />;
+  }
 
   return (
     <div className="relative w-fit max-w-full">

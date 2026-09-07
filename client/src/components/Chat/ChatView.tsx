@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Constants, buildTree } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
@@ -15,7 +15,11 @@ import {
   useChatHelpers,
   useLocalize,
 } from '~/hooks';
-import { useGetMessagesByConvoId } from '~/data-provider';
+import { useGetAgentByIdQuery, useGetMessagesByConvoId } from '~/data-provider';
+import AgentIntakeDialog from '~/components/Agents/AgentIntakeDialog';
+import AgentIntakeHandoff from '~/components/Agents/AgentIntakeHandoff';
+import { getAgentIntakeTemplate } from '~/components/Agents/agentIntake';
+import { getAgentIntakeLaunch } from '~/components/Agents/agentIntakeLaunch';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
 import ChatForm from './Input/ChatForm';
@@ -55,6 +59,8 @@ function MessageLoadError({ onRetry }: { onRetry: () => void }) {
 
 function ChatView({ index = 0 }: { index?: number }) {
   const { conversationId } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const rootSubmission = useRecoilValue(store.submissionByIndex(index));
   const centerFormOnLanding = useRecoilValue(store.centerFormOnLanding);
   const shouldReduceMotion = useReducedMotion();
@@ -94,6 +100,22 @@ function ChatView({ index = 0 }: { index?: number }) {
   const isLandingPage =
     (!messagesTree || messagesTree.length === 0) &&
     (conversationId === Constants.NEW_CONVO || !conversationId);
+  const routeAgentId = searchParams.get('agent_id');
+  const intakeLaunch = getAgentIntakeLaunch(searchParams.get('intake'));
+  const isIntakeLaunchForRoute =
+    intakeLaunch != null && intakeLaunch.agentId === routeAgentId && isLandingPage;
+  const { data: routeAgent, isLoading: isRouteAgentLoading } = useGetAgentByIdQuery(routeAgentId, {
+    enabled: isLandingPage && !!routeAgentId && !isIntakeLaunchForRoute,
+  });
+  const routeAgentIntakeTemplate = getAgentIntakeTemplate(routeAgent);
+  const isAwaitingIntakeAgent =
+    isLandingPage && !!routeAgentId && !isIntakeLaunchForRoute && isRouteAgentLoading;
+  const isIntakeHandoff = isIntakeLaunchForRoute || isAwaitingIntakeAgent;
+  const shouldOpenIntakeDialog =
+    isLandingPage && !isIntakeLaunchForRoute && routeAgentIntakeTemplate != null;
+  const handleIntakeCancel = useCallback(() => {
+    navigate('/c/new', { replace: true });
+  }, [navigate]);
 
   if (isLoading && conversationId !== Constants.NEW_CONVO) {
     content = <LoadingSpinner />;
@@ -101,6 +123,8 @@ function ChatView({ index = 0 }: { index?: number }) {
     content = <MessageLoadError onRetry={() => void refetchMessages()} />;
   } else if (!isLandingPage) {
     content = <MessagesView messagesTree={messagesTree} />;
+  } else if (isIntakeHandoff) {
+    content = <AgentIntakeHandoff template={intakeLaunch?.template ?? null} />;
   } else {
     content = <Landing centerFormOnLanding={centerFormOnLanding} />;
   }
@@ -139,6 +163,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                         className={cn(
                           'chat-landing-page-composer w-full',
                           isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
+                          isIntakeHandoff && 'pointer-events-none invisible',
                         )}
                       >
                         <ChatForm index={index} />
@@ -157,6 +182,12 @@ function ChatView({ index = 0 }: { index?: number }) {
                 {isLandingPage && <Footer />}
               </>
             </div>
+            <AgentIntakeDialog
+              agent={routeAgent ?? null}
+              open={shouldOpenIntakeDialog}
+              onOpenChange={() => undefined}
+              onCancel={handleIntakeCancel}
+            />
           </Presentation>
         </AddedChatContext.Provider>
       </ChatContext.Provider>

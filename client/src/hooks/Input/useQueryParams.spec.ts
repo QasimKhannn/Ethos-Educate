@@ -25,6 +25,10 @@ import useQueryParams from './useQueryParams';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import useSubmitMessage from '~/hooks/Messages/useSubmitMessage';
 import useDefaultConvo from '~/hooks/Conversations/useDefaultConvo';
+import {
+  createAgentIntakeLaunch,
+  getAgentIntakeLaunch,
+} from '~/components/Agents/agentIntakeLaunch';
 import store from '~/store';
 
 // Other mocks
@@ -195,6 +199,7 @@ describe('useQueryParams', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    window.sessionStorage.clear();
     jest.useRealTimers();
   });
 
@@ -279,6 +284,56 @@ describe('useQueryParams', () => {
     expect(params).toBeInstanceOf(URLSearchParams);
     expect(params.toString()).toBe('agent_id=agent_123');
     expect(options).toEqual(expect.objectContaining({ replace: true }));
+  });
+
+  it('submits a queued intake launch after applying its agent settings', () => {
+    const mockSetValue = jest.fn();
+    const mockSubmitMessage = jest.fn();
+    const mockNewConversation = jest.fn();
+    const mockTextAreaRef = {
+      current: {
+        focus: jest.fn(),
+        setSelectionRange: jest.fn(),
+      } as unknown as HTMLTextAreaElement,
+    };
+    const launch = createAgentIntakeLaunch({
+      agentId: 'agent_123',
+      template: 'worksheet',
+      prompt: 'Create a Grade 4 fractions worksheet.',
+    });
+
+    (useChatFormContext as jest.Mock).mockReturnValue({
+      setValue: mockSetValue,
+      getValues: jest.fn().mockReturnValue(''),
+      handleSubmit: jest.fn((callback) => () => callback({ text: 'test message' })),
+    });
+    (useSubmitMessage as jest.Mock).mockReturnValue({ submitMessage: mockSubmitMessage });
+    (useChatContext as jest.Mock).mockReturnValue({
+      conversation: { model: null, endpoint: null },
+      newConversation: mockNewConversation,
+    });
+    setUrlParams({ agent_id: 'agent_123', intake: launch?.id ?? '' });
+
+    renderHook(() => useQueryParams({ textAreaRef: mockTextAreaRef }));
+
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(mockNewConversation).toHaveBeenCalled();
+    expect(mockSubmitMessage).not.toHaveBeenCalled();
+
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+
+    expect(mockSetValue).toHaveBeenCalledWith(
+      'text',
+      'Create a Grade 4 fractions worksheet.',
+      expect.objectContaining({ shouldValidate: true }),
+    );
+    expect(mockSubmitMessage).toHaveBeenCalled();
+    expect(getAgentIntakeLaunch(launch?.id ?? null)?.status).toBe('submitted');
   });
 
   it('does not relaunch an agent from a saved conversation URL', () => {

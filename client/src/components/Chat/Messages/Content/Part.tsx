@@ -228,6 +228,11 @@ const Part = memo(function Part({
       <Image
         imagePath={cached ?? imageFile.filepath}
         altText={imageFile.filename ?? 'Uploaded Image'}
+        context={imageFile.context}
+        fileId={imageFile.file_id}
+        retentionExpiresAt={imageFile.retentionExpiresAt}
+        source={imageFile.source}
+        userId={imageFile.user}
         width={imageFile.width}
         height={imageFile.height}
       />

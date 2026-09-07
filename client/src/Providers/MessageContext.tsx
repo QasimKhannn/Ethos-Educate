@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 
+import type { GeneratedArtifactExpiries } from '~/components/Chat/Messages/Content/generatedArtifacts';
+
 type MessageContext = {
   messageId: string;
   nextType?: string;
@@ -10,6 +12,8 @@ type MessageContext = {
   isSubmitting?: boolean;
   /** Whether this is the latest message in the conversation */
   isLatestMessage?: boolean;
+  /** Retention times extracted from generated-document output in this message. */
+  generatedArtifactExpiries?: GeneratedArtifactExpiries;
 };
 
 export const MessageContext = createContext<MessageContext>({} as MessageContext);

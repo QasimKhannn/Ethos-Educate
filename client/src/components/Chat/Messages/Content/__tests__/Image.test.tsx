@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { FileContext } from 'librechat-data-provider';
 import Image, { _resetImageCaches } from '../Image';
 
 jest.mock('~/utils', () => ({
@@ -18,9 +19,21 @@ jest.mock('librechat-data-provider', () => ({
     s3: 's3',
     azure_blob: 'azure_blob',
   },
+  FileContext: {
+    image_generation: 'image_generation',
+  },
   dataService: {
     getFilePreview: jest.fn(),
   },
+}));
+
+jest.mock('~/hooks', () => ({
+  useLocalize: () => (key: string) =>
+    ({
+      com_ui_generated_image_expired_title: 'Image expired',
+      com_ui_generated_image_expired_description:
+        'This generated image is no longer available. Generate a new image to continue.',
+    })[key] ?? key,
 }));
 
 jest.mock('@librechat/client', () => ({
@@ -219,6 +232,24 @@ describe('Image', () => {
   });
 
   describe('image URL resolution', () => {
+    it('shows an expiry notice without requesting an expired generated image preview', () => {
+      render(
+        <Image
+          {...defaultProps}
+          imagePath="https://storage.example.com/expired-image"
+          fileId="file-123"
+          userId="user-456"
+          source="azure_blob"
+          context={FileContext.image_generation}
+          retentionExpiresAt="2026-01-01T00:00:00.000Z"
+        />,
+      );
+
+      expect(screen.getByText('Image expired')).toBeInTheDocument();
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect(getFilePreviewMock()).not.toHaveBeenCalled();
+    });
+
     it('loads managed files with the authenticated preview client', async () => {
       render(
         <Image

@@ -53,13 +53,14 @@ describe('generated document artifacts', () => {
         {
           filename: 'Worksheet.docx',
           downloadPath: '/api/files/download/user-123/file-123',
+          fileId: 'file-123',
         },
       ],
       expiresAt,
     });
 
     expect(managed).toBe(
-      '[Worksheet.docx](/api/files/download/user-123/file-123)\n\nAvailable until 2026-08-29 12:00:00 UTC. This document expires after 24 hours and will be deleted. After expiry, generate a new copy.',
+      '[Worksheet.docx](/api/files/download/user-123/file-123)\n<!-- ethos-generated-document-expiry {"expiresAt":"2026-08-29T12:00:00.000Z","fileId":"file-123"} -->\n\nAvailable until 2026-08-29 12:00:00 UTC. This document expires after 24 hours and will be deleted. After expiry, generate a new copy.',
     );
     expect(managed).not.toContain(sourceUrl);
   });
@@ -76,7 +77,13 @@ describe('generated document artifacts', () => {
     const expiresAt = getGeneratedDocumentRetentionExpiry(Date.UTC(2026, 8, 2, 12, 0, 0));
     const managed = buildManagedDocumentText({
       sourceText: '',
-      documents: [{ filename: 'Worksheet.docx', downloadPath: '/api/files/download/user/file' }],
+      documents: [
+        {
+          filename: 'Worksheet.docx',
+          downloadPath: '/api/files/download/user/file',
+          fileId: 'file',
+        },
+      ],
       expiresAt,
     });
 

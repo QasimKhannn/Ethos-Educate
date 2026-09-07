@@ -38,6 +38,7 @@ interface AgentIntakeDialogProps {
   agent: Agent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCancel?: () => void;
 }
 
 const textareaClass =
@@ -859,7 +860,12 @@ function PresentationFields({
   );
 }
 
-export default function AgentIntakeDialog({ agent, open, onOpenChange }: AgentIntakeDialogProps) {
+export default function AgentIntakeDialog({
+  agent,
+  open,
+  onOpenChange,
+  onCancel,
+}: AgentIntakeDialogProps) {
   const template = getAgentIntakeTemplate(agent);
   const startAgentChat = useStartAgentChat();
   const [worksheetValues, setWorksheetValues] = useState(createWorksheetIntakeValues);
@@ -931,6 +937,15 @@ export default function AgentIntakeDialog({ agent, open, onOpenChange }: AgentIn
     startAgentChat(agent, prompt);
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && onCancel) {
+      onCancel();
+      return;
+    }
+
+    onOpenChange(nextOpen);
+  };
+
   let formFields: React.ReactNode;
   if (template === 'worksheet') {
     formFields = <WorksheetFields values={worksheetValues} setValues={setWorksheetValues} />;
@@ -943,7 +958,7 @@ export default function AgentIntakeDialog({ agent, open, onOpenChange }: AgentIn
   }
 
   return (
-    <OGDialog open={open} onOpenChange={onOpenChange} modal>
+    <OGDialog open={open} onOpenChange={handleOpenChange} modal>
       <OGDialogContent className="max-h-[90vh] w-[min(96vw,62rem)] overflow-y-auto p-0">
         <form onSubmit={submit}>
           <OGDialogHeader className="border-b border-border-light bg-surface-primary px-6 py-5">
@@ -959,7 +974,11 @@ export default function AgentIntakeDialog({ agent, open, onOpenChange }: AgentIn
             ) : null}
           </div>
           <div className="flex flex-wrap justify-end gap-3 border-t border-border-light px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => (onCancel ? onCancel() : onOpenChange(false))}
+            >
               Cancel
             </Button>
             <Button type="submit" className={cn('min-w-36 justify-center')}>

@@ -21,6 +21,10 @@ import {
 import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
+import {
+  getAgentIntakeLaunch,
+  markAgentIntakeLaunchSubmitted,
+} from '~/components/Agents/agentIntakeLaunch';
 import store from '~/store';
 
 const injectAgentIntoAgentsMap = (queryClient: QueryClient, agent: any) => {
@@ -56,6 +60,7 @@ export default function useQueryParams({
   const settingsAppliedRef = useRef(false);
   const submissionHandledRef = useRef(false);
   const promptTextRef = useRef<string | null>(null);
+  const intakeLaunchIdRef = useRef<string | null>(null);
   const validSettingsRef = useRef<TPreset | null>(null);
   const settingsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -80,9 +85,14 @@ export default function useQueryParams({
   const getPersistentChatParams = useCallback(() => {
     const params = getProjectOnlyParams();
     const agentId = searchParams.get('agent_id');
+    const intakeLaunchId = searchParams.get('intake');
+    const intakeLaunch = getAgentIntakeLaunch(intakeLaunchId);
 
     if (conversationId === Constants.NEW_CONVO && agentId) {
       params.set('agent_id', agentId);
+      if (intakeLaunch && intakeLaunch.agentId === agentId) {
+        params.set('intake', intakeLaunch.id);
+      }
     }
 
     return params;
@@ -259,6 +269,7 @@ export default function useQueryParams({
 
     methods.handleSubmit((data) => {
       if (data.text?.trim()) {
+        markAgentIntakeLaunchSubmitted(intakeLaunchIdRef.current);
         submitMessage(data);
         logger.log('conversation', 'Message submitted from query params');
       }
@@ -270,7 +281,12 @@ export default function useQueryParams({
   useEffect(() => {
     const processQueryParams = () => {
       if (conversationId !== Constants.NEW_CONVO) {
-        return { decodedPrompt: '', validSettings: {}, shouldAutoSubmit: false };
+        return {
+          decodedPrompt: '',
+          validSettings: {},
+          shouldAutoSubmit: false,
+          intakeLaunchId: null,
+        };
       }
 
       const queryParams: Record<string, string> = {};
@@ -278,16 +294,29 @@ export default function useQueryParams({
         queryParams[key] = value;
       });
 
-      // Support both 'prompt' and 'q' as query parameters, with 'prompt' taking precedence
-      const decodedPrompt = queryParams.prompt || queryParams.q || '';
-      const shouldAutoSubmit = queryParams.submit?.toLowerCase() === 'true';
+      const intakeLaunch = getAgentIntakeLaunch(queryParams.intake ?? null);
+      const isValidIntakeLaunch =
+        intakeLaunch != null && intakeLaunch.agentId === queryParams.agent_id;
+      const shouldSubmitIntakeLaunch = isValidIntakeLaunch && intakeLaunch.status === 'queued';
+      // Support both 'prompt' and 'q' as query parameters, with 'prompt' taking precedence.
+      const decodedPrompt = shouldSubmitIntakeLaunch
+        ? intakeLaunch.prompt
+        : queryParams.prompt || queryParams.q || '';
+      const shouldAutoSubmit =
+        shouldSubmitIntakeLaunch || queryParams.submit?.toLowerCase() === 'true';
       delete queryParams.prompt;
       delete queryParams.q;
       delete queryParams.submit;
       delete queryParams.projectId;
+      delete queryParams.intake;
       const validSettings = processValidSettings(queryParams);
 
-      return { decodedPrompt, validSettings, shouldAutoSubmit };
+      return {
+        decodedPrompt,
+        validSettings,
+        shouldAutoSubmit,
+        intakeLaunchId: shouldSubmitIntakeLaunch ? intakeLaunch.id : null,
+      };
     };
 
     const intervalId = setInterval(() => {
@@ -309,8 +338,13 @@ export default function useQueryParams({
         return;
       }
 
-      const { decodedPrompt, validSettings, shouldAutoSubmit } = processQueryParams();
+      const { decodedPrompt, validSettings, shouldAutoSubmit, intakeLaunchId } =
+        processQueryParams();
       const hasSettings = Object.keys(validSettings).length > 0;
+
+      if (intakeLaunchId) {
+        intakeLaunchIdRef.current = intakeLaunchId;
+      }
 
       if (!shouldAutoSubmit) {
         submissionHandledRef.current = true;
@@ -359,6 +393,7 @@ export default function useQueryParams({
 
           methods.handleSubmit((data) => {
             if (data.text?.trim()) {
+              markAgentIntakeLaunchSubmitted(intakeLaunchIdRef.current);
               submitMessage(data);
             }
           })();

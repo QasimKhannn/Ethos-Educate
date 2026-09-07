@@ -13,6 +13,7 @@ import { EditTextPart, EmptyText } from './Parts';
 import MemoryArtifacts from './MemoryArtifacts';
 import Sources from '~/components/Web/Sources';
 import Container from './Container';
+import { getGeneratedDocumentExpiries } from './generatedArtifacts';
 import Part from './Part';
 import LessonPlanningUnitChoices from './LessonPlanningUnitChoices';
 
@@ -28,6 +29,7 @@ type PartWithContextProps = {
   isCreatedByUser: boolean;
   isLast: boolean;
   partAttachments: TAttachment[] | undefined;
+  generatedArtifactExpiries: ReturnType<typeof getGeneratedDocumentExpiries>;
 };
 
 const PartWithContext = memo(function PartWithContext({
@@ -42,6 +44,7 @@ const PartWithContext = memo(function PartWithContext({
   isCreatedByUser,
   isLast,
   partAttachments,
+  generatedArtifactExpiries,
 }: PartWithContextProps) {
   const contextValue = useMemo(
     () => ({
@@ -52,8 +55,17 @@ const PartWithContext = memo(function PartWithContext({
       nextType,
       isSubmitting,
       isLatestMessage,
+      generatedArtifactExpiries,
     }),
-    [messageId, conversationId, idx, nextType, isSubmitting, isLatestMessage],
+    [
+      messageId,
+      conversationId,
+      idx,
+      nextType,
+      isSubmitting,
+      isLatestMessage,
+      generatedArtifactExpiries,
+    ],
   );
 
   return (
@@ -112,6 +124,7 @@ const ContentParts = memo(function ContentParts({
   isLatestMessage,
 }: ContentPartsProps) {
   const attachmentMap = useMemo(() => mapAttachments(attachments ?? []), [attachments]);
+  const generatedArtifactExpiries = useMemo(() => getGeneratedDocumentExpiries(content), [content]);
   const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
 
   const renderPart = useCallback(
@@ -131,6 +144,7 @@ const ContentParts = memo(function ContentParts({
           nextType={content?.[idx + 1]?.type}
           isSubmitting={effectiveIsSubmitting}
           partAttachments={attachmentMap[toolCallId]}
+          generatedArtifactExpiries={generatedArtifactExpiries}
         />
       );
     },
@@ -139,6 +153,7 @@ const ContentParts = memo(function ContentParts({
       content,
       conversationId,
       effectiveIsSubmitting,
+      generatedArtifactExpiries,
       isCreatedByUser,
       isLast,
       isLatestMessage,
