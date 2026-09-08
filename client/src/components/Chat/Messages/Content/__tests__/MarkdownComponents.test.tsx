@@ -122,4 +122,25 @@ describe('MarkdownAnchor', () => {
       ),
     ).not.toBeInTheDocument();
   });
+
+  test('does not render an unusable document echo after the tool result renders the file', () => {
+    const documentName = 'Saving Water.docx';
+
+    render(
+      <RecoilRoot>
+        <MessageContext.Provider
+          value={{
+            messageId: 'message-123',
+            isExpanded: true,
+            isGeneratedDocumentToolCall: false,
+            generatedDocumentToolCallFileIds: new Set(['file-456']),
+          }}
+        >
+          <MarkdownAnchor href="/">{documentName}</MarkdownAnchor>
+        </MessageContext.Provider>
+      </RecoilRoot>,
+    );
+
+    expect(screen.queryByRole('link', { name: documentName })).not.toBeInTheDocument();
+  });
 });

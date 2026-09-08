@@ -195,7 +195,9 @@ export default function ToolCall({
   const showActivityCard =
     status === 'working' ||
     status === 'needs_auth' ||
-    (status === 'completed' && presentation.category !== 'image');
+    (status === 'completed' &&
+      presentation.category !== 'image' &&
+      presentation.category !== 'document');
 
   useLayoutEffect(() => {
     if (showInfo !== prevShowInfoRef.current) {

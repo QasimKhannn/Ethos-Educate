@@ -184,6 +184,14 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
   }, [href]);
 
   if (!file_id || !filename) {
+    if (
+      isGeneratedDocumentToolCall !== true &&
+      isUnavailableDownloadHref &&
+      (generatedDocumentToolCallFileIds?.size ?? 0) > 0
+    ) {
+      return null;
+    }
+
     if (isUnavailableDownloadHref) {
       return (
         <a

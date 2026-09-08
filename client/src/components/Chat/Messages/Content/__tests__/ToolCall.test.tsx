@@ -234,6 +234,34 @@ describe('ToolCall', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('hides a completed document activity card once the downloadable file is available', () => {
+      renderWithRecoil(
+        <ToolCall
+          {...mockProps}
+          name={`downloadable_document_builder${Constants.mcp_delimiter}Downloadable-Files-Creation`}
+        />,
+      );
+
+      expect(
+        document.querySelector('[data-tool-activity-category="document"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows a document activity card while the downloadable file is being created', () => {
+      renderWithRecoil(
+        <ToolCall
+          {...mockProps}
+          initialProgress={0.5}
+          isSubmitting={true}
+          name={`downloadable_document_builder${Constants.mcp_delimiter}Downloadable-Files-Creation`}
+        />,
+      );
+
+      expect(
+        document.querySelector('[data-tool-activity-category="document"]'),
+      ).toBeInTheDocument();
+    });
+
     it('hides an interrupted activity card so the chat error is the only user-facing error', () => {
       renderWithRecoil(
         <ToolCall
