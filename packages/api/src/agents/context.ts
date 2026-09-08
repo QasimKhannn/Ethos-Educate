@@ -5,6 +5,26 @@ import type { LCTool } from '@librechat/agents';
 import type { Logger } from 'winston';
 import type { MCPManager } from '~/mcp/MCPManager';
 
+const imageGenerationServerName = 'Image_Generation';
+
+const imageGenerationExecutionInstructions = `
+## Image generation execution requirement
+
+When a user asks to create an image, regenerate an image, make another version, or says "again" in response to a prior image request, call the generate_images tool before confirming that an image exists. For an unchanged "again" request, reuse the relevant visual details from the preceding request.
+
+Never claim that an image was created, expose a Tool: payload, or write tool-result JSON unless generate_images completed successfully in this turn. If the tool fails, say that generation did not complete and offer a concise retry option.`;
+
+function addImageGenerationExecutionInstructions(
+  mcpServers: string[],
+  instructions: string,
+): string {
+  if (!mcpServers.includes(imageGenerationServerName)) {
+    return instructions;
+  }
+
+  return [instructions, imageGenerationExecutionInstructions].filter(Boolean).join('\n\n');
+}
+
 /**
  * Agent type with optional tools array that can contain DynamicStructuredTool or string.
  * For context operations, we only require id and instructions, other Agent fields are optional.
@@ -72,7 +92,7 @@ export async function getMCPInstructionsForServers(
     if (mcpInstructions && logger) {
       logger.debug('[AgentContext] Fetched MCP instructions for servers:', mcpServers);
     }
-    return mcpInstructions || '';
+    return addImageGenerationExecutionInstructions(mcpServers, mcpInstructions || '');
   } catch (error) {
     if (logger) {
       logger.error('[AgentContext] Failed to get MCP instructions:', error);

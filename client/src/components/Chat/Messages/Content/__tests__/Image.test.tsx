@@ -32,10 +32,15 @@ jest.mock('~/hooks', () => ({
     ({
       com_ui_ai_generated_image_notice:
         'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
-      com_ui_generated_image_expired_title: 'Looks like this image has expired',
       com_ui_generated_image_expired_description:
-        "Oops, it is no longer available. Ask me to generate it again and I'll make a fresh one.",
+        'That image is no longer available, but I can make a fresh one from the original request.',
+      com_ui_generated_image_expired_action: 'Generate again',
+      com_ui_regenerating: 'Regenerating...',
     })[key] ?? key,
+}));
+
+jest.mock('~/Providers', () => ({
+  useMessageContext: jest.fn(() => ({})),
 }));
 
 jest.mock('@librechat/client', () => ({
@@ -56,6 +61,7 @@ jest.mock('../DialogImage', () => ({
 
 const getFilePreviewMock = () =>
   jest.requireMock('librechat-data-provider').dataService.getFilePreview as jest.Mock;
+const getMessageContextMock = () => jest.requireMock('~/Providers').useMessageContext as jest.Mock;
 
 describe('Image', () => {
   const defaultProps = {
@@ -66,6 +72,7 @@ describe('Image', () => {
   beforeEach(() => {
     _resetImageCaches();
     jest.clearAllMocks();
+    getMessageContextMock().mockReturnValue({});
     getFilePreviewMock().mockResolvedValue({ data: new Blob(['image']) });
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
@@ -267,9 +274,33 @@ describe('Image', () => {
         />,
       );
 
-      expect(screen.getByText('Looks like this image has expired')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'That image is no longer available, but I can make a fresh one from the original request.',
+        ),
+      ).toBeInTheDocument();
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
       expect(getFilePreviewMock()).not.toHaveBeenCalled();
+    });
+
+    it('offers a direct regeneration action for an expired generated image', () => {
+      const onRegenerate = jest.fn();
+      getMessageContextMock().mockReturnValue({ onRegenerate });
+
+      render(
+        <Image
+          {...defaultProps}
+          imagePath="https://storage.example.com/expired-image"
+          fileId="file-123"
+          userId="user-456"
+          source="azure_blob"
+          context={FileContext.image_generation}
+          retentionExpiresAt="2026-01-01T00:00:00.000Z"
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generate again' }));
+      expect(onRegenerate).toHaveBeenCalledTimes(1);
     });
 
     it('loads managed files with the authenticated preview client', async () => {

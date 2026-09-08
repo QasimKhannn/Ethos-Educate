@@ -21,6 +21,10 @@ type MessageContext = {
   generatedDocumentToolCallFileIds?: GeneratedDocumentState['toolCallFileIds'];
   /** Whether this content part is the tool result that owns generated file cards. */
   isGeneratedDocumentToolCall?: boolean;
+  /** Replays this assistant turn to create a fresh generated artifact. */
+  onRegenerate?: () => void;
+  /** Prevents duplicate regeneration requests while this turn is running. */
+  isRegenerating?: boolean;
 };
 
 export const MessageContext = createContext<MessageContext>({} as MessageContext);

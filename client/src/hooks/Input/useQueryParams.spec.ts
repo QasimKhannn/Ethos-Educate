@@ -286,7 +286,7 @@ describe('useQueryParams', () => {
     expect(options).toEqual(expect.objectContaining({ replace: true }));
   });
 
-  it('submits a queued intake launch after applying its agent settings', () => {
+  it('submits a queued intake launch only after the fresh agent conversation is active', () => {
     const mockSetValue = jest.fn();
     const mockSubmitMessage = jest.fn();
     const mockNewConversation = jest.fn();
@@ -301,6 +301,11 @@ describe('useQueryParams', () => {
       template: 'worksheet',
       prompt: 'Create a Grade 4 fractions worksheet.',
     });
+    let currentConversation = {
+      conversationId: 'existing-conversation',
+      endpoint: 'agents',
+      agent_id: 'agent_123',
+    };
 
     (useChatFormContext as jest.Mock).mockReturnValue({
       setValue: mockSetValue,
@@ -308,23 +313,29 @@ describe('useQueryParams', () => {
       handleSubmit: jest.fn((callback) => () => callback({ text: 'test message' })),
     });
     (useSubmitMessage as jest.Mock).mockReturnValue({ submitMessage: mockSubmitMessage });
-    (useChatContext as jest.Mock).mockReturnValue({
-      conversation: { model: null, endpoint: null },
+    (useChatContext as jest.Mock).mockImplementation(() => ({
+      conversation: currentConversation,
       newConversation: mockNewConversation,
-    });
+    }));
     setUrlParams({ agent_id: 'agent_123', intake: launch?.id ?? '' });
 
-    renderHook(() => useQueryParams({ textAreaRef: mockTextAreaRef }));
+    const { rerender } = renderHook(() => useQueryParams({ textAreaRef: mockTextAreaRef }));
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(mockSubmitMessage).not.toHaveBeenCalled();
+
+    currentConversation = {
+      conversationId: 'new',
+      endpoint: 'agents',
+      agent_id: 'agent_123',
+    };
+    rerender();
 
     act(() => {
       jest.advanceTimersByTime(100);
-    });
-
-    expect(mockNewConversation).toHaveBeenCalled();
-    expect(mockSubmitMessage).not.toHaveBeenCalled();
-
-    act(() => {
-      jest.advanceTimersByTime(3000);
     });
 
     expect(mockSetValue).toHaveBeenCalledWith(

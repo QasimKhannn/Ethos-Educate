@@ -8,19 +8,42 @@ import {
   actionDomainSeparator,
 } from 'librechat-data-provider';
 import type { TAttachment } from 'librechat-data-provider';
+import type { ToolActivityStatus } from './ToolActivityCard';
 import { useMessageContext } from '~/Providers';
 import { useLocalize, useProgress } from '~/hooks';
 import { AttachmentGroup } from './Parts';
 import ExpiredGeneratedArtifact from './ExpiredGeneratedArtifact';
 import Markdown from './Markdown';
 import ToolCallInfo from './ToolCallInfo';
-import ProgressText from './ProgressText';
+import ToolActivityCard from './ToolActivityCard';
 import {
   getGeneratedArtifactDisplayText,
   getGeneratedDocumentLinks,
   splitGeneratedDocumentLinksByExpiry,
 } from './generatedArtifacts';
+import { getToolActivityPresentation } from './toolPresentation';
 import { logger, cn } from '~/utils';
+
+function getToolActivityStatus(
+  error: boolean,
+  progress: number,
+  isSubmitting: boolean,
+  hasPendingAuth: boolean,
+): ToolActivityStatus {
+  if (error) {
+    return 'failed';
+  }
+  if (progress >= 1) {
+    return 'completed';
+  }
+  if (hasPendingAuth && isSubmitting) {
+    return 'needs_auth';
+  }
+  if (!isSubmitting) {
+    return 'interrupted';
+  }
+  return 'working';
+}
 
 export default function ToolCall({
   initialProgress = 0.1,
@@ -108,10 +131,10 @@ export default function ToolCall({
     () => (typeof output === 'string' ? getGeneratedArtifactDisplayText(output) : output),
     [output],
   );
+  const normalizedOutput =
+    typeof displayOutput === 'string' ? displayOutput.trim().toLowerCase() : '';
   const error =
-    typeof displayOutput === 'string' &&
-    (displayOutput.toLowerCase().includes('error processing tool') ||
-      displayOutput.startsWith('Error:'));
+    normalizedOutput.includes('error processing tool') || normalizedOutput.startsWith('error:');
 
   const generatedDocuments = useMemo(
     () => getGeneratedDocumentLinks(displayOutput),
@@ -167,20 +190,12 @@ export default function ToolCall({
   }, [auth]);
 
   const progress = useProgress(initialProgress);
-  const cancelled = (!isSubmitting && progress < 1) || error === true;
-
-  const getFinishedText = () => {
-    if (cancelled) {
-      return localize('com_ui_cancelled');
-    }
-    if (isMCPToolCall === true) {
-      return localize('com_assistants_completed_function', { 0: function_name });
-    }
-    if (domain != null && domain && domain.length !== Constants.ENCODED_DOMAIN_LENGTH) {
-      return localize('com_assistants_completed_action', { 0: domain });
-    }
-    return localize('com_assistants_completed_function', { 0: function_name });
-  };
+  const status = getToolActivityStatus(error, progress, isSubmitting, authDomain.length > 0);
+  const presentation = getToolActivityPresentation(function_name, mcpServerName);
+  const showActivityCard =
+    status === 'working' ||
+    status === 'needs_auth' ||
+    (status === 'completed' && presentation.category !== 'image');
 
   useLayoutEffect(() => {
     if (showInfo !== prevShowInfoRef.current) {
@@ -231,24 +246,15 @@ export default function ToolCall({
 
   return (
     <>
-      <div className="relative my-2.5 flex h-5 shrink-0 items-center gap-2.5">
-        <ProgressText
-          progress={progress}
-          onClick={() => setShowInfo((prev) => !prev)}
-          inProgressText={
-            function_name
-              ? localize('com_assistants_running_var', { 0: function_name })
-              : localize('com_assistants_running_action')
-          }
-          authText={
-            !cancelled && authDomain.length > 0 ? localize('com_ui_requires_auth') : undefined
-          }
-          finishedText={getFinishedText()}
-          hasInput={hasInfo}
+      {showActivityCard && (
+        <ToolActivityCard
+          hasDetails={hasInfo}
           isExpanded={showInfo}
-          error={cancelled}
+          onToggleDetails={() => setShowInfo((prev) => !prev)}
+          presentation={presentation}
+          status={status}
         />
-      </div>
+      )}
       <div
         className="relative"
         style={{
@@ -284,7 +290,7 @@ export default function ToolCall({
                 output={displayOutput}
                 domain={authDomain || (domain ?? '')}
                 function_name={function_name}
-                pendingAuth={authDomain.length > 0 && !cancelled && progress < 1}
+                pendingAuth={status === 'needs_auth'}
                 attachments={attachments}
               />
             )}
@@ -302,7 +308,7 @@ export default function ToolCall({
           count={generatedDocumentGroups.expired.length}
         />
       )}
-      {auth != null && auth && progress < 1 && !cancelled && (
+      {auth != null && auth && status === 'needs_auth' && (
         <div className="flex w-full flex-col gap-2.5">
           <div className="mb-1 mt-2">
             <Button

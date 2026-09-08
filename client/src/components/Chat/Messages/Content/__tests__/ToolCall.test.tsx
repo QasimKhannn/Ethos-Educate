@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RecoilRoot } from 'recoil';
-import { Tools } from 'librechat-data-provider';
+import { Constants, Tools } from 'librechat-data-provider';
 import { MessageContext } from '~/Providers';
 import ToolCall from '../ToolCall';
 
@@ -17,13 +17,23 @@ jest.mock('~/hooks', () => ({
       com_ui_sign_in_to_domain: `Sign in to ${values?.[0]}`,
       com_ui_cancelled: 'Cancelled',
       com_ui_requires_auth: 'Requires authentication',
+      com_ui_tool_activity_failed: 'We could not complete this request',
+      com_ui_tool_activity_generic_completed: 'Your request is complete',
+      com_ui_tool_activity_generic_title: 'Working on your request',
+      com_ui_tool_activity_generic_working: 'Putting the next steps together…',
+      com_ui_tool_activity_in_progress: 'In progress',
+      com_ui_tool_activity_interrupted: 'This request was interrupted',
+      com_ui_tool_activity_needs_auth: 'Sign in to continue',
+      com_ui_tool_activity_problem_guidance:
+        'Please try again. If this continues, check the selected tool or contact your administrator.',
+      com_ui_tool_activity_technical_details: 'Technical details',
       com_assistants_allow_sites_you_trust: 'Only allow sites you trust',
-      com_ui_generated_file_expired_title: 'Looks like this file has expired',
       com_ui_generated_file_expired_description:
-        "Oops, it is no longer available. Ask me to regenerate it and I'll create a fresh copy.",
-      com_ui_generated_files_expired_title: 'Looks like these files have expired',
+        'That file is no longer available, but I can create a fresh copy from the original request.',
       com_ui_generated_files_expired_description:
-        "Oops, they are no longer available. Ask me to regenerate them and I'll create fresh copies.",
+        'Those files are no longer available, but I can create fresh copies from the original request.',
+      com_ui_generated_file_expired_action: 'Create again',
+      com_ui_regenerating: 'Regenerating...',
     };
     return translations[key] || key;
   },
@@ -66,11 +76,23 @@ jest.mock('~/components/ui', () => ({
 }));
 
 jest.mock('lucide-react', () => ({
+  BarChart3: () => <span>{'BarChart3'}</span>,
+  Check: () => <span>{'Check'}</span>,
   ChevronDown: () => <span>{'ChevronDown'}</span>,
   ChevronUp: () => <span>{'ChevronUp'}</span>,
   TriangleAlert: () => <span>{'TriangleAlert'}</span>,
+  CircleAlert: () => <span>{'CircleAlert'}</span>,
+  FileSearch: () => <span>{'FileSearch'}</span>,
+  FileText: () => <span>{'FileText'}</span>,
+  FolderSearch: () => <span>{'FolderSearch'}</span>,
+  ImageIcon: () => <span>{'ImageIcon'}</span>,
+  KeyRound: () => <span>{'KeyRound'}</span>,
+  Search: () => <span>{'Search'}</span>,
+  WifiOff: () => <span>{'WifiOff'}</span>,
+  Wrench: () => <span>{'Wrench'}</span>,
   FileClock: () => <span>{'FileClock'}</span>,
   ImageOff: () => <span>{'ImageOff'}</span>,
+  RefreshCw: () => <span>{'RefreshCw'}</span>,
 }));
 
 jest.mock('~/utils', () => ({
@@ -113,7 +135,7 @@ describe('ToolCall', () => {
 
       renderWithRecoil(<ToolCall {...mockProps} attachments={attachments} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       expect(toolCallInfo).toBeInTheDocument();
@@ -125,7 +147,7 @@ describe('ToolCall', () => {
     it('should pass empty array when no attachments', () => {
       renderWithRecoil(<ToolCall {...mockProps} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const attachmentsData = toolCallInfo.getAttribute('data-attachments');
@@ -156,7 +178,7 @@ describe('ToolCall', () => {
 
       renderWithRecoil(<ToolCall {...mockProps} attachments={attachments} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const attachmentsData = toolCallInfo.getAttribute('data-attachments');
@@ -199,6 +221,34 @@ describe('ToolCall', () => {
   });
 
   describe('tool call info visibility', () => {
+    it('hides a completed image activity card once the image result is available', () => {
+      renderWithRecoil(
+        <ToolCall
+          {...mockProps}
+          name={`generate_images${Constants.mcp_delimiter}Image_Generation`}
+        />,
+      );
+
+      expect(
+        document.querySelector('[data-tool-activity-category="image"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('hides an interrupted activity card so the chat error is the only user-facing error', () => {
+      renderWithRecoil(
+        <ToolCall
+          {...mockProps}
+          initialProgress={0.5}
+          isSubmitting={false}
+          name={`generate_images${Constants.mcp_delimiter}Image_Generation`}
+        />,
+      );
+
+      expect(
+        document.querySelector('[data-tool-activity-category="image"]'),
+      ).not.toBeInTheDocument();
+    });
+
     it('should toggle tool call info when clicking header', () => {
       renderWithRecoil(<ToolCall {...mockProps} />);
 
@@ -206,11 +256,11 @@ describe('ToolCall', () => {
       expect(screen.queryByTestId('tool-call-info')).not.toBeInTheDocument();
 
       // Click to open
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
       expect(screen.getByTestId('tool-call-info')).toBeInTheDocument();
 
       // Click to close
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
       expect(screen.queryByTestId('tool-call-info')).not.toBeInTheDocument();
     });
 
@@ -236,7 +286,7 @@ describe('ToolCall', () => {
 
       renderWithRecoil(<ToolCall {...propsWithDomain} />);
 
-      fireEvent.click(screen.getByText('Completed action on test.domain.com'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const props = JSON.parse(toolCallInfo.textContent!);
@@ -287,7 +337,7 @@ describe('ToolCall', () => {
         />,
       );
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Working on your request'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const props = JSON.parse(toolCallInfo.textContent!);
@@ -327,7 +377,7 @@ describe('ToolCall', () => {
     it('should handle undefined args', () => {
       renderWithRecoil(<ToolCall {...mockProps} args={undefined} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const props = JSON.parse(toolCallInfo.textContent!);
@@ -337,7 +387,7 @@ describe('ToolCall', () => {
     it('should handle null output', () => {
       renderWithRecoil(<ToolCall {...mockProps} output={null} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const props = JSON.parse(toolCallInfo.textContent!);
@@ -347,7 +397,7 @@ describe('ToolCall', () => {
     it('should handle missing domain', () => {
       renderWithRecoil(<ToolCall {...mockProps} domain={undefined} authDomain={undefined} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const props = JSON.parse(toolCallInfo.textContent!);
@@ -378,7 +428,7 @@ describe('ToolCall', () => {
 
       renderWithRecoil(<ToolCall {...mockProps} attachments={complexAttachments} />);
 
-      fireEvent.click(screen.getByText('Completed testFunction'));
+      fireEvent.click(screen.getByText('Your request is complete'));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const attachmentsData = toolCallInfo.getAttribute('data-attachments');
@@ -390,12 +440,13 @@ describe('ToolCall', () => {
   });
 
   describe('generated document retention', () => {
-    it('renders one expiry notice for all expired files from a tool result', () => {
+    it('renders one expiry notice and direct retry action for all expired files from a tool result', () => {
       const output = [
         'Available until 2026-09-03 21:54 UTC.',
         '[Student Worksheet.docx](/api/files/download/user-123/file-456)',
         '[Teacher Answer Key.docx](/api/files/download/user-123/file-789)',
       ].join('\n\n');
+      const onRegenerate = jest.fn();
 
       renderWithRecoil(
         <MessageContext.Provider
@@ -407,14 +458,25 @@ describe('ToolCall', () => {
               ['file-456', new Date('2026-01-01T00:00:00.000Z')],
               ['file-789', new Date('2026-01-01T00:00:00.000Z')],
             ]),
+            onRegenerate,
           }}
         >
           <ToolCall {...mockProps} output={output} />
         </MessageContext.Provider>,
       );
 
-      expect(screen.getAllByText('Looks like these files have expired')).toHaveLength(1);
-      expect(screen.queryByText('Looks like this file has expired')).not.toBeInTheDocument();
+      expect(
+        screen.getAllByText(
+          'Those files are no longer available, but I can create fresh copies from the original request.',
+        ),
+      ).toHaveLength(1);
+      expect(
+        screen.queryByText(
+          'That file is no longer available, but I can create a fresh copy from the original request.',
+        ),
+      ).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Create again/ }));
+      expect(onRegenerate).toHaveBeenCalledTimes(1);
     });
   });
 });

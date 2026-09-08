@@ -94,8 +94,18 @@ const MessageRender = memo(function MessageRender({
       isExpanded: false as const,
       isSubmitting: effectiveIsSubmitting,
       conversationId: conversation?.conversationId,
+      onRegenerate: msg?.isCreatedByUser === false ? handleRegenerateMessage : undefined,
+      isRegenerating: isSubmitting,
     }),
-    [messageId, conversation?.conversationId, effectiveIsSubmitting, isLatestMessage],
+    [
+      messageId,
+      conversation?.conversationId,
+      effectiveIsSubmitting,
+      handleRegenerateMessage,
+      isLatestMessage,
+      isSubmitting,
+      msg?.isCreatedByUser,
+    ],
   );
 
   if (!msg) {

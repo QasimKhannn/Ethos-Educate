@@ -21,12 +21,10 @@ jest.mock('~/hooks', () => ({
     ({
       com_ui_ai_generated_image_notice:
         'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
-      com_ui_generated_file_expired_title: 'Looks like this file has expired',
       com_ui_generated_file_expired_description:
-        "Oops, it is no longer available. Ask me to regenerate it and I'll create a fresh copy.",
-      com_ui_generated_image_expired_title: 'Looks like this image has expired',
+        'That file is no longer available, but I can create a fresh copy from the original request.',
       com_ui_generated_image_expired_description:
-        "Oops, it is no longer available. Ask me to generate it again and I'll make a fresh one.",
+        'That image is no longer available, but I can make a fresh one from the original request.',
     })[key] ?? key,
 }));
 
@@ -57,7 +55,11 @@ describe('MarkdownAnchor', () => {
       </RecoilRoot>,
     );
 
-    expect(screen.getByText('Looks like this file has expired')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'That file is no longer available, but I can create a fresh copy from the original request.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: documentName })).not.toBeInTheDocument();
   });
 
@@ -71,7 +73,11 @@ describe('MarkdownAnchor', () => {
 
     fireEvent.error(screen.getByRole('img'));
 
-    expect(screen.getByText('Looks like this image has expired')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'That image is no longer available, but I can make a fresh one from the original request.',
+      ),
+    ).toBeInTheDocument();
   });
 
   test('shows the review notice for a legacy Image MCP asset', () => {
@@ -110,6 +116,10 @@ describe('MarkdownAnchor', () => {
     );
 
     expect(screen.queryByRole('link', { name: documentName })).not.toBeInTheDocument();
-    expect(screen.queryByText('Looks like this file has expired')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'That file is no longer available, but I can create a fresh copy from the original request.',
+      ),
+    ).not.toBeInTheDocument();
   });
 });

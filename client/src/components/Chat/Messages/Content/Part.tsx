@@ -19,6 +19,8 @@ import WebSearch from './WebSearch';
 import ToolCall from './ToolCall';
 import ImageGen from './ImageGen';
 import Image from './Image';
+import IncompleteImageGeneration from './IncompleteImageGeneration';
+import { getImageGenerationTextPresentation } from './imageGenerationResponse';
 
 type PartProps = {
   part?: TMessageContentParts;
@@ -27,6 +29,7 @@ type PartProps = {
   showCursor: boolean;
   isCreatedByUser: boolean;
   attachments?: TAttachment[];
+  hasImageGenerationResult?: boolean;
 };
 
 const Part = memo(function Part({
@@ -36,6 +39,7 @@ const Part = memo(function Part({
   isLast,
   showCursor,
   isCreatedByUser,
+  hasImageGenerationResult = false,
 }: PartProps) {
   if (!part) {
     return null;
@@ -74,8 +78,22 @@ const Part = memo(function Part({
     if (part.tool_call_ids != null && !text) {
       return null;
     }
+    const textPresentation = isCreatedByUser
+      ? { text, showIncompleteNotice: false }
+      : getImageGenerationTextPresentation(text, hasImageGenerationResult);
+
+    if (textPresentation.showIncompleteNotice) {
+      return (
+        <Container>
+          <IncompleteImageGeneration />
+        </Container>
+      );
+    }
+    if (!textPresentation.text) {
+      return null;
+    }
     /** Handle whitespace-only text to avoid layout shift */
-    if (text.length > 0 && /^\s*$/.test(text)) {
+    if (textPresentation.text.length > 0 && /^\s*$/.test(textPresentation.text)) {
       /** Show placeholder for whitespace-only last part during streaming */
       if (isLast && showCursor) {
         return (
@@ -91,7 +109,11 @@ const Part = memo(function Part({
     }
     return (
       <Container>
-        <Text text={text} isCreatedByUser={isCreatedByUser} showCursor={showCursor} />
+        <Text
+          text={textPresentation.text}
+          isCreatedByUser={isCreatedByUser}
+          showCursor={showCursor}
+        />
       </Container>
     );
   } else if (part.type === ContentTypes.THINK) {

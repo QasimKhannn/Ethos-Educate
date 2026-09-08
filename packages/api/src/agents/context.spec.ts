@@ -164,6 +164,19 @@ describe('Agent Context Utilities', () => {
       );
     });
 
+    it('should require a completed tool call when Image_Generation is available', async () => {
+      mockMCPManager.formatInstructionsForContext.mockResolvedValue('Image tool instructions');
+
+      const result = await getMCPInstructionsForServers(
+        ['Image_Generation'],
+        mockMCPManager,
+        mockLogger,
+      );
+
+      expect(result).toContain('call the generate_images tool');
+      expect(result).toContain('Never claim that an image was created');
+    });
+
     it('should return empty string when MCP manager returns empty', async () => {
       mockMCPManager.formatInstructionsForContext.mockResolvedValue('');
 

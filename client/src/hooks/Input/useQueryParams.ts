@@ -252,6 +252,16 @@ export default function useQueryParams({
     return true;
   }, []);
 
+  const isQueuedIntakeConversationReady = useCallback((settings: TPreset) => {
+    const convo = conversationRef.current;
+
+    return (
+      convo?.conversationId === Constants.NEW_CONVO &&
+      convo.endpoint === EModelEndpoint.agents &&
+      convo.agent_id === settings.agent_id
+    );
+  }, []);
+
   /**
    * Processes message submission exactly once, preventing duplicate submissions.
    * Sets the prompt text, submits the message, and cleans up URL parameters afterward.
@@ -341,6 +351,7 @@ export default function useQueryParams({
       const { decodedPrompt, validSettings, shouldAutoSubmit, intakeLaunchId } =
         processQueryParams();
       const hasSettings = Object.keys(validSettings).length > 0;
+      const isQueuedIntakeLaunch = intakeLaunchId != null;
 
       if (intakeLaunchId) {
         intakeLaunchIdRef.current = intakeLaunchId;
@@ -368,6 +379,17 @@ export default function useQueryParams({
 
       if (decodedPrompt) {
         promptTextRef.current = decodedPrompt;
+      }
+
+      if (isQueuedIntakeLaunch && shouldAutoSubmit && decodedPrompt) {
+        if (!isQueuedIntakeConversationReady(validSettings)) {
+          return;
+        }
+
+        pendingSubmitRef.current = true;
+        processSubmission();
+        success();
+        return;
       }
 
       // Handle auto-submission
@@ -406,7 +428,7 @@ export default function useQueryParams({
         submissionHandledRef.current = true;
       }
 
-      if (hasSettings && !areSettingsApplied()) {
+      if (hasSettings && !isQueuedIntakeLaunch && !areSettingsApplied()) {
         newQueryConvo(validSettings);
       }
 
@@ -432,6 +454,7 @@ export default function useQueryParams({
     getPersistentChatParams,
     processSubmission,
     areSettingsApplied,
+    isQueuedIntakeConversationReady,
   ]);
 
   useEffect(() => {

@@ -55,8 +55,8 @@ mcpServers:
   Image_Generation:
     description: "Generate AI images with Azure FLUX and GPT image models"
     type: streamable-http
-    # Use the local Image Generation MCP while retaining the deployed model setup.
-    url: "http://localhost:8095/mcp"
+    # Keep local app testing aligned with the deployed Image Generation MCP.
+    url: "https://image-gen-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp"
     timeout: 300000
     initTimeout: 15000
     chatMenu: true
@@ -263,8 +263,8 @@ mcpServers:
   Downloadable-Files-Creation:
     description: "Create Microsoft Office documents"
     type: streamable-http
-    # Use the local Downloadable Files MCP while retaining the deployed model setup.
-    url: "http://localhost:8080/mcp"
+    # Use the deployed Downloadable Files MCP configured in .env.
+    url: ${DOWNLOADABLE_FILES_MCP_URL}
     timeout: 300000
     initTimeout: 60000
     startup: true

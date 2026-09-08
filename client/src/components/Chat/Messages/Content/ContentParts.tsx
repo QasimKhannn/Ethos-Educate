@@ -1,5 +1,5 @@
 import { memo, useMemo, useCallback } from 'react';
-import { ContentTypes } from 'librechat-data-provider';
+import { ContentTypes, FileContext } from 'librechat-data-provider';
 import type {
   TMessageContentParts,
   SearchResultData,
@@ -30,7 +30,30 @@ type PartWithContextProps = {
   isLast: boolean;
   partAttachments: TAttachment[] | undefined;
   generatedDocumentState: ReturnType<typeof getGeneratedDocumentState>;
+  hasImageGenerationResult: boolean;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 };
+
+function isImageGenerationToolCall(part: TMessageContentParts): boolean {
+  if (part.type !== ContentTypes.TOOL_CALL) {
+    return false;
+  }
+
+  const toolCall = part[ContentTypes.TOOL_CALL];
+  if (!toolCall || !('name' in toolCall) || typeof toolCall.name !== 'string') {
+    return false;
+  }
+
+  return toolCall.name.startsWith('generate_image') && toolCall.name.includes('Image_Generation');
+}
+
+function isGeneratedImagePart(part: TMessageContentParts): boolean {
+  return (
+    part.type === ContentTypes.IMAGE_FILE &&
+    part[ContentTypes.IMAGE_FILE]?.context === FileContext.image_generation
+  );
+}
 
 const PartWithContext = memo(function PartWithContext({
   part,
@@ -45,6 +68,9 @@ const PartWithContext = memo(function PartWithContext({
   isLast,
   partAttachments,
   generatedDocumentState,
+  hasImageGenerationResult,
+  onRegenerate,
+  isRegenerating,
 }: PartWithContextProps) {
   const contextValue = useMemo(
     () => ({
@@ -58,6 +84,8 @@ const PartWithContext = memo(function PartWithContext({
       generatedArtifactExpiries: generatedDocumentState.expiries,
       generatedDocumentToolCallFileIds: generatedDocumentState.toolCallFileIds,
       isGeneratedDocumentToolCall: part.type === ContentTypes.TOOL_CALL,
+      onRegenerate,
+      isRegenerating,
     }),
     [
       messageId,
@@ -68,6 +96,8 @@ const PartWithContext = memo(function PartWithContext({
       isLatestMessage,
       generatedDocumentState,
       part.type,
+      onRegenerate,
+      isRegenerating,
     ],
   );
 
@@ -81,6 +111,7 @@ const PartWithContext = memo(function PartWithContext({
         isCreatedByUser={isCreatedByUser}
         isLast={isLastPart}
         showCursor={isLastPart && isLast}
+        hasImageGenerationResult={hasImageGenerationResult}
       />
     </MessageContext.Provider>
   );
@@ -98,6 +129,7 @@ type ContentPartsProps = {
   isLatestMessage?: boolean;
   edit?: boolean;
   enterEdit?: (cancel?: boolean) => void | null | undefined;
+  onRegenerate?: () => void;
   siblingIdx?: number;
   setSiblingIdx?:
     | ((value: number) => void | React.Dispatch<React.SetStateAction<number>>)
@@ -125,9 +157,17 @@ const ContentParts = memo(function ContentParts({
   conversationId,
   isCreatedByUser,
   isLatestMessage,
+  onRegenerate,
 }: ContentPartsProps) {
   const attachmentMap = useMemo(() => mapAttachments(attachments ?? []), [attachments]);
   const generatedDocumentState = useMemo(() => getGeneratedDocumentState(content), [content]);
+  const hasImageGenerationResult = useMemo(
+    () =>
+      content?.some(
+        (part) => part && (isImageGenerationToolCall(part) || isGeneratedImagePart(part)),
+      ) ?? false,
+    [content],
+  );
   const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
 
   const renderPart = useCallback(
@@ -148,6 +188,9 @@ const ContentParts = memo(function ContentParts({
           isSubmitting={effectiveIsSubmitting}
           partAttachments={attachmentMap[toolCallId]}
           generatedDocumentState={generatedDocumentState}
+          hasImageGenerationResult={hasImageGenerationResult}
+          onRegenerate={onRegenerate}
+          isRegenerating={isSubmitting}
         />
       );
     },
@@ -157,10 +200,13 @@ const ContentParts = memo(function ContentParts({
       conversationId,
       effectiveIsSubmitting,
       generatedDocumentState,
+      hasImageGenerationResult,
       isCreatedByUser,
       isLast,
       isLatestMessage,
       messageId,
+      onRegenerate,
+      isSubmitting,
     ],
   );
 

@@ -143,6 +143,9 @@ export default function Message(props: TMessageProps) {
                     isCreatedByUser={message.isCreatedByUser}
                     conversationId={conversation?.conversationId}
                     isLatestMessage={messageId === latestMessageId}
+                    onRegenerate={
+                      message.isCreatedByUser === false ? regenerateMessage : undefined
+                    }
                     content={message.content as Array<TMessageContentParts | undefined>}
                   />
                 </div>

@@ -1,11 +1,14 @@
 // file deepcode ignore HardcodedNonCryptoSecret: No hardcoded secrets
 import { ViolationTypes, ErrorTypes, alternateName } from 'librechat-data-provider';
+import { CircleAlert } from 'lucide-react';
 import type { LocalizeFunction } from '~/common';
 import { formatJSON, extractJson, isJson } from '~/utils/json';
 import { useLocalize } from '~/hooks';
 import CodeBlock from './CodeBlock';
 
 const localizedErrorPrefix = 'com_error';
+const genericErrorKey = 'com_ui_chat_error_generic';
+const genericErrorTitleKey = 'com_ui_chat_error_title';
 
 type TConcurrent = {
   limit: number;
@@ -125,8 +128,17 @@ const errorMessages = {
 const Error = ({ text }: { text: string }) => {
   const localize = useLocalize();
   const jsonString = extractJson(text);
-  const errorMessage = text.length > 512 && !jsonString ? text.slice(0, 512) + '...' : text;
-  const defaultResponse = `Something went wrong. Here's the specific error message we encountered: ${errorMessage}`;
+  const defaultResponse = (
+    <div className="flex items-start gap-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+        <CircleAlert className="size-4" aria-hidden="true" />
+      </div>
+      <div>
+        <p className="font-semibold text-text-primary">{localize(genericErrorTitleKey)}</p>
+        <p className="mt-0.5 text-text-secondary">{localize(genericErrorKey)}</p>
+      </div>
+    </div>
+  );
 
   if (!isJson(jsonString)) {
     return defaultResponse;
