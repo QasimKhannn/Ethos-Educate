@@ -69,15 +69,18 @@ export default defineConfig(() => ({
     nodePolyfills(),
     VitePWA({
       injectRegister: false,
-      registerType: 'autoUpdate', // 'prompt' | 'autoUpdate'
+      registerType: 'prompt',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       devOptions: {
         enabled: false, // disable service worker registration in development mode
       },
       useCredentials: true,
       includeManifestIcons: false,
-      workbox: {
+      injectManifest: {
         globPatterns: [
-          '**/*.{js,css,html}',
+          '**/*.{js,css}',
           'assets/favicon*.png',
           'assets/icon-*.png',
           'assets/apple-touch-icon*.png',
@@ -86,7 +89,6 @@ export default defineConfig(() => ({
         ],
         globIgnores: ['images/**/*', '**/*.map'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
       },
       includeAssets: [],
       manifest: {

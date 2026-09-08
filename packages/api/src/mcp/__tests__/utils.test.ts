@@ -1,4 +1,37 @@
-import { normalizeServerName } from '../utils';
+import {
+  canonicalizeMCPServerName,
+  isMCPServerName,
+  isMCPToolFromServer,
+  normalizeServerName,
+} from '../utils';
+
+describe('canonical MCP server identification', () => {
+  it('canonicalizes casing and display-name separators', () => {
+    expect(canonicalizeMCPServerName(' Image_Generation ')).toBe('imagegeneration');
+    expect(canonicalizeMCPServerName('Image-generation')).toBe('imagegeneration');
+  });
+
+  it('matches equivalent server display names without matching other servers', () => {
+    expect(isMCPServerName('downloadable_files_creation', 'Downloadable-Files-Creation')).toBe(
+      true,
+    );
+    expect(isMCPServerName('Image-generation', 'Image_Generation')).toBe(true);
+    expect(isMCPServerName('Image Analysis', 'Image_Generation')).toBe(false);
+  });
+
+  it('matches the MCP server suffix without depending on its display-name format', () => {
+    expect(isMCPToolFromServer('generate_images_mcp_Image-generation', 'Image_Generation')).toBe(
+      true,
+    );
+    expect(
+      isMCPToolFromServer(
+        'create_teacher_worksheet_mcp_downloadable_files_creation',
+        'Image_Generation',
+      ),
+    ).toBe(false);
+    expect(isMCPToolFromServer('generate_images', 'Image_Generation')).toBe(false);
+  });
+});
 
 describe('normalizeServerName', () => {
   it('should not modify server names that already match the pattern', () => {

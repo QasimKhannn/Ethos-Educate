@@ -1,6 +1,9 @@
 import { createContext, useContext } from 'react';
 
-import type { GeneratedArtifactExpiries } from '~/components/Chat/Messages/Content/generatedArtifacts';
+import type {
+  GeneratedArtifactExpiries,
+  GeneratedDocumentState,
+} from '~/components/Chat/Messages/Content/generatedArtifacts';
 
 type MessageContext = {
   messageId: string;
@@ -14,6 +17,10 @@ type MessageContext = {
   isLatestMessage?: boolean;
   /** Retention times extracted from generated-document output in this message. */
   generatedArtifactExpiries?: GeneratedArtifactExpiries;
+  /** Managed files supplied by a tool result, rendered once at that source. */
+  generatedDocumentToolCallFileIds?: GeneratedDocumentState['toolCallFileIds'];
+  /** Whether this content part is the tool result that owns generated file cards. */
+  isGeneratedDocumentToolCall?: boolean;
 };
 
 export const MessageContext = createContext<MessageContext>({} as MessageContext);

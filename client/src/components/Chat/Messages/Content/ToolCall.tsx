@@ -8,12 +8,18 @@ import {
   actionDomainSeparator,
 } from 'librechat-data-provider';
 import type { TAttachment } from 'librechat-data-provider';
+import { useMessageContext } from '~/Providers';
 import { useLocalize, useProgress } from '~/hooks';
 import { AttachmentGroup } from './Parts';
+import ExpiredGeneratedArtifact from './ExpiredGeneratedArtifact';
 import Markdown from './Markdown';
 import ToolCallInfo from './ToolCallInfo';
 import ProgressText from './ProgressText';
-import { getGeneratedDocumentLinks } from './generatedArtifacts';
+import {
+  getGeneratedArtifactDisplayText,
+  getGeneratedDocumentLinks,
+  splitGeneratedDocumentLinksByExpiry,
+} from './generatedArtifacts';
 import { logger, cn } from '~/utils';
 
 export default function ToolCall({
@@ -37,6 +43,7 @@ export default function ToolCall({
   expires_at?: number;
 }) {
   const localize = useLocalize();
+  const { generatedArtifactExpiries } = useMessageContext();
   const [showInfo, setShowInfo] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(0);
@@ -97,14 +104,29 @@ export default function ToolCall({
     window.open(auth, '_blank', 'noopener,noreferrer');
   }, [auth, isMCPToolCall, mcpServerName, actionId]);
 
+  const displayOutput = useMemo(
+    () => (typeof output === 'string' ? getGeneratedArtifactDisplayText(output) : output),
+    [output],
+  );
   const error =
-    typeof output === 'string' &&
-    (output.toLowerCase().includes('error processing tool') || output.startsWith('Error:'));
+    typeof displayOutput === 'string' &&
+    (displayOutput.toLowerCase().includes('error processing tool') ||
+      displayOutput.startsWith('Error:'));
 
-  const generatedDocuments = useMemo(() => getGeneratedDocumentLinks(output), [output]);
+  const generatedDocuments = useMemo(
+    () => getGeneratedDocumentLinks(displayOutput),
+    [displayOutput],
+  );
+  const generatedDocumentGroups = useMemo(
+    () => splitGeneratedDocumentLinksByExpiry(generatedDocuments, generatedArtifactExpiries),
+    [generatedDocuments, generatedArtifactExpiries],
+  );
   const generatedDocumentMarkdown = useMemo(
-    () => generatedDocuments.map(({ filename, href }) => `[${filename}](${href})`).join('\n\n'),
-    [generatedDocuments],
+    () =>
+      generatedDocumentGroups.available
+        .map(({ filename, href }) => `[${filename}](${href})`)
+        .join('\n\n'),
+    [generatedDocumentGroups.available],
   );
 
   const args = useMemo(() => {
@@ -123,8 +145,8 @@ export default function ToolCall({
   }, [_args]) as string | undefined;
 
   const hasInfo = useMemo(
-    () => (args?.length ?? 0) > 0 || (output?.length ?? 0) > 0,
-    [args, output],
+    () => (args?.length ?? 0) > 0 || (displayOutput?.length ?? 0) > 0,
+    [args, displayOutput],
   );
 
   const authDomain = useMemo(() => {
@@ -259,7 +281,7 @@ export default function ToolCall({
               <ToolCallInfo
                 key="tool-call-info"
                 input={args ?? ''}
-                output={output}
+                output={displayOutput}
                 domain={authDomain || (domain ?? '')}
                 function_name={function_name}
                 pendingAuth={authDomain.length > 0 && !cancelled && progress < 1}
@@ -270,9 +292,15 @@ export default function ToolCall({
         </div>
       </div>
       {generatedDocumentMarkdown && (
-        <div className="my-2 rounded-xl border border-border-light bg-surface-secondary px-3 py-2 text-sm">
+        <div className="my-2 rounded-lg border border-border-light bg-surface-secondary px-3 py-2 text-sm">
           <Markdown content={generatedDocumentMarkdown} isLatestMessage={isLast} />
         </div>
+      )}
+      {generatedDocumentGroups.expired.length > 0 && (
+        <ExpiredGeneratedArtifact
+          artifactType="document"
+          count={generatedDocumentGroups.expired.length}
+        />
       )}
       {auth != null && auth && progress < 1 && !cancelled && (
         <div className="flex w-full flex-col gap-2.5">

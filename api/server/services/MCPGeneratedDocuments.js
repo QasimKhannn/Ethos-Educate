@@ -3,6 +3,7 @@ const {
   buildManagedDocumentText,
   extractGeneratedDocumentArtifacts,
   getGeneratedDocumentRetentionExpiry,
+  isMCPServerName,
 } = require('@librechat/api');
 const { FileContext } = require('librechat-data-provider');
 const { processFileURL } = require('~/server/services/Files/process');
@@ -13,7 +14,7 @@ const DOCUMENT_STORAGE_BASE_PATH = 'generated-documents';
 
 function getTextResult(response) {
   if (typeof response === 'string') {
-    return { artifacts: undefined, content: response, isContentArray: false };
+    return { artifacts: undefined, content: response };
   }
 
   if (!Array.isArray(response)) {
@@ -22,7 +23,7 @@ function getTextResult(response) {
 
   const [content, artifacts] = response;
   if (typeof content === 'string') {
-    return { artifacts, content, isContentArray: false };
+    return { artifacts, content };
   }
 
   if (!Array.isArray(content) || content.some((part) => part.type !== 'text')) {
@@ -32,12 +33,16 @@ function getTextResult(response) {
   return {
     artifacts,
     content: content.map((part) => part.text).join('\n\n'),
-    isContentArray: true,
   };
 }
 
 async function persistGeneratedDocuments({ req, requestBody, response, serverName }) {
-  if (serverName !== DOCUMENT_MCP_SERVER || !req?.config || !req.user?.id) {
+  if (
+    typeof serverName !== 'string' ||
+    !isMCPServerName(serverName, DOCUMENT_MCP_SERVER) ||
+    !req?.config ||
+    !req.user?.id
+  ) {
     return response;
   }
 
@@ -83,10 +88,7 @@ async function persistGeneratedDocuments({ req, requestBody, response, serverNam
     expiresAt: retentionExpiresAt,
   });
 
-  return [
-    textResult.isContentArray ? [{ type: 'text', text: content }] : content,
-    textResult.artifacts,
-  ];
+  return [content, textResult.artifacts];
 }
 
 module.exports = {

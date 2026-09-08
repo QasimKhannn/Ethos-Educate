@@ -7,6 +7,11 @@ jest.mock('@librechat/api', () => ({
   }),
   extractGeneratedDocumentArtifacts: jest.fn(),
   getGeneratedDocumentRetentionExpiry: jest.fn(),
+  isMCPServerName: jest.fn(
+    (serverName, expectedServerName) =>
+      serverName.toLowerCase().replace(/[^a-z0-9]/g, '') ===
+      expectedServerName.toLowerCase().replace(/[^a-z0-9]/g, ''),
+  ),
 }));
 
 jest.mock('crypto', () => ({
@@ -72,12 +77,7 @@ describe('persistGeneratedDocuments', () => {
         serverName: 'Downloadable-Files-Creation',
       }),
     ).resolves.toEqual([
-      [
-        {
-          type: 'text',
-          text: 'Teacher-ready worksheet files created:\n[Worksheet.docx](/api/files/download/user-123/file-456)\nAvailable until 2026-09-04T12:00:00.000Z',
-        },
-      ],
+      'Teacher-ready worksheet files created:\n[Worksheet.docx](/api/files/download/user-123/file-456)\nAvailable until 2026-09-04T12:00:00.000Z',
       ['artifact'],
     ]);
 
@@ -105,6 +105,25 @@ describe('persistGeneratedDocuments', () => {
       ],
       expiresAt,
     });
+  });
+
+  test('stores and rewrites documents from the production MCP name variant', async () => {
+    const response = [[{ type: 'text', text: 'raw MCP response' }], ['artifact']];
+
+    const result = await persistGeneratedDocuments({
+      req: request,
+      requestBody: { conversationId: 'conversation-123', messageId: 'message-123' },
+      response,
+      serverName: 'downloadable_files_creation',
+    });
+
+    expect(result[0]).toContain('[Worksheet.docx](/api/files/download/user-123/file-456)');
+    expect(processFileURL).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: 'generated_document',
+        retentionExpiresAt: expiresAt,
+      }),
+    );
   });
 
   test('does not change output from another MCP server', async () => {

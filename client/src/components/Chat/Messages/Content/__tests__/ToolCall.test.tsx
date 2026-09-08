@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RecoilRoot } from 'recoil';
 import { Tools } from 'librechat-data-provider';
+import { MessageContext } from '~/Providers';
 import ToolCall from '../ToolCall';
 
 // Mock dependencies
@@ -17,6 +18,12 @@ jest.mock('~/hooks', () => ({
       com_ui_cancelled: 'Cancelled',
       com_ui_requires_auth: 'Requires authentication',
       com_assistants_allow_sites_you_trust: 'Only allow sites you trust',
+      com_ui_generated_file_expired_title: 'Looks like this file has expired',
+      com_ui_generated_file_expired_description:
+        "Oops, it is no longer available. Ask me to regenerate it and I'll create a fresh copy.",
+      com_ui_generated_files_expired_title: 'Looks like these files have expired',
+      com_ui_generated_files_expired_description:
+        "Oops, they are no longer available. Ask me to regenerate them and I'll create fresh copies.",
     };
     return translations[key] || key;
   },
@@ -62,6 +69,8 @@ jest.mock('lucide-react', () => ({
   ChevronDown: () => <span>{'ChevronDown'}</span>,
   ChevronUp: () => <span>{'ChevronUp'}</span>,
   TriangleAlert: () => <span>{'TriangleAlert'}</span>,
+  FileClock: () => <span>{'FileClock'}</span>,
+  ImageOff: () => <span>{'ImageOff'}</span>,
 }));
 
 jest.mock('~/utils', () => ({
@@ -377,6 +386,35 @@ describe('ToolCall', () => {
 
       const attachmentGroup = screen.getByTestId('attachment-group');
       expect(JSON.parse(attachmentGroup.textContent!)).toEqual(complexAttachments);
+    });
+  });
+
+  describe('generated document retention', () => {
+    it('renders one expiry notice for all expired files from a tool result', () => {
+      const output = [
+        'Available until 2026-09-03 21:54 UTC.',
+        '[Student Worksheet.docx](/api/files/download/user-123/file-456)',
+        '[Teacher Answer Key.docx](/api/files/download/user-123/file-789)',
+      ].join('\n\n');
+
+      renderWithRecoil(
+        <MessageContext.Provider
+          value={{
+            messageId: 'message-123',
+            isExpanded: true,
+            isGeneratedDocumentToolCall: true,
+            generatedArtifactExpiries: new Map([
+              ['file-456', new Date('2026-01-01T00:00:00.000Z')],
+              ['file-789', new Date('2026-01-01T00:00:00.000Z')],
+            ]),
+          }}
+        >
+          <ToolCall {...mockProps} output={output} />
+        </MessageContext.Provider>,
+      );
+
+      expect(screen.getAllByText('Looks like these files have expired')).toHaveLength(1);
+      expect(screen.queryByText('Looks like this file has expired')).not.toBeInTheDocument();
     });
   });
 });

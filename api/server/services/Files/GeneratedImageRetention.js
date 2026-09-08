@@ -5,6 +5,7 @@ const {
   getGeneratedFileCleanupIntervalMinutes,
   getGeneratedFileRetentionMinutes,
   getGeneratedFileRetentionExpiry,
+  isMCPToolFromServer,
 } = require('@librechat/api');
 const { FileContext } = require('librechat-data-provider');
 const { getFiles, deleteFile } = require('~/models');
@@ -13,13 +14,14 @@ const { getStrategyFunctions } = require('./strategies');
 const GENERATED_FILE_RETENTION_HOURS = DEFAULT_GENERATED_FILE_RETENTION_MINUTES / 60;
 const GENERATED_FILE_RETENTION_DAYS = GENERATED_FILE_RETENTION_HOURS / 24;
 const GENERATED_IMAGE_RETENTION_DAYS = GENERATED_FILE_RETENTION_DAYS;
+const IMAGE_GENERATION_MCP_SERVER = 'Image_Generation';
 const RETAINED_GENERATED_FILE_CONTEXTS = new Set([
   FileContext.image_generation,
   FileContext.generated_document,
 ]);
 
 function isImageGenerationMcpTool(toolName) {
-  return typeof toolName === 'string' && toolName.endsWith('_mcp_Image_Generation');
+  return typeof toolName === 'string' && isMCPToolFromServer(toolName, IMAGE_GENERATION_MCP_SERVER);
 }
 
 function getGeneratedImageRetentionExpiry(now = Date.now()) {
@@ -139,6 +141,7 @@ module.exports = {
   GENERATED_FILE_RETENTION_HOURS,
   GENERATED_FILE_RETENTION_DAYS,
   GENERATED_IMAGE_RETENTION_DAYS,
+  IMAGE_GENERATION_MCP_SERVER,
   getGeneratedFileCleanupIntervalMinutes,
   getGeneratedFileRetentionMinutes,
   isImageGenerationMcpTool,

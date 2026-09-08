@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { Button, Skeleton, TooltipAnchor } from '@librechat/client';
 import { apiBaseUrl, dataService, FileContext, FileSources } from 'librechat-data-provider';
 import ExpiredGeneratedArtifact from './ExpiredGeneratedArtifact';
+import GeneratedImageNotice from './GeneratedImageNotice';
 import DialogImage from './DialogImage';
 import { isGeneratedArtifactExpired } from './generatedArtifacts';
 import { cn } from '~/utils';
@@ -327,6 +328,7 @@ const Image = ({
         args={args}
         triggerRef={triggerRef}
       />
+      {isGeneratedImage && <GeneratedImageNotice />}
     </div>
   );
 };

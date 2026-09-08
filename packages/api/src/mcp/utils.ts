@@ -1,6 +1,35 @@
 import { Constants } from 'librechat-data-provider';
 
 export const mcpToolPattern = new RegExp(`^.+${Constants.mcp_delimiter}.+$`);
+
+/** Creates a stable MCP server identifier that is independent of display-name punctuation. */
+export function canonicalizeMCPServerName(serverName: string): string {
+  return serverName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/** Compares MCP server names without relying on casing, spaces, hyphens, or underscores. */
+export function isMCPServerName(serverName: string, expectedServerName: string): boolean {
+  const canonicalServerName = canonicalizeMCPServerName(serverName);
+  return (
+    canonicalServerName.length > 0 &&
+    canonicalServerName === canonicalizeMCPServerName(expectedServerName)
+  );
+}
+
+/** Matches an MCP tool to its server using the server suffix embedded in the tool name. */
+export function isMCPToolFromServer(toolName: string, expectedServerName: string): boolean {
+  const delimiterIndex = toolName.lastIndexOf(Constants.mcp_delimiter);
+  if (delimiterIndex < 1) {
+    return false;
+  }
+
+  const serverName = toolName.slice(delimiterIndex + Constants.mcp_delimiter.length);
+  return isMCPServerName(serverName, expectedServerName);
+}
+
 /**
  * Normalizes a server name to match the pattern ^[a-zA-Z0-9_.-]+$
  * This is required for Azure OpenAI models with Tool Calling

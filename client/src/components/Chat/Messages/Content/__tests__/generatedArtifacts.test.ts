@@ -2,8 +2,11 @@ import { ContentTypes } from 'librechat-data-provider';
 import type { TMessageContentParts } from 'librechat-data-provider';
 import {
   getGeneratedDocumentExpiries,
+  getGeneratedArtifactDisplayText,
   getGeneratedDocumentLinks,
+  getGeneratedDocumentState,
   isGeneratedArtifactExpired,
+  splitGeneratedDocumentLinksByExpiry,
 } from '../generatedArtifacts';
 
 describe('generated artifact retention', () => {
@@ -61,5 +64,48 @@ describe('generated artifact retention', () => {
         fileId: 'file-789',
       },
     ]);
+  });
+
+  test('normalizes a persisted Azure MCP content array for legacy tool details', () => {
+    const managedLink = '[Worksheet.docx](/api/files/download/user-123/file-456)';
+    const output = JSON.stringify([{ type: 'text', text: `Ready.\n\n${managedLink}` }]);
+
+    expect(getGeneratedArtifactDisplayText(output)).toBe(`Ready.\n\n${managedLink}`);
+    expect(getGeneratedDocumentLinks(output)).toHaveLength(1);
+  });
+
+  test('identifies tool-owned documents without requiring an expiry timestamp', () => {
+    const content: TMessageContentParts[] = [
+      {
+        type: ContentTypes.TOOL_CALL,
+        tool_call: {
+          type: 'tool_call',
+          name: 'downloadable_document_builder',
+          output: '[Worksheet.docx](/api/files/download/user-123/file-456)',
+        },
+      },
+    ];
+
+    expect(getGeneratedDocumentState(content).toolCallFileIds.has('file-456')).toBe(true);
+  });
+
+  test('groups expired files from one tool result into one expiry state', () => {
+    const documents = getGeneratedDocumentLinks(
+      [
+        '[Student Worksheet.docx](/api/files/download/user-123/file-456)',
+        '[Teacher Answer Key.docx](/api/files/download/user-123/file-789)',
+      ].join('\n'),
+    );
+    const groups = splitGeneratedDocumentLinksByExpiry(
+      documents,
+      new Map([
+        ['file-456', new Date('2026-09-03T21:54:00.000Z')],
+        ['file-789', new Date('2026-09-03T21:54:00.000Z')],
+      ]),
+      Date.UTC(2026, 8, 3, 21, 55),
+    );
+
+    expect(groups.available).toEqual([]);
+    expect(groups.expired).toHaveLength(2);
   });
 });

@@ -3,10 +3,20 @@ import type { TMessageContentParts } from 'librechat-data-provider';
 
 export type GeneratedArtifactExpiries = ReadonlyMap<string, Date>;
 
+export type GeneratedDocumentState = Readonly<{
+  expiries: GeneratedArtifactExpiries;
+  toolCallFileIds: ReadonlySet<string>;
+}>;
+
 export type GeneratedDocumentLink = Readonly<{
   filename: string;
   href: string;
   fileId: string;
+}>;
+
+export type GeneratedDocumentLinksByExpiry = Readonly<{
+  available: GeneratedDocumentLink[];
+  expired: GeneratedDocumentLink[];
 }>;
 
 const MANAGED_DOCUMENT_LINK_PATTERN = /\/api\/files\/download\/[^/?#\s)"']+\/([^/?#\s)"']+)/g;
@@ -20,6 +30,33 @@ type ExpiryMarker = {
   expiresAt?: string;
   fileId?: string;
 };
+
+type SerializedTextContent = {
+  type?: string;
+  text?: string;
+};
+
+function getSerializedTextContent(value: string): string | null {
+  try {
+    const parsed = JSON.parse(value) as SerializedTextContent[];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return null;
+    }
+
+    const text = parsed
+      .filter((part) => part != null && part.type === 'text' && typeof part.text === 'string')
+      .map((part) => part.text as string)
+      .join('\n\n');
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Makes legacy Azure MCP content arrays readable in tool details and artifact rendering. */
+export function getGeneratedArtifactDisplayText(value: string): string {
+  return getSerializedTextContent(value) ?? value;
+}
 
 function getPartText(part: TMessageContentParts): string | null {
   if (part.type === ContentTypes.TEXT) {
@@ -36,7 +73,7 @@ function getPartText(part: TMessageContentParts): string | null {
 
   const toolCall = part[ContentTypes.TOOL_CALL];
   return toolCall != null && 'output' in toolCall && typeof toolCall.output === 'string'
-    ? toolCall.output
+    ? getGeneratedArtifactDisplayText(toolCall.output)
     : null;
 }
 
@@ -84,8 +121,9 @@ export function getGeneratedDocumentLinks(
     return [];
   }
 
+  const normalizedOutput = getGeneratedArtifactDisplayText(output);
   const documents = new Map<string, GeneratedDocumentLink>();
-  for (const match of output.matchAll(MANAGED_DOCUMENT_MARKDOWN_LINK_PATTERN)) {
+  for (const match of normalizedOutput.matchAll(MANAGED_DOCUMENT_MARKDOWN_LINK_PATTERN)) {
     const filename = match[1]?.trim();
     const href = match[2];
     const encodedFileId = match[3];
@@ -104,15 +142,37 @@ export function getGeneratedDocumentLinks(
   return [...documents.values()];
 }
 
+/** Separates a tool result's managed downloads into the two states displayed in chat. */
+export function splitGeneratedDocumentLinksByExpiry(
+  documents: readonly GeneratedDocumentLink[],
+  expiries: GeneratedArtifactExpiries | undefined,
+  now = Date.now(),
+): GeneratedDocumentLinksByExpiry {
+  const available: GeneratedDocumentLink[] = [];
+  const expired: GeneratedDocumentLink[] = [];
+
+  for (const document of documents) {
+    if (isGeneratedArtifactExpired(expiries?.get(document.fileId), now)) {
+      expired.push(document);
+      continue;
+    }
+
+    available.push(document);
+  }
+
+  return { available, expired };
+}
+
 /**
  * Generated document links are retained in prior chat messages alongside their
  * "Available until" notice. Reading that persisted message data lets expired
  * documents render cleanly even after the underlying blob and file record are removed.
  */
-export function getGeneratedDocumentExpiries(
+export function getGeneratedDocumentState(
   content: Array<TMessageContentParts | undefined> | undefined,
-): GeneratedArtifactExpiries {
+): GeneratedDocumentState {
   const expiries = new Map<string, Date>();
+  const toolCallFileIds = new Set<string>();
 
   for (const part of content ?? []) {
     if (!part) {
@@ -122,6 +182,12 @@ export function getGeneratedDocumentExpiries(
     const text = getPartText(part);
     if (!text) {
       continue;
+    }
+
+    if (part.type === ContentTypes.TOOL_CALL) {
+      for (const document of getGeneratedDocumentLinks(text)) {
+        toolCallFileIds.add(document.fileId);
+      }
     }
 
     for (const marker of text.matchAll(EXPIRY_MARKER_PATTERN)) {
@@ -144,5 +210,11 @@ export function getGeneratedDocumentExpiries(
     }
   }
 
-  return expiries;
+  return { expiries, toolCallFileIds };
+}
+
+export function getGeneratedDocumentExpiries(
+  content: Array<TMessageContentParts | undefined> | undefined,
+): GeneratedArtifactExpiries {
+  return getGeneratedDocumentState(content).expiries;
 }

@@ -30,9 +30,11 @@ jest.mock('librechat-data-provider', () => ({
 jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) =>
     ({
-      com_ui_generated_image_expired_title: 'Image expired',
+      com_ui_ai_generated_image_notice:
+        'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
+      com_ui_generated_image_expired_title: 'Looks like this image has expired',
       com_ui_generated_image_expired_description:
-        'This generated image is no longer available. Generate a new image to continue.',
+        "Oops, it is no longer available. Ask me to generate it again and I'll make a fresh one.",
     })[key] ?? key,
 }));
 
@@ -191,6 +193,26 @@ describe('Image', () => {
   });
 
   describe('common behavior', () => {
+    it('shows the review notice beneath a generated image', () => {
+      render(<Image {...defaultProps} context={FileContext.image_generation} />);
+
+      expect(
+        screen.getByText(
+          'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show the review notice for a non-generated image', () => {
+      render(<Image {...defaultProps} />);
+
+      expect(
+        screen.queryByText(
+          'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
+        ),
+      ).not.toBeInTheDocument();
+    });
+
     it('applies custom className to the button wrapper', () => {
       render(<Image {...defaultProps} className="mb-4" />);
       const button = screen.getByRole('button', { name: 'View Test image in dialog' });
@@ -245,7 +267,7 @@ describe('Image', () => {
         />,
       );
 
-      expect(screen.getByText('Image expired')).toBeInTheDocument();
+      expect(screen.getByText('Looks like this image has expired')).toBeInTheDocument();
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
       expect(getFilePreviewMock()).not.toHaveBeenCalled();
     });

@@ -57,11 +57,14 @@ describe('GeneratedImageRetention', () => {
     }
   });
 
-  test('recognizes only images produced by the configured image MCP', () => {
+  test('recognizes sandbox and production names for the image MCP', () => {
     expect(isImageGenerationMcpTool('generate_images_mcp_Image_Generation')).toBe(true);
+    expect(isImageGenerationMcpTool('generate_images_mcp_Image-generation')).toBe(true);
+    expect(isImageGenerationMcpTool('generate_images_mcp_image generation')).toBe(true);
     expect(
       isImageGenerationMcpTool('create_teacher_worksheet_mcp_Downloadable-Files-Creation'),
     ).toBe(false);
+    expect(isImageGenerationMcpTool('generate_images')).toBe(false);
   });
 
   test('sets generated image retention to 24 hours', () => {

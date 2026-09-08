@@ -8,6 +8,7 @@ import MermaidErrorBoundary from '~/components/Messages/Content/MermaidErrorBoun
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import DialogImage from './DialogImage';
 import ExpiredGeneratedArtifact from './ExpiredGeneratedArtifact';
+import GeneratedImageNotice from './GeneratedImageNotice';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext, useMessageContext } from '~/Providers';
@@ -123,7 +124,11 @@ const getAnchorText = (children: React.ReactNode): string =>
 export const a: React.ElementType = memo(function MarkdownAnchor({ href, children }: TAnchorProps) {
   const user = useRecoilValue(store.user);
   const { showToast } = useToastContext();
-  const { generatedArtifactExpiries } = useMessageContext();
+  const {
+    generatedArtifactExpiries,
+    generatedDocumentToolCallFileIds,
+    isGeneratedDocumentToolCall,
+  } = useMessageContext();
   const localize = useLocalize();
   const [expiredFromResponse, setExpiredFromResponse] = useState(false);
 
@@ -204,8 +209,14 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
     );
   }
 
+  if (!isGeneratedDocumentToolCall && generatedDocumentToolCallFileIds?.has(file_id)) {
+    return null;
+  }
+
   if (hasExpiredRetention || expiredFromResponse) {
-    return <ExpiredGeneratedArtifact artifactType="document" inline />;
+    return (
+      <ExpiredGeneratedArtifact artifactType="document" inline={!isGeneratedDocumentToolCall} />
+    );
   }
 
   const handleDownload = async (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -347,7 +358,7 @@ function GeneratedImage({
 
   return (
     <>
-      <span className="my-3 inline-flex max-w-full align-top">
+      <span className="my-3 inline-block max-w-lg align-top">
         <span className="relative inline-flex max-w-full overflow-hidden rounded-md border border-border-light bg-surface-primary">
           <button
             ref={triggerRef}
@@ -382,6 +393,7 @@ function GeneratedImage({
             }
           />
         </span>
+        <GeneratedImageNotice />
       </span>
       <DialogImage
         isOpen={isOpen}

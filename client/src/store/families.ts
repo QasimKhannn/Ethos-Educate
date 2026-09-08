@@ -259,6 +259,14 @@ const anySubmittingSelector = selector<boolean>({
   },
 });
 
+const hasPendingFilesSelector = selector<boolean>({
+  key: 'hasPendingFilesSelector',
+  get: ({ get }) => {
+    const keys = get(conversationKeysAtom);
+    return keys.some((key) => get(filesByIndex(key)).size > 0);
+  },
+});
+
 const optionSettingsFamily = atomFamily<TOptionSettings, string | number>({
   key: 'optionSettingsByIndex',
   default: {},
@@ -463,6 +471,7 @@ export default {
   latestMessageFamily,
   messagesSiblingIdxFamily,
   anySubmittingSelector,
+  hasPendingFilesSelector,
   allConversationsSelector,
   conversationIdByIndex,
   conversationEndpointByIndex,
