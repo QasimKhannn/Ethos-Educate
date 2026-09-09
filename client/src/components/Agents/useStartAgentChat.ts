@@ -57,27 +57,7 @@ export default function useStartAgentChat() {
       clearMessagesCache(queryClient, conversation?.conversationId);
       queryClient.invalidateQueries([QueryKeys.messages]);
 
-      const template = {
-        conversationId: Constants.NEW_CONVO as string,
-        endpoint: EModelEndpoint.agents,
-        agent_id: agent.id,
-        ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
-        title: localize('com_agents_chat_with', {
-          name: agentDisplayName || localize('com_ui_agent'),
-        }),
-      };
-
-      const currentConvo = getDefaultConversation({
-        conversation: { ...(conversation ?? {}), ...template },
-        preset: template,
-      });
-
       if (initialPrompt?.trim()) {
-        newConversation({
-          template: currentConvo,
-          preset: template,
-        });
-
         const intakeTemplate = getAgentIntakeTemplate(agent);
         const intakeLaunch = intakeTemplate
           ? createAgentIntakeLaunch({
@@ -104,6 +84,21 @@ export default function useStartAgentChat() {
         navigate(`/c/new?${params.toString()}`);
         return;
       }
+
+      const template = {
+        conversationId: Constants.NEW_CONVO as string,
+        endpoint: EModelEndpoint.agents,
+        agent_id: agent.id,
+        ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
+        title: localize('com_agents_chat_with', {
+          name: agentDisplayName || localize('com_ui_agent'),
+        }),
+      };
+
+      const currentConvo = getDefaultConversation({
+        conversation: { ...(conversation ?? {}), ...template },
+        preset: template,
+      });
 
       newConversation({
         template: currentConvo,

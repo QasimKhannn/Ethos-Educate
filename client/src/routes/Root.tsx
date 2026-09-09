@@ -41,6 +41,8 @@ export default function Root() {
   // sidebar ONLY for /cowork routes. All other routes are unaffected.
   const location = useLocation();
   const isCoworkRoute = location.pathname.startsWith('/cowork');
+  const shouldKeepNavigationOpen =
+    location.pathname.startsWith('/agents') || location.pathname === '/c/new';
   const onboardingStorageKey = useMemo(() => {
     if (!user?.id) {
       return null;
@@ -88,6 +90,21 @@ export default function Root() {
   }, [termsData]);
 
   useEffect(() => {
+    if (!shouldKeepNavigationOpen) {
+      return;
+    }
+
+    setNavVisible((previous) => {
+      if (previous) {
+        return previous;
+      }
+
+      localStorage.setItem('navVisible', JSON.stringify(true));
+      return true;
+    });
+  }, [location.pathname, location.search, shouldKeepNavigationOpen]);
+
+  useEffect(() => {
     const root = document.documentElement;
     if (isCoworkRoute || root.dataset.routeTransition !== 'cowork-to-chat') {
       return;
@@ -127,11 +144,9 @@ export default function Root() {
                     isCoworkRoute ? 'app-route-shell-cowork' : 'app-route-shell-chat'
                   }`}
                 >
-                  {!isCoworkRoute && <Nav navVisible={navVisible} setNavVisible={setNavVisible} />}
+                  <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
                   <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
-                    {!isCoworkRoute && (
-                      <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
-                    )}
+                    <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
                     <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                   </div>
                 </div>

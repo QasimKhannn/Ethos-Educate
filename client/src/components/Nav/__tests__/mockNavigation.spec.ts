@@ -23,6 +23,9 @@ const createConversation = (conversationId: string): TConversation => ({
 describe('mockNavigation', () => {
   it('limits demo navigation to the dedicated mock account', () => {
     expect(isMockNavigationUser({ name: 'Mock User', username: 'mock' })).toBe(true);
+    expect(isMockNavigationUser({ name: 'Mock Student', username: 'mock-student-sep9' })).toBe(
+      true,
+    );
     expect(isMockNavigationUser({ name: 'Teacher', username: 'teacher' })).toBe(false);
     expect(isMockNavigationUser()).toBe(false);
   });

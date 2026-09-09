@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { PanelLeftClose, SquarePen } from 'lucide-react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { QueryKeys } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { TooltipAnchor, Button } from '@librechat/client';
@@ -8,7 +8,6 @@ import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenS
 import { SIDEBAR_FOCUS_DELAY_MS } from '~/components/Nav/sidebarMotion';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
-import { getProjectChatPath } from '~/components/Projects/utils';
 import store from '~/store';
 
 export default function NewChat({
@@ -23,14 +22,10 @@ export default function NewChat({
   headerButtons?: React.ReactNode;
 }) {
   const queryClient = useQueryClient();
-  const { projectId: routeProjectId } = useParams();
-  const [searchParams] = useSearchParams();
   /** Note: this component needs an explicit index passed if using more than one */
   const { newConversation: newConvo } = useNewConvo(index);
   const localize = useLocalize();
   const { conversation } = store.useCreateConversationAtom(index);
-  const projectId = routeProjectId ?? searchParams.get('projectId') ?? undefined;
-  const newChatPath = projectId ? getProjectChatPath(projectId) : '/c/new';
 
   const handleToggleNav = useCallback(() => {
     toggleNav();
@@ -49,9 +44,9 @@ export default function NewChat({
       e.preventDefault();
       clearMessagesCache(queryClient, conversation?.conversationId);
       queryClient.invalidateQueries([QueryKeys.messages]);
-      newConvo(projectId ? { template: { projectId } } : undefined);
+      newConvo();
     },
-    [queryClient, conversation, newConvo, projectId],
+    [queryClient, conversation, newConvo],
   );
 
   return (
@@ -77,7 +72,7 @@ export default function NewChat({
         <div className="sidebar-toolbar-actions flex gap-1">
           {headerButtons}
           <TooltipAnchor
-            description={localize('com_ui_new_chat')}
+            description={localize('com_nav_tooltip_new_chat')}
             render={
               <Button
                 asChild
@@ -93,7 +88,7 @@ export default function NewChat({
                 aria-label={localize('com_ui_new_chat')}
                 className="sidebar-toolbar-button"
               >
-                <Link to={newChatPath} state={{ focusChat: true }} onClick={clickHandler}>
+                <Link to="/c/new" state={{ focusChat: true }} onClick={clickHandler}>
                   <SquarePen aria-hidden="true" className="sidebar-toolbar-symbol" />
                 </Link>
               </Button>

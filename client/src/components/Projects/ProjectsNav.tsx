@@ -2,6 +2,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Folder, FolderPlus, LibraryBig } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TProject } from 'librechat-data-provider';
+import {
+  createMockNavigationDraftConversationId,
+  getMockNavigationProjects,
+  isMockNavigationUser,
+} from '~/components/Nav/mockNavigation';
 import type { MockProjectAccent } from '~/components/Nav/mockNavigation';
 import { useProjectsQuery } from '~/data-provider';
 import { useAuthContext, useLocalize, useLocalStorage } from '~/hooks';
@@ -40,7 +45,7 @@ const ProjectRow = memo(
     accent?: MockProjectAccent;
     conversationCount: number;
     onOpen: (trigger: HTMLButtonElement) => void;
-    onOpenProject: () => void;
+    onOpenProject: (trigger: HTMLButtonElement) => void;
   }) => {
     const localize = useLocalize();
     return (
@@ -58,7 +63,7 @@ const ProjectRow = memo(
           <button
             type="button"
             className="sidebar-project-main-button flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none"
-            onClick={onOpenProject}
+            onClick={(event) => onOpenProject(event.currentTarget)}
             aria-label={localize('com_projects_open_project_name', { name: project.name })}
           >
             <span
@@ -136,14 +141,29 @@ function ProjectsNav({
     {},
   );
   const favoriteProjectIdSet = useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
+  const mockNavigationProjects = useMemo<NavigationProject[]>(() => {
+    if (!isMockNavigationUser(user)) {
+      return [];
+    }
+
+    return getMockNavigationProjects(localize).map(
+      ({ accent, conversations, isFavorite, lastWorkedAt, project }) => ({
+        accent,
+        demoConversations: conversations,
+        isFavorite,
+        lastWorkedAt,
+        project,
+      }),
+    );
+  }, [localize, user]);
   const navigationProjects = useMemo<NavigationProject[]>(() => {
     const realProjects = projects.map((project) => ({
       isFavorite: favoriteProjectIdSet.has(project._id),
       lastWorkedAt: projectActivity[project._id] ?? project.updatedAt ?? project.createdAt,
       project,
     }));
-    return realProjects;
-  }, [favoriteProjectIdSet, projectActivity, projects]);
+    return [...mockNavigationProjects, ...realProjects];
+  }, [favoriteProjectIdSet, mockNavigationProjects, projectActivity, projects]);
   const rankedNavigationProjects = useMemo(
     () => rankProjects(navigationProjects),
     [navigationProjects],
@@ -222,6 +242,16 @@ function ProjectsNav({
     navigate(`/projects/${projectId}?tab=chats`);
   };
 
+  const handleNewProjectConversation = (projectId: string, isDemoProject = false) => {
+    markProjectActivity(projectId);
+    setSelectedProjectId(null);
+    if (isSmallScreen) {
+      onDismissNavigation?.();
+    }
+    const path = isDemoProject ? `/c/${createMockNavigationDraftConversationId()}` : '/c/new';
+    navigate(`${path}?projectId=${encodeURIComponent(projectId)}`, { state: { focusChat: true } });
+  };
+
   const handleConversationClick = (projectId: string, conversationId: string) => {
     markProjectActivity(projectId);
     setSelectedProjectId(null);
@@ -262,7 +292,13 @@ function ProjectsNav({
               accent={accent}
               conversationCount={conversationCount}
               onOpen={(trigger) => handleProjectClick(project._id, trigger)}
-              onOpenProject={() => handleOpenProject(project._id)}
+              onOpenProject={(trigger) => {
+                if (demoConversations != null) {
+                  handleProjectClick(project._id, trigger);
+                  return;
+                }
+                handleOpenProject(project._id);
+              }}
             />
           );
         })}
@@ -303,6 +339,12 @@ function ProjectsNav({
           isMobile={isSmallScreen}
           onClose={closeProjectPanel}
           onDismissNavigation={dismissMobileNavigation}
+          onNewConversation={() =>
+            handleNewProjectConversation(
+              selectedNavigationProject.project._id,
+              selectedNavigationProject.demoConversations != null,
+            )
+          }
           onOpenProject={
             selectedNavigationProject.demoConversations == null
               ? () => handleOpenProject(selectedNavigationProject.project._id)

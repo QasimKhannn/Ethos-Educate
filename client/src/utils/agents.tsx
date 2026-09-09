@@ -41,6 +41,7 @@ const staticAgentIconFilesBySlug = new Map<string, string>([
   ['educational-grants-and-funding-finder', 'educational-grants-funding-finder.svg'],
   ['educational-grants-funding-finder', 'educational-grants-funding-finder.svg'],
   ['email-drafter', 'email-drafter.svg'],
+  ['essay-grader', 'essay-grader.svg'],
   ['eoy-intech-support-guide', 'eoy-intech-support-guide.svg'],
   ['eoy-power-school-guide', 'eoy-power-school-guide.svg'],
   ['ethos-educate-support', 'ethos-educate-support.svg'],

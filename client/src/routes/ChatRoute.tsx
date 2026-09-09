@@ -68,7 +68,7 @@ export default function ChatRoute() {
   const mockConversation = useMemo(
     () =>
       isMockNavigationConversation(conversationId)
-        ? getMockNavigationConversation(conversationId, localize)
+        ? getMockNavigationConversation(conversationId, localize, projectId)
         : undefined,
     [conversationId, localize],
   );
@@ -333,18 +333,6 @@ export default function ChatRoute() {
 
   if (!isAuthenticated) {
     return null;
-  }
-
-  const isFreshNewConversation =
-    conversation?.conversationId === Constants.NEW_CONVO &&
-    (projectId == null || conversation.projectId === projectId);
-
-  if (isRouteNewConvo && !isFreshNewConversation) {
-    return (
-      <div className="flex h-screen items-center justify-center" aria-live="polite" role="status">
-        <Spinner className="text-text-primary" />
-      </div>
-    );
   }
 
   // if not a conversation

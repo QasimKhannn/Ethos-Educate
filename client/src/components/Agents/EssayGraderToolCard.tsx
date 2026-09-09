@@ -1,22 +1,27 @@
 import React from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLocalize } from '~/hooks';
+import { getShortStorefrontDescription } from './storefrontDescription';
 
 const essayGraderIcon = '/assets/agent-icons/essay-grader.svg';
 
 interface EssayGraderToolCardProps {
   variant: 'card' | 'storefront';
   viewMode?: 'compact' | 'large';
+  viewVariant?: 'gallery' | 'box' | 'spotlight';
 }
 
 const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
   variant,
   viewMode = 'large',
+  viewVariant = 'gallery',
 }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
   const title = localize('com_essay_grader_title');
   const description = localize('com_essay_grader_toolkit_description');
+  const storefrontDescription = getShortStorefrontDescription(title, description);
 
   const openTool = () => {
     navigate('/tools/essay-grader');
@@ -26,8 +31,9 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
     return (
       <button
         type="button"
-        className="agents-marketplace-storefront-row"
+        className="agents-marketplace-storefront-row agents-marketplace-storefront-row--directory"
         data-view-mode={viewMode}
+        data-view-variant={viewVariant}
         aria-label={`${title}. ${description}`}
         onClick={openTool}
       >
@@ -41,9 +47,17 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
           </div>
         </div>
         <div className="agents-marketplace-storefront-copy">
-          <h3 className="agents-marketplace-storefront-title">{title}</h3>
-          <p className="agents-marketplace-storefront-description">{description}</p>
+          <div className="agents-marketplace-storefront-heading">
+            <h3 className="agents-marketplace-storefront-title">{title}</h3>
+          </div>
+          <p className="agents-marketplace-storefront-description">{storefrontDescription}</p>
         </div>
+        <ArrowUpRight
+          aria-hidden="true"
+          className="agents-marketplace-storefront-directory-arrow"
+          size={18}
+          strokeWidth={1.8}
+        />
       </button>
     );
   }
@@ -52,11 +66,13 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
     <article
       className="agent-card-shell group overflow-hidden rounded-xl border"
       data-view-mode={viewMode}
+      data-view-variant={viewVariant}
     >
       <button
         type="button"
         className="agent-card-trigger w-full text-left"
         data-view-mode={viewMode}
+        data-view-variant={viewVariant}
         aria-label={`${title}. ${description}`}
         onClick={openTool}
       >

@@ -266,19 +266,21 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
           </motion.div>
           {headingName ? (
             <div className="chat-landing-heading-copy">
-              <SplitText
-                key={`split-text-${headingName}`}
-                text={headingName}
-                className={`chat-landing-title ${getTextSizeClass(headingName)} font-medium text-text-primary`}
-                delay={titleAnimationDelay}
-                textAlign="center"
-                animationFrom={titleAnimationFrom}
-                animationTo={titleRevealAnimationTo}
-                easing={easings.easeOutCubic}
-                threshold={0}
-                rootMargin="0px"
-                onLineCountChange={handleLineCountChange}
-              />
+              <div className="chat-landing-agent-title-row">
+                <SplitText
+                  key={`split-text-${headingName}`}
+                  text={headingName}
+                  className={`chat-landing-title ${getTextSizeClass(headingName)} font-medium text-text-primary`}
+                  delay={titleAnimationDelay}
+                  textAlign="center"
+                  animationFrom={titleAnimationFrom}
+                  animationTo={titleRevealAnimationTo}
+                  easing={easings.easeOutCubic}
+                  threshold={0}
+                  rootMargin="0px"
+                  onLineCountChange={handleLineCountChange}
+                />
+              </div>
             </div>
           ) : (
             <div className="chat-landing-heading-copy">
