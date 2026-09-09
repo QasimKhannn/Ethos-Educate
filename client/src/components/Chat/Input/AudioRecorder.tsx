@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { MicOff } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TooltipAnchor, ListeningIcon, Spinner } from '@librechat/client';
 import { useLocalize, useSpeechToText, useGetAudioSettings } from '~/hooks';
 import { useChatFormContext } from '~/Providers';
@@ -7,6 +6,14 @@ import { chatMessageSubmittedEvent, globalAudioId } from '~/common';
 import { cn } from '~/utils';
 
 const isExternalSTT = (speechToTextEndpoint: string) => speechToTextEndpoint === 'external';
+
+const formatRecordingTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
 export default function AudioRecorder({
   disabled,
   methods,
@@ -21,6 +28,7 @@ export default function AudioRecorder({
   const { speechToTextEndpoint } = useGetAudioSettings();
 
   const existingTextRef = useRef<string>('');
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const onTranscriptionComplete = useCallback((text: string) => {
     if (text) {
@@ -75,6 +83,20 @@ export default function AudioRecorder({
     };
   }, [isListening, resetRecording, setValue]);
 
+  useEffect(() => {
+    if (!isListening) {
+      setRecordingSeconds(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 250);
+
+    return () => window.clearInterval(intervalId);
+  }, [isListening]);
+
   if (!textAreaRef.current) {
     return null;
   }
@@ -92,15 +114,55 @@ export default function AudioRecorder({
     }
   };
 
-  const renderIcon = () => {
-    if (isListening === true) {
-      return <MicOff className="stroke-red-500" />;
-    }
-    if (isLoading === true) {
-      return <Spinner className="stroke-text-secondary" />;
-    }
-    return <ListeningIcon className="stroke-text-secondary" />;
-  };
+  if (isListening) {
+    return (
+      <div className="chat-composer-recording-shell" role="status" aria-live="polite">
+        <div className="chat-composer-recording-meta">
+          <span className="chat-composer-recording-dot" aria-hidden="true" />
+          <span className="chat-composer-recording-meter" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, index) => (
+              <span key={index} className="chat-composer-recording-bar" />
+            ))}
+          </span>
+          <span className="chat-composer-recording-label">{localize('com_ui_recording')}</span>
+          <span className="chat-composer-recording-time">
+            {formatRecordingTime(recordingSeconds)}
+          </span>
+        </div>
+        <TooltipAnchor
+          description={localize('com_ui_stop_recording')}
+          render={
+            <button
+              id="audio-recorder"
+              type="button"
+              className="chat-composer-recording-stop"
+              aria-label={localize('com_ui_stop_recording')}
+              onClick={handleStopRecording}
+            >
+              <span className="chat-composer-recording-stop-icon" aria-hidden="true" />
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div
+        className="chat-composer-recording-shell chat-composer-recording-shell-processing"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="chat-composer-recording-meta">
+          <Spinner className="chat-composer-recording-spinner" />
+          <span className="chat-composer-recording-label">
+            {localize('com_ui_processing_audio')}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipAnchor
@@ -110,15 +172,12 @@ export default function AudioRecorder({
           id="audio-recorder"
           type="button"
           aria-label={localize('com_ui_use_micrphone')}
-          onClick={isListening === true ? handleStopRecording : handleStartRecording}
+          onClick={handleStartRecording}
           disabled={disabled}
-          className={cn(
-            'flex size-9 items-center justify-center rounded-full p-1 transition-colors hover:bg-surface-hover',
-          )}
+          className={cn('chat-composer-utility-button')}
           title={localize('com_ui_use_micrphone')}
-          aria-pressed={isListening}
         >
-          {renderIcon()}
+          <ListeningIcon className="chat-composer-control-icon stroke-current" />
         </button>
       }
     />
