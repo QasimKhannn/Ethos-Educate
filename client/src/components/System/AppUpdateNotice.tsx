@@ -10,6 +10,7 @@ import { subscribeToServiceWorkerUpdate } from '~/utils/serviceWorkerUpdate';
 
 const automaticUpdateDelay = 30 * 1000;
 const postponedUpdateDelay = 5 * 60 * 1000;
+const updateReloadFallbackDelay = 15 * 1000;
 
 const composerHasText = () => {
   const composer = document.getElementById(mainTextareaId);
@@ -45,7 +46,16 @@ const AppUpdateNotice = () => {
     }
 
     setIsUpdating(true);
-    await updateServiceWorker();
+    const reloadFallback = window.setTimeout(() => {
+      window.location.reload();
+    }, updateReloadFallbackDelay);
+
+    try {
+      await updateServiceWorker();
+    } catch {
+      window.clearTimeout(reloadFallback);
+      setIsUpdating(false);
+    }
   }, [isUpdating, updateServiceWorker]);
 
   useEffect(() => {
