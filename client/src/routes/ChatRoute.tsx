@@ -335,6 +335,18 @@ export default function ChatRoute() {
     return null;
   }
 
+  const isFreshNewConversation =
+    conversation?.conversationId === Constants.NEW_CONVO &&
+    (projectId == null || conversation.projectId === projectId);
+
+  if (isRouteNewConvo && !isFreshNewConversation) {
+    return (
+      <div className="flex h-screen items-center justify-center" aria-live="polite" role="status">
+        <Spinner className="text-text-primary" />
+      </div>
+    );
+  }
+
   // if not a conversation
   if (conversation?.conversationId === Constants.SEARCH) {
     return null;

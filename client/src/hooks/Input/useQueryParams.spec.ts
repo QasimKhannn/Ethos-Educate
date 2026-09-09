@@ -430,6 +430,43 @@ describe('useQueryParams', () => {
     expect(mockSubmitMessage).toHaveBeenCalled();
   });
 
+  it('keeps the project scope after auto-submitting a new project chat prompt', () => {
+    const mockSetValue = jest.fn();
+    const mockHandleSubmit = jest.fn((callback) => () => callback({ text: 'test message' }));
+    const mockSubmitMessage = jest.fn();
+    const mockTextAreaRef = {
+      current: {
+        focus: jest.fn(),
+        setSelectionRange: jest.fn(),
+      } as unknown as HTMLTextAreaElement,
+    };
+
+    (useChatFormContext as jest.Mock).mockReturnValue({
+      setValue: mockSetValue,
+      getValues: jest.fn().mockReturnValue(''),
+      handleSubmit: mockHandleSubmit,
+    });
+    (useSubmitMessage as jest.Mock).mockReturnValue({ submitMessage: mockSubmitMessage });
+    setUrlParams({
+      projectId: 'project-a',
+      q: 'Pre-upload checkpoint. Reply with READY.',
+      submit: 'true',
+    });
+
+    renderHook(() => useQueryParams({ textAreaRef: mockTextAreaRef }));
+
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(mockSubmitMessage).toHaveBeenCalled();
+    const mockSetSearchParams = (useSearchParams as jest.Mock).mock.results[0].value[1];
+    const [params, options] = mockSetSearchParams.mock.calls[0];
+    expect(params).toBeInstanceOf(URLSearchParams);
+    expect(params.toString()).toBe('projectId=project-a');
+    expect(options).toEqual(expect.objectContaining({ replace: true }));
+  });
+
   it('should defer submission when settings need to be applied first', () => {
     // Setup
     const mockSetValue = jest.fn();
