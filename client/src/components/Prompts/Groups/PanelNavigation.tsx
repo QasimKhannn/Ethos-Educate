@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Button } from '@librechat/client';
+import { Button, TooltipAnchor } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 
 function PanelNavigation({
@@ -23,24 +23,34 @@ function PanelNavigation({
     <div className="flex items-center justify-between">
       <div className="flex gap-2 pl-1">{children}</div>
       <div className="flex items-center gap-2" role="navigation" aria-label="Pagination">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onPrevious}
-          disabled={!hasPreviousPage || isLoading}
-          aria-label={localize('com_ui_prev')}
-        >
-          {localize('com_ui_prev')}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onNext}
-          disabled={!hasNextPage || isLoading}
-          aria-label={localize('com_ui_next')}
-        >
-          {localize('com_ui_next')}
-        </Button>
+        <TooltipAnchor
+          description={localize('com_ui_tooltip_previous_page')}
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrevious}
+              disabled={!hasPreviousPage || isLoading}
+              aria-label={localize('com_ui_tooltip_previous_page')}
+            >
+              {localize('com_ui_prev')}
+            </Button>
+          }
+        />
+        <TooltipAnchor
+          description={localize('com_ui_tooltip_next_page')}
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNext}
+              disabled={!hasNextPage || isLoading}
+              aria-label={localize('com_ui_tooltip_next_page')}
+            >
+              {localize('com_ui_next')}
+            </Button>
+          }
+        />
       </div>
     </div>
   );

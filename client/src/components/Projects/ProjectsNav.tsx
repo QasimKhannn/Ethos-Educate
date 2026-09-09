@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Folder, FolderPlus, LibraryBig } from 'lucide-react';
+import { TooltipAnchor } from '@librechat/client';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TProject } from 'librechat-data-provider';
 import {
@@ -266,7 +267,14 @@ function ProjectsNav({
   return (
     <div className="sidebar-projects-section sidebar-utility-section mt-1 pt-2">
       <div className="sidebar-projects-header flex items-center justify-between px-2 pb-0.5">
-        <span className="sidebar-section-heading text-xs">{localize('com_projects_projects')}</span>
+        <TooltipAnchor
+          description={localize('com_ui_tooltip_projects')}
+          render={
+            <span className="sidebar-section-heading text-xs">
+              {localize('com_projects_projects')}
+            </span>
+          }
+        />
         <span className="sidebar-section-total" aria-hidden="true">
           {rankedNavigationProjects.length}
         </span>

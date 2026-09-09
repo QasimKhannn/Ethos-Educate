@@ -96,7 +96,7 @@ export function SortFilterHeader<TData, TValue>({
         setIsOpen={setIsOpen}
         trigger={
           <TooltipAnchor
-            description={ariaLabel || title}
+            description={filters ? localize('com_ui_tooltip_filter_column') : ariaLabel || title}
             side="top"
             render={
               <Menu.MenuButton

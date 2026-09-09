@@ -69,10 +69,10 @@ export default function MCPCardActions({
         {canEdit && (
           <TooltipAnchor
             ref={editButtonRef}
-            description={localize('com_ui_edit')}
+            description={localize('com_ui_tooltip_edit_mcp_server')}
             side="top"
             className={buttonBaseClass}
-            aria-label={localize('com_ui_edit')}
+            aria-label={localize('com_ui_tooltip_edit_mcp_server')}
             role="button"
             onClick={onEditClick}
           >
@@ -83,10 +83,10 @@ export default function MCPCardActions({
         {/* Spinner with cancel on hover */}
         {canCancel ? (
           <TooltipAnchor
-            description={localize('com_ui_cancel')}
+            description={localize('com_ui_tooltip_cancel_mcp_edit')}
             side="top"
             className={cn(buttonBaseClass, 'group')}
-            aria-label={localize('com_ui_cancel')}
+            aria-label={localize('com_ui_tooltip_cancel_mcp_edit')}
             role="button"
             onClick={onCancel}
           >
@@ -113,10 +113,10 @@ export default function MCPCardActions({
       {canEdit && (
         <TooltipAnchor
           ref={editButtonRef}
-          description={localize('com_ui_edit')}
+          description={localize('com_ui_tooltip_edit_mcp_server')}
           side="top"
           className={buttonBaseClass}
-          aria-label={localize('com_ui_edit')}
+          aria-label={localize('com_ui_tooltip_edit_mcp_server')}
           role="button"
           onClick={onEditClick}
         >
@@ -127,10 +127,10 @@ export default function MCPCardActions({
       {/* Connect button - for disconnected or error states */}
       {(isDisconnected || isError) && (
         <TooltipAnchor
-          description={localize('com_nav_mcp_connect')}
+          description={localize('com_ui_tooltip_connect_mcp_server')}
           side="top"
           className={buttonBaseClass}
-          aria-label={localize('com_nav_mcp_connect')}
+          aria-label={localize('com_ui_tooltip_connect_mcp_server')}
           role="button"
           onClick={() => onInitialize()}
         >
@@ -141,10 +141,10 @@ export default function MCPCardActions({
       {/* Configure button - for connected servers with custom vars */}
       {isConnected && hasCustomUserVars && (
         <TooltipAnchor
-          description={localize('com_ui_configure')}
+          description={localize('com_ui_tooltip_configure_mcp_server')}
           side="top"
           className={buttonBaseClass}
-          aria-label={localize('com_ui_configure')}
+          aria-label={localize('com_ui_tooltip_configure_mcp_server')}
           role="button"
           onClick={onConfigClick}
         >
@@ -155,10 +155,10 @@ export default function MCPCardActions({
       {/* Refresh button - for connected servers (allows reconnection) */}
       {isConnected && (
         <TooltipAnchor
-          description={localize('com_nav_mcp_reconnect')}
+          description={localize('com_ui_tooltip_reconnect_mcp_server')}
           side="top"
           className={buttonBaseClass}
-          aria-label={localize('com_nav_mcp_reconnect')}
+          aria-label={localize('com_ui_tooltip_reconnect_mcp_server')}
           role="button"
           onClick={() => onInitialize()}
         >
@@ -169,10 +169,10 @@ export default function MCPCardActions({
       {/* Revoke button - for OAuth servers (available regardless of connection state) */}
       {serverStatus?.requiresOAuth && onRevoke && (
         <TooltipAnchor
-          description={localize('com_ui_revoke')}
+          description={localize('com_ui_tooltip_revoke_mcp_access')}
           side="top"
           className={cn(buttonBaseClass, 'text-red-500 hover:text-red-600')}
-          aria-label={localize('com_ui_revoke')}
+          aria-label={localize('com_ui_tooltip_revoke_mcp_access')}
           role="button"
           onClick={onRevoke}
         >
