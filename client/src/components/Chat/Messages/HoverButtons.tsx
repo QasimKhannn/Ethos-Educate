@@ -1,27 +1,22 @@
 import React, { useState, useMemo, memo } from 'react';
 import { useRecoilState } from 'recoil';
-import type { TConversation, TMessage, TFeedback } from 'librechat-data-provider';
-import { EditIcon, Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '@librechat/client';
+import type { TConversation, TMessage } from 'librechat-data-provider';
+import { Clipboard, CheckMark, ContinueIcon } from '@librechat/client';
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
-import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
-import Feedback from './Feedback';
 import { cn } from '~/utils';
 import store from '~/store';
 
 type THoverButtons = {
   isEditing: boolean;
-  enterEdit: (cancel?: boolean) => void;
   copyToClipboard: (setIsCopied: React.Dispatch<React.SetStateAction<boolean>>) => void;
   conversation: TConversation | null;
   isSubmitting: boolean;
   message: TMessage;
-  regenerate: () => void;
   handleContinue: (e: React.MouseEvent<HTMLButtonElement>) => void;
   latestMessageId?: string;
   isLast: boolean;
   index: number;
-  handleFeedback?: ({ feedback }: { feedback: TFeedback | undefined }) => void;
 };
 
 type HoverButtonProps = {
@@ -112,16 +107,13 @@ HoverButton.displayName = 'HoverButton';
 const HoverButtons = ({
   index,
   isEditing,
-  enterEdit,
   copyToClipboard,
   conversation,
   isSubmitting,
   message,
-  regenerate,
   handleContinue,
   latestMessageId,
   isLast,
-  handleFeedback,
 }: THoverButtons) => {
   const localize = useLocalize();
   const [isCopied, setIsCopied] = useState(false);
@@ -146,13 +138,7 @@ const HoverButtons = ({
     latestMessageId: latestMessageId,
   });
 
-  const {
-    hideEditButton,
-    regenerateEnabled,
-    continueSupported,
-    forkingSupported,
-    isEditableEndpoint,
-  } = generationCapabilities;
+  const { continueSupported } = generationCapabilities;
 
   if (!conversation) {
     return null;
@@ -161,26 +147,8 @@ const HoverButtons = ({
   const { isCreatedByUser, error } = message;
 
   if (error === true) {
-    return (
-      <div className="visible flex justify-center self-end lg:justify-start">
-        {regenerateEnabled && (
-          <HoverButton
-            onClick={regenerate}
-            title={localize('com_ui_regenerate')}
-            icon={<RegenerateIcon size="19" />}
-            isLast={isLast}
-          />
-        )}
-      </div>
-    );
+    return null;
   }
-
-  const onEdit = () => {
-    if (isEditing) {
-      return enterEdit(true);
-    }
-    enterEdit();
-  };
 
   const handleCopy = () => copyToClipboard(setIsCopied);
 
@@ -218,46 +186,6 @@ const HoverButtons = ({
           isSubmitting && isCreatedByUser ? 'md:opacity-0 md:group-hover:opacity-100' : '',
         )}
       />
-
-      {/* Edit Button */}
-      {isEditableEndpoint && (
-        <HoverButton
-          id={`edit-${message.messageId}`}
-          onClick={onEdit}
-          title={localize('com_ui_edit')}
-          icon={<EditIcon size="19" />}
-          isActive={isEditing}
-          isVisible={!hideEditButton}
-          isDisabled={hideEditButton}
-          isLast={isLast}
-          className={isCreatedByUser ? '' : 'active'}
-        />
-      )}
-
-      {/* Fork Button */}
-      <Fork
-        messageId={message.messageId}
-        conversationId={conversation.conversationId}
-        forkingSupported={forkingSupported}
-        latestMessageId={latestMessageId}
-        isLast={isLast}
-      />
-
-      {/* Feedback Buttons */}
-      {!isCreatedByUser && handleFeedback != null && (
-        <Feedback handleFeedback={handleFeedback} feedback={message.feedback} isLast={isLast} />
-      )}
-
-      {/* Regenerate Button */}
-      {regenerateEnabled && (
-        <HoverButton
-          onClick={regenerate}
-          title={localize('com_ui_regenerate')}
-          icon={<RegenerateIcon size="19" />}
-          isLast={isLast}
-          className="active"
-        />
-      )}
 
       {/* Continue Button */}
       {continueSupported && (
