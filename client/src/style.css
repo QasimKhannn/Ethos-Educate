@@ -10299,7 +10299,7 @@ body:has(.chat-composer-shell-focused) .sidebar-rail {
 .sidebar-rail .sidebar-convo-row-active {
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 2px 0 0 #daac60;
+  box-shadow: none;
 }
 
 .sidebar-convo-options {
