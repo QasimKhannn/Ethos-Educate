@@ -144,9 +144,11 @@ export default function Root() {
                     isCoworkRoute ? 'app-route-shell-cowork' : 'app-route-shell-chat'
                   }`}
                 >
-                  <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
+                  {!isCoworkRoute && <Nav navVisible={navVisible} setNavVisible={setNavVisible} />}
                   <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
-                    <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
+                    {!isCoworkRoute && (
+                      <MobileNav navVisible={navVisible} setNavVisible={setNavVisible} />
+                    )}
                     <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                   </div>
                 </div>

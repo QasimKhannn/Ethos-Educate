@@ -1,4 +1,4 @@
-import { useMemo, memo } from 'react';
+import { useCallback, useMemo, memo } from 'react';
 import { useAtomValue } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import type { TMessage, TMessageContentParts } from 'librechat-data-provider';
@@ -45,8 +45,10 @@ const ContentRender = memo(function ContentRender({
     conversation,
     messageLabel,
     handleContinue,
+    handleFeedback,
     latestMessageId,
     copyToClipboard,
+    regenerateMessage,
     latestMessageDepth,
   } = useMessageActions({
     message: msg,
@@ -56,6 +58,8 @@ const ContentRender = memo(function ContentRender({
   });
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
+
+  const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
 
   const isLast = useMemo(
     () => !(msg?.children?.length ?? 0) && (msg?.depth === latestMessageDepth || msg?.depth === -1),
@@ -171,11 +175,14 @@ const ContentRender = memo(function ContentRender({
                 index={index}
                 message={msg}
                 isEditing={edit}
+                enterEdit={enterEdit}
                 isSubmitting={isSubmitting}
                 conversation={conversation ?? null}
+                regenerate={handleRegenerateMessage}
                 copyToClipboard={copyToClipboard}
                 handleContinue={handleContinue}
                 latestMessageId={latestMessageId}
+                handleFeedback={handleFeedback}
                 isLast={isLast}
               />
             </SubRow>
