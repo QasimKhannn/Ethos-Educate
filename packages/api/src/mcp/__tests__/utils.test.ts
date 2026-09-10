@@ -2,7 +2,12 @@ import {
   canonicalizeMCPServerName,
   isMCPServerName,
   isMCPToolFromServer,
+  normalizeKnownMCPServerNames,
+  normalizeKnownMCPToolId,
+  normalizeKnownMCPToolIds,
+  normalizeKnownMCPToolOptions,
   normalizeServerName,
+  resolveKnownMCPServerName,
 } from '../utils';
 
 describe('canonical MCP server identification', () => {
@@ -30,6 +35,54 @@ describe('canonical MCP server identification', () => {
       ),
     ).toBe(false);
     expect(isMCPToolFromServer('generate_images', 'Image_Generation')).toBe(false);
+  });
+
+  it('resolves Websearch aliases to the configured lowercase identifier', () => {
+    expect(resolveKnownMCPServerName('Websearch')).toBe('websearch');
+    expect(resolveKnownMCPServerName('Web Search')).toBe('websearch');
+    expect(resolveKnownMCPServerName('Downloadable-Files-Creation')).toBe(
+      'Downloadable-Files-Creation',
+    );
+  });
+
+  it('normalizes only the server suffix in MCP tool identifiers', () => {
+    expect(normalizeKnownMCPToolId('search_mcp_Websearch')).toBe('search_mcp_websearch');
+    expect(normalizeKnownMCPToolId('ordinary_tool')).toBe('ordinary_tool');
+    expect(normalizeKnownMCPToolId('generate_images_mcp_Image_Generation')).toBe(
+      'generate_images_mcp_Image_Generation',
+    );
+  });
+
+  it('normalizes and de-duplicates persisted Websearch references', () => {
+    expect(
+      normalizeKnownMCPToolIds([
+        'search_mcp_Websearch',
+        'search_mcp_websearch',
+        'other_mcp_Websearch',
+      ]),
+    ).toEqual(['search_mcp_websearch', 'other_mcp_websearch']);
+    expect(normalizeKnownMCPServerNames(['Websearch', 'websearch', 'other-server'])).toEqual([
+      'websearch',
+      'other-server',
+    ]);
+  });
+
+  it('preserves unrelated duplicates and malformed legacy placeholders', () => {
+    expect(normalizeKnownMCPToolIds(['ordinary_tool', 'ordinary_tool', null, undefined])).toEqual([
+      'ordinary_tool',
+      'ordinary_tool',
+      null,
+      undefined,
+    ]);
+  });
+
+  it('keeps canonical tool options when a legacy key collides', () => {
+    expect(
+      normalizeKnownMCPToolOptions({
+        search_mcp_Websearch: { source: 'legacy' },
+        search_mcp_websearch: { source: 'canonical' },
+      }),
+    ).toEqual({ search_mcp_websearch: { source: 'canonical' } });
   });
 });
 

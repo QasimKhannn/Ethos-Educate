@@ -467,6 +467,40 @@ describe('models/Agent', () => {
       expect(retrievedAgent.description).toBe('Test description');
     });
 
+    test('should normalize legacy Websearch references when reading an existing agent', async () => {
+      const { agentId, authorId } = createTestIds();
+
+      await Agent.collection.insertOne({
+        id: agentId,
+        name: 'Legacy Websearch Agent',
+        provider: 'test',
+        model: 'test-model',
+        author: authorId,
+        tools: ['search_mcp_Websearch', 'search_mcp_websearch'],
+        mcpServerNames: ['Websearch'],
+        tool_options: {
+          search_mcp_Websearch: { source: 'legacy' },
+          search_mcp_websearch: { source: 'canonical' },
+        },
+        versions: [
+          {
+            tools: ['search_mcp_Websearch'],
+            mcpServerNames: ['Websearch'],
+          },
+        ],
+      });
+
+      const retrievedAgent = await getAgent({ id: agentId });
+
+      expect(retrievedAgent.tools).toEqual(['search_mcp_websearch']);
+      expect(retrievedAgent.mcpServerNames).toEqual(['websearch']);
+      expect(retrievedAgent.tool_options).toEqual({
+        search_mcp_websearch: { source: 'canonical' },
+      });
+      expect(retrievedAgent.versions[0].tools).toEqual(['search_mcp_websearch']);
+      expect(retrievedAgent.versions[0].mcpServerNames).toEqual(['websearch']);
+    });
+
     test('should delete an agent', async () => {
       const agentId = `agent_${uuidv4()}`;
       const authorId = new mongoose.Types.ObjectId();

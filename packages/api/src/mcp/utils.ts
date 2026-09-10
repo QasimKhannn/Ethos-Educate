@@ -2,12 +2,105 @@ import { Constants } from 'librechat-data-provider';
 
 export const mcpToolPattern = new RegExp(`^.+${Constants.mcp_delimiter}.+$`);
 
+const knownMCPServerNames = new Map<string, string>([['websearch', 'websearch']]);
+
 /** Creates a stable MCP server identifier that is independent of display-name punctuation. */
 export function canonicalizeMCPServerName(serverName: string): string {
   return serverName
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
+}
+
+/** Resolves legacy spellings to the exact configured identifier used by known MCP servers. */
+export function resolveKnownMCPServerName(serverName: string): string {
+  return knownMCPServerNames.get(canonicalizeMCPServerName(serverName)) ?? serverName;
+}
+
+/** Rewrites only the server suffix of an MCP tool identifier. */
+export function normalizeKnownMCPToolId(toolId: string): string {
+  const delimiterIndex = toolId.lastIndexOf(Constants.mcp_delimiter);
+  if (delimiterIndex < 0) {
+    return toolId;
+  }
+
+  const serverNameIndex = delimiterIndex + Constants.mcp_delimiter.length;
+  const serverName = toolId.slice(serverNameIndex);
+  const resolvedServerName = resolveKnownMCPServerName(serverName);
+  return `${toolId.slice(0, serverNameIndex)}${resolvedServerName}`;
+}
+
+/** Normalizes and de-duplicates MCP tool identifiers while preserving their selection order. */
+export function normalizeKnownMCPToolIds(
+  toolIds: Array<string | null | undefined> | undefined,
+): Array<string | null | undefined> | undefined {
+  if (!toolIds) {
+    return undefined;
+  }
+
+  const normalizedToolIds: Array<string | null | undefined> = [];
+  const seenToolIds = new Set<string>();
+  const migratedToolIds = new Set<string>();
+  for (const toolId of toolIds) {
+    if (typeof toolId !== 'string') {
+      normalizedToolIds.push(toolId);
+      continue;
+    }
+
+    const normalizedToolId = normalizeKnownMCPToolId(toolId);
+    const isMigrated = normalizedToolId !== toolId;
+    if (
+      (isMigrated && seenToolIds.has(normalizedToolId)) ||
+      migratedToolIds.has(normalizedToolId)
+    ) {
+      continue;
+    }
+
+    normalizedToolIds.push(normalizedToolId);
+    seenToolIds.add(normalizedToolId);
+    if (isMigrated) {
+      migratedToolIds.add(normalizedToolId);
+    }
+  }
+  return normalizedToolIds;
+}
+
+/** Normalizes and de-duplicates persisted MCP server names. */
+export function normalizeKnownMCPServerNames(
+  serverNames: string[] | undefined,
+): string[] | undefined {
+  if (!serverNames) {
+    return undefined;
+  }
+
+  const normalizedServerNames = new Set<string>();
+  for (const serverName of serverNames) {
+    normalizedServerNames.add(resolveKnownMCPServerName(serverName));
+  }
+  return Array.from(normalizedServerNames);
+}
+
+/** Normalizes MCP tool-option keys and gives an already-canonical key precedence on collision. */
+export function normalizeKnownMCPToolOptions<T>(
+  toolOptions: Record<string, T> | undefined,
+): Record<string, T> | undefined {
+  if (!toolOptions) {
+    return undefined;
+  }
+
+  const normalizedEntries = new Map<string, { isCanonical: boolean; value: T }>();
+  for (const [toolId, value] of Object.entries(toolOptions)) {
+    const normalizedToolId = normalizeKnownMCPToolId(toolId);
+    const isCanonical = normalizedToolId === toolId;
+    const currentEntry = normalizedEntries.get(normalizedToolId);
+    if (!currentEntry || (isCanonical && !currentEntry.isCanonical)) {
+      normalizedEntries.set(normalizedToolId, { isCanonical, value });
+    }
+  }
+
+  return Object.fromEntries(
+    Array.from(normalizedEntries, ([toolId, entry]) => [toolId, entry.value]),
+  );
 }
 
 /** Compares MCP server names without relying on casing, spaces, hyphens, or underscores. */

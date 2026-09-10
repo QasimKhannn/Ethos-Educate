@@ -1,7 +1,12 @@
 const mongoose = require('mongoose');
 const crypto = require('node:crypto');
 const { logger } = require('@librechat/data-schemas');
-const { getCustomEndpointConfig } = require('@librechat/api');
+const {
+  getCustomEndpointConfig,
+  normalizeKnownMCPToolIds,
+  normalizeKnownMCPServerNames,
+  normalizeKnownMCPToolOptions,
+} = require('@librechat/api');
 const {
   Tools,
   SystemRoles,
@@ -46,12 +51,41 @@ const extractMCPServerNames = (tools) => {
 };
 
 /**
+ * Normalizes known legacy MCP references without changing agent content or tool selections.
+ * @param {Object | null | undefined} agentData
+ * @returns {Object | null | undefined}
+ */
+const normalizeAgentMCPReferences = (agentData) => {
+  if (!agentData || typeof agentData !== 'object') {
+    return agentData;
+  }
+
+  const tools = normalizeKnownMCPToolIds(agentData.tools);
+  const mcpServerNames = tools
+    ? extractMCPServerNames(tools)
+    : normalizeKnownMCPServerNames(agentData.mcpServerNames);
+  const toolOptions = normalizeKnownMCPToolOptions(agentData.tool_options);
+  const versions = Array.isArray(agentData.versions)
+    ? agentData.versions.map(normalizeAgentMCPReferences)
+    : agentData.versions;
+
+  return {
+    ...agentData,
+    ...(tools ? { tools } : {}),
+    ...(mcpServerNames ? { mcpServerNames } : {}),
+    ...(toolOptions ? { tool_options: toolOptions } : {}),
+    ...(versions ? { versions } : {}),
+  };
+};
+
+/**
  * Create an agent with the provided data.
  * @param {Object} agentData - The agent data to create.
  * @returns {Promise<Agent>} The created agent document as a plain object.
  * @throws {Error} If the agent creation fails.
  */
 const createAgent = async (agentData) => {
+  agentData = normalizeAgentMCPReferences(agentData);
   const { author: _author, ...versionData } = agentData;
   const timestamp = new Date();
   const initialAgentData = {
@@ -78,7 +112,8 @@ const createAgent = async (agentData) => {
  * @param {string} searchParameter.author - The user ID of the agent's author.
  * @returns {Promise<Agent|null>} The agent document as a plain object, or null if not found.
  */
-const getAgent = async (searchParameter) => await Agent.findOne(searchParameter).lean();
+const getAgent = async (searchParameter) =>
+  normalizeAgentMCPReferences(await Agent.findOne(searchParameter).lean());
 
 /**
  * Get multiple agent documents based on the provided search parameters.
@@ -86,7 +121,8 @@ const getAgent = async (searchParameter) => await Agent.findOne(searchParameter)
  * @param {Object} searchParameter - The search parameters to find agents.
  * @returns {Promise<Agent[]>} Array of agent documents as plain objects.
  */
-const getAgents = async (searchParameter) => await Agent.find(searchParameter).lean();
+const getAgents = async (searchParameter) =>
+  (await Agent.find(searchParameter).lean()).map(normalizeAgentMCPReferences);
 
 /**
  * Load an agent based on the provided ID
@@ -390,6 +426,7 @@ const isDuplicateVersion = (updateData, currentData, versions, actionsHash = nul
  * @throws {Error} If the update would create a duplicate version
  */
 const updateAgent = async (searchParameter, updateData, options = {}) => {
+  updateData = normalizeAgentMCPReferences(updateData);
   const { updatingUserId = null, forceVersion = false, skipVersioning = false } = options;
   const mongoOptions = { new: true, upsert: false };
 
@@ -402,7 +439,7 @@ const updateAgent = async (searchParameter, updateData, options = {}) => {
       versions,
       author: _author,
       ...versionData
-    } = currentAgent.toObject();
+    } = normalizeAgentMCPReferences(currentAgent.toObject());
     const { $push, $pull, $addToSet, ...directUpdates } = updateData;
 
     // Sync mcpServerNames when tools are updated
@@ -478,7 +515,9 @@ const updateAgent = async (searchParameter, updateData, options = {}) => {
     }
   }
 
-  return Agent.findOneAndUpdate(searchParameter, updateData, mongoOptions).lean();
+  return normalizeAgentMCPReferences(
+    await Agent.findOneAndUpdate(searchParameter, updateData, mongoOptions).lean(),
+  );
 };
 
 /**
