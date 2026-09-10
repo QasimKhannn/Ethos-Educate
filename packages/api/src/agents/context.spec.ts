@@ -173,7 +173,8 @@ describe('Agent Context Utilities', () => {
         mockLogger,
       );
 
-      expect(result).toContain('call the generate_images tool');
+      expect(result).toContain('call generate_worksheet_assessment_images');
+      expect(result).toContain('For all other image requests, call generate_images');
       expect(result).toContain('Never claim that an image was created');
     });
 

@@ -4,7 +4,7 @@ export type ImageGenerationTextPresentation = Readonly<{
 }>;
 
 const leakedImageGenerationToolPayload =
-  /(?:^|\r?\n)Tool:\s*generate_images(?:_mcp_Image_Generation)?\s*,\s*\[\s*\{\s*"type"\s*:\s*"text"\s*,\s*"text"\s*:/i;
+  /(?:^|\r?\n)Tool:\s*generate_(?:images|worksheet_assessment_images)(?:_mcp_Image_Generation)?\s*,\s*\[\s*\{\s*"type"\s*:\s*"text"\s*,\s*"text"\s*:/i;
 
 /** Removes model-written MCP payloads, which are not completed tool calls. */
 export function getImageGenerationTextPresentation(

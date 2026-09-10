@@ -10,9 +10,9 @@ const imageGenerationServerName = 'Image_Generation';
 const imageGenerationExecutionInstructions = `
 ## Image generation execution requirement
 
-When a user asks to create an image, regenerate an image, make another version, or says "again" in response to a prior image request, call the generate_images tool before confirming that an image exists. For an unchanged "again" request, reuse the relevant visual details from the preceding request.
+When a user asks to create an image, regenerate an image, make another version, or says "again" in response to a prior image request, call an Image Generation tool before confirming that an image exists. For a standalone, text-free visual asset intended for a worksheet or assessment, call generate_worksheet_assessment_images and set assetType to worksheet or assessment. Do not request words, labels, numbers, or other visible copy with that tool. For all other image requests, call generate_images. For an unchanged "again" request, reuse the relevant visual details from the preceding request.
 
-Never claim that an image was created, expose a Tool: payload, or write tool-result JSON unless generate_images completed successfully in this turn. If the tool fails, say that generation did not complete and offer a concise retry option.`;
+Never claim that an image was created, expose a Tool: payload, or write tool-result JSON unless the selected Image Generation tool completed successfully in this turn. If the tool fails, say that generation did not complete and offer a concise retry option.`;
 
 function addImageGenerationExecutionInstructions(
   mcpServers: string[],

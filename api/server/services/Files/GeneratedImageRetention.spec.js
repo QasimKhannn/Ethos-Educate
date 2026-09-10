@@ -59,6 +59,11 @@ describe('GeneratedImageRetention', () => {
 
   test('recognizes sandbox and production names for the image MCP', () => {
     expect(isImageGenerationMcpTool('generate_images_mcp_Image_Generation')).toBe(true);
+    expect(
+      isImageGenerationMcpTool(
+        'generate_worksheet_assessment_images_mcp_Image_Generation',
+      ),
+    ).toBe(true);
     expect(isImageGenerationMcpTool('generate_images_mcp_Image-generation')).toBe(true);
     expect(isImageGenerationMcpTool('generate_images_mcp_image generation')).toBe(true);
     expect(
