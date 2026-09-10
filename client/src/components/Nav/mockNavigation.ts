@@ -35,6 +35,8 @@ export type MockNavigationProject = {
 
 const mockProjectIdPrefix = 'ethos-mock-navigation-project-';
 const mockConversationIdPrefix = 'ethos-mock-navigation-chat-';
+const mockDraftConversationIdPrefix = `${mockConversationIdPrefix}draft-`;
+let mockDraftSequence = 0;
 
 const mockProjectDefinitions: readonly MockProjectDefinition[] = [
   {
@@ -173,12 +175,23 @@ export const isMockNavigationUser = (user?: Pick<TUser, 'name' | 'username'>): b
   const identities = [user?.name, user?.username];
   return identities.some((identity) => {
     const normalized = identity?.trim().toLowerCase();
-    return normalized === 'mock user' || normalized === 'mockuser';
+    return (
+      normalized === 'mock user' ||
+      normalized === 'mockuser' ||
+      normalized === 'mock student' ||
+      normalized === 'mockstudent'
+    );
   });
 };
 
 export const isMockNavigationConversation = (conversationId?: string | null) =>
   conversationId?.startsWith(mockConversationIdPrefix) === true;
+
+const isMockNavigationDraftConversation = (conversationId?: string | null) =>
+  conversationId?.startsWith(mockDraftConversationIdPrefix) === true;
+
+export const createMockNavigationDraftConversationId = () =>
+  `${mockDraftConversationIdPrefix}${Date.now()}-${mockDraftSequence++}`;
 
 export const getMockNavigationProjects = (localize: Localize): MockNavigationProject[] =>
   mockProjectDefinitions.map((definition) => {
@@ -224,12 +237,23 @@ export const getMockNavigationConversations = (localize: Localize): TConversatio
 export const getMockNavigationConversation = (
   conversationId: string,
   localize: Localize,
+  projectId?: string,
 ): TConversation | undefined => {
   const standaloneConversation = getMockNavigationConversations(localize).find(
     (conversation) => conversation.conversationId === conversationId,
   );
   if (standaloneConversation) {
     return standaloneConversation;
+  }
+
+  if (isMockNavigationDraftConversation(conversationId)) {
+    return createMockConversation({
+      id: conversationId.slice(mockConversationIdPrefix.length),
+      title: localize('com_ui_new_chat'),
+      projectId,
+      dayOffset: 0,
+      hourOffset: 0,
+    });
   }
 
   for (const project of getMockNavigationProjects(localize)) {
@@ -250,6 +274,10 @@ export const getMockNavigationMessages = (
 ): TMessage[] => {
   const conversationId = conversation.conversationId;
   if (!conversationId || !isMockNavigationConversation(conversationId)) {
+    return [];
+  }
+
+  if (isMockNavigationDraftConversation(conversationId)) {
     return [];
   }
 

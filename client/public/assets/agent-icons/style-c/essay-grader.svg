@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Essay Grader</title>
+  <rect x="28" y="28" width="200" height="200" rx="46" fill="#ff5a78" />
+  <path
+    fill="#fff"
+    d="M76 67c-7.7 0-14 6.3-14 14v91c0 7.7 6.3 14 14 14h79c7.7 0 14-6.3 14-14v-64l-41-41H76Z"
+  />
+  <path fill="#ff5a78" d="M128 67v28c0 7.2 5.8 13 13 13h28l-41-41Z" />
+  <path fill="#ff5a78" d="M88 119h54a6 6 0 1 1 0 12H88a6 6 0 1 1 0-12Zm0 25h48a6 6 0 1 1 0 12H88a6 6 0 1 1 0-12Zm0 25h38a6 6 0 1 1 0 12H88a6 6 0 1 1 0-12Z" />
+  <path d="m142 184 13 13 31-35" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="14" />
+</svg>

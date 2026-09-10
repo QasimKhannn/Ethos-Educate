@@ -7,8 +7,8 @@ import { TooltipAnchor, Button } from '@librechat/client';
 import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
 import { SIDEBAR_FOCUS_DELAY_MS } from '~/components/Nav/sidebarMotion';
 import { useLocalize, useNewConvo } from '~/hooks';
-import { clearMessagesCache } from '~/utils';
 import { getProjectChatPath } from '~/components/Projects/utils';
+import { clearMessagesCache } from '~/utils';
 import store from '~/store';
 
 export default function NewChat({
@@ -77,7 +77,7 @@ export default function NewChat({
         <div className="sidebar-toolbar-actions flex gap-1">
           {headerButtons}
           <TooltipAnchor
-            description={localize('com_ui_new_chat')}
+            description={localize('com_nav_tooltip_new_chat')}
             render={
               <Button
                 asChild

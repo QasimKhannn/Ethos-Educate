@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
+  TooltipAnchor,
 } from '@librechat/client';
 import type { AgentToolType } from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
@@ -86,20 +87,25 @@ export default function MCPToolItem({
         {isProgrammatic && <Code2 className="h-3.5 w-3.5 text-violet-500" aria-hidden="true" />}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                'flex h-6 w-6 items-center justify-center rounded transition-all duration-200',
-                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
-                hasOptions
-                  ? 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-                  : 'text-text-tertiary opacity-0 hover:bg-surface-hover hover:text-text-primary group-focus-within/item:opacity-100 group-hover/item:opacity-100',
-              )}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={localize('com_ui_mcp_tool_options')}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
+            <TooltipAnchor
+              description={localize('com_ui_tooltip_mcp_tool_information')}
+              render={
+                <button
+                  type="button"
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded transition-all duration-200',
+                    'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                    hasOptions
+                      ? 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+                      : 'text-text-tertiary opacity-0 hover:bg-surface-hover hover:text-text-primary group-focus-within/item:opacity-100 group-hover/item:opacity-100',
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={localize('com_ui_tooltip_mcp_tool_information')}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              }
+            />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"

@@ -159,12 +159,12 @@ export const FloatingThinkingBar = memo(
     );
 
     const collapseTooltip = isExpanded
-      ? localize('com_ui_collapse_thoughts')
-      : localize('com_ui_expand_thoughts');
+      ? localize('com_ui_tooltip_hide_thinking')
+      : localize('com_ui_tooltip_show_thinking');
 
     const copyTooltip = isCopied
-      ? localize('com_ui_copied_to_clipboard')
-      : localize('com_ui_copy_thoughts_to_clipboard');
+      ? localize('com_ui_tooltip_copied_message')
+      : localize('com_ui_tooltip_copy_message');
 
     return (
       <div

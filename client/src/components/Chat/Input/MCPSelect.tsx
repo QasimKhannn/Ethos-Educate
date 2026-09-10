@@ -95,7 +95,7 @@ function MCPSelectContent() {
     <>
       <Ariakit.MenuProvider store={menuStore}>
         <TooltipAnchor
-          description={placeholderText}
+          description={localize('com_ui_tooltip_mcp_tools')}
           disabled={isOpen}
           render={
             <Ariakit.MenuButton

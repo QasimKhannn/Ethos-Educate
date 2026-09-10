@@ -50,7 +50,7 @@ const PresetsMenu: FC = () => {
       <Trigger asChild>
         <TooltipAnchor
           ref={presetsMenuTriggerRef}
-          description={localize('com_endpoint_examples')}
+          description={localize('com_ui_tooltip_presets')}
           render={
             <Button
               size="icon"
@@ -58,7 +58,7 @@ const PresetsMenu: FC = () => {
               tabIndex={0}
               id="presets-button"
               data-testid="presets-button"
-              aria-label={localize('com_endpoint_examples')}
+              aria-label={localize('com_ui_tooltip_presets')}
               className="rounded-xl bg-presentation p-2 duration-0 hover:bg-surface-active-alt"
               // className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light bg-transparent text-text-primary transition-all ease-in-out hover:bg-surface-tertiary disabled:pointer-events-none disabled:opacity-50 radix-state-open:bg-surface-tertiary"
             >

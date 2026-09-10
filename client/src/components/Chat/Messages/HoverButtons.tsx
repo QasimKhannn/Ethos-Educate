@@ -219,7 +219,6 @@ const HoverButtons = ({
         )}
       />
 
-      {/* Edit Button */}
       {isEditableEndpoint && (
         <HoverButton
           id={`edit-${message.messageId}`}
@@ -234,7 +233,6 @@ const HoverButtons = ({
         />
       )}
 
-      {/* Fork Button */}
       <Fork
         messageId={message.messageId}
         conversationId={conversation.conversationId}
@@ -243,12 +241,10 @@ const HoverButtons = ({
         isLast={isLast}
       />
 
-      {/* Feedback Buttons */}
       {!isCreatedByUser && handleFeedback != null && (
         <Feedback handleFeedback={handleFeedback} feedback={message.feedback} isLast={isLast} />
       )}
 
-      {/* Regenerate Button */}
       {regenerateEnabled && (
         <HoverButton
           onClick={regenerate}

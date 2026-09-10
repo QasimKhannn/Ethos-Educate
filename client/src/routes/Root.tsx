@@ -41,6 +41,8 @@ export default function Root() {
   // sidebar ONLY for /cowork routes. All other routes are unaffected.
   const location = useLocation();
   const isCoworkRoute = location.pathname.startsWith('/cowork');
+  const shouldKeepNavigationOpen =
+    location.pathname.startsWith('/agents') || location.pathname === '/c/new';
   const onboardingStorageKey = useMemo(() => {
     if (!user?.id) {
       return null;
@@ -86,6 +88,21 @@ export default function Root() {
       setShowTerms(!termsData.termsAccepted);
     }
   }, [termsData]);
+
+  useEffect(() => {
+    if (!shouldKeepNavigationOpen) {
+      return;
+    }
+
+    setNavVisible((previous) => {
+      if (previous) {
+        return previous;
+      }
+
+      localStorage.setItem('navVisible', JSON.stringify(true));
+      return true;
+    });
+  }, [location.pathname, location.search, shouldKeepNavigationOpen]);
 
   useEffect(() => {
     const root = document.documentElement;

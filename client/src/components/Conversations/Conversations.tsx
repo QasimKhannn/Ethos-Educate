@@ -3,7 +3,7 @@ import throttle from 'lodash/throttle';
 import { ChevronDown } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Spinner, useMediaQuery } from '@librechat/client';
+import { Spinner, TooltipAnchor, useMediaQuery } from '@librechat/client';
 import { List, AutoSizer, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
 import type { CSSProperties, FC, LegacyRef, ReactNode, RefObject } from 'react';
 import type { TConversation } from 'librechat-data-provider';
@@ -85,27 +85,32 @@ interface ChatsHeaderProps {
 const ChatsHeader: FC<ChatsHeaderProps> = memo(({ isExpanded, onToggle, count }) => {
   const localize = useLocalize();
   return (
-    <button
-      onClick={onToggle}
-      className="sidebar-section-toggle group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
-      type="button"
-      aria-expanded={isExpanded}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
-        <span className="sidebar-section-total" aria-hidden="true">
-          {count}
-        </span>
-      </span>
-      <span className="sidebar-section-toggle-icon flex h-5 w-5 items-center justify-center rounded-md">
-        <ChevronDown
-          className={cn(
-            'h-3 w-3 transition-transform duration-200',
-            isExpanded ? 'rotate-180' : '',
-          )}
-        />
-      </span>
-    </button>
+    <TooltipAnchor
+      description={localize('com_nav_tooltip_chat_history')}
+      render={
+        <button
+          onClick={onToggle}
+          className="sidebar-section-toggle group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
+          type="button"
+          aria-expanded={isExpanded}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
+            <span className="sidebar-section-total" aria-hidden="true">
+              {count}
+            </span>
+          </span>
+          <span className="sidebar-section-toggle-icon flex h-5 w-5 items-center justify-center rounded-md">
+            <ChevronDown
+              className={cn(
+                'h-3 w-3 transition-transform duration-200',
+                isExpanded ? 'rotate-180' : '',
+              )}
+            />
+          </span>
+        </button>
+      }
+    />
   );
 });
 

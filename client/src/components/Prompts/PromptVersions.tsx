@@ -34,17 +34,9 @@ const VersionTags = ({ tags }: { tags: string[] }) => {
     <span className="flex gap-1 text-sm">
       {tags.map((tag, i) => (
         <TooltipAnchor
-          description={
-            tag === 'production'
-              ? localize('com_ui_currently_production')
-              : localize('com_ui_latest_version')
-          }
+          description={localize('com_ui_tooltip_prompt_version_status')}
           key={`${tag}-${i}`}
-          aria-label={
-            tag === 'production'
-              ? localize('com_ui_currently_production')
-              : localize('com_ui_latest_version')
-          }
+          aria-label={localize('com_ui_tooltip_prompt_version_status')}
           render={
             <Tag
               label={tag}

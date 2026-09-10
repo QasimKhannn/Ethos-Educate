@@ -55,7 +55,7 @@ export default function MCPBuilderPanel() {
             >
               <OGDialogTrigger asChild>
                 <TooltipAnchor
-                  description={localize('com_ui_add_mcp')}
+                  description={localize('com_ui_tooltip_add_mcp_server')}
                   side="bottom"
                   render={
                     <Button
@@ -64,7 +64,7 @@ export default function MCPBuilderPanel() {
                       size="icon"
                       className="shrink-0 bg-transparent"
                       onClick={() => setShowDialog(true)}
-                      aria-label={localize('com_ui_add_mcp')}
+                      aria-label={localize('com_ui_tooltip_add_mcp_server')}
                     >
                       <Plus className="size-4" aria-hidden="true" />
                     </Button>

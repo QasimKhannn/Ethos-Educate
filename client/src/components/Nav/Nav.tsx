@@ -12,10 +12,16 @@ import {
 import { useRecoilValue } from 'recoil';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, LayoutGrid, MessageSquareText, PanelLeftOpen, SquarePen } from 'lucide-react';
+import {
+  Briefcase,
+  LayoutGrid,
+  PanelLeftOpen,
+  Shield,
+  SquarePen,
+} from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Avatar, Button, Skeleton, TooltipAnchor, useMediaQuery } from '@librechat/client';
-import { PermissionTypes, Permissions, QueryKeys } from 'librechat-data-provider';
+import { PermissionTypes, Permissions, QueryKeys, SystemRoles } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { List } from 'react-virtualized';
@@ -96,7 +102,7 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
       'inline-flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-[#DCE7FF] outline-none transition-all duration-200',
       'hover:border-white/10 hover:bg-white/10 hover:text-[#E8C37F] focus-visible:ring-2 focus-visible:ring-[#DAAC60]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#102A68]',
       active &&
-        'border-white/55 bg-white text-[#10224A] shadow-[0_8px_22px_rgba(4,17,51,0.22)] hover:border-white hover:bg-white hover:text-[#B47D26]',
+        'border-[#DAAC60]/80 bg-[#DAAC60]/15 text-[#F0C978] shadow-[0_8px_22px_rgba(4,17,51,0.22)] hover:border-[#E8C37F] hover:bg-[#DAAC60]/22 hover:text-white',
     );
 
   const openAndFocusSidebar = () => {
@@ -186,6 +192,26 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
           }
         />
 
+        {user?.role === SystemRoles.ADMIN && (
+          <TooltipAnchor
+            description={localize('com_nav_admin_console')}
+            side="right"
+            render={
+              <Button
+                asChild
+                size="icon"
+                variant="ghost"
+                aria-label={localize('com_nav_admin_console')}
+                className={actionClassName(location.pathname.startsWith('/admin'))}
+              >
+                <Link to="/admin">
+                  <Shield className="h-5 w-5" aria-hidden="true" />
+                </Link>
+              </Button>
+            }
+          />
+        )}
+
         {coworkAccess?.allowed !== false && (
           <TooltipAnchor
             description={localize('com_nav_tooltip_cowork')}
@@ -209,24 +235,6 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
           />
         )}
 
-        <TooltipAnchor
-          description={localize('com_nav_tooltip_chat_history')}
-          side="right"
-          render={
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={localize('com_ui_chat_history')}
-              className={actionClassName(
-                location.pathname.startsWith('/c/') && location.pathname !== '/c/new',
-              )}
-              onClick={openAndFocusSidebar}
-            >
-              <MessageSquareText className="h-5 w-5" aria-hidden="true" />
-            </Button>
-          }
-        />
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-3">
@@ -294,6 +302,7 @@ const Nav = memo(
     useTitleGeneration(isAuthenticated);
 
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
+    const location = useLocation();
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
     const [isChatsExpanded, setIsChatsExpanded] = useLocalStorage('chatsExpanded', true);
     const [showLoading, setShowLoading] = useState(false);

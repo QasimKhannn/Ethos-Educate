@@ -19,7 +19,7 @@ export default function AgentMarketplaceButton() {
 
   return (
     <TooltipAnchor
-      description={localize('com_agents_marketplace')}
+      description={localize('com_nav_tooltip_marketplace')}
       render={
         <Button
           variant="outline"

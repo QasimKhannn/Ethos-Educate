@@ -8,9 +8,7 @@ interface ConvoLinkProps {
   title: string | null;
   onRename: () => void;
   isSmallScreen: boolean;
-  useThreadMarker?: boolean;
   localize: (key: TranslationKeys, options?: Record<string, boolean | number | string>) => string;
-  children: React.ReactNode;
 }
 
 const ConvoLink: React.FC<ConvoLinkProps> = ({
@@ -19,9 +17,7 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
   title,
   onRename,
   isSmallScreen,
-  useThreadMarker = false,
   localize,
-  children,
 }) => {
   return (
     <div
@@ -33,13 +29,6 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
       aria-current={isActiveConvo ? 'page' : undefined}
       style={{ width: '100%' }}
     >
-      <div className="sidebar-convo-icon flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg">
-        {useThreadMarker ? (
-          <span className="sidebar-convo-thread-marker" aria-hidden="true" />
-        ) : (
-          children
-        )}
-      </div>
       <div
         className="sidebar-convo-title relative flex-1 grow truncate"
         onDoubleClick={(e) => {

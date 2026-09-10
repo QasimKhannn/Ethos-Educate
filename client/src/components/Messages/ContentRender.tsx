@@ -60,6 +60,7 @@ const ContentRender = memo(function ContentRender({
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
 
   const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
+
   const isLast = useMemo(
     () => !(msg?.children?.length ?? 0) && (msg?.depth === latestMessageDepth || msg?.depth === -1),
     [msg?.children, msg?.depth, latestMessageDepth],

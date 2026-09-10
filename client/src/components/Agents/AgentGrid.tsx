@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { gsap } from 'gsap';
-import { RotateCw, Search, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, RotateCw, Search, X } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import { useMarketplaceAgentsInfiniteQuery } from '~/data-provider/Agents';
-import { useLocalize } from '~/hooks';
-import { getFriendlyAgentCategoryLabel } from '~/hooks/Agents/useAgentCategories';
+import { TranslationKeys, useAgentCategories, useLocalize } from '~/hooks';
 import {
   marketplaceCardRevealVariants,
   marketplaceCardStackVariants,
@@ -17,12 +16,14 @@ import {
 import { renderAgentAvatar, getAgentDisplayName, getAgentToolkitDescription } from '~/utils';
 import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
+import AgentOfTheDayVideoPlaceholder from './AgentOfTheDayVideoPlaceholder';
 import AgentDetail from './AgentDetail';
 import AgentIntakeDialog from './AgentIntakeDialog';
 import { getAgentIntakeTemplate } from './agentIntake';
 import ErrorDisplay from './ErrorDisplay';
 import EssayGraderToolCard from './EssayGraderToolCard';
 import useStartAgentChat from './useStartAgentChat';
+import { getShortStorefrontDescription } from './storefrontDescription';
 import {
   getMockMarketplaceAgents,
   isMockMarketplaceAgent,
@@ -30,38 +31,57 @@ import {
 } from './mockAgents';
 
 interface AgentGridProps {
-  category?: string;
+  category: string;
   searchQuery: string;
   sortOption?: AgentSortOption;
   viewMode?: MarketplaceViewMode;
+  viewVariant?: AgentViewVariant;
+  showAgentOfDayVideo?: boolean;
+  showAgentOfDayAbove?: boolean;
+  agentOfDaySearch?: React.ReactNode;
+  resultsHeading?: React.ReactNode;
   onSelectAgent: (agent: t.Agent) => void;
   onClearSearch?: () => void;
   onViewAll?: () => void;
   scrollElementRef?: React.RefObject<HTMLElement>;
 }
 
-export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_desc';
+export type AgentSortOption = 'featured' | 'newest' | 'oldest' | 'name' | 'name_desc' | 'category';
 export type MarketplaceViewMode = 'compact' | 'large';
+export type AgentViewVariant = 'gallery' | 'box' | 'spotlight';
 
+const getCategoryToneKey = (categoryValue: string | null | undefined) =>
+  categoryValue
+    ?.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'all';
 const ESSAY_GRADER_CATEGORY = 'assessment_grading';
 const ESSAY_GRADER_SEARCH_TERMS =
   'essay grader essay rubric rubrics grading score feedback writing assessment';
+
+const isYouTubeVideoFinderAgent = (agent: t.Agent) => {
+  const identity = `${agent.id ?? ''} ${agent.name ?? ''}`.toLocaleLowerCase();
+  return identity.includes('youtube-video-finder') || identity.includes('youtube video finder');
+};
 
 const AgentGrid: React.FC<AgentGridProps> = ({
   category,
   searchQuery,
   sortOption = 'featured',
   viewMode = 'compact',
+  viewVariant = 'gallery',
+  showAgentOfDayVideo = true,
+  showAgentOfDayAbove = false,
+  agentOfDaySearch,
+  resultsHeading,
   onSelectAgent,
   onClearSearch,
+  onViewAll,
   scrollElementRef,
 }) => {
   const localize = useLocalize();
   const activeCategory = category ?? 'all';
-  const categoryLabel = getFriendlyAgentCategoryLabel({
-    value: activeCategory,
-    localize,
-  });
+  const startAgentChat = useStartAgentChat();
   const tabPanelId = `tabpanel-${activeCategory}`;
   const tabId = `category-tab-${activeCategory}`;
   const shouldReduceMotion = useReducedMotion();
@@ -73,7 +93,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   const [isTourDetailOpen, setIsTourDetailOpen] = useState(false);
   const emptyStateHeadingId = useId();
   const storefrontScrollRef = useRef<HTMLDivElement>(null);
-  const startAgentChat = useStartAgentChat();
+  const { categories } = useAgentCategories();
   const shouldUseBackendDateSort = sortOption === 'newest' || sortOption === 'oldest';
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
 
@@ -83,7 +103,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       category?: string;
       search?: string;
       limit: number;
-      promoted?: 1;
+      promoted?: 0 | 1;
       sortBy?: 'createdAt' | 'updatedAt';
       sortDirection?: 'asc' | 'desc';
     } = {
@@ -93,12 +113,16 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
     if (searchQuery) {
       params.search = searchQuery;
-      if (category && category !== 'all' && category !== 'promoted') {
+      if (category !== 'all' && category !== 'promoted') {
         params.category = category;
       }
     } else if (category === 'promoted') {
       params.promoted = 1;
-    } else if (category && category !== 'all') {
+    } else if (category !== 'all') {
+      params.category = category;
+    }
+
+    if (category && category !== 'all') {
       params.category = category;
     }
 
@@ -134,6 +158,18 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     }
 
     return [...agents].sort((firstAgent, secondAgent) => {
+      if (sortOption === 'category') {
+        const categoryOrder = (firstAgent.category ?? '').localeCompare(
+          secondAgent.category ?? '',
+          undefined,
+          { sensitivity: 'base' },
+        );
+
+        if (categoryOrder !== 0) {
+          return categoryOrder;
+        }
+      }
+
       if (sortOption === 'name_desc') {
         return (secondAgent.name ?? '').localeCompare(firstAgent.name ?? '', undefined, {
           sensitivity: 'base',
@@ -189,6 +225,24 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     !isFetching &&
     error == null;
   const displayedAgents = isUsingMockAgents ? fallbackAgents : currentAgents;
+  const spotlightAgents = useMemo(() => {
+    if (viewVariant !== 'spotlight') {
+      return displayedAgents;
+    }
+
+    const preferredAgent = displayedAgents.find(isYouTubeVideoFinderAgent);
+    if (!preferredAgent) {
+      return displayedAgents;
+    }
+
+    return [preferredAgent, ...displayedAgents.filter((agent) => agent.id !== preferredAgent.id)];
+  }, [displayedAgents, viewVariant]);
+  const agentOfDayAgent = showAgentOfDayAbove
+    ? (displayedAgents.find(isYouTubeVideoFinderAgent) ?? spotlightAgents[0] ?? null)
+    : null;
+  const catalogAgents = agentOfDayAgent
+    ? spotlightAgents.filter((agent) => agent.id !== agentOfDayAgent.id)
+    : spotlightAgents;
   const hasData = useHasData(data?.pages?.[0]);
   const shouldShowEssayGraderTool = useMemo(() => {
     const matchesCategory = !category || category === 'all' || category === ESSAY_GRADER_CATEGORY;
@@ -263,7 +317,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     setIsDetailOpen(false);
     setDetailAgent(null);
     setIsTourDetailOpen(false);
-  }, [searchQuery]);
+  }, [category, searchQuery]);
 
   useEffect(() => {
     const handleTourOpen = () => {
@@ -273,9 +327,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         return;
       }
 
-      if (!isMockMarketplaceAgent(firstAgent)) {
-        onSelectAgent(firstAgent);
-      }
+      onSelectAgent(firstAgent);
       setDetailAgent(firstAgent);
       setIsDetailOpen(true);
       setIsTourDetailOpen(true);
@@ -356,6 +408,28 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     isFetchingNextPage,
   ]);
 
+  const getCategoryDisplayName = (categoryValue: string) => {
+    const categoryData = categories.find((cat) => cat.value === categoryValue);
+    if (categoryData?.label) {
+      return categoryData.label.startsWith('com_')
+        ? localize(categoryData.label as TranslationKeys)
+        : categoryData.label;
+    }
+
+    if (categoryValue === 'promoted') {
+      return localize('com_agents_top_picks');
+    }
+    if (categoryValue === 'all') {
+      return localize('com_agents_all');
+    }
+
+    return categoryValue
+      .split(/[_-]/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  };
+
   const emptyStateHeading = searchQuery
     ? localize('com_agents_search_empty_heading')
     : localize('com_agents_empty_state_heading');
@@ -363,15 +437,19 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   let emptyStateMessage = localize('com_agents_empty_state_message');
   if (searchQuery) {
     emptyStateMessage = localize('com_agents_search_no_results', { query: searchQuery });
+  } else if (category !== 'all' && category !== 'promoted') {
+    emptyStateMessage = localize('com_agents_category_empty', {
+      category: getCategoryDisplayName(category),
+    });
+  } else if (category === 'promoted') {
+    emptyStateMessage = localize('com_agents_recommended');
   }
 
-  let emptyStateAction: { label: string; onClick?: () => void } = {
-    label: localize('com_agents_refresh_library'),
-    onClick: () => {
-      void refetch();
-    },
+  let emptyStateAction = {
+    label: localize('com_agents_view_all'),
+    onClick: onViewAll,
   };
-  let EmptyStateActionIcon = RotateCw;
+  let EmptyStateActionIcon = ChevronRight;
 
   if (searchQuery) {
     emptyStateAction = {
@@ -379,6 +457,12 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       onClick: onClearSearch,
     };
     EmptyStateActionIcon = X;
+  } else if (category === 'all') {
+    emptyStateAction = {
+      label: localize('com_agents_refresh_library'),
+      onClick: () => refetch(),
+    };
+    EmptyStateActionIcon = RotateCw;
   }
 
   const handleOpenAgent = useCallback(
@@ -401,6 +485,88 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     [startAgentChat],
   );
 
+  const renderStorefrontAgent = (agent: t.Agent, index: number, isAgentOfDay: boolean) => {
+    const storefrontCategoryLabel = agent.category
+      ? getCategoryDisplayName(agent.category)
+      : localize('com_agents_all');
+    const storefrontViewVariant = viewVariant;
+    const toneKey = getCategoryToneKey(agent.category);
+    const agentDisplayName = getAgentDisplayName(agent);
+    const toolkitDescription = getAgentToolkitDescription(agent);
+    const storefrontDescription = getShortStorefrontDescription(
+      agentDisplayName,
+      toolkitDescription,
+    );
+
+    return (
+      <motion.div
+        key={`${agent.id}-${index}-${isAgentOfDay ? 'featured' : 'catalog'}`}
+        role={isAgentOfDay ? undefined : 'listitem'}
+        data-agent-of-day={isAgentOfDay ? 'true' : undefined}
+        className={isAgentOfDay ? 'agents-marketplace-agent-of-day-featured' : undefined}
+        variants={marketplaceCardRevealVariants}
+      >
+        <button
+          type="button"
+          data-testid={`agent-storefront-row-${agent.id}`}
+          data-category-tone={toneKey}
+          data-tour-id={index === 0 ? 'marketplace-agent' : undefined}
+          data-tour-padding={index === 0 ? '-2' : undefined}
+          data-tour-radius={index === 0 ? '22' : undefined}
+          className="agents-marketplace-storefront-row agents-marketplace-storefront-row--directory"
+          data-view-mode={viewMode}
+          data-view-variant={storefrontViewVariant}
+          aria-label={localize('com_agents_agent_card_label', {
+            name: agentDisplayName,
+            description: toolkitDescription,
+          })}
+          onClick={(event) => {
+            if (event.defaultPrevented) return;
+            handleOpenAgent(agent);
+          }}
+          onPointerEnter={handleStorefrontCardEnter}
+          onPointerLeave={handleStorefrontCardLeave}
+          onFocus={handleStorefrontCardEnter}
+          onBlur={handleStorefrontCardLeave}
+        >
+          {isAgentOfDay && showAgentOfDayVideo ? <AgentOfTheDayVideoPlaceholder /> : null}
+          <div className="agents-marketplace-storefront-icon-wrap" aria-hidden="true">
+            <div className="agents-marketplace-storefront-avatar">
+              {renderAgentAvatar(agent, {
+                size: 'fill',
+                showBorder: false,
+                fit: 'contain',
+                shape: 'rounded',
+                visualScale: 'contained',
+                className: 'agents-marketplace-storefront-art',
+              })}
+            </div>
+          </div>
+          <div className="agents-marketplace-storefront-copy">
+            {isAgentOfDay ? (
+              <span className="agents-marketplace-agent-of-day-badge">
+                {localize('com_agents_agent_of_day')}
+              </span>
+            ) : null}
+            <div className="agents-marketplace-storefront-heading">
+              <h3 className="agents-marketplace-storefront-title">{agentDisplayName}</h3>
+              <p className="agents-marketplace-storefront-meta">{storefrontCategoryLabel}</p>
+            </div>
+            {toolkitDescription ? (
+              <p className="agents-marketplace-storefront-description">{storefrontDescription}</p>
+            ) : null}
+          </div>
+          <ArrowUpRight
+            aria-hidden="true"
+            className="agents-marketplace-storefront-directory-arrow"
+            size={18}
+            strokeWidth={1.8}
+          />
+        </button>
+      </motion.div>
+    );
+  };
+
   if (error) {
     return (
       <ErrorDisplay
@@ -408,6 +574,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         onRetry={() => refetch()}
         context={{
           searchQuery,
+          category,
         }}
       />
     );
@@ -450,7 +617,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
 
   const listAnnouncement = localize('com_agents_grid_announcement', {
     count: displayedAgents.length + (shouldShowEssayGraderTool ? 1 : 0),
-    category: categoryLabel,
+    category: getCategoryDisplayName(category),
   });
   const loadingCardIndexes = Array.from(
     { length: isDesktopCatalog ? pageSize : 4 },
@@ -519,16 +686,35 @@ const AgentGrid: React.FC<AgentGridProps> = ({
             role="grid"
             aria-label={listAnnouncement}
           >
-            {shouldShowEssayGraderTool ? (
+            {agentOfDayAgent ? (
+              <motion.div
+                key={`agent-of-day-${agentOfDayAgent.id}`}
+                role="gridcell"
+                data-agent-of-day="true"
+                className="agents-marketplace-agent-of-day-featured"
+                variants={marketplaceCardRevealVariants}
+              >
+                <AgentCard
+                  agent={agentOfDayAgent}
+                  onClick={() => handleOpenAgent(agentOfDayAgent)}
+                  viewMode={viewMode}
+                  viewVariant={viewVariant}
+                  isAgentOfDay
+                  showAgentOfDayVideo={showAgentOfDayVideo}
+                />
+              </motion.div>
+            ) : null}
+            {shouldShowEssayGraderTool &&
+            (viewVariant !== 'spotlight' || displayedAgents.length === 0) ? (
               <motion.div
                 key="tool-essay-grader"
                 role="gridcell"
                 variants={marketplaceCardRevealVariants}
               >
-                <EssayGraderToolCard variant="card" viewMode={viewMode} />
+                <EssayGraderToolCard variant="card" viewMode={viewMode} viewVariant={viewVariant} />
               </motion.div>
             ) : null}
-            {displayedAgents.map((agent: t.Agent, index: number) => (
+            {catalogAgents.map((agent: t.Agent, index: number) => (
               <motion.div
                 key={`${agent.id}-${index}`}
                 role="gridcell"
@@ -538,9 +724,23 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                   agent={agent}
                   onClick={() => handleOpenAgent(agent)}
                   viewMode={viewMode}
+                  viewVariant={viewVariant}
+                  isAgentOfDay={false}
+                  showAgentOfDayVideo={false}
                 />
               </motion.div>
             ))}
+            {shouldShowEssayGraderTool &&
+            viewVariant === 'spotlight' &&
+            displayedAgents.length > 0 ? (
+              <motion.div
+                key="tool-essay-grader"
+                role="gridcell"
+                variants={marketplaceCardRevealVariants}
+              >
+                <EssayGraderToolCard variant="card" viewMode={viewMode} viewVariant={viewVariant} />
+              </motion.div>
+            ) : null}
           </motion.div>
           {isFetchingNextPage ? (
             <div role="status" aria-live="polite" aria-label={loadingAnnouncement}>
@@ -607,6 +807,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       <div id="search-results-count" className="sr-only" aria-live="polite" aria-atomic="true">
         {listAnnouncement}
       </div>
+      {agentOfDaySearch ? (
+        <div className="agents-marketplace-agent-of-day-search">{agentOfDaySearch}</div>
+      ) : null}
+      {resultsHeading}
       <motion.div
         ref={storefrontScrollRef}
         variants={marketplaceCardStackVariants}
@@ -616,76 +820,48 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         className="agents-marketplace-storefront-scroll"
         data-view-mode={viewMode}
       >
-        <div className="agents-marketplace-storefront" data-view-mode={viewMode}>
+        <div
+          className="agents-marketplace-storefront"
+          data-view-mode={viewMode}
+          data-view-variant={viewVariant}
+          data-agent-of-day-above={agentOfDayAgent ? 'true' : undefined}
+        >
           <div
             className="agents-marketplace-storefront-list"
             role="list"
             aria-label={listAnnouncement}
           >
-            {shouldShowEssayGraderTool ? (
+            {agentOfDayAgent ? renderStorefrontAgent(agentOfDayAgent, 0, true) : null}
+            {shouldShowEssayGraderTool &&
+            (viewVariant !== 'spotlight' || displayedAgents.length === 0) ? (
               <motion.div
                 key="tool-essay-grader"
                 role="listitem"
                 variants={marketplaceCardRevealVariants}
               >
-                <EssayGraderToolCard variant="storefront" viewMode={viewMode} />
+                <EssayGraderToolCard
+                  variant="storefront"
+                  viewMode={viewMode}
+                  viewVariant={viewVariant}
+                />
               </motion.div>
             ) : null}
-            {displayedAgents.map((agent, index) => {
-              const agentDisplayName = getAgentDisplayName(agent);
-              const toolkitDescription = getAgentToolkitDescription(agent);
-
-              return (
-                <motion.div
-                  key={`${agent.id}-${index}`}
-                  role="listitem"
-                  variants={marketplaceCardRevealVariants}
-                >
-                  <button
-                    type="button"
-                    data-testid={`agent-storefront-row-${agent.id}`}
-                    data-tour-id={index === 0 ? 'marketplace-agent' : undefined}
-                    data-tour-padding={index === 0 ? '-2' : undefined}
-                    data-tour-radius={index === 0 ? '22' : undefined}
-                    className="agents-marketplace-storefront-row"
-                    data-view-mode={viewMode}
-                    aria-label={localize('com_agents_agent_card_label', {
-                      name: agentDisplayName,
-                      description: toolkitDescription,
-                    })}
-                    onClick={() => handleOpenAgent(agent)}
-                    onPointerEnter={handleStorefrontCardEnter}
-                    onPointerLeave={handleStorefrontCardLeave}
-                    onFocus={handleStorefrontCardEnter}
-                    onBlur={handleStorefrontCardLeave}
-                  >
-                    <div className="agents-marketplace-storefront-icon-wrap" aria-hidden="true">
-                      <div className="agents-marketplace-storefront-avatar">
-                        {renderMockMarketplaceAvatar(agent, {
-                          className: 'agents-marketplace-storefront-art',
-                        }) ??
-                          renderAgentAvatar(agent, {
-                            size: 'fill',
-                            showBorder: false,
-                            fit: 'contain',
-                            shape: 'rounded',
-                            visualScale: 'contained',
-                            className: 'agents-marketplace-storefront-art',
-                          })}
-                      </div>
-                    </div>
-                    <div className="agents-marketplace-storefront-copy">
-                      <h3 className="agents-marketplace-storefront-title">{agentDisplayName}</h3>
-                      {toolkitDescription ? (
-                        <p className="agents-marketplace-storefront-description">
-                          {toolkitDescription}
-                        </p>
-                      ) : null}
-                    </div>
-                  </button>
-                </motion.div>
-              );
-            })}
+            {catalogAgents.map((agent, index) => renderStorefrontAgent(agent, index, false))}
+            {shouldShowEssayGraderTool &&
+            viewVariant === 'spotlight' &&
+            displayedAgents.length > 0 ? (
+              <motion.div
+                key="tool-essay-grader"
+                role="listitem"
+                variants={marketplaceCardRevealVariants}
+              >
+                <EssayGraderToolCard
+                  variant="storefront"
+                  viewMode={viewMode}
+                  viewVariant={viewVariant}
+                />
+              </motion.div>
+            ) : null}
           </div>
           {isFetchingNextPage ? (
             <div className="agents-marketplace-storefront-loading" role="status" aria-live="polite">

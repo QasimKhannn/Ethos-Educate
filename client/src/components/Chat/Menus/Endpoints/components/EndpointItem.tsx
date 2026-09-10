@@ -225,7 +225,7 @@ export function EndpointItem({ endpoint, endpointIndex }: EndpointItemProps) {
           )}
           {isAssistantsNotLoaded && (
             <TooltipAnchor
-              description={localize('com_ui_click_to_view_var', { 0: endpoint.label })}
+              description={localize('com_ui_tooltip_view_endpoint')}
               side="top"
               render={
                 <span className="flex items-center">

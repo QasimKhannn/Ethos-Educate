@@ -15,7 +15,7 @@ import { useProjectQuery, useConversationsInfiniteQuery } from '~/data-provider'
 import { useAuthContext, useLocalize } from '~/hooks';
 import { getAgentBuilderProviderLabel } from '~/utils/forms';
 import { cn } from '~/utils';
-import { flattenUniqueConversations, getProjectChatPath } from './utils';
+import { flattenUniqueConversations } from './utils';
 import ProjectSources from './ProjectSources';
 
 type ProjectTab = 'chats' | 'sources';
@@ -63,8 +63,13 @@ export default function ProjectRoute() {
 
   const startChat = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
+    const params = new URLSearchParams({ projectId });
     const trimmedPrompt = prompt.trim();
-    navigate(getProjectChatPath(projectId, trimmedPrompt), { state: { focusChat: true } });
+    if (trimmedPrompt) {
+      params.set('q', trimmedPrompt);
+      params.set('submit', 'true');
+    }
+    navigate(`/c/new?${params.toString()}`, { state: { focusChat: true } });
   };
 
   if (!isAuthenticated) {

@@ -1,9 +1,25 @@
 import React, { useState } from 'react';
 import { Link, Pin, PinOff } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { OGDialogContent, Button, useToastContext } from '@librechat/client';
+import {
+  QueryKeys,
+  Constants,
+  EModelEndpoint,
+  PermissionBits,
+  LocalStorageKeys,
+  AgentListResponse,
+} from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
-import { useLocalize, useFavorites } from '~/hooks';
-import { renderAgentAvatar, getAgentDisplayName, normalizeAgentBrandText } from '~/utils';
+import { useLocalize, useFavorites, useDefaultConvo } from '~/hooks';
+import { useChatContext } from '~/Providers';
+import {
+  renderAgentAvatar,
+  clearMessagesCache,
+  getAgentAvatarImageUrl,
+  getAgentDisplayName,
+  normalizeAgentBrandText,
+} from '~/utils';
 import AgentOnboardingOverview from './AgentOnboardingOverview';
 import AgentIntakeDialog from './AgentIntakeDialog';
 import { getAgentIntakeTemplate } from './agentIntake';
@@ -31,11 +47,13 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
   const localize = useLocalize();
   const byLabel = localize('com_ui_by_author', { 0: '' }).trim();
   const { showToast } = useToastContext();
+  const queryClient = useQueryClient();
+  const getDefaultConversation = useDefaultConvo();
+  const { conversation, newConversation } = useChatContext();
   const { isFavoriteAgent, toggleFavoriteAgent } = useFavorites();
   const startAgentChat = useStartAgentChat();
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const isFavorite = isFavoriteAgent(agent?.id);
-  const isMockAgent = isMockMarketplaceAgent(agent);
   const agentDisplayName = getAgentDisplayName(agent);
 
   const handleFavoriteClick = () => {
@@ -157,9 +175,9 @@ const AgentDetailContent: React.FC<AgentDetailContentProps> = ({ agent }) => {
             <Button
               className="ml-auto min-w-[16rem] justify-center px-6 max-sm:ml-0 max-sm:w-full max-sm:min-w-0"
               onClick={handleStartChat}
-              disabled={!agent || isMockAgent}
+              disabled={!agent || isMockMarketplaceAgent(agent)}
             >
-              {isMockAgent
+              {isMockMarketplaceAgent(agent)
                 ? localize('com_agents_mock_preview_only')
                 : localize('com_agents_start_chat')}
             </Button>

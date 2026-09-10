@@ -93,7 +93,11 @@ export default function BookmarkCard({ bookmark, position, moveRow }: BookmarkCa
 
       {/* Count badge */}
       <TooltipAnchor
-        description={`${bookmark.count} ${localize(bookmark.count === 1 ? 'com_ui_conversation' : 'com_ui_conversations')}`}
+        description={localize('com_ui_tooltip_bookmark_conversation_count', {
+          count: `${bookmark.count} ${localize(
+            bookmark.count === 1 ? 'com_ui_conversation' : 'com_ui_conversations',
+          )}`,
+        })}
         side="top"
         render={
           <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-xs text-text-secondary">

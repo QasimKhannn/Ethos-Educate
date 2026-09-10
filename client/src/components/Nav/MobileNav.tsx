@@ -22,9 +22,7 @@ export default function MobileNav({
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const { title } = conversation || {};
   const isMarketplaceRoute = location.pathname.startsWith('/agents');
-  const mobileTitle = isMarketplaceRoute
-    ? localize('com_agents_marketplace')
-    : (title ?? localize('com_ui_new_chat'));
+  const mobileTitle = title ?? localize('com_ui_new_chat');
 
   return (
     <div className="mobile-header-shell bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-center bg-presentation pl-1 dark:text-white md:hidden">
@@ -67,17 +65,7 @@ export default function MobileNav({
         data-marketplace={isMarketplaceRoute ? 'true' : 'false'}
         aria-live="polite"
       >
-        {isMarketplaceRoute ? (
-          <span className="mobile-marketplace-title-lockup">
-            <span className="mobile-marketplace-title-mark" aria-hidden="true">
-              <img src="/assets/ethos-rays.png" alt="" />
-              <img src="/assets/ethos-arc.png" alt="" />
-            </span>
-            <span>{mobileTitle}</span>
-          </span>
-        ) : (
-          mobileTitle
-        )}
+        {isMarketplaceRoute ? null : mobileTitle}
       </div>
       <button
         type="button"

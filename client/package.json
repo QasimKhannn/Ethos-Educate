@@ -104,6 +104,7 @@
     "remark-math": "^6.0.0",
     "remark-supersub": "^1.0.0",
     "sse.js": "^2.5.0",
+    "swiper": "^11.2.10",
     "swr": "^2.3.8",
     "tailwind-merge": "^1.9.1",
     "tailwindcss-animate": "^1.0.5",

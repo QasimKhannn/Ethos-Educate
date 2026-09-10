@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ListFilter } from 'lucide-react';
+import { ArrowUpDown, ListFilter, PanelRightOpen } from 'lucide-react';
 import { Dropdown, useMediaQuery } from '@librechat/client';
 import {
   Constants,
@@ -27,8 +27,8 @@ import { useGetEndpointsQuery } from '~/data-provider';
 import { SidePanelProvider, useChatContext } from '~/Providers';
 import ChatBackgroundLights from '~/components/Chat/ChatBackgroundLights';
 import { SidePanelGroup } from '~/components/SidePanel';
+import { requestOpenControlPanel } from '~/components/SidePanel/events';
 import {
-  marketplaceHeroItemVariants,
   marketplaceHeroShellVariants,
   marketplaceSurfaceRevealVariants,
   sectionStaggerVariants,
@@ -36,7 +36,7 @@ import {
 import { cn, getDefaultEndpoint } from '~/utils';
 import SearchBar from './SearchBar';
 import AgentGrid from './AgentGrid';
-import MarketplaceControlPanel from './MarketplaceControlPanel';
+import AgentIconWall from './AgentIconWall';
 
 interface AgentMarketplaceProps {
   className?: string;
@@ -241,7 +241,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   const canvasClassName = 'agents-marketplace-canvas relative flex min-h-full min-w-0 flex-col';
   const allAgentsMeta = {
     name: localize('com_agents_all'),
-    description: localize('com_agents_all_description'),
   };
 
   const hasAccessToMarketplace = useHasAccess({
@@ -279,6 +278,15 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
       label: category.label,
     })),
   ];
+  const activeCategoryLabel =
+    categoryOptions.find((option) => option.value === selectedCategory)?.label ??
+    localize('com_agents_all_category');
+  const resultsMeta: { name: string; description?: string } =
+    selectedCategory === 'all'
+      ? allAgentsMeta
+      : {
+          name: activeCategoryLabel,
+        };
   const categoryControl = (
     <Dropdown
       data-tour-id="marketplace-categories"
@@ -338,9 +346,28 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   );
   const renderResultsControls = () => (
     <div className="agents-marketplace-results-controls">
+      {!isSmallScreen ? (
+        <button
+          type="button"
+          className="agents-marketplace-control-panel-trigger"
+          aria-label={localize('com_nav_control_panel')}
+          onClick={requestOpenControlPanel}
+        >
+          <PanelRightOpen className="size-4" aria-hidden="true" />
+          <span>{localize('com_nav_control_panel')}</span>
+        </button>
+      ) : null}
       {categoryControl}
       {sortControl}
     </div>
+  );
+  const marketplaceSearch = (
+    <SearchBar
+      value={searchQuery}
+      onSearch={handleSearch}
+      onFocusChange={setIsSearchFocused}
+      className="agents-marketplace-hero-search"
+    />
   );
   const marketplaceMainContent = (
     <main
@@ -359,73 +386,18 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
           )}
         >
           <motion.div
-            className="agents-marketplace-hero-shell"
+            className="agents-marketplace-hero-shell agents-marketplace-app-hero-shell"
+            data-header-variant="waterfall"
             variants={marketplaceHeroShellVariants}
           >
-            <div className="agents-marketplace-heading-row agents-marketplace-hero-top">
-              <div className="agents-marketplace-hero-intro">
-                <motion.div
-                  className="agents-marketplace-heading"
-                  variants={marketplaceHeroItemVariants}
-                >
-                  <div className="agents-marketplace-title-lockup">
-                    <span className="agents-marketplace-title-mark" aria-hidden="true">
-                      <img src="/assets/ethos-rays.png" alt="" />
-                      <img src="/assets/ethos-arc.png" alt="" />
-                    </span>
-                    <h1 className="agents-marketplace-page-title text-text-primary">
-                      {localize('com_agents_marketplace')}
-                    </h1>
-                  </div>
-                </motion.div>
-              </div>
-              <motion.div
-                className="agents-marketplace-header-actions"
-                variants={marketplaceHeroItemVariants}
-              >
-                <div className="agents-marketplace-control-card">
-                  <div className="agents-marketplace-control-card-copy">
-                    <span className="agents-marketplace-control-card-title">
-                      {localize('com_agents_marketplace_control_title')}
-                    </span>
-                  </div>
-                  <MarketplaceControlPanel
-                    className="agents-marketplace-panel-trigger--hero"
-                    isOpen={isMarketplacePanelOpen}
-                  />
-                </div>
-              </motion.div>
-            </div>
+            <AgentIconWall
+              headerVariant="waterfall"
+              showCarousel
+              onSelectAgent={handleAgentSelect}
+              search={marketplaceSearch}
+            />
           </motion.div>
         </motion.header>
-        <div
-          className={cn(
-            'agents-marketplace-filter-stack sticky z-10 pb-0 pt-0 md:pb-1 md:pt-1',
-            'top-0',
-          )}
-        >
-          <div className={surfaceShellClassName}>
-            <motion.div
-              variants={sectionStaggerVariants}
-              initial={shouldReduceMotion ? false : 'hidden'}
-              animate="visible"
-              transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.02, duration: 0.24 }}
-              className="agents-marketplace-toolbar px-4 pb-2 pt-4 md:px-5 md:pb-2 md:pt-4"
-            >
-              <motion.div
-                className="agents-marketplace-toolbar-row items-start"
-                variants={marketplaceSurfaceRevealVariants}
-              >
-                <SearchBar
-                  value={searchQuery}
-                  onSearch={handleSearch}
-                  onFocusChange={setIsSearchFocused}
-                  className="agents-marketplace-hero-search"
-                />
-              </motion.div>
-            </motion.div>
-          </div>
-        </div>
         <div className={cn(surfaceShellClassName, isSmallScreen ? 'pb-8' : 'pb-10')}>
           <motion.section
             variants={sectionStaggerVariants}
@@ -439,11 +411,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   <div className="agents-marketplace-section-header">
                     <div className="min-w-0 text-left">
                       <h2 className="agents-marketplace-section-title text-text-primary">
-                        {allAgentsMeta.name}
+                        {resultsMeta.name}
                       </h2>
-                      {allAgentsMeta.description && (
+                      {resultsMeta.description && (
                         <p className="agents-marketplace-section-subtitle mt-2 max-w-3xl text-text-secondary">
-                          {allAgentsMeta.description}
+                          {resultsMeta.description}
                         </p>
                       )}
                     </div>
@@ -459,6 +431,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   searchQuery={searchQuery}
                   sortOption={sortOption}
                   viewMode="large"
+                  viewVariant="box"
+                  showAgentOfDayVideo={false}
+                  showAgentOfDayAbove={!searchQuery}
                   onSelectAgent={handleAgentSelect}
                   onClearSearch={() => handleSearch('')}
                   scrollElementRef={scrollContainerRef}

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Folder, MessageSquareText, X } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  MessageSquarePlus,
+  MessageSquareText,
+  X,
+} from 'lucide-react';
 import type { TProject } from 'librechat-data-provider';
 import type { MockProjectAccent } from '~/components/Nav/mockNavigation';
 import { useConversationsInfiniteQuery } from '~/data-provider';
@@ -23,6 +31,7 @@ type ProjectChatsPanelProps = {
   onClose: () => void;
   onConversationClick: (conversation: ProjectConversation) => void;
   onDismissNavigation: () => void;
+  onNewConversation?: () => void;
   onOpenProject?: () => void;
   project: TProject;
 };
@@ -36,6 +45,7 @@ export default function ProjectChatsPanel({
   onClose,
   onConversationClick,
   onDismissNavigation,
+  onNewConversation,
   onOpenProject,
   project,
 }: ProjectChatsPanelProps) {
@@ -180,17 +190,30 @@ export default function ProjectChatsPanel({
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </header>
-      {onOpenProject ? (
+      {onNewConversation || onOpenProject ? (
         <div className="sidebar-project-panel-actions">
-          <button
-            type="button"
-            className="sidebar-project-panel-open-project"
-            aria-label={localize('com_projects_open_project_name', { name: project.name })}
-            onClick={onOpenProject}
-          >
-            <span>{localize('com_projects_open_project')}</span>
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </button>
+          {onNewConversation ? (
+            <button
+              type="button"
+              className="sidebar-project-panel-new-chat"
+              aria-label={localize('com_projects_new_chat_in_project', { name: project.name })}
+              onClick={onNewConversation}
+            >
+              <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
+              <span>{localize('com_ui_new_chat')}</span>
+            </button>
+          ) : null}
+          {onOpenProject ? (
+            <button
+              type="button"
+              className="sidebar-project-panel-open-project"
+              aria-label={localize('com_projects_open_project_name', { name: project.name })}
+              onClick={onOpenProject}
+            >
+              <span>{localize('com_projects_open_project')}</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
       ) : null}
       <div className="sidebar-project-panel-list">{renderConversations()}</div>

@@ -68,9 +68,9 @@ export default function ChatRoute() {
   const mockConversation = useMemo(
     () =>
       isMockNavigationConversation(conversationId)
-        ? getMockNavigationConversation(conversationId, localize)
+        ? getMockNavigationConversation(conversationId, localize, projectId)
         : undefined,
-    [conversationId, localize],
+    [conversationId, localize, projectId],
   );
   const mockMessages = useMemo(
     () => (mockConversation ? getMockNavigationMessages(mockConversation, localize) : []),

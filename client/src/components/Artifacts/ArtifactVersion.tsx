@@ -57,7 +57,7 @@ export default function ArtifactVersion({
       setIsOpen={setIsPopoverActive}
       trigger={
         <TooltipAnchor
-          description={localize('com_ui_change_version')}
+          description={localize('com_ui_tooltip_change_artifact_version')}
           render={
             <Button
               size="icon"
