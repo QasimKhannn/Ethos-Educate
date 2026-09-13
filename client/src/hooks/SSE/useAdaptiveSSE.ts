@@ -1,5 +1,5 @@
 import { isAssistantsEndpoint } from 'librechat-data-provider';
-import type { TSubmission } from 'librechat-data-provider';
+import type { TConversation, TSubmission } from 'librechat-data-provider';
 import type { EventHandlerParams } from './useEventHandlers';
 import useResumableSSE from './useResumableSSE';
 import useSSE from './useSSE';
@@ -12,7 +12,9 @@ type ChatHelpers = Pick<
   | 'setIsSubmitting'
   | 'newConversation'
   | 'resetLatestMessage'
->;
+> & {
+  conversation: TConversation | null;
+};
 
 /**
  * Adaptive SSE hook that switches between standard and resumable modes.

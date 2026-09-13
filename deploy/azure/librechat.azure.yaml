@@ -19,7 +19,7 @@ interface:
     global: true
 
 fileConfig:
-  serverFileSizeLimit: 20
+  serverFileSizeLimit: 100
 
 mcpSettings:
   allowedDomains:

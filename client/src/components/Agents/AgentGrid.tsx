@@ -16,7 +16,6 @@ import {
 import { renderAgentAvatar, getAgentDisplayName, getAgentToolkitDescription } from '~/utils';
 import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
-import AgentOfTheDayVideoPlaceholder from './AgentOfTheDayVideoPlaceholder';
 import AgentDetail from './AgentDetail';
 import AgentIntakeDialog from './AgentIntakeDialog';
 import { getAgentIntakeTemplate } from './agentIntake';
@@ -36,7 +35,6 @@ interface AgentGridProps {
   sortOption?: AgentSortOption;
   viewMode?: MarketplaceViewMode;
   viewVariant?: AgentViewVariant;
-  showAgentOfDayVideo?: boolean;
   showAgentOfDayAbove?: boolean;
   agentOfDaySearch?: React.ReactNode;
   resultsHeading?: React.ReactNode;
@@ -70,7 +68,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   sortOption = 'featured',
   viewMode = 'compact',
   viewVariant = 'gallery',
-  showAgentOfDayVideo = true,
   showAgentOfDayAbove = false,
   agentOfDaySearch,
   resultsHeading,
@@ -119,10 +116,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     } else if (category === 'promoted') {
       params.promoted = 1;
     } else if (category !== 'all') {
-      params.category = category;
-    }
-
-    if (category && category !== 'all') {
       params.category = category;
     }
 
@@ -529,7 +522,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
           onFocus={handleStorefrontCardEnter}
           onBlur={handleStorefrontCardLeave}
         >
-          {isAgentOfDay && showAgentOfDayVideo ? <AgentOfTheDayVideoPlaceholder /> : null}
           <div className="agents-marketplace-storefront-icon-wrap" aria-hidden="true">
             <div className="agents-marketplace-storefront-avatar">
               {renderAgentAvatar(agent, {
@@ -700,7 +692,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                   viewMode={viewMode}
                   viewVariant={viewVariant}
                   isAgentOfDay
-                  showAgentOfDayVideo={showAgentOfDayVideo}
                 />
               </motion.div>
             ) : null}
@@ -726,7 +717,6 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                   viewMode={viewMode}
                   viewVariant={viewVariant}
                   isAgentOfDay={false}
-                  showAgentOfDayVideo={false}
                 />
               </motion.div>
             ))}

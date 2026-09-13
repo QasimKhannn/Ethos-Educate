@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { v4 } from 'uuid';
 import { SSE } from 'sse.js';
 import { useSetRecoilState } from 'recoil';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   request,
   Constants,
@@ -14,7 +16,13 @@ import {
   LocalStorageKeys,
   removeNullishValues,
 } from 'librechat-data-provider';
-import type { TMessage, TPayload, TSubmission, EventSubmission } from 'librechat-data-provider';
+import type {
+  TMessage,
+  TPayload,
+  TSubmission,
+  TConversation,
+  EventSubmission,
+} from 'librechat-data-provider';
 import type { EventHandlerParams } from './useEventHandlers';
 import type { GenerationStartedResponse } from './resumableNavigation';
 import { useGetStartupConfig, useGetUserBalance, queueTitleGeneration } from '~/data-provider';
@@ -22,7 +30,7 @@ import { fetchStreamStatus } from '~/data-provider/SSE/queries';
 import type { ActiveJobsResponse } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useEventHandlers from './useEventHandlers';
-import { replacePendingConversationUrl } from './resumableNavigation';
+import { getPendingConversationPath } from './resumableNavigation';
 import store from '~/store';
 
 const clearDraft = (conversationId?: string | null) => {
@@ -43,7 +51,9 @@ type ChatHelpers = Pick<
   | 'setIsSubmitting'
   | 'newConversation'
   | 'resetLatestMessage'
->;
+> & {
+  conversation: TConversation | null;
+};
 
 const MAX_RETRIES = 5;
 const TERMINAL_RECOVERY_INTERVAL_MS = 5000;
@@ -66,6 +76,7 @@ export default function useResumableSSE(
   runIndex = 0,
 ) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const setActiveRunId = useSetRecoilState(store.activeRunFamily(runIndex));
 
   const { token, isAuthenticated } = useAuthContext();
@@ -107,6 +118,7 @@ export default function useResumableSSE(
   const terminalEventReceivedRef = useRef(false);
   const terminalRecoveryAttemptsRef = useRef(0);
   const terminalRecoverySSERef = useRef<SSE | null>(null);
+  const pendingConversationIdRef = useRef<string | null>(null);
 
   const {
     setMessages,
@@ -116,6 +128,58 @@ export default function useResumableSSE(
     newConversation,
     resetLatestMessage,
   } = chatHelpers;
+
+  const setMessagesForPendingConversation = useCallback(
+    (messages: TMessage[]) => {
+      setMessages(messages);
+
+      const pendingConversationId = pendingConversationIdRef.current;
+      if (pendingConversationId) {
+        queryClient.setQueryData<TMessage[]>([QueryKeys.messages, pendingConversationId], messages);
+      }
+    },
+    [queryClient, setMessages],
+  );
+
+  const handleGenerationStarted = useCallback(
+    (response: GenerationStartedResponse) => {
+      const path = getPendingConversationPath(response);
+      if (!path) {
+        return;
+      }
+
+      const pendingConversation = chatHelpers.conversation;
+      if (!pendingConversation || pendingConversation.conversationId !== Constants.NEW_CONVO) {
+        return;
+      }
+
+      const nextConversation = {
+        ...pendingConversation,
+        conversationId: response.conversationId,
+      };
+      const pendingMessages = getMessages();
+
+      pendingConversationIdRef.current = response.conversationId;
+      queryClient.setQueryData<TConversation>(
+        [QueryKeys.conversation, response.conversationId],
+        nextConversation,
+      );
+      if (pendingMessages) {
+        queryClient.setQueryData<TMessage[]>(
+          [QueryKeys.messages, response.conversationId],
+          pendingMessages,
+        );
+      }
+
+      flushSync(() => {
+        setConversation?.((previous) =>
+          previous?.conversationId === Constants.NEW_CONVO ? nextConversation : previous,
+        );
+      });
+      navigate(path, { replace: true });
+    },
+    [chatHelpers.conversation, getMessages, navigate, queryClient, setConversation],
+  );
 
   const {
     stepHandler,
@@ -129,7 +193,7 @@ export default function useResumableSSE(
     attachmentHandler,
     resetContentHandler,
   } = useEventHandlers({
-    setMessages,
+    setMessages: setMessagesForPendingConversation,
     getMessages,
     setCompleted,
     isAddedRequest,
@@ -193,6 +257,8 @@ export default function useResumableSSE(
               console.error('[ResumableSSE] Error in finalHandler:', error);
               setIsSubmitting(false);
               setShowStopButton(false);
+            } finally {
+              pendingConversationIdRef.current = null;
             }
             // Clear handler maps on stream completion to prevent memory leaks
             clearStepMaps();
@@ -364,6 +430,7 @@ export default function useResumableSSE(
           console.log('[ResumableSSE] Stream not found (404) - job completed or expired');
           sse.close();
           removeActiveJob(currentStreamId);
+          pendingConversationIdRef.current = null;
           setIsSubmitting(false);
           setShowStopButton(false);
           setStreamId(null);
@@ -444,6 +511,7 @@ export default function useResumableSSE(
             });
           }
 
+          pendingConversationIdRef.current = null;
           setIsSubmitting(false);
           setShowStopButton(false);
           setStreamId(null);
@@ -677,7 +745,7 @@ export default function useResumableSSE(
         try {
           // Use request.post which handles auth token refresh via axios interceptors
           const data = (await request.post(url, payload)) as GenerationStartedResponse;
-          replacePendingConversationUrl(data);
+          handleGenerationStarted(data);
           console.log('[ResumableSSE] Generation started:', { streamId: data.streamId });
           return data.streamId;
         } catch (error) {
@@ -719,7 +787,7 @@ export default function useResumableSSE(
       setIsSubmitting(false);
       return null;
     },
-    [clearStepMaps, errorHandler, setIsSubmitting],
+    [clearStepMaps, errorHandler, handleGenerationStarted, setIsSubmitting],
   );
 
   useEffect(() => {

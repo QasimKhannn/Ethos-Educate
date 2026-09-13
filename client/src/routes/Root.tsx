@@ -102,7 +102,7 @@ export default function Root() {
       localStorage.setItem('navVisible', JSON.stringify(true));
       return true;
     });
-  }, [location.pathname, location.search, shouldKeepNavigationOpen]);
+  }, [location.pathname, shouldKeepNavigationOpen]);
 
   useEffect(() => {
     const root = document.documentElement;

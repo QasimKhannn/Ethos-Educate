@@ -6,17 +6,15 @@ export type GenerationStartedResponse = {
   streamId: string;
 };
 
-export const replacePendingConversationUrl = (response: GenerationStartedResponse): boolean => {
+export const getPendingConversationPath = (response: GenerationStartedResponse): string | null => {
   if (response.conversationId === '' || response.conversationId === Constants.NEW_CONVO) {
-    return false;
+    return null;
   }
 
   const url = new URL(window.location.href);
   if (url.pathname !== `/c/${Constants.NEW_CONVO}`) {
-    return false;
+    return null;
   }
 
-  const path = `/c/${encodeURIComponent(response.conversationId)}${url.search}${url.hash}`;
-  window.history.replaceState(window.history.state, '', path);
-  return true;
+  return `/c/${encodeURIComponent(response.conversationId)}${url.search}${url.hash}`;
 };

@@ -87,7 +87,7 @@ const presentationGradeBands = [
   },
 ] as const;
 
-export const presentationTemplates = presentationGradeBands.flatMap((gradeBand) =>
+const classroomFlowTemplates = presentationGradeBands.flatMap((gradeBand) =>
   presentationDeckTypes.map((deckType) => ({
     templateId: `${gradeBand.value}:${deckType.value}`,
     gradeBand: gradeBand.value,
@@ -100,6 +100,55 @@ export const presentationTemplates = presentationGradeBands.flatMap((gradeBand) 
     slideCount: 11,
   })),
 );
+
+const namedPresentationTemplates = [
+  {
+    templateId: 'K-2:sunny_day',
+    gradeBand: 'K-2',
+    deckType: 'teacher_lesson',
+    label: 'K-2 Sunny Day',
+    deckLabel: 'Sunny Day',
+    gradeDescription: 'Large text, simple language, and visual-heavy pacing.',
+    description: 'Bright, playful lesson slides with an easy-to-read classroom feel.',
+    previewImage: '/assets/presentation-templates/k-2-sunny-day.png',
+    slideCount: 11,
+  },
+  {
+    templateId: '3-5:explorers_trail',
+    gradeBand: '3-5',
+    deckType: 'teacher_lesson',
+    label: "3-5 Explorer's Trail",
+    deckLabel: "Explorer's Trail",
+    gradeDescription: 'Student-friendly explanations, examples, and checks for understanding.',
+    description: 'An energetic elementary lesson theme with explorer-inspired shapes and colors.',
+    previewImage: '/assets/presentation-templates/grades-3-5-explorers-trail.png',
+    slideCount: 11,
+  },
+  {
+    templateId: '6-8:prism',
+    gradeBand: '6-8',
+    deckType: 'teacher_lesson',
+    label: '6-8 Prism',
+    deckLabel: 'Prism',
+    gradeDescription: 'Middle-grade vocabulary, reasoning, discussion, and application tasks.',
+    description: 'A bold middle-school lesson theme with high-contrast geometric accents.',
+    previewImage: '/assets/presentation-templates/grades-6-8-prism.png',
+    slideCount: 11,
+  },
+  {
+    templateId: '9-12:meridian',
+    gradeBand: '9-12',
+    deckType: 'teacher_lesson',
+    label: '9-12 Meridian',
+    deckLabel: 'Meridian',
+    gradeDescription: 'Concise academic style with analysis, evidence, and synthesis prompts.',
+    description: 'A polished secondary lesson theme with a focused academic presentation style.',
+    previewImage: '/assets/presentation-templates/grades-9-12-meridian.png',
+    slideCount: 11,
+  },
+] as const;
+
+export const presentationTemplates = [...classroomFlowTemplates, ...namedPresentationTemplates];
 
 export type WorksheetIntakeValues = {
   topic: string;
@@ -292,12 +341,13 @@ export function buildPresentationIntakePrompt(values: PresentationIntakeValues):
   const lines = [
     'I selected a PowerPoint template for this presentation creator chat.',
     `Selected template: ${selectedTemplate.label}`,
+    `template_id: ${selectedTemplate.templateId}`,
     `grade_band: ${selectedTemplate.gradeBand}`,
     `deck_type: ${selectedTemplate.deckType}`,
     'Do not create a PPTX from this template selection alone.',
     'Ask me what presentation I want to create if I have not already provided the topic or content.',
     'After I provide the presentation request, draft the complete slide-by-slide content in chat for teacher review before creating the PPTX.',
-    'Only after I approve the draft, call presentation_deck_creator with content_status="teacher_approved" using the selected grade_band and deck_type.',
+    'Only after I approve the draft, call presentation_deck_creator with content_status="teacher_approved" using the selected template_id, grade_band, and deck_type.',
   ];
 
   return lines.join('\n');

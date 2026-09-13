@@ -1,9 +1,14 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   buildAssessmentIntakePrompt,
+  buildPresentationIntakePrompt,
   buildWorksheetIntakePrompt,
   createAssessmentIntakeValues,
+  createPresentationIntakeValues,
   createWorksheetIntakeValues,
   getAgentIntakeTemplate,
+  presentationTemplates,
 } from '../agentIntake';
 import type { Agent } from 'librechat-data-provider';
 
@@ -57,5 +62,33 @@ describe('agent intake prompt builders', () => {
     expect(getAgentIntakeTemplate({ name: 'Assessment & Quiz Builder' } as Agent)).toBe(
       'assessment',
     );
+  });
+
+  it('preserves a selected named PowerPoint template for the deck creator tool', () => {
+    const values = createPresentationIntakeValues();
+    values.selectedTemplateId = '6-8:prism';
+
+    const prompt = buildPresentationIntakePrompt(values);
+
+    expect(presentationTemplates).toHaveLength(16);
+    expect(prompt).toContain('Selected template: 6-8 Prism');
+    expect(prompt).toContain('template_id: 6-8:prism');
+    expect(prompt).toContain('grade_band: 6-8');
+    expect(prompt).toContain('deck_type: teacher_lesson');
+    expect(prompt).toContain('using the selected template_id, grade_band, and deck_type');
+  });
+
+  it('keeps one local preview for every distinct PowerPoint template', () => {
+    const templateIds = presentationTemplates.map((template) => template.templateId);
+    const previewImages = presentationTemplates.map((template) => template.previewImage);
+
+    expect(templateIds).toHaveLength(16);
+    expect(new Set(templateIds).size).toBe(templateIds.length);
+    expect(new Set(previewImages).size).toBe(previewImages.length);
+
+    for (const previewImage of previewImages) {
+      const previewPath = resolve(__dirname, '../../../../public', previewImage.slice(1));
+      expect(existsSync(previewPath)).toBe(true);
+    }
   });
 });

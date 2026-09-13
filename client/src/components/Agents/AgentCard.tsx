@@ -5,7 +5,6 @@ import type t from 'librechat-data-provider';
 import { useLocalize, TranslationKeys, useAgentCategories } from '~/hooks';
 import { cn, renderAgentAvatar, getAgentDisplayName, getAgentToolkitDescription } from '~/utils';
 import AgentDetailContent from './AgentDetailContent';
-import AgentOfTheDayVideoPlaceholder from './AgentOfTheDayVideoPlaceholder';
 import { getShortStorefrontDescription } from './storefrontDescription';
 
 interface AgentCardProps {
@@ -16,7 +15,6 @@ interface AgentCardProps {
   viewMode?: 'compact' | 'large';
   viewVariant?: 'gallery' | 'box' | 'spotlight';
   isAgentOfDay?: boolean;
-  showAgentOfDayVideo?: boolean;
 }
 
 /**
@@ -30,7 +28,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   viewMode = 'compact',
   viewVariant = 'gallery',
   isAgentOfDay = false,
-  showAgentOfDayVideo = true,
 }) => {
   const localize = useLocalize();
   const { categories } = useAgentCategories();
@@ -91,7 +88,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
             data-view-variant={viewVariant}
             onClick={handleCardClick}
           >
-            {isAgentOfDay && showAgentOfDayVideo ? <AgentOfTheDayVideoPlaceholder /> : null}
             <div className="agent-card-avatar-shell flex h-[3.95rem] w-[3.95rem] shrink-0 items-center justify-center rounded-xl border border-border-light bg-surface-secondary">
               {renderAgentAvatar(agent, {
                 size: 'fill',

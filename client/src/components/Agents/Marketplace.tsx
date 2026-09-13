@@ -390,12 +390,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
             data-header-variant="waterfall"
             variants={marketplaceHeroShellVariants}
           >
-            <AgentIconWall
-              headerVariant="waterfall"
-              showCarousel
-              onSelectAgent={handleAgentSelect}
-              search={marketplaceSearch}
-            />
+            <AgentIconWall headerVariant="waterfall" search={marketplaceSearch} />
           </motion.div>
         </motion.header>
         <div className={cn(surfaceShellClassName, isSmallScreen ? 'pb-8' : 'pb-10')}>
@@ -432,7 +427,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   sortOption={sortOption}
                   viewMode="large"
                   viewVariant="box"
-                  showAgentOfDayVideo={false}
                   showAgentOfDayAbove={!searchQuery}
                   onSelectAgent={handleAgentSelect}
                   onClearSearch={() => handleSearch('')}
