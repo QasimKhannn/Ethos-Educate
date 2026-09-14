@@ -20,7 +20,7 @@ import {
   SquarePen,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Skeleton, TooltipAnchor, useMediaQuery } from '@librechat/client';
+import { Button, Skeleton, TooltipAnchor, useMediaQuery } from '@librechat/client';
 import { PermissionTypes, Permissions, QueryKeys, SystemRoles } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
@@ -64,6 +64,7 @@ import {
 import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
 import { clearMessagesCache, cn } from '~/utils';
 import store from '~/store';
+import { saveNavVisibility } from './sidebarVisibility';
 
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
@@ -240,20 +241,9 @@ const CompactNav = memo(({ openSidebar }: { openSidebar: () => void }) => {
       <div className="mt-auto flex flex-col items-center gap-3">
         <HelpAndFaqButton compact className={actionClassName()} />
         <div className="h-px w-7 bg-white/10" aria-hidden="true" />
-        <TooltipAnchor
-          description={localize('com_nav_tooltip_account_settings')}
-          side="right"
-          render={
-            <button
-              type="button"
-              aria-label={localize('com_nav_account_settings')}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-xs font-semibold text-white transition-colors hover:border-[#DAAC60]/60 hover:text-[#E8C37F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DAAC60]/70"
-              onClick={openAndFocusSidebar}
-            >
-              <Avatar user={user} size={32} />
-            </button>
-          }
-        />
+        <Suspense fallback={<Skeleton className="h-10 w-10 rounded-full" />}>
+          <AccountSettings compact />
+        </Suspense>
       </div>
     </nav>
   );
@@ -373,7 +363,7 @@ const Nav = memo(
       // This prevents blocking the main thread during the cascade of re-renders
       startTransition(() => {
         setNavVisible((prev: boolean) => {
-          localStorage.setItem('navVisible', JSON.stringify(!prev));
+          saveNavVisibility(!prev);
           return !prev;
         });
         if (newUser) {
@@ -383,15 +373,6 @@ const Nav = memo(
     }, [newUser, setNavVisible, setNewUser]);
 
     useEffect(() => {
-      if (isSmallScreen) {
-        const savedNavVisible = localStorage.getItem('navVisible');
-        if (savedNavVisible === null) {
-          toggleNavVisible();
-        }
-      }
-    }, [isSmallScreen, toggleNavVisible]);
-
-    useEffect(() => {
       const handleTourOpen = () => {
         startTransition(() => {
           setNavVisible((previous) => {
@@ -399,7 +380,7 @@ const Nav = memo(
               return previous;
             }
 
-            localStorage.setItem('navVisible', JSON.stringify(true));
+            saveNavVisibility(true);
             return true;
           });
         });
@@ -412,7 +393,7 @@ const Nav = memo(
               return previous;
             }
 
-            localStorage.setItem('navVisible', JSON.stringify(false));
+            saveNavVisibility(false);
             return false;
           });
         });

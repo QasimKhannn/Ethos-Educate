@@ -21,6 +21,7 @@ jest.mock('~/hooks', () => ({
     ({
       com_ui_ai_generated_image_notice:
         'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
+      com_ui_generated_image_retention_notice: 'This image will be available for 24 hours.',
       com_ui_generated_file_expired_description:
         'That file is no longer available, but I can create a fresh copy from the original request.',
       com_ui_generated_image_expired_description:

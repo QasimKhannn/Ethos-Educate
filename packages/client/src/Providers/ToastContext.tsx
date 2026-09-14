@@ -3,7 +3,7 @@ import type { TShowToast } from '~/common';
 import useToast from '~/hooks/useToast';
 
 type ToastContextType = {
-  showToast: ({ message, severity, showIcon, duration }: TShowToast) => void;
+  showToast: ({ message, title, severity, showIcon, duration, variant }: TShowToast) => void;
 };
 
 export const ToastContext = createContext<ToastContextType>({

@@ -184,6 +184,7 @@ export type TError = {
   response?: {
     data?: {
       message?: string;
+      action?: string;
     };
     status?: number;
   };

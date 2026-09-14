@@ -4,6 +4,7 @@ import { TooltipAnchor, Button } from '@librechat/client';
 import { SIDEBAR_FOCUS_DELAY_MS } from '~/components/Nav/sidebarMotion';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
+import { saveNavVisibility } from '~/components/Nav/sidebarVisibility';
 
 /** Element ID for the close sidebar button - used for focus management */
 export const CLOSE_SIDEBAR_ID = 'close-sidebar-button';
@@ -24,7 +25,7 @@ export default function OpenSidebar({
     // This prevents blocking the main thread during the cascade of re-renders
     startTransition(() => {
       setNavVisible((prev) => {
-        localStorage.setItem('navVisible', JSON.stringify(!prev));
+        saveNavVisibility(!prev);
         return !prev;
       });
     });

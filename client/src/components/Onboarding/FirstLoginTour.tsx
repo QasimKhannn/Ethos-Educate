@@ -431,6 +431,7 @@ export default function FirstLoginTour({
   const layoutFrameRef = useRef<number | null>(null);
   const transitionTimeoutsRef = useRef(new Set<number>());
   const isTransitioningRef = useRef(false);
+  const isTourPreviewActiveRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [completedLocally, setCompletedLocally] = useState(completed);
@@ -497,7 +498,10 @@ export default function FirstLoginTour({
 
   const markComplete = useCallback(() => {
     cancelPendingTransitions();
-    closeAllTourPreviews();
+    if (isTourPreviewActiveRef.current) {
+      closeAllTourPreviews();
+      isTourPreviewActiveRef.current = false;
+    }
     setCompletedLocally(true);
     localStorage.setItem(completionStorageKey, JSON.stringify(true));
     localStorage.setItem('newUser', JSON.stringify(false));
@@ -596,7 +600,10 @@ export default function FirstLoginTour({
   useEffect(() => {
     if (disabled || completedLocally) {
       cancelPendingTransitions();
-      closeAllTourPreviews();
+      if (isTourPreviewActiveRef.current) {
+        closeAllTourPreviews();
+        isTourPreviewActiveRef.current = false;
+      }
       setIsOpen(false);
       setIsTransitioning(false);
       return;
@@ -648,6 +655,8 @@ export default function FirstLoginTour({
       if (cancelled || !matchesTourScreen(location.pathname, step.screen)) {
         return;
       }
+
+      isTourPreviewActiveRef.current = true;
 
       if (isNavExpandedStep(step)) {
         window.dispatchEvent(new CustomEvent('nav-tour-open'));

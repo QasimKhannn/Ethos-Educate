@@ -151,6 +151,10 @@ export default function ToolCall({
         .join('\n\n'),
     [generatedDocumentGroups.available],
   );
+  const generatedDocumentRetentionNotice =
+    generatedDocumentGroups.available.length === 1
+      ? localize('com_ui_generated_document_retention_notice')
+      : localize('com_ui_generated_documents_retention_notice');
 
   const args = useMemo(() => {
     if (typeof _args === 'string') {
@@ -302,6 +306,9 @@ export default function ToolCall({
       {generatedDocumentMarkdown && (
         <div className="my-2 rounded-lg border border-border-light bg-surface-secondary px-3 py-2 text-sm">
           <Markdown content={generatedDocumentMarkdown} isLatestMessage={isLast} />
+          <p role="note" className="mt-2 text-xs leading-5 text-text-secondary">
+            {generatedDocumentRetentionNotice}
+          </p>
         </div>
       )}
       {generatedDocumentGroups.expired.length > 0 && (

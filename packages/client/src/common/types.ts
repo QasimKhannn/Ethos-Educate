@@ -1,11 +1,15 @@
 import { NotificationSeverity } from './enum';
 
+export type ToastVariant = 'default' | 'file-upload-guidance';
+
 export type TShowToast = {
   message: string;
+  title?: string;
   severity?: NotificationSeverity;
   showIcon?: boolean;
   duration?: number;
   status?: 'error' | 'success' | 'warning' | 'info';
+  variant?: ToastVariant;
 };
 
 export type Option = Record<string, unknown> & {

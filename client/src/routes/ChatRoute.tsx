@@ -62,6 +62,7 @@ export default function ChatRoute() {
   const queryClient = useQueryClient();
   const { hasSetConversation, conversation, setConversation } =
     store.useCreateConversationAtom(index);
+  const isSubmitting = useRecoilValue(store.isSubmittingFamily(index));
   const { newConversation } = useNewConvo();
   const { showToast } = useToastContext();
   const localize = useLocalize();
@@ -91,6 +92,15 @@ export default function ChatRoute() {
       mockConversation == null &&
       (!hasSetConversation.current || routeNeedsExistingConversation),
   });
+  const stagedConversation = queryClient.getQueryData<TConversation>([
+    QueryKeys.conversation,
+    conversationId,
+  ]);
+  const isNewConversationHandoff =
+    isSubmitting &&
+    !isRouteNewConvo &&
+    conversation?.conversationId === Constants.NEW_CONVO &&
+    stagedConversation?.conversationId === conversationId;
   const streamStatusQuery = useStreamStatus(
     conversationId,
     isAuthenticated &&
@@ -359,7 +369,11 @@ export default function ChatRoute() {
   if (!conversationId) {
     return null;
   }
-  if (conversationId !== Constants.NEW_CONVO && conversation?.conversationId !== conversationId) {
+  if (
+    conversationId !== Constants.NEW_CONVO &&
+    conversation?.conversationId !== conversationId &&
+    !isNewConversationHandoff
+  ) {
     return (
       <div className="flex h-screen items-center justify-center" aria-live="polite" role="status">
         <Spinner className="text-text-primary" />
@@ -368,7 +382,11 @@ export default function ChatRoute() {
   }
 
   return (
-    <ToolCallsMapProvider conversationId={conversation.conversationId ?? ''}>
+    <ToolCallsMapProvider
+      conversationId={
+        isNewConversationHandoff ? conversationId : (conversation.conversationId ?? '')
+      }
+    >
       <ChatView index={index} />
     </ToolCallsMapProvider>
   );

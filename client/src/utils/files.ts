@@ -303,8 +303,10 @@ export const validateFiles = ({
     }
 
     if (!checkType(originalFile.type, mimeTypesToCheck)) {
-      console.log(originalFile);
-      setError('Currently, unsupported file type: ' + originalFile.type);
+      setError(
+        localize?.('com_error_files_unsupported_format') ??
+          'That file type isn’t supported. Try a PDF, DOCX, PPTX, XLSX, CSV, TXT, JPG, PNG, WEBP, ZIP, or TAR file.',
+      );
       return false;
     }
 

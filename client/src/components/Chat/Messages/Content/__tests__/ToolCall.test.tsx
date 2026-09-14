@@ -32,6 +32,8 @@ jest.mock('~/hooks', () => ({
         'That file is no longer available, but I can create a fresh copy from the original request.',
       com_ui_generated_files_expired_description:
         'Those files are no longer available, but I can create fresh copies from the original request.',
+      com_ui_generated_document_retention_notice: 'This document will be available for 24 hours.',
+      com_ui_generated_documents_retention_notice: 'These documents will be available for 24 hours.',
       com_ui_generated_file_expired_action: 'Create again',
       com_ui_regenerating: 'Regenerating...',
     };
@@ -52,6 +54,11 @@ jest.mock('../ToolCallInfo', () => ({
       {JSON.stringify(props)}
     </div>
   ),
+}));
+
+jest.mock('../Markdown', () => ({
+  __esModule: true,
+  default: ({ content }: { content: string }) => <div data-testid="generated-document-markdown">{content}</div>,
 }));
 
 jest.mock('../ProgressText', () => ({
@@ -468,6 +475,14 @@ describe('ToolCall', () => {
   });
 
   describe('generated document retention', () => {
+    it('shows a 24-hour availability notice with a generated document download', () => {
+      const output = '[Student Worksheet.docx](/api/files/download/user-123/file-456)';
+
+      renderWithRecoil(<ToolCall {...mockProps} output={output} />);
+
+      expect(screen.getByText('This document will be available for 24 hours.')).toBeInTheDocument();
+    });
+
     it('renders one expiry notice and direct retry action for all expired files from a tool result', () => {
       const output = [
         'Available until 2026-09-03 21:54 UTC.',

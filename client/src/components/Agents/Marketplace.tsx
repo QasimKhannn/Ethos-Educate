@@ -25,7 +25,6 @@ import {
 } from '~/hooks';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { SidePanelProvider, useChatContext } from '~/Providers';
-import ChatBackgroundLights from '~/components/Chat/ChatBackgroundLights';
 import { SidePanelGroup } from '~/components/SidePanel';
 import { requestOpenControlPanel } from '~/components/SidePanel/events';
 import {
@@ -449,7 +448,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
         className,
       )}
     >
-      <ChatBackgroundLights mode="marketplace" />
       <SidePanelProvider
         endpoint={marketplaceSidePanelContext.endpoint}
         endpointType={marketplaceSidePanelContext.endpointType}

@@ -32,6 +32,7 @@ jest.mock('~/hooks', () => ({
     ({
       com_ui_ai_generated_image_notice:
         'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
+      com_ui_generated_image_retention_notice: 'This image will be available for 24 hours.',
       com_ui_generated_image_expired_description:
         'That image is no longer available, but I can make a fresh one from the original request.',
       com_ui_generated_image_expired_action: 'Generate again',
@@ -208,6 +209,7 @@ describe('Image', () => {
           'This AI-generated image may contain mistakes or unexpected details. Please review it before using it.',
         ),
       ).toBeInTheDocument();
+      expect(screen.getByText('This image will be available for 24 hours.')).toBeInTheDocument();
     });
 
     it('does not show the review notice for a non-generated image', () => {

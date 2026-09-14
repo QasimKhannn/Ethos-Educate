@@ -22,6 +22,7 @@ import {
   useOnboardingTourStatusQuery,
 } from '~/data-provider';
 import { Nav, MobileNav } from '~/components/Nav';
+import { getInitialNavVisibility } from '~/components/Nav/sidebarVisibility';
 import FirstLoginTour from '~/components/Onboarding/FirstLoginTour';
 import { TermsAndConditionsModal } from '~/components/ui';
 import { useHealthCheck } from '~/data-provider';
@@ -30,10 +31,7 @@ import { Banner } from '~/components/Banners';
 export default function Root() {
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
-  const [navVisible, setNavVisible] = useState(() => {
-    const savedNavVisible = localStorage.getItem('navVisible');
-    return savedNavVisible !== null ? JSON.parse(savedNavVisible) : true;
-  });
+  const [navVisible, setNavVisible] = useState(getInitialNavVisibility);
 
   const { user, isAuthenticated, logout } = useAuthContext();
   const backendQueriesEnabled = isAuthenticated;
@@ -41,8 +39,6 @@ export default function Root() {
   // sidebar ONLY for /cowork routes. All other routes are unaffected.
   const location = useLocation();
   const isCoworkRoute = location.pathname.startsWith('/cowork');
-  const shouldKeepNavigationOpen =
-    location.pathname.startsWith('/agents') || location.pathname === '/c/new';
   const onboardingStorageKey = useMemo(() => {
     if (!user?.id) {
       return null;
@@ -88,21 +84,6 @@ export default function Root() {
       setShowTerms(!termsData.termsAccepted);
     }
   }, [termsData]);
-
-  useEffect(() => {
-    if (!shouldKeepNavigationOpen) {
-      return;
-    }
-
-    setNavVisible((previous) => {
-      if (previous) {
-        return previous;
-      }
-
-      localStorage.setItem('navVisible', JSON.stringify(true));
-      return true;
-    });
-  }, [location.pathname, shouldKeepNavigationOpen]);
 
   useEffect(() => {
     const root = document.documentElement;

@@ -7,6 +7,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
+import { saveNavVisibility } from './sidebarVisibility';
 
 export default function MobileNav({
   setNavVisible,
@@ -36,7 +37,7 @@ export default function MobileNav({
         className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-active-alt"
         onClick={() =>
           setNavVisible((prev) => {
-            localStorage.setItem('navVisible', JSON.stringify(!prev));
+            saveNavVisibility(!prev);
             return !prev;
           })
         }

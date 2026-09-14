@@ -16,10 +16,11 @@ import { MyFilesModal } from '~/components/Chat/Input/Files/MyFilesModal';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
 import InstallAppTutorial from './InstallAppTutorial';
 import Settings from './Settings';
 
-function AccountSettings() {
+function AccountSettings({ compact = false }: { compact?: boolean }) {
   const localize = useLocalize();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthContext();
@@ -58,6 +59,10 @@ function AccountSettings() {
   }, []);
 
   useEffect(() => {
+    if (compact) {
+      return;
+    }
+
     const handleTourOpen = () => setIsAccountMenuOpen(true);
 
     window.addEventListener('nav-account-tour-open', handleTourOpen);
@@ -67,54 +72,67 @@ function AccountSettings() {
       window.removeEventListener('nav-account-tour-open', handleTourOpen);
       window.removeEventListener('nav-account-tour-close', closeAccountTourMenu);
     };
-  }, [closeAccountTourMenu]);
+  }, [closeAccountTourMenu, compact]);
 
   return (
     <Menu.MenuProvider
       open={isAccountMenuOpen}
       setOpen={setIsAccountMenuOpen}
-      placement="top-start"
+      placement={compact ? 'right-end' : 'top-start'}
     >
       <TooltipAnchor
         description={localize('com_nav_tooltip_account_settings')}
+        side={compact ? 'right' : undefined}
         render={
           <Menu.MenuButton
             ref={accountSettingsButtonRef}
             aria-label={localize('com_nav_account_settings')}
-            data-tour-id="nav-account"
-            data-tour-clip="sidebar"
-            data-tour-padding="-6"
-            data-tour-radius="16"
-            data-tour-offset-x="-2"
-            data-testid="nav-user"
-            className="user-menu-trigger sidebar-account-card mt-1.5 flex min-h-[3.5rem] w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-all duration-200 ease-in-out"
+            data-tour-id={compact ? undefined : 'nav-account'}
+            data-tour-clip={compact ? undefined : 'sidebar'}
+            data-tour-padding={compact ? undefined : '-6'}
+            data-tour-radius={compact ? undefined : '16'}
+            data-tour-offset-x={compact ? undefined : '-2'}
+            data-testid={compact ? 'compact-nav-user' : 'nav-user'}
+            className={cn(
+              'user-menu-trigger transition-all duration-200 ease-in-out',
+              compact
+                ? 'flex h-10 w-10 items-center justify-center rounded-full border !border-white/25 !bg-transparent text-xs font-semibold text-white hover:!border-white/40 hover:!bg-white/10 hover:text-[#E8C37F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DAAC60]/70'
+                : 'sidebar-account-card mt-1.5 flex min-h-[3.5rem] w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm',
+            )}
           >
             <div className="sidebar-account-avatar flex h-8 w-8 flex-shrink-0 items-center justify-center">
               <Avatar user={user} size={32} />
             </div>
-            <div className="sidebar-account-copy min-w-0 flex-1 text-left">
-              <div className="sidebar-account-name text-sm font-semibold text-text-primary">
-                {user?.name ?? user?.username ?? localize('com_nav_user')}
+            {!compact && (
+              <div className="sidebar-account-copy min-w-0 flex-1 text-left">
+                <div className="sidebar-account-name text-sm font-semibold text-text-primary">
+                  {user?.name ?? user?.username ?? localize('com_nav_user')}
+                </div>
+                <div className="sidebar-account-email text-[0.72rem] font-medium text-text-secondary">
+                  {user?.email ?? localize('com_nav_account_settings')}
+                </div>
               </div>
-              <div className="sidebar-account-email text-[0.72rem] font-medium text-text-secondary">
-                {user?.email ?? localize('com_nav_account_settings')}
-              </div>
-            </div>
-            <ChevronDown
-              className="sidebar-account-chevron h-4 w-4 flex-shrink-0 text-text-secondary"
-              aria-hidden="true"
-            />
+            )}
+            {!compact && (
+              <ChevronDown
+                className="sidebar-account-chevron h-4 w-4 flex-shrink-0 text-text-secondary"
+                aria-hidden="true"
+              />
+            )}
           </Menu.MenuButton>
         }
       />
       <Menu.Menu
         fixed
         gutter={6}
-        sameWidth
-        data-tour-id="nav-account-menu"
-        data-tour-padding="-8"
-        data-tour-radius="18"
-        className="account-settings-popover popover-ui z-[125] rounded-2xl"
+        sameWidth={!compact}
+        data-tour-id={compact ? undefined : 'nav-account-menu'}
+        data-tour-padding={compact ? undefined : '-8'}
+        data-tour-radius={compact ? undefined : '18'}
+        className={cn(
+          'account-settings-popover popover-ui z-[125] rounded-2xl',
+          compact && 'w-64',
+        )}
         style={{
           transformOrigin: 'bottom',
           margin: 0,

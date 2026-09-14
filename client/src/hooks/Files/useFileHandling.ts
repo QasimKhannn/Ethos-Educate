@@ -45,6 +45,38 @@ export type FileHandlingState = {
 
 const noop = () => {};
 
+type UploadErrorToast = {
+  message: string;
+  title?: string;
+  status?: 'error' | 'warning';
+  showIcon?: boolean;
+  variant?: 'file-upload-guidance';
+};
+
+const getUploadErrorToastDuration = (message: string) =>
+  Math.min(15000, Math.max(5000, message.length * 35));
+
+const getUploadErrorToast = (message: string): UploadErrorToast => {
+  const [title, ...details] = message.split('\n');
+  const isGuidance =
+    title === "This file can't be uploaded here." ||
+    title === 'This file can’t be uploaded here.' ||
+    title === "This file can't be used with the selected feature." ||
+    title === "Images can't be used with File Search.";
+
+  if (!isGuidance) {
+    return { message };
+  }
+
+  return {
+    title,
+    message: details.join('\n').trim(),
+    status: 'warning' as const,
+    showIcon: false,
+    variant: 'file-upload-guidance' as const,
+  };
+};
+
 const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: FileHandlingState) => {
   const localize = useLocalize();
   const queryClient = useQueryClient();
@@ -89,15 +121,16 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
       showToast({
         message: errorList,
         status: 'error',
-        duration: 5000,
+        duration: getUploadErrorToastDuration(errorList),
       });
     } else if (errors.length === 1) {
       // TODO: this should not be a dynamic localize input!!
       const message = localize(errors[0] as TranslationKeys) || errors[0];
+      const errorToast = getUploadErrorToast(message);
       showToast({
-        message,
-        status: 'error',
-        duration: 5000,
+        ...errorToast,
+        status: errorToast.status ?? 'error',
+        duration: getUploadErrorToastDuration(message),
       });
     }
 
@@ -178,7 +211,7 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
           const message = error.response.data.message;
           const action = error.response.data.action;
           errorMessage =
-            typeof action === 'string' && action.length > 0 ? `${message} ${action}` : message;
+            typeof action === 'string' && action.length > 0 ? `${message}\n${action}` : message;
         }
         setError(errorMessage);
       },

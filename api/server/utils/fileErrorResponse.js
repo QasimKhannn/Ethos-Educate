@@ -2,6 +2,15 @@ const multer = require('multer');
 const { megabyte, mergeFileConfig, getEndpointFileConfig } = require('librechat-data-provider');
 const { ERROR_CODES } = require('~/server/utils/errorResponse');
 
+const supportedFileTypes =
+  'Documents: PDF, Word (DOC/DOCX), PowerPoint (PPTX), Excel (XLS/XLSX), OpenDocument, CSV/TSV, TXT, Markdown, and JSON.\nImages: JPG/JPEG, PNG, GIF, WEBP, HEIC/HEIF, and SVG.\nOther: ZIP/TAR archives and standard audio/video files.';
+
+const unsupportedFileTypes =
+  'Apps or installers, design-source files, macro-enabled Office files, email files, RAR/7z archives, and formats such as BMP, TIFF, AVIF, RTF, MSG, and EML.';
+
+const createUnsupportedFileTypeAction = () =>
+  `Choose a file in a supported format instead.\n\nYou can upload:\n${supportedFileTypes}\n\nNot supported:\n${unsupportedFileTypes}`;
+
 const formatMegabytes = (bytes) => {
   const megabytes = bytes / megabyte;
   return Number.isInteger(megabytes) ? `${megabytes}` : megabytes.toFixed(1);
@@ -9,10 +18,10 @@ const formatMegabytes = (bytes) => {
 
 const createSizeLimitAction = (limitInMegabytes) => {
   if (!limitInMegabytes) {
-    return 'Please upload a smaller file and try again.';
+    return 'Choose a smaller file or compress/export it, then try again.';
   }
 
-  return `Please upload a file smaller than ${limitInMegabytes} MB and try again.`;
+  return `Files can be up to ${limitInMegabytes} MB. Choose a smaller file or compress/export it, then try again.`;
 };
 
 const getLimitFromMessage = (message) => {
@@ -40,8 +49,8 @@ const createUploadErrorResponse = (req, error) => {
   if (typeof error?.message === 'string' && error.message.startsWith('Unsupported file type:')) {
     return {
       code: ERROR_CODES.INVALID_INPUT,
-      message: 'This file type is not supported here.',
-      action: 'Try a supported file type for this chat or convert the file and upload it again.',
+      message: "This file can't be uploaded here.",
+      action: createUnsupportedFileTypeAction(),
     };
   }
 
@@ -87,15 +96,23 @@ const createFileProcessingErrorResponse = (error) => {
     };
   }
 
+  if (message.includes('Image uploads are not supported for file search')) {
+    return {
+      code: ERROR_CODES.INVALID_INPUT,
+      message: "Images can't be used with File Search.",
+      action:
+        'Use a PDF, Word document, PowerPoint, spreadsheet, CSV, or text file instead. You can attach an image directly in chat when image input is available.',
+    };
+  }
+
   if (
     message.includes('Unsupported file type') ||
-    message.includes('not supported for text parsing') ||
-    message.includes('Image uploads are not supported for file search')
+    message.includes('not supported for text parsing')
   ) {
     return {
       code: ERROR_CODES.INVALID_INPUT,
-      message: 'This file format is not supported for that upload type.',
-      action: 'Try a supported file type or choose a different upload option and try again.',
+      message: "This file can't be used with the selected feature.",
+      action: createUnsupportedFileTypeAction(),
     };
   }
 
