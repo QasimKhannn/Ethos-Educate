@@ -17,7 +17,6 @@ import {
 } from '~/hooks';
 import { useGetAgentByIdQuery, useGetMessagesByConvoId } from '~/data-provider';
 import AgentIntakeDialog from '~/components/Agents/AgentIntakeDialog';
-import AgentIntakeHandoff from '~/components/Agents/AgentIntakeHandoff';
 import { getAgentIntakeTemplate } from '~/components/Agents/agentIntake';
 import { getAgentIntakeLaunch } from '~/components/Agents/agentIntakeLaunch';
 import MessagesView from './Messages/MessagesView';
@@ -104,13 +103,10 @@ function ChatView({ index = 0 }: { index?: number }) {
   const intakeLaunch = getAgentIntakeLaunch(searchParams.get('intake'));
   const isIntakeLaunchForRoute =
     intakeLaunch != null && intakeLaunch.agentId === routeAgentId && isLandingPage;
-  const { data: routeAgent, isLoading: isRouteAgentLoading } = useGetAgentByIdQuery(routeAgentId, {
+  const { data: routeAgent } = useGetAgentByIdQuery(routeAgentId, {
     enabled: isLandingPage && !!routeAgentId && !isIntakeLaunchForRoute,
   });
   const routeAgentIntakeTemplate = getAgentIntakeTemplate(routeAgent);
-  const isAwaitingIntakeAgent =
-    isLandingPage && !!routeAgentId && !isIntakeLaunchForRoute && isRouteAgentLoading;
-  const isIntakeHandoff = isIntakeLaunchForRoute || isAwaitingIntakeAgent;
   const shouldOpenIntakeDialog =
     isLandingPage && !isIntakeLaunchForRoute && routeAgentIntakeTemplate != null;
   const handleIntakeCancel = useCallback(() => {
@@ -123,8 +119,6 @@ function ChatView({ index = 0 }: { index?: number }) {
     content = <MessageLoadError onRetry={() => void refetchMessages()} />;
   } else if (!isLandingPage) {
     content = <MessagesView messagesTree={messagesTree} />;
-  } else if (isIntakeHandoff) {
-    content = <AgentIntakeHandoff template={intakeLaunch?.template ?? null} />;
   } else {
     content = <Landing centerFormOnLanding={centerFormOnLanding} />;
   }
@@ -163,7 +157,6 @@ function ChatView({ index = 0 }: { index?: number }) {
                         className={cn(
                           'chat-landing-page-composer w-full',
                           isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
-                          isIntakeHandoff && 'pointer-events-none invisible',
                         )}
                       >
                         <ChatForm index={index} />

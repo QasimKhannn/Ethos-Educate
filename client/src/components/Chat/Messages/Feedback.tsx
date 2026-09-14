@@ -1,14 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import * as Ariakit from '@ariakit/react';
 import { TFeedback, TFeedbackTag, getTagsForRating } from 'librechat-data-provider';
-import {
-  Button,
-  OGDialog,
-  OGDialogContent,
-  OGDialogTitle,
-  ThumbUpIcon,
-  ThumbDownIcon,
-} from '@librechat/client';
+import { Button, OGDialog, OGDialogContent, OGDialogTitle, ThumbUpIcon } from '@librechat/client';
 import {
   AlertCircle,
   PenTool,
@@ -38,7 +31,6 @@ const ICONS = {
   Lightbulb,
   Search,
   ThumbsUp: ThumbUpIcon,
-  ThumbsDown: ThumbDownIcon,
 };
 
 function FeedbackOptionButton({
@@ -84,13 +76,10 @@ function FeedbackButtons({
 }) {
   const localize = useLocalize();
   const upStore = Ariakit.usePopoverStore({ placement: 'bottom' });
-  const downStore = Ariakit.usePopoverStore({ placement: 'bottom' });
 
   const positiveTags = useMemo(() => getTagsForRating('thumbsUp'), []);
-  const negativeTags = useMemo(() => getTagsForRating('thumbsDown'), []);
 
   const upActive = feedback?.rating === 'thumbsUp' ? feedback.tag?.key : undefined;
-  const downActive = feedback?.rating === 'thumbsDown' ? feedback.tag?.key : undefined;
 
   const handleThumbsUpClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -114,31 +103,6 @@ function FeedbackButtons({
       }
     },
     [onFeedback, onOther, upStore],
-  );
-
-  const handleThumbsDownClick = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      if (feedback?.rating !== 'thumbsDown') {
-        downStore.toggle();
-        return;
-      }
-
-      onOther?.();
-    },
-    [feedback, onOther, downStore],
-  );
-
-  const handleDownOption = useCallback(
-    (tag: TFeedbackTag) => (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      downStore.hide();
-      onFeedback({ rating: 'thumbsDown', tag });
-      if (tag.key === 'other') {
-        onOther?.();
-      }
-    },
-    [onFeedback, onOther, downStore],
   );
 
   return (
@@ -172,40 +136,6 @@ function FeedbackButtons({
               tag={tag}
               active={upActive === tag.key}
               onClick={handleUpOption(tag)}
-            />
-          ))}
-        </div>
-      </Ariakit.Popover>
-
-      <Ariakit.PopoverAnchor
-        store={downStore}
-        render={
-          <button
-            className={buttonClasses(feedback?.rating === 'thumbsDown', isLast)}
-            onClick={handleThumbsDownClick}
-            type="button"
-            title={localize('com_ui_feedback_negative')}
-            aria-pressed={feedback?.rating === 'thumbsDown'}
-            aria-haspopup="menu"
-          >
-            <ThumbDownIcon size="19" bold={feedback?.rating === 'thumbsDown'} />
-          </button>
-        }
-      />
-      <Ariakit.Popover
-        store={downStore}
-        gutter={8}
-        portal
-        unmountOnHide
-        className="popover-animate flex w-auto flex-col gap-1.5 overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary p-1.5 shadow-lg"
-      >
-        <div className="flex flex-col items-stretch justify-center">
-          {negativeTags.map((tag) => (
-            <FeedbackOptionButton
-              key={tag.key}
-              tag={tag}
-              active={downActive === tag.key}
-              onClick={handleDownOption(tag)}
             />
           ))}
         </div>
@@ -277,26 +207,21 @@ export default function Feedback({
 
   const renderSingleFeedbackButton = () => {
     if (!feedback) return null;
-    const isThumbsUp = feedback.rating === 'thumbsUp';
-    const Icon = isThumbsUp ? ThumbUpIcon : ThumbDownIcon;
-    const label = isThumbsUp
-      ? localize('com_ui_feedback_positive')
-      : localize('com_ui_feedback_negative');
+    if (feedback.rating !== 'thumbsUp') {
+      return null;
+    }
+
     return (
       <button
         className={buttonClasses(true, isLast)}
         onClick={() => {
-          if (isThumbsUp) {
-            handleButtonFeedback(undefined);
-          } else {
-            setOpenDialog(true);
-          }
+          handleButtonFeedback(undefined);
         }}
         type="button"
-        title={label}
+        title={localize('com_ui_feedback_positive')}
         aria-pressed="true"
       >
-        <Icon size="19" bold />
+        <ThumbUpIcon size="19" bold />
       </button>
     );
   };

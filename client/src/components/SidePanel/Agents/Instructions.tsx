@@ -1,10 +1,4 @@
-import React, { useState, useId } from 'react';
-import { PlusCircle } from 'lucide-react';
-import * as Menu from '@ariakit/react/menu';
-import { DropdownPopup } from '@librechat/client';
-import { specialVariables } from 'librechat-data-provider';
 import { Controller, useFormContext } from 'react-hook-form';
-import type { TSpecialVarLabel } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
 import { cn, defaultTextProps, removeFocusOutlines } from '~/utils';
 import { useLocalize } from '~/hooks';
@@ -16,69 +10,18 @@ const inputClass = cn(
   removeFocusOutlines,
 );
 
-interface VariableOption {
-  label: TSpecialVarLabel;
-  value: string;
-}
-
-const variableOptions: VariableOption[] = Object.keys(specialVariables).map((key) => ({
-  label: `com_ui_special_var_${key}` as TSpecialVarLabel,
-  value: `{{${key}}}`,
-}));
-
 export default function Instructions() {
-  const menuId = useId();
   const localize = useLocalize();
-  const methods = useFormContext<AgentForm>();
-  const { control, setValue, getValues } = methods;
-
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const handleAddVariable = (label: TSpecialVarLabel, value: string) => {
-    const currentInstructions = getValues('instructions') || '';
-    const spacer = currentInstructions.length > 0 ? '\n' : '';
-    const prefix = localize(label);
-    setValue('instructions', currentInstructions + spacer + prefix + ': ' + value);
-    setIsMenuOpen(false);
-  };
+  const { control } = useFormContext<AgentForm>();
 
   return (
     <div className="mb-4">
-      <div className="mb-2 flex items-center">
-        <AgentFieldLabel
-          className="mb-0 flex-grow"
-          htmlFor="instructions"
-          label={localize('com_ui_instructions')}
-          description={localize('com_ui_agent_instructions_help')}
-          required
-        />
-        <div className="ml-auto" title="Add variables to instructions">
-          <DropdownPopup
-            portal={true}
-            mountByState={true}
-            unmountOnHide={true}
-            preserveTabOrder={true}
-            isOpen={isMenuOpen}
-            setIsOpen={setIsMenuOpen}
-            trigger={
-              <Menu.MenuButton
-                id="variables-menu-button"
-                aria-label="Add variable to instructions"
-                className="flex h-7 items-center gap-1 rounded-md border border-border-medium bg-surface-secondary px-2 py-0 text-sm text-text-primary transition-colors duration-200 hover:bg-surface-tertiary"
-              >
-                <PlusCircle className="mr-1 h-3 w-3 text-text-secondary" aria-hidden={true} />
-                {localize('com_ui_variables')}
-              </Menu.MenuButton>
-            }
-            items={variableOptions.map((option) => ({
-              label: localize(option.label) || option.label,
-              onClick: () => handleAddVariable(option.label, option.value),
-            }))}
-            menuId={menuId}
-            className="z-30"
-          />
-        </div>
-      </div>
+      <AgentFieldLabel
+        htmlFor="instructions"
+        label={localize('com_ui_instructions')}
+        description={localize('com_ui_agent_instructions_help')}
+        required
+      />
       <Controller
         name="instructions"
         control={control}

@@ -168,17 +168,17 @@ export const getDisplayValue = ({
   selectedValues,
   modelSpecs,
   agentsMap,
-  agentModel,
+  agentName,
 }: {
   localize: ReturnType<typeof useLocalize>;
   selectedValues: SelectedValues;
   mappedEndpoints: Endpoint[];
   modelSpecs: TModelSpec[];
   agentsMap?: TAgentsMap;
-  agentModel?: string;
+  agentName?: string;
 }) => {
-  if (agentModel) {
-    return agentModel;
+  if (agentName) {
+    return agentName;
   }
 
   if (selectedValues.modelSpec) {

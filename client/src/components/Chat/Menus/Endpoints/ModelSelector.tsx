@@ -21,7 +21,7 @@ function ModelSelectorContent() {
   const {
     // LibreChat
     agentsMap,
-    agentModel,
+    agentName,
     modelSpecs,
     mappedEndpoints,
     endpointsConfig,
@@ -56,9 +56,9 @@ function ModelSelectorContent() {
         modelSpecs,
         selectedValues,
         mappedEndpoints,
-        agentModel,
+        agentName,
       }),
-    [localize, agentsMap, modelSpecs, selectedValues, mappedEndpoints, agentModel],
+    [localize, agentsMap, modelSpecs, selectedValues, mappedEndpoints, agentName],
   );
 
   const trigger = (

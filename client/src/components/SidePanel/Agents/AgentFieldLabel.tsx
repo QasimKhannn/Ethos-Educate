@@ -1,11 +1,12 @@
-import { CircleHelpIcon, TooltipAnchor } from '@librechat/client';
 import { cn } from '~/utils';
+import { useLocalize } from '~/hooks';
 
 type AgentFieldLabelProps = {
   className?: string;
   description: string;
   htmlFor?: string;
   label: string;
+  optional?: boolean;
   required?: boolean;
 };
 
@@ -14,26 +15,36 @@ export default function AgentFieldLabel({
   description,
   htmlFor,
   label,
+  optional = false,
   required = false,
 }: AgentFieldLabelProps) {
-  const helpButton = (
-    <button
-      type="button"
-      className="agent-builder-help-button"
-      title={description}
-      aria-label={`${label}: ${description}`}
-    >
-      <CircleHelpIcon aria-hidden="true" />
-    </button>
-  );
+  const localize = useLocalize();
 
   return (
     <div className={cn('agent-builder-field-label', className)}>
-      <label htmlFor={htmlFor}>
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </label>
-      <TooltipAnchor description={description} render={helpButton} />
+      <div className="agent-builder-field-label-row">
+        <label htmlFor={htmlFor}>
+          {label}
+          {required && <span className="text-red-500">*</span>}
+        </label>
+        {(required || optional) && (
+          <span
+            className={cn(
+              'agent-builder-field-status',
+              required
+                ? 'agent-builder-field-status-required'
+                : 'agent-builder-field-status-optional',
+            )}
+          >
+            {localize(
+              required
+                ? 'com_ui_agent_builder_required_status'
+                : 'com_ui_agent_builder_optional_status',
+            )}
+          </span>
+        )}
+      </div>
+      <p>{description}</p>
     </div>
   );
 }

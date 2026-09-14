@@ -60,7 +60,7 @@ describe('generated document artifacts', () => {
     });
 
     expect(managed).toBe(
-      '[Worksheet.docx](/api/files/download/user-123/file-123)\n<!-- ethos-generated-document-expiry {"expiresAt":"2026-08-29T12:00:00.000Z","fileId":"file-123"} -->\n\nAvailable until 2026-08-29 12:00:00 UTC. This document expires after 24 hours and will be deleted. After expiry, generate a new copy.',
+      '[Worksheet.docx](/api/files/download/user-123/file-123)\n<!-- ethos-generated-document-expiry {"expiresAt":"2026-08-29T12:00:00.000Z","fileId":"file-123"} -->',
     );
     expect(managed).not.toContain(sourceUrl);
   });
@@ -72,7 +72,7 @@ describe('generated document artifacts', () => {
     expect(extractGeneratedDocumentArtifacts(content)).toEqual({ documents: [], text: '' });
   });
 
-  test('uses the configured minute retention in managed document output', () => {
+  test('keeps configured retention in the document expiry marker without exposing it in the text', () => {
     process.env.GENERATED_FILE_RETENTION_MINUTES = '5';
     const expiresAt = getGeneratedDocumentRetentionExpiry(Date.UTC(2026, 8, 2, 12, 0, 0));
     const managed = buildManagedDocumentText({
@@ -88,6 +88,8 @@ describe('generated document artifacts', () => {
     });
 
     expect(expiresAt.toISOString()).toBe('2026-09-02T12:05:00.000Z');
-    expect(managed).toContain('This document expires after 5 minutes and will be deleted.');
+    expect(managed).toContain('"expiresAt":"2026-09-02T12:05:00.000Z"');
+    expect(managed).not.toContain('Available until');
+    expect(managed).not.toContain('This document expires after');
   });
 });

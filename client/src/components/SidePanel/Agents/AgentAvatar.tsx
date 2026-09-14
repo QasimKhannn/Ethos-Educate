@@ -79,7 +79,7 @@ function Avatar({ avatar }: { avatar: AgentAvatar | null }) {
 
   return (
     <>
-      <div className="flex w-full items-center justify-center gap-4">
+      <div className="agent-builder-avatar-control flex w-full items-center justify-center gap-4">
         <AvatarMenu
           trigger={
             <button

@@ -294,7 +294,6 @@ const Nav = memo(
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
     const location = useLocation();
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
-    const [isChatsExpanded, setIsChatsExpanded] = useLocalStorage('chatsExpanded', true);
     const [showLoading, setShowLoading] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
 
@@ -487,8 +486,6 @@ const Nav = memo(
                 isLoading={isFetchingNextPage || showLoading || isLoading}
                 isSearchLoading={isSearchLoading}
                 showFavorites={false}
-                isChatsExpanded={isChatsExpanded}
-                setIsChatsExpanded={setIsChatsExpanded}
               />
             </div>
           </div>

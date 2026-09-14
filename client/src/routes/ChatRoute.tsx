@@ -188,10 +188,6 @@ export default function ChatRoute() {
     }
 
     const getNewConvoPreset = () => {
-      const result = getDefaultModelSpec(startupConfig);
-      const spec = result?.default ?? result?.last;
-      const specPreset = spec ? getModelSpecPreset(spec) : undefined;
-
       const queryParams: Record<string, string> = {};
       searchParams.forEach((value, key) => {
         if (
@@ -205,6 +201,14 @@ export default function ChatRoute() {
         }
       });
       const querySettings = processValidSettings(queryParams);
+
+      if (querySettings.agent_id) {
+        return querySettings;
+      }
+
+      const result = getDefaultModelSpec(startupConfig);
+      const spec = result?.default ?? result?.last;
+      const specPreset = spec ? getModelSpecPreset(spec) : undefined;
 
       return Object.keys(querySettings).length > 0
         ? { ...specPreset, ...querySettings }

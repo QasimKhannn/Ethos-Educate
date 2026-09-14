@@ -26,7 +26,7 @@ type ModelSelectorContextType = {
   modelSpecs: t.TModelSpec[];
   mappedEndpoints: Endpoint[];
   agentsMap: t.TAgentsMap | undefined;
-  agentModel?: string;
+  agentName?: string;
   assistantsMap: t.TAssistantsMap | undefined;
   endpointsConfig: t.TEndpointsConfig;
 
@@ -98,7 +98,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     startupConfig,
     endpointsConfig,
   });
-  const agentModel = selectedAgent?.model ?? agentsMap?.[agent_id ?? '']?.model;
+  const agentName = selectedAgent?.name ?? agentsMap?.[agent_id ?? '']?.name;
 
   const getModelDisplayName = useCallback(
     (endpoint: Endpoint, model: string): string => {
@@ -251,7 +251,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       selectedValues,
       endpointSearchValues,
       agentsMap,
-      agentModel,
+      agentName,
       modelSpecs,
       assistantsMap,
       mappedEndpoints,
@@ -271,7 +271,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       selectedValues,
       endpointSearchValues,
       agentsMap,
-      agentModel,
+      agentName,
       modelSpecs,
       assistantsMap,
       mappedEndpoints,

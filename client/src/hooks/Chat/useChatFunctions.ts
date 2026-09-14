@@ -216,10 +216,17 @@ export default function useChatFunctions({
       parentMessageId = Constants.NO_PARENT;
       currentMessages = [];
       conversationId = null;
-      const projectSearch = conversation?.projectId
-        ? `?projectId=${encodeURIComponent(conversation.projectId)}`
-        : '';
-      navigate(`/c/new${projectSearch}`, { state: { focusChat: true } });
+      const newChatParams = new URLSearchParams();
+      if (conversation?.projectId) {
+        newChatParams.set('projectId', conversation.projectId);
+      }
+      if (isPersistentAgent && conversation?.agent_id) {
+        newChatParams.set('agent_id', conversation.agent_id);
+      }
+      const newChatSearch = newChatParams.toString();
+      navigate(`/c/new${newChatSearch ? `?${newChatSearch}` : ''}`, {
+        state: { focusChat: true },
+      });
     }
 
     const targetParentMessageId = isRegenerate ? messageId : latestMessage?.parentMessageId;

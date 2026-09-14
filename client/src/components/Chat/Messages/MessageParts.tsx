@@ -143,9 +143,7 @@ export default function Message(props: TMessageProps) {
                     isCreatedByUser={message.isCreatedByUser}
                     conversationId={conversation?.conversationId}
                     isLatestMessage={messageId === latestMessageId}
-                    onRegenerate={
-                      message.isCreatedByUser === false ? regenerateMessage : undefined
-                    }
+                    onRegenerate={message.isCreatedByUser === false ? regenerateMessage : undefined}
                     content={message.content as Array<TMessageContentParts | undefined>}
                   />
                 </div>
@@ -160,9 +158,7 @@ export default function Message(props: TMessageProps) {
                     />
                     <HoverButtons
                       index={index}
-                      isEditing={edit}
                       message={message}
-                      enterEdit={enterEdit}
                       isSubmitting={isSubmitting}
                       conversation={conversation ?? null}
                       regenerate={() => regenerateMessage()}

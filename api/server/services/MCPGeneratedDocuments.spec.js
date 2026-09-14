@@ -1,9 +1,10 @@
 jest.mock('@librechat/api', () => ({
   buildManagedDocumentText: jest.fn(({ sourceText, documents, expiresAt }) => {
-    const links = documents.map(({ filename, downloadPath }) => `[${filename}](${downloadPath})`);
-    return [sourceText, ...links, `Available until ${expiresAt.toISOString()}`]
-      .filter(Boolean)
-      .join('\n');
+    const links = documents.map(
+      ({ filename, downloadPath, fileId }) =>
+        `[${filename}](${downloadPath})\n<!-- ethos-generated-document-expiry {"expiresAt":"${expiresAt.toISOString()}","fileId":"${fileId}"} -->`,
+    );
+    return [sourceText, ...links].filter(Boolean).join('\n');
   }),
   extractGeneratedDocumentArtifacts: jest.fn(),
   getGeneratedDocumentRetentionExpiry: jest.fn(),
@@ -77,7 +78,7 @@ describe('persistGeneratedDocuments', () => {
         serverName: 'Downloadable-Files-Creation',
       }),
     ).resolves.toEqual([
-      'Teacher-ready worksheet files created:\n[Worksheet.docx](/api/files/download/user-123/file-456)\nAvailable until 2026-09-04T12:00:00.000Z',
+      'Teacher-ready worksheet files created:\n[Worksheet.docx](/api/files/download/user-123/file-456)\n<!-- ethos-generated-document-expiry {"expiresAt":"2026-09-04T12:00:00.000Z","fileId":"file-456"} -->',
       ['artifact'],
     ]);
 

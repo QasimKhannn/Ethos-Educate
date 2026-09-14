@@ -1,31 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
 import { EModelEndpoint } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
-import {
-  removeFocusOutlines,
-  processAgentOption,
-  defaultTextProps,
-  validateEmail,
-  cn,
-} from '~/utils';
+import { removeFocusOutlines, defaultTextProps, cn } from '~/utils';
 import { MCPToolSelectDialog } from '~/components/Tools';
-import useAgentCapabilities from '~/hooks/Agents/useAgentCapabilities';
-import { useFileMapContext, useAgentPanelContext } from '~/Providers';
+import { useAgentPanelContext } from '~/Providers';
 import { useLocalize, useVisibleTools } from '~/hooks';
-import { useGetAgentFiles } from '~/data-provider';
 import Instructions from './Instructions';
 import AgentAvatar from './AgentAvatar';
-import FileContext from './FileContext';
-import SearchForm from './Search/Form';
-import FileSearch from './FileSearch';
-import Artifacts from './Artifacts';
-import CodeForm from './Code/Form';
 import MCPTools from './MCPTools';
 import AgentFieldLabel from './AgentFieldLabel';
 import RecommendedPrompts from './RecommendedPrompts';
 import AgentCategorySelector from './AgentCategorySelector';
-import AgentIntakeFormConfig from './AgentIntakeFormConfig';
 
 const inputClass = cn(
   defaultTextProps,
@@ -35,10 +21,9 @@ const inputClass = cn(
 
 export default function AgentConfig() {
   const localize = useLocalize();
-  const fileMap = useFileMapContext();
   const methods = useFormContext<AgentForm>();
   const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
-  const { regularTools, agentsConfig, availableMCPServers, mcpServersMap } = useAgentPanelContext();
+  const { regularTools, availableMCPServers, mcpServersMap } = useAgentPanelContext();
 
   const {
     control,
@@ -48,343 +33,142 @@ export default function AgentConfig() {
   const tools = useWatch({ control, name: 'tools' });
   const agent_id = useWatch({ control, name: 'id' });
 
-  const { data: agentFiles = [] } = useGetAgentFiles(agent_id);
-
-  const mergedFileMap = useMemo(() => {
-    const newFileMap = { ...fileMap };
-    agentFiles.forEach((file) => {
-      if (file.file_id) {
-        newFileMap[file.file_id] = file;
-      }
-    });
-    return newFileMap;
-  }, [fileMap, agentFiles]);
-
-  const { codeEnabled, contextEnabled, artifactsEnabled, webSearchEnabled, fileSearchEnabled } =
-    useAgentCapabilities(agentsConfig?.capabilities);
-  const showCodeControls = codeEnabled;
   const showMCPControls = availableMCPServers != null && availableMCPServers.length > 0;
-
-  const context_files = useMemo(() => {
-    if (typeof agent === 'string') {
-      return [];
-    }
-
-    if (agent?.id !== agent_id) {
-      return [];
-    }
-
-    if (agent.context_files) {
-      return agent.context_files;
-    }
-
-    const _agent = processAgentOption({
-      agent,
-      fileMap: mergedFileMap,
-    });
-    return _agent.context_files ?? [];
-  }, [agent, agent_id, mergedFileMap]);
-
-  const knowledge_files = useMemo(() => {
-    if (typeof agent === 'string') {
-      return [];
-    }
-
-    if (agent?.id !== agent_id) {
-      return [];
-    }
-
-    if (agent.knowledge_files) {
-      return agent.knowledge_files;
-    }
-
-    const _agent = processAgentOption({
-      agent,
-      fileMap: mergedFileMap,
-    });
-    return _agent.knowledge_files ?? [];
-  }, [agent, agent_id, mergedFileMap]);
-
-  const code_files = useMemo(() => {
-    if (typeof agent === 'string') {
-      return [];
-    }
-
-    if (agent?.id !== agent_id) {
-      return [];
-    }
-
-    if (agent.code_files) {
-      return agent.code_files;
-    }
-
-    const _agent = processAgentOption({
-      agent,
-      fileMap: mergedFileMap,
-    });
-    return _agent.code_files ?? [];
-  }, [agent, agent_id, mergedFileMap]);
 
   const { mcpServerNames } = useVisibleTools(tools, regularTools, mcpServersMap);
 
   return (
     <>
       <div className="agent-builder-form h-auto dark:bg-transparent">
-        <div className="agent-builder-intro">
-          <h3>{localize('com_ui_agent_builder_intro_title')}</h3>
-          <p>{localize('com_ui_agent_builder_intro_description')}</p>
-          <span className="agent-builder-required-note">
-            <span aria-hidden="true">*</span>
-            {localize('com_ui_agent_builder_required_note')}
-          </span>
-        </div>
-        <section className="agent-builder-section" aria-labelledby="agent-details-heading">
-          <div className="agent-builder-section-heading">
-            <h4 id="agent-details-heading">{localize('com_ui_agent_builder_details_title')}</h4>
+        <section className="agent-builder-section" aria-label={localize('com_ui_agent_avatar')}>
+          <div className="agent-builder-avatar-top">
+            <AgentAvatar avatar={agent?.['avatar'] ?? null} />
+            <div className="agent-builder-avatar-top-copy">
+              <AgentFieldLabel
+                label={localize('com_ui_agent_avatar')}
+                description={localize('com_ui_agent_avatar_description')}
+                optional
+              />
+            </div>
           </div>
-          <div className="mb-4">
-            <AgentFieldLabel
-              htmlFor="name"
-              label={localize('com_ui_name')}
-              description={localize('com_ui_agent_name_help')}
-              required
-            />
-            <Controller
-              name="name"
-              rules={{ required: localize('com_ui_agent_name_is_required') }}
-              control={control}
-              render={({ field }) => (
-                <>
+        </section>
+        <section
+          className="agent-builder-section"
+          aria-label={localize('com_ui_agent_builder_details_title')}
+        >
+          <div className="agent-builder-details-grid">
+            <div className="agent-builder-field">
+              <AgentFieldLabel
+                htmlFor="name"
+                label={localize('com_ui_name')}
+                description={localize('com_ui_agent_name_help')}
+                required
+              />
+              <Controller
+                name="name"
+                rules={{ required: localize('com_ui_agent_name_is_required') }}
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={256}
+                      className={inputClass}
+                      id="name"
+                      type="text"
+                      placeholder={localize('com_agents_name_placeholder')}
+                      aria-label="Agent name"
+                    />
+                    <div
+                      className={cn(
+                        'mt-1 w-56 text-sm text-red-500',
+                        errors.name ? 'visible h-auto' : 'invisible h-0',
+                      )}
+                      role="alert"
+                    >
+                      {errors.name ? errors.name.message : ' '}
+                    </div>
+                  </>
+                )}
+              />
+            </div>
+            <div className="agent-builder-field">
+              <AgentFieldLabel
+                label={localize('com_agents_filter_by_category')}
+                description={localize('com_ui_agent_category_help')}
+                optional
+              />
+              <AgentCategorySelector className="agent-builder-category-trigger btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium" />
+            </div>
+            <div className="agent-builder-field agent-builder-field-full">
+              <AgentFieldLabel
+                htmlFor="toolkit_description"
+                label={localize('com_ui_agent_toolkit_description')}
+                description={localize('com_ui_agent_toolkit_description_help')}
+                optional
+              />
+              <Controller
+                name="toolkit_description"
+                control={control}
+                render={({ field }) => (
                   <input
                     {...field}
                     value={field.value ?? ''}
-                    maxLength={256}
+                    maxLength={180}
                     className={inputClass}
-                    id="name"
+                    id="toolkit_description"
                     type="text"
-                    placeholder={localize('com_agents_name_placeholder')}
-                    aria-label="Agent name"
+                    placeholder={localize('com_agents_toolkit_description_placeholder')}
+                    aria-label={localize('com_ui_agent_toolkit_description')}
                   />
-                  <div
-                    className={cn(
-                      'mt-1 w-56 text-sm text-red-500',
-                      errors.name ? 'visible h-auto' : 'invisible h-0',
-                    )}
-                    role="alert"
-                  >
-                    {errors.name ? errors.name.message : ' '}
-                  </div>
-                </>
-              )}
-            />
+                )}
+              />
+            </div>
+            <div className="agent-builder-field agent-builder-field-full">
+              <AgentFieldLabel
+                htmlFor="description"
+                label={localize('com_ui_agent_landing_description')}
+                description={localize('com_ui_agent_landing_description_help')}
+                optional
+              />
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    value={field.value ?? ''}
+                    maxLength={1200}
+                    rows={3}
+                    className={cn(inputClass, 'min-h-24 resize-y')}
+                    id="description"
+                    placeholder={localize('com_agents_description_placeholder')}
+                    aria-label={localize('com_ui_agent_landing_description')}
+                  />
+                )}
+              />
+            </div>
           </div>
-          <div className="mb-4">
-            <AgentFieldLabel
-              htmlFor="toolkit_description"
-              label={localize('com_ui_agent_toolkit_description')}
-              description={localize('com_ui_agent_toolkit_description_help')}
-            />
-            <Controller
-              name="toolkit_description"
-              control={control}
-              render={({ field }) => (
-                <input
-                  {...field}
-                  value={field.value ?? ''}
-                  maxLength={180}
-                  className={inputClass}
-                  id="toolkit_description"
-                  type="text"
-                  placeholder={localize('com_agents_toolkit_description_placeholder')}
-                  aria-label={localize('com_ui_agent_toolkit_description')}
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4">
-            <AgentFieldLabel
-              htmlFor="description"
-              label={localize('com_ui_agent_landing_description')}
-              description={localize('com_ui_agent_landing_description_help')}
-            />
-            <Controller
-              name="description"
-              control={control}
-              render={({ field }) => (
-                <textarea
-                  {...field}
-                  value={field.value ?? ''}
-                  maxLength={1200}
-                  rows={3}
-                  className={cn(inputClass, 'min-h-24 resize-y')}
-                  id="description"
-                  placeholder={localize('com_agents_description_placeholder')}
-                  aria-label={localize('com_ui_agent_landing_description')}
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4">
-            <AgentFieldLabel
-              label={localize('com_agents_filter_by_category')}
-              description={localize('com_ui_agent_category_help')}
-            />
-            <AgentCategorySelector className="agent-builder-category-trigger btn btn-neutral border-token-border-light relative h-10 w-full rounded-lg font-medium" />
-          </div>
-          <AgentIntakeFormConfig />
           <RecommendedPrompts />
         </section>
-        <section className="agent-builder-section" aria-labelledby="agent-behavior-heading">
-          <div className="agent-builder-section-heading">
-            <h4 id="agent-behavior-heading">{localize('com_ui_agent_builder_behavior_title')}</h4>
-          </div>
+        <section
+          className="agent-builder-section"
+          aria-label={localize('com_ui_agent_builder_behavior_title')}
+        >
           <Instructions />
         </section>
-        <details className="agent-builder-optional-settings">
-          <summary>
-            <span>{localize('com_ui_agent_optional_settings')}</span>
-            <small>{localize('com_ui_agent_optional_settings_description')}</small>
-          </summary>
-          <div className="agent-builder-optional-settings-body">
-            <div className="agent-builder-avatar-setting">
-              <AgentFieldLabel
-                label={localize('com_ui_agent_avatar')}
-                description={localize('com_ui_agent_avatar_help')}
-              />
-              <AgentAvatar avatar={agent?.['avatar'] ?? null} />
-            </div>
-            {(showCodeControls ||
-              fileSearchEnabled ||
-              artifactsEnabled ||
-              contextEnabled ||
-              webSearchEnabled) && (
-              <div className="flex w-full flex-col items-start gap-3">
-                <AgentFieldLabel
-                  label={localize('com_assistants_capabilities')}
-                  description={localize('com_ui_agent_capabilities_help')}
-                />
-                {/* Code Execution */}
-                {showCodeControls && <CodeForm agent_id={agent_id} files={code_files} />}
-                {/* Web Search */}
-                {webSearchEnabled && <SearchForm />}
-                {/* File Context */}
-                {contextEnabled && <FileContext agent_id={agent_id} files={context_files} />}
-                {/* Artifacts */}
-                {artifactsEnabled && <Artifacts />}
-                {/* File Search */}
-                {fileSearchEnabled && <FileSearch agent_id={agent_id} files={knowledge_files} />}
-              </div>
-            )}
-            {/* MCP Section */}
-            {showMCPControls && (
+        {showMCPControls && (
+          <section className="agent-builder-section" aria-label={localize('com_ui_tools')}>
+            <div className="agent-builder-tool-card agent-builder-mcp-setting">
               <MCPTools
                 agentId={agent_id}
                 mcpServerNames={mcpServerNames}
                 setShowMCPToolDialog={setShowMCPToolDialog}
               />
-            )}
-            {/* Support Contact (Optional) */}
-            <div>
-              <AgentFieldLabel
-                label={localize('com_ui_support_contact')}
-                description={localize('com_ui_agent_support_contact_help')}
-              />
-              <div className="space-y-3">
-                {/* Support Contact Name */}
-                <div className="flex flex-col">
-                  <label
-                    className="mb-1 flex items-center justify-between"
-                    htmlFor="support-contact-name"
-                  >
-                    <span className="text-sm">{localize('com_ui_support_contact_name')}</span>
-                  </label>
-                  <Controller
-                    name="support_contact.name"
-                    control={control}
-                    rules={{
-                      minLength: {
-                        value: 3,
-                        message: localize('com_ui_support_contact_name_min_length', {
-                          minLength: 3,
-                        }),
-                      },
-                    }}
-                    render={({ field, fieldState: { error } }) => (
-                      <>
-                        <input
-                          {...field}
-                          value={field.value ?? ''}
-                          className={cn(inputClass, error ? 'border-2 border-red-500' : '')}
-                          id="support-contact-name"
-                          type="text"
-                          placeholder={localize('com_ui_support_contact_name_placeholder')}
-                          aria-label="Support contact name"
-                          aria-invalid={error ? 'true' : 'false'}
-                          aria-describedby={error ? 'support-contact-name-error' : undefined}
-                        />
-                        {error && (
-                          <span
-                            id="support-contact-name-error"
-                            className="text-sm text-red-500 transition duration-300 ease-in-out"
-                            role="alert"
-                            aria-live="polite"
-                          >
-                            {error.message}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  />
-                </div>
-                {/* Support Contact Email */}
-                <div className="flex flex-col">
-                  <label
-                    className="mb-1 flex items-center justify-between"
-                    htmlFor="support-contact-email"
-                  >
-                    <span className="text-sm">{localize('com_ui_support_contact_email')}</span>
-                  </label>
-                  <Controller
-                    name="support_contact.email"
-                    control={control}
-                    rules={{
-                      validate: (value) =>
-                        validateEmail(
-                          value ?? '',
-                          localize('com_ui_support_contact_email_invalid'),
-                        ),
-                    }}
-                    render={({ field, fieldState: { error } }) => (
-                      <>
-                        <input
-                          {...field}
-                          value={field.value ?? ''}
-                          className={cn(inputClass, error ? 'border-2 border-red-500' : '')}
-                          id="support-contact-email"
-                          type="email"
-                          placeholder={localize('com_ui_support_contact_email_placeholder')}
-                          aria-label="Support contact email"
-                          aria-invalid={error ? 'true' : 'false'}
-                          aria-describedby={error ? 'support-contact-email-error' : undefined}
-                        />
-                        {error && (
-                          <span
-                            id="support-contact-email-error"
-                            className="text-sm text-red-500 transition duration-300 ease-in-out"
-                            role="alert"
-                            aria-live="polite"
-                          >
-                            {error.message}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  />
-                </div>
-              </div>
             </div>
-          </div>
-        </details>
+          </section>
+        )}
       </div>
       {showMCPControls && (
         <MCPToolSelectDialog

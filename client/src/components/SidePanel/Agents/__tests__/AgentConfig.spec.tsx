@@ -7,9 +7,7 @@ import AgentConfig from '../AgentConfig';
 jest.mock('~/utils', () => ({
   cn: (...classNames: Array<string | undefined>) => classNames.filter(Boolean).join(' '),
   defaultTextProps: '',
-  processAgentOption: () => ({ code_files: [], context_files: [], knowledge_files: [] }),
   removeFocusOutlines: '',
-  validateEmail: () => true,
 }));
 
 jest.mock('~/components/Tools', () => ({
@@ -17,34 +15,17 @@ jest.mock('~/components/Tools', () => ({
     isOpen ? <output data-testid="mcp-dialog-endpoint">{endpoint}</output> : null,
 }));
 
-jest.mock('~/hooks/Agents/useAgentCapabilities', () => ({
-  __esModule: true,
-  default: () => ({
-    artifactsEnabled: false,
-    codeEnabled: false,
-    contextEnabled: false,
-    fileSearchEnabled: false,
-    webSearchEnabled: false,
-  }),
-}));
-
 jest.mock('~/Providers', () => ({
   useAgentPanelContext: () => ({
-    agentsConfig: { capabilities: {} },
     availableMCPServers: ['lesson-planning'],
     mcpServersMap: new Map(),
     regularTools: [],
   }),
-  useFileMapContext: () => ({}),
 }));
 
 jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
   useVisibleTools: () => ({ mcpServerNames: ['lesson-planning'] }),
-}));
-
-jest.mock('~/data-provider', () => ({
-  useGetAgentFiles: () => ({ data: [] }),
 }));
 
 jest.mock('../MCPTools', () => ({
@@ -63,14 +44,8 @@ jest.mock('../MCPTools', () => ({
 jest.mock('../AgentAvatar', () => ({ __esModule: true, default: () => null }));
 jest.mock('../AgentCategorySelector', () => ({ __esModule: true, default: () => null }));
 jest.mock('../AgentFieldLabel', () => ({ __esModule: true, default: () => null }));
-jest.mock('../AgentIntakeFormConfig', () => ({ __esModule: true, default: () => null }));
-jest.mock('../Artifacts', () => ({ __esModule: true, default: () => null }));
-jest.mock('../Code/Form', () => ({ __esModule: true, default: () => null }));
-jest.mock('../FileContext', () => ({ __esModule: true, default: () => null }));
-jest.mock('../FileSearch', () => ({ __esModule: true, default: () => null }));
 jest.mock('../Instructions', () => ({ __esModule: true, default: () => null }));
 jest.mock('../RecommendedPrompts', () => ({ __esModule: true, default: () => null }));
-jest.mock('../Search/Form', () => ({ __esModule: true, default: () => null }));
 
 function TestWrapper() {
   const methods = useForm({
@@ -95,5 +70,13 @@ describe('AgentConfig', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open MCP tools' }));
 
     expect(screen.getByTestId('mcp-dialog-endpoint').textContent).toBe(EModelEndpoint.agents);
+  });
+
+  it('shows only image and MCP settings outside the core builder', () => {
+    render(<TestWrapper />);
+
+    expect(screen.queryByText('Teacher request form')).not.toBeInTheDocument();
+    expect(screen.queryByText('com_ui_support_contact')).not.toBeInTheDocument();
+    expect(screen.queryByText('com_assistants_capabilities')).not.toBeInTheDocument();
   });
 });

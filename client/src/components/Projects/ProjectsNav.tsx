@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Folder, FolderPlus, LibraryBig } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FolderPlus, LibraryBig } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TProject } from 'librechat-data-provider';
@@ -29,6 +29,8 @@ type NavigationProject = {
 };
 
 const sidebarProjectLimit = 4;
+const projectMenuGap = 8;
+const projectMenuWidth = 296;
 
 const ProjectRow = memo(
   ({
@@ -36,7 +38,6 @@ const ProjectRow = memo(
     active,
     selected,
     accent,
-    conversationCount,
     onOpen,
     onOpenProject,
   }: {
@@ -44,9 +45,8 @@ const ProjectRow = memo(
     active: boolean;
     selected: boolean;
     accent?: MockProjectAccent;
-    conversationCount: number;
     onOpen: (trigger: HTMLButtonElement) => void;
-    onOpenProject: (trigger: HTMLButtonElement) => void;
+    onOpenProject: () => void;
   }) => {
     const localize = useLocalize();
     return (
@@ -55,6 +55,7 @@ const ProjectRow = memo(
           className={cn(
             'sidebar-project-row sidebar-utility-item group flex min-h-9 w-full items-center gap-1 rounded-xl text-sm outline-none transition-colors',
             selected && 'sidebar-project-row-selected',
+            selected && 'sidebar-project-row-expanded',
             active || selected
               ? 'sidebar-utility-item-active text-text-primary'
               : 'text-text-primary hover:bg-surface-hover',
@@ -64,7 +65,7 @@ const ProjectRow = memo(
           <button
             type="button"
             className="sidebar-project-main-button flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none"
-            onClick={(event) => onOpenProject(event.currentTarget)}
+            onClick={onOpenProject}
             aria-label={localize('com_projects_open_project_name', { name: project.name })}
           >
             <span
@@ -76,15 +77,10 @@ const ProjectRow = memo(
               <Folder className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
-            {conversationCount > 0 ? (
-              <span className="sidebar-project-count flex-shrink-0" aria-hidden="true">
-                {conversationCount}
-              </span>
-            ) : null}
           </button>
           <button
             type="button"
-            className="sidebar-project-panel-button flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg outline-none"
+            className="sidebar-project-toggle-button flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg outline-none"
             aria-controls={selected ? `project-chats-panel-${project._id}` : undefined}
             aria-expanded={selected}
             aria-label={localize(
@@ -93,7 +89,7 @@ const ProjectRow = memo(
             )}
             onClick={(event) => onOpen(event.currentTarget)}
           >
-            <ChevronRight
+            <ChevronDown
               className={cn(
                 'sidebar-project-open-icon h-3.5 w-3.5 flex-shrink-0',
                 selected && 'sidebar-project-open-icon-active',
@@ -129,6 +125,7 @@ function ProjectsNav({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [panelAnchorTop, setPanelAnchorTop] = useState(112);
+  const [panelAnchorLeft, setPanelAnchorLeft] = useState(296);
   const projectTriggerRef = useRef<HTMLButtonElement | null>(null);
   const { conversation } = store.useCreateConversationAtom(0);
   const { data: projects = [] } = useProjectsQuery();
@@ -195,11 +192,6 @@ function ProjectsNav({
     [rankedNavigationProjects, selectedProjectId],
   );
 
-  const closeProjectPanel = useCallback(() => {
-    setSelectedProjectId(null);
-    requestAnimationFrame(() => projectTriggerRef.current?.focus());
-  }, []);
-
   useEffect(() => {
     if (navVisible) {
       return;
@@ -221,18 +213,29 @@ function ProjectsNav({
     setFavoriteProjectIds(nextFavoriteProjectIds);
   };
 
+  const closeProjectPanel = useCallback(() => {
+    setSelectedProjectId(null);
+    requestAnimationFrame(() => projectTriggerRef.current?.focus());
+  }, []);
+
   const handleProjectClick = (projectId: string, trigger?: HTMLButtonElement) => {
+    markProjectActivity(projectId);
     if (selectedProjectId === projectId && trigger) {
       closeProjectPanel();
       return;
     }
 
-    markProjectActivity(projectId);
     projectTriggerRef.current = trigger ?? null;
     if (trigger && !isSmallScreen) {
-      const triggerTop = trigger.getBoundingClientRect().top - 8;
-      const maximumTop = Math.max(80, window.innerHeight - 432);
+      const triggerBounds = trigger.getBoundingClientRect();
+      const triggerTop = triggerBounds.top - 8;
+      const maximumTop = Math.max(80, window.innerHeight - 384);
       setPanelAnchorTop(Math.min(Math.max(triggerTop, 80), maximumTop));
+      const maximumLeft = Math.max(
+        projectMenuGap,
+        window.innerWidth - projectMenuWidth - projectMenuGap,
+      );
+      setPanelAnchorLeft(Math.min(triggerBounds.right + projectMenuGap, maximumLeft));
     }
     setSelectedProjectId(projectId);
   };
@@ -240,7 +243,7 @@ function ProjectsNav({
   const handleOpenProject = (projectId: string) => {
     markProjectActivity(projectId);
     setSelectedProjectId(null);
-    navigate(`/projects/${projectId}?tab=chats`);
+    navigate(`/projects/${projectId}`);
   };
 
   const handleNewProjectConversation = (projectId: string, isDemoProject = false) => {
@@ -259,38 +262,31 @@ function ProjectsNav({
     navigate(`/c/${conversationId}?projectId=${projectId}`, { state: { focusChat: true } });
   };
 
-  const dismissMobileNavigation = () => {
-    setSelectedProjectId(null);
-    onDismissNavigation?.();
-  };
-
   return (
     <div className="sidebar-projects-section sidebar-utility-section mt-1 pt-2">
       <div className="sidebar-projects-header flex items-center justify-between px-2 pb-0.5">
-        <TooltipAnchor
-          description={localize('com_ui_tooltip_projects')}
-          render={
-            <span className="sidebar-section-heading text-xs">
-              {localize('com_projects_projects')}
-            </span>
-          }
-        />
-        <span className="sidebar-section-total" aria-hidden="true">
-          {rankedNavigationProjects.length}
-        </span>
+        <div>
+          <TooltipAnchor
+            description={localize('com_ui_tooltip_projects')}
+            render={
+              <span className="sidebar-section-heading text-xs">
+                {localize('com_projects_projects')}
+              </span>
+            }
+          />
+        </div>
+        <button
+          type="button"
+          className="sidebar-project-create-inline"
+          aria-label={localize('com_projects_new_project')}
+          onClick={() => setDialogOpen(true)}
+        >
+          <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{localize('com_ui_new')}</span>
+        </button>
       </div>
-      <button
-        type="button"
-        className="sidebar-project-create-button sidebar-utility-item flex min-h-9 w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-text-primary outline-none hover:bg-surface-hover"
-        onClick={() => setDialogOpen(true)}
-      >
-        <FolderPlus className="sidebar-utility-icon h-4 w-4 flex-shrink-0" />
-        <span className="font-medium">{localize('com_projects_new_project')}</span>
-      </button>
       <div className="sidebar-projects-scroll">
         {visibleNavigationProjects.map(({ project, accent, demoConversations }) => {
-          const conversationCount =
-            demoConversations?.length ?? project.conversationIds?.length ?? 0;
           return (
             <ProjectRow
               key={project._id}
@@ -298,11 +294,10 @@ function ProjectsNav({
               active={activeProjectId === project._id}
               selected={selectedProjectId === project._id}
               accent={accent}
-              conversationCount={conversationCount}
               onOpen={(trigger) => handleProjectClick(project._id, trigger)}
-              onOpenProject={(trigger) => {
+              onOpenProject={() => {
                 if (demoConversations != null) {
-                  handleProjectClick(project._id, trigger);
+                  handleProjectClick(project._id);
                   return;
                 }
                 handleOpenProject(project._id);
@@ -340,23 +335,16 @@ function ProjectsNav({
       {selectedNavigationProject ? (
         <ProjectChatsPanel
           project={selectedNavigationProject.project}
-          accent={selectedNavigationProject.accent}
           demoConversations={selectedNavigationProject.demoConversations}
           activeConversationId={activeConversationId}
+          anchorLeft={panelAnchorLeft}
           anchorTop={panelAnchorTop}
-          isMobile={isSmallScreen}
           onClose={closeProjectPanel}
-          onDismissNavigation={dismissMobileNavigation}
           onNewConversation={() =>
             handleNewProjectConversation(
               selectedNavigationProject.project._id,
               selectedNavigationProject.demoConversations != null,
             )
-          }
-          onOpenProject={
-            selectedNavigationProject.demoConversations == null
-              ? () => handleOpenProject(selectedNavigationProject.project._id)
-              : undefined
           }
           onConversationClick={(projectConversation) => {
             const conversationId = projectConversation.conversationId;

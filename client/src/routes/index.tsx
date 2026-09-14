@@ -9,6 +9,7 @@ import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
+import { loadEssayGraderRoute } from '~/components/EssayGrader/loadEssayGraderRoute';
 const VerifyEmail = lazy(() => import('~/components/Auth/VerifyEmail'));
 const Registration = lazy(() => import('~/components/Auth/Registration'));
 const ResetPassword = lazy(() => import('~/components/Auth/ResetPassword'));
@@ -27,7 +28,7 @@ const MarketplaceProvider = lazy(() =>
   })),
 );
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
-const EssayGraderRoute = lazy(() => import('~/components/EssayGrader/EssayGraderRoute'));
+const EssayGraderRoute = lazy(loadEssayGraderRoute);
 const AdminConsole = lazy(() => import('~/components/Admin/AdminConsole'));
 const CoworkLayout = lazy(() => import('~/components/Cowork/CoworkLayout'));
 const CoworkHome = lazy(() => import('~/components/Cowork/CoworkHome'));

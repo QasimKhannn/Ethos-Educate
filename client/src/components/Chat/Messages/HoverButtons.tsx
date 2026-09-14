@@ -1,17 +1,14 @@
 import React, { useState, useMemo, memo } from 'react';
 import { useRecoilState } from 'recoil';
 import type { TConversation, TMessage, TFeedback } from 'librechat-data-provider';
-import { EditIcon, Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '@librechat/client';
+import { Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '@librechat/client';
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
-import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
 import Feedback from './Feedback';
 import { cn } from '~/utils';
 import store from '~/store';
 
 type THoverButtons = {
-  isEditing: boolean;
-  enterEdit: (cancel?: boolean) => void;
   copyToClipboard: (setIsCopied: React.Dispatch<React.SetStateAction<boolean>>) => void;
   conversation: TConversation | null;
   isSubmitting: boolean;
@@ -111,8 +108,6 @@ HoverButton.displayName = 'HoverButton';
 
 const HoverButtons = ({
   index,
-  isEditing,
-  enterEdit,
   copyToClipboard,
   conversation,
   isSubmitting,
@@ -135,7 +130,6 @@ const HoverButtons = ({
   }, [conversation]);
 
   const generationCapabilities = useGenerationsByLatest({
-    isEditing,
     isSubmitting,
     error: message.error,
     endpoint: endpoint ?? '',
@@ -146,13 +140,7 @@ const HoverButtons = ({
     latestMessageId: latestMessageId,
   });
 
-  const {
-    hideEditButton,
-    regenerateEnabled,
-    continueSupported,
-    forkingSupported,
-    isEditableEndpoint,
-  } = generationCapabilities;
+  const { regenerateEnabled, continueSupported } = generationCapabilities;
 
   if (!conversation) {
     return null;
@@ -174,13 +162,6 @@ const HoverButtons = ({
       </div>
     );
   }
-
-  const onEdit = () => {
-    if (isEditing) {
-      return enterEdit(true);
-    }
-    enterEdit();
-  };
 
   const handleCopy = () => copyToClipboard(setIsCopied);
 
@@ -217,28 +198,6 @@ const HoverButtons = ({
           'ml-0 flex items-center gap-1.5 text-xs',
           isSubmitting && isCreatedByUser ? 'md:opacity-0 md:group-hover:opacity-100' : '',
         )}
-      />
-
-      {isEditableEndpoint && (
-        <HoverButton
-          id={`edit-${message.messageId}`}
-          onClick={onEdit}
-          title={localize('com_ui_edit')}
-          icon={<EditIcon size="19" />}
-          isActive={isEditing}
-          isVisible={!hideEditButton}
-          isDisabled={hideEditButton}
-          isLast={isLast}
-          className={isCreatedByUser ? '' : 'active'}
-        />
-      )}
-
-      <Fork
-        messageId={message.messageId}
-        conversationId={conversation.conversationId}
-        forkingSupported={forkingSupported}
-        latestMessageId={latestMessageId}
-        isLast={isLast}
       />
 
       {!isCreatedByUser && handleFeedback != null && (

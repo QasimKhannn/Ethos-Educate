@@ -240,6 +240,16 @@ const useNewConvo = (index = 0) => {
           } else {
             params.delete('projectId');
           }
+          if (
+            isAgentsEndpoint(conversation.endpoint ?? '') &&
+            conversation.agent_id &&
+            !isEphemeralAgentId(conversation.agent_id)
+          ) {
+            params.set('agent_id', conversation.agent_id);
+            params.delete('spec');
+          } else {
+            params.delete('agent_id');
+          }
           const searchParamsString = params.toString();
           return searchParamsString ? `?${searchParamsString}` : '';
         };

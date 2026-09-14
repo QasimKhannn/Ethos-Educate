@@ -1,16 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Folder,
-  MessageSquarePlus,
-  MessageSquareText,
-  X,
-} from 'lucide-react';
+import { ChevronRight, Folder, MessageSquarePlus, MessageSquareText, X } from 'lucide-react';
 import type { TProject } from 'librechat-data-provider';
-import type { MockProjectAccent } from '~/components/Nav/mockNavigation';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
@@ -23,34 +14,28 @@ export type ProjectConversation = {
 };
 
 type ProjectChatsPanelProps = {
-  accent?: MockProjectAccent;
   activeConversationId: string;
+  anchorLeft: number;
   anchorTop: number;
   demoConversations?: ProjectConversation[];
-  isMobile: boolean;
   onClose: () => void;
   onConversationClick: (conversation: ProjectConversation) => void;
-  onDismissNavigation: () => void;
   onNewConversation?: () => void;
-  onOpenProject?: () => void;
   project: TProject;
 };
 
 export default function ProjectChatsPanel({
-  accent,
   activeConversationId,
+  anchorLeft,
   anchorTop,
   demoConversations,
-  isMobile,
   onClose,
   onConversationClick,
-  onDismissNavigation,
   onNewConversation,
-  onOpenProject,
   project,
 }: ProjectChatsPanelProps) {
   const localize = useLocalize();
-  const initialFocusRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const conversationsQuery = useConversationsInfiniteQuery(
     { projectId: project._id },
     { enabled: demoConversations == null },
@@ -59,16 +44,9 @@ export default function ProjectChatsPanel({
     () => demoConversations ?? flattenUniqueConversations(conversationsQuery.data?.pages),
     [conversationsQuery.data, demoConversations],
   );
-  const conversationCount =
-    demoConversations?.length ?? project.conversationIds?.length ?? conversations.length;
-  const conversationCountLabel = localize(
-    conversationCount === 1 ? 'com_projects_chat_count_one' : 'com_projects_chat_count_other',
-    { count: conversationCount },
-  );
-  const panelId = `project-chats-panel-${project._id}`;
 
   useEffect(() => {
-    initialFocusRef.current?.focus();
+    closeButtonRef.current?.focus();
   }, [project._id]);
 
   useEffect(() => {
@@ -91,7 +69,7 @@ export default function ProjectChatsPanel({
   const renderConversations = () => {
     if (demoConversations == null && conversationsQuery.isLoading) {
       return (
-        <div className="sidebar-project-panel-status" role="status">
+        <div className="sidebar-project-menu-status" role="status">
           {localize('com_ui_loading')}
         </div>
       );
@@ -99,10 +77,8 @@ export default function ProjectChatsPanel({
 
     if (conversations.length === 0) {
       return (
-        <div className="sidebar-project-panel-empty" role="status">
-          <MessageSquareText className="h-5 w-5" aria-hidden="true" />
-          <span>{localize('com_projects_no_chats')}</span>
-          <p>{localize('com_projects_no_chats_description', { name: project.name })}</p>
+        <div className="sidebar-project-menu-status" role="status">
+          {localize('com_projects_no_chats')}
         </div>
       );
     }
@@ -120,21 +96,16 @@ export default function ProjectChatsPanel({
           key={conversationId}
           type="button"
           className={cn(
-            'sidebar-project-panel-chat',
-            isActive && 'sidebar-project-panel-chat-active',
+            'sidebar-project-convo-row',
+            isActive && 'sidebar-project-convo-row-active',
           )}
           aria-current={isActive ? 'page' : undefined}
           onClick={() => onConversationClick(conversation)}
           title={title}
         >
-          <span className="sidebar-project-panel-chat-icon" aria-hidden="true">
-            <MessageSquareText className="h-4 w-4" />
-          </span>
-          <span className="truncate">{title}</span>
-          <ChevronRight
-            className="sidebar-project-panel-chat-arrow h-3.5 w-3.5"
-            aria-hidden="true"
-          />
+          <MessageSquareText className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">{title}</span>
+          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
         </button>
       );
     });
@@ -142,81 +113,38 @@ export default function ProjectChatsPanel({
 
   return createPortal(
     <aside
-      id={panelId}
-      className={cn(
-        'sidebar-project-panel',
-        isMobile ? 'sidebar-project-panel-mobile' : 'sidebar-project-panel-desktop',
-      )}
-      style={isMobile ? undefined : { top: anchorTop }}
+      id={`project-chats-panel-${project._id}`}
+      className="sidebar-project-menu"
+      style={{ top: anchorTop, left: anchorLeft }}
       aria-label={localize('com_projects_project_chat_list', { name: project.name })}
     >
-      <header className="sidebar-project-panel-header">
-        {isMobile ? (
-          <button
-            ref={initialFocusRef}
-            type="button"
-            className="sidebar-project-panel-back"
-            aria-label={localize('com_projects_back_to_projects')}
-            onClick={onClose}
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-        ) : null}
-        <span
-          className={cn(
-            'sidebar-project-panel-folder',
-            accent && `sidebar-project-panel-folder-${accent}`,
-          )}
-          aria-hidden="true"
-        >
-          <Folder className="h-5 w-5" />
+      <header className="sidebar-project-menu-header">
+        <span className="sidebar-project-menu-folder" aria-hidden="true">
+          <Folder className="h-4 w-4" />
         </span>
-        <div className="min-w-0 flex-1">
-          <span className="sidebar-project-panel-eyebrow">{localize('com_projects_chats')}</span>
-          <h2 className="sidebar-project-panel-title">{project.name}</h2>
-          <p className="sidebar-project-panel-count">{conversationCountLabel}</p>
-        </div>
+        <span className="min-w-0 flex-1 truncate font-semibold">{project.name}</span>
         <button
-          ref={isMobile ? undefined : initialFocusRef}
+          ref={closeButtonRef}
           type="button"
-          className="sidebar-project-panel-close"
-          aria-label={
-            isMobile
-              ? localize('com_nav_close_sidebar')
-              : localize('com_projects_close_project_chats', { name: project.name })
-          }
-          onClick={isMobile ? onDismissNavigation : onClose}
+          className="sidebar-project-menu-close"
+          aria-label={localize('com_projects_close_project_chats', { name: project.name })}
+          onClick={onClose}
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </header>
-      {onNewConversation || onOpenProject ? (
-        <div className="sidebar-project-panel-actions">
-          {onNewConversation ? (
-            <button
-              type="button"
-              className="sidebar-project-panel-new-chat"
-              aria-label={localize('com_projects_new_chat_in_project', { name: project.name })}
-              onClick={onNewConversation}
-            >
-              <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
-              <span>{localize('com_ui_new_chat')}</span>
-            </button>
-          ) : null}
-          {onOpenProject ? (
-            <button
-              type="button"
-              className="sidebar-project-panel-open-project"
-              aria-label={localize('com_projects_open_project_name', { name: project.name })}
-              onClick={onOpenProject}
-            >
-              <span>{localize('com_projects_open_project')}</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
+      {onNewConversation ? (
+        <button
+          type="button"
+          className="sidebar-project-menu-new-chat"
+          aria-label={localize('com_projects_new_chat_in_project', { name: project.name })}
+          onClick={onNewConversation}
+        >
+          <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{localize('com_ui_new_chat')}</span>
+        </button>
       ) : null}
-      <div className="sidebar-project-panel-list">{renderConversations()}</div>
+      <div className="sidebar-project-menu-list">{renderConversations()}</div>
     </aside>,
     document.body,
   );

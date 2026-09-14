@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { loadEssayGraderRoute } from '~/components/EssayGrader/loadEssayGraderRoute';
 import { useLocalize } from '~/hooks';
 import { getShortStorefrontDescription } from './storefrontDescription';
 
@@ -19,12 +20,24 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
 }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
+  const [isOpening, setIsOpening] = useState(false);
   const title = localize('com_essay_grader_title');
   const description = localize('com_essay_grader_toolkit_description');
   const storefrontDescription = getShortStorefrontDescription(title, description);
 
+  const preloadTool = () => {
+    void loadEssayGraderRoute();
+  };
+
   const openTool = () => {
-    navigate('/tools/essay-grader');
+    if (isOpening) {
+      return;
+    }
+
+    setIsOpening(true);
+    void loadEssayGraderRoute()
+      .then(() => navigate('/tools/essay-grader'))
+      .catch(() => navigate('/tools/essay-grader'));
   };
 
   if (variant === 'storefront') {
@@ -35,6 +48,10 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
         data-view-mode={viewMode}
         data-view-variant={viewVariant}
         aria-label={`${title}. ${description}`}
+        aria-busy={isOpening}
+        disabled={isOpening}
+        onFocus={preloadTool}
+        onMouseEnter={preloadTool}
         onClick={openTool}
       >
         <div className="agents-marketplace-storefront-icon-wrap" aria-hidden="true">
@@ -74,6 +91,10 @@ const EssayGraderToolCard: React.FC<EssayGraderToolCardProps> = ({
         data-view-mode={viewMode}
         data-view-variant={viewVariant}
         aria-label={`${title}. ${description}`}
+        aria-busy={isOpening}
+        disabled={isOpening}
+        onFocus={preloadTool}
+        onMouseEnter={preloadTool}
         onClick={openTool}
       >
         <div className="agent-card-avatar-shell flex h-[3.95rem] w-[3.95rem] shrink-0 items-center justify-center rounded-xl border border-border-light bg-surface-secondary">

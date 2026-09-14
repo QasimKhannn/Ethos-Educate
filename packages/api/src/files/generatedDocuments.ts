@@ -1,6 +1,5 @@
 import {
   DEFAULT_GENERATED_FILE_RETENTION_MINUTES,
-  formatGeneratedFileRetentionDuration,
   getGeneratedFileRetentionExpiry,
 } from './generatedFileRetention';
 
@@ -112,13 +111,6 @@ export function getGeneratedDocumentRetentionExpiry(now: number = Date.now()): D
   return getGeneratedFileRetentionExpiry(now);
 }
 
-export function formatGeneratedDocumentExpiry(date: Date): string {
-  return `${date
-    .toISOString()
-    .replace('T', ' ')
-    .replace(/\.\d{3}Z$/, ' UTC')}`;
-}
-
 export function buildManagedDocumentText({
   sourceText,
   documents,
@@ -137,7 +129,5 @@ export function buildManagedDocumentText({
         })} -->`,
     )
     .join('\n');
-  const availability = `Available until ${formatGeneratedDocumentExpiry(expiresAt)}. This document expires after ${formatGeneratedFileRetentionDuration()} and will be deleted. After expiry, generate a new copy.`;
-
-  return [sourceText, documentLinks, availability].filter(Boolean).join('\n\n');
+  return [sourceText, documentLinks].filter(Boolean).join('\n\n');
 }

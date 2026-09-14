@@ -43,7 +43,12 @@ export default function RecommendedPrompts() {
   return (
     <details className="agent-builder-optional-settings agent-builder-recommended-prompts">
       <summary>
-        <span>{localize('com_ui_agent_recommended_prompts')}</span>
+        <span>
+          {localize('com_ui_agent_recommended_prompts')}
+          <span className="agent-builder-disclosure-status">
+            {localize('com_ui_agent_builder_optional_status')}
+          </span>
+        </span>
         <small>{localize('com_ui_agent_recommended_prompts_help')}</small>
       </summary>
       <div className="agent-builder-optional-settings-body agent-builder-recommended-prompts-body">
@@ -120,9 +125,7 @@ export default function RecommendedPrompts() {
                         maxLength={1200}
                         rows={2}
                         className={cn(inputClass, 'min-h-16 resize-y')}
-                        placeholder={localize(
-                          'com_ui_agent_recommended_prompt_prompt_placeholder',
-                        )}
+                        placeholder={localize('com_ui_agent_recommended_prompt_prompt_placeholder')}
                         aria-label={localize('com_ui_agent_recommended_prompt_prompt')}
                       />
                     )}

@@ -111,6 +111,7 @@ export function AvatarMenu({
         items={items}
         isOpen={isOpen}
         setIsOpen={setIsOpen}
+        className="z-[160]"
         menuId="agent-avatar-menu"
         placement="bottom"
         gutter={8}

@@ -1,9 +1,8 @@
 import { useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import throttle from 'lodash/throttle';
-import { ChevronDown } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Spinner, TooltipAnchor, useMediaQuery } from '@librechat/client';
+import { Spinner, useMediaQuery } from '@librechat/client';
 import { List, AutoSizer, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
 import type { CSSProperties, FC, LegacyRef, ReactNode, RefObject } from 'react';
 import type { TConversation } from 'librechat-data-provider';
@@ -34,8 +33,6 @@ interface ConversationsProps {
   isLoading: boolean;
   isSearchLoading: boolean;
   showFavorites?: boolean;
-  isChatsExpanded: boolean;
-  setIsChatsExpanded: (expanded: boolean) => void;
 }
 
 interface MeasuredRowProps {
@@ -75,42 +72,12 @@ const LoadingSpinner = memo(() => {
 
 LoadingSpinner.displayName = 'LoadingSpinner';
 
-interface ChatsHeaderProps {
-  isExpanded: boolean;
-  onToggle: () => void;
-  count: number;
-}
-
-/** Collapsible header for the Chats section */
-const ChatsHeader: FC<ChatsHeaderProps> = memo(({ isExpanded, onToggle, count }) => {
+const ChatsHeader: FC = memo(() => {
   const localize = useLocalize();
   return (
-    <TooltipAnchor
-      description={localize('com_nav_tooltip_chat_history')}
-      render={
-        <button
-          onClick={onToggle}
-          className="sidebar-section-toggle group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
-          type="button"
-          aria-expanded={isExpanded}
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
-            <span className="sidebar-section-total" aria-hidden="true">
-              {count}
-            </span>
-          </span>
-          <span className="sidebar-section-toggle-icon flex h-5 w-5 items-center justify-center rounded-md">
-            <ChevronDown
-              className={cn(
-                'h-3 w-3 transition-transform duration-200',
-                isExpanded ? 'rotate-180' : '',
-              )}
-            />
-          </span>
-        </button>
-      }
-    />
+    <div className="flex w-full items-center px-3 py-2.5 text-xs">
+      <span className="sidebar-section-heading select-none">{localize('com_ui_chats')}</span>
+    </div>
   );
 });
 
@@ -178,8 +145,6 @@ const Conversations: FC<ConversationsProps> = ({
   isLoading,
   isSearchLoading,
   showFavorites = true,
-  isChatsExpanded,
-  setIsChatsExpanded,
 }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
@@ -243,18 +208,16 @@ const Conversations: FC<ConversationsProps> = ({
     if (shouldShowFavorites) {
       items.push({ type: 'favorites' });
     }
-    if (isChatsExpanded) {
-      groupedConversations.forEach(([groupName, convos]) => {
-        items.push({ type: 'header', groupName });
-        items.push(...convos.map((convo) => ({ type: 'convo' as const, convo })));
-      });
+    groupedConversations.forEach(([groupName, convos]) => {
+      items.push({ type: 'header', groupName });
+      items.push(...convos.map((convo) => ({ type: 'convo' as const, convo })));
+    });
 
-      if (isLoading) {
-        items.push({ type: 'loading' });
-      }
+    if (isLoading) {
+      items.push({ type: 'loading' });
     }
     return items;
-  }, [groupedConversations, isLoading, isChatsExpanded, shouldShowFavorites]);
+  }, [groupedConversations, isLoading, shouldShowFavorites]);
 
   // Store flattenedItems in a ref for keyMapper to access without recreating cache
   const flattenedItemsRef = useRef(flattenedItems);
@@ -385,11 +348,7 @@ const Conversations: FC<ConversationsProps> = ({
 
   return (
     <div className="chat-sidebar-list relative flex h-full min-h-0 flex-col pb-2 text-sm text-text-primary">
-      <ChatsHeader
-        isExpanded={isChatsExpanded}
-        onToggle={() => setIsChatsExpanded(!isChatsExpanded)}
-        count={filteredConversations.length}
-      />
+      <ChatsHeader />
       {isSearchLoading ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner className="text-text-primary" />

@@ -191,9 +191,7 @@ const MessageRender = memo(function MessageRender({
               />
               <HoverButtons
                 index={index}
-                isEditing={edit}
                 message={msg}
-                enterEdit={enterEdit}
                 isSubmitting={isSubmitting}
                 conversation={conversation ?? null}
                 regenerate={handleRegenerateMessage}

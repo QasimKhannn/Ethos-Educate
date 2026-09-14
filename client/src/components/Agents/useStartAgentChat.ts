@@ -61,6 +61,7 @@ export default function useStartAgentChat() {
         conversationId: Constants.NEW_CONVO as string,
         endpoint: EModelEndpoint.agents,
         agent_id: agent.id,
+        spec: null,
         ...(agentAvatarUrl != null ? { iconURL: agentAvatarUrl } : {}),
         title: localize('com_agents_chat_with', {
           name: agentDisplayName || localize('com_ui_agent'),
