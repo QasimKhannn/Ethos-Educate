@@ -1,5 +1,16 @@
-import { Constants } from 'librechat-data-provider';
-import { getPendingConversationPath } from './resumableNavigation';
+import {
+  getPendingConversationHandoffKey,
+  getPendingConversationPath,
+} from './resumableNavigation';
+
+describe('getPendingConversationHandoffKey', () => {
+  test('scopes the handoff marker to the persisted conversation', () => {
+    expect(getPendingConversationHandoffKey('conversation-123')).toEqual([
+      'pending-conversation-handoff',
+      'conversation-123',
+    ]);
+  });
+});
 
 describe('getPendingConversationPath', () => {
   beforeEach(() => {

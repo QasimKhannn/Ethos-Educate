@@ -7,6 +7,7 @@ interface MessagesViewContextValue {
   conversationId: string | null | undefined;
 
   /** Submission and control states */
+  activeSubmissionMessageId: string | null;
   isSubmitting: ReturnType<typeof useChatContext>['isSubmitting'];
   abortScroll: ReturnType<typeof useChatContext>['abortScroll'];
   setAbortScroll: ReturnType<typeof useChatContext>['setAbortScroll'];
@@ -38,6 +39,7 @@ export function MessagesViewProvider({ children }: { children: React.ReactNode }
     ask,
     index,
     regenerate,
+    submission,
     isSubmitting,
     conversation,
     latestMessageId,
@@ -63,10 +65,11 @@ export function MessagesViewProvider({ children }: { children: React.ReactNode }
   const submissionStates = useMemo(
     () => ({
       abortScroll,
+      activeSubmissionMessageId: submission?.userMessage?.messageId ?? null,
       isSubmitting,
       setAbortScroll,
     }),
-    [isSubmitting, abortScroll, setAbortScroll],
+    [isSubmitting, abortScroll, setAbortScroll, submission?.userMessage?.messageId],
   );
 
   /** Memoize message operations (these are typically stable references) */
@@ -124,10 +127,11 @@ export function useMessagesConversation() {
 
 /** Hook for components that only need submission states */
 export function useMessagesSubmission() {
-  const { isSubmitting, abortScroll, setAbortScroll } = useMessagesViewContext();
+  const { activeSubmissionMessageId, isSubmitting, abortScroll, setAbortScroll } =
+    useMessagesViewContext();
   return useMemo(
-    () => ({ isSubmitting, abortScroll, setAbortScroll }),
-    [isSubmitting, abortScroll, setAbortScroll],
+    () => ({ activeSubmissionMessageId, isSubmitting, abortScroll, setAbortScroll }),
+    [activeSubmissionMessageId, isSubmitting, abortScroll, setAbortScroll],
   );
 }
 

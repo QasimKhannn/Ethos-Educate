@@ -27,6 +27,7 @@ export function ShareMessagesProvider({ messages, children }: ShareMessagesProvi
       handleContinue: () => {},
       latestMessageId: messages[messages.length - 1]?.messageId,
       latestMessageDepth: messages[messages.length - 1]?.depth,
+      activeSubmissionMessageId: null,
       isSubmitting: false,
       abortScroll: false,
       setAbortScroll: () => {},

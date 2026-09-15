@@ -8,7 +8,8 @@ import { useMessageContext } from '~/Providers';
 import MarkdownLite from './MarkdownLite';
 import EditMessage from './EditMessage';
 import Thinking from './Parts/Thinking';
-import { useLocalize } from '~/hooks';
+import EmptyText from './Parts/EmptyText';
+import { hasInitialStreamingText, useLocalize, useSmoothStreamingText } from '~/hooks';
 import Container from './Container';
 import Markdown from './Markdown';
 import { cn } from '~/utils';
@@ -92,8 +93,13 @@ export const ErrorMessage = ({
 };
 
 const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplayProps) => {
-  const { isSubmitting = false, isLatestMessage = false } = useMessageContext();
+  const {
+    isSubmitting = false,
+    isLatestMessage = false,
+    smoothStreaming = false,
+  } = useMessageContext();
   const enableUserMsgMarkdown = useRecoilValue(store.enableUserMsgMarkdown);
+  const displayedText = useSmoothStreamingText(text, !isCreatedByUser && smoothStreaming);
 
   const showCursorState = useMemo(
     () => showCursor === true && isSubmitting,
@@ -102,13 +108,13 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
 
   const content = useMemo(() => {
     if (!isCreatedByUser) {
-      return <Markdown content={text} isLatestMessage={isLatestMessage} />;
+      return <Markdown content={displayedText} isLatestMessage={isLatestMessage} />;
     }
     if (enableUserMsgMarkdown) {
-      return <MarkdownLite content={text} />;
+      return <MarkdownLite content={displayedText} />;
     }
-    return <>{text}</>;
-  }, [isCreatedByUser, enableUserMsgMarkdown, text, isLatestMessage]);
+    return <>{displayedText}</>;
+  }, [displayedText, enableUserMsgMarkdown, isCreatedByUser, isLatestMessage]);
 
   return (
     <Container message={message}>
@@ -116,7 +122,7 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
         className={cn(
           'markdown prose message-content dark:prose-invert light w-full break-words',
           isSubmitting && 'submitting',
-          showCursorState && text.length > 0 && 'result-streaming',
+          showCursorState && displayedText.length > 0 && 'result-streaming',
           isCreatedByUser && !enableUserMsgMarkdown && 'whitespace-pre-wrap',
           isCreatedByUser ? 'dark:text-gray-20' : 'dark:text-gray-100',
         )}
@@ -148,6 +154,8 @@ const MessageContent = ({
 
   const { thinkingContent, regularContent } = useMemo(() => parseThinkingContent(text), [text]);
   const showRegularCursor = useMemo(() => isLast && isSubmitting, [isLast, isSubmitting]);
+  const showResponseActivity =
+    showRegularCursor && !thinkingContent && !hasInitialStreamingText(regularContent);
 
   const unfinishedMessage = useMemo(
     () =>
@@ -174,12 +182,18 @@ const MessageContent = ({
       {thinkingContent.length > 0 && (
         <Thinking key={`thinking-${messageId}`}>{thinkingContent}</Thinking>
       )}
-      <DisplayMessage
-        key={`display-${messageId}`}
-        showCursor={showRegularCursor}
-        text={regularContent}
-        {...props}
-      />
+      {showResponseActivity ? (
+        <Container message={message}>
+          <EmptyText />
+        </Container>
+      ) : (
+        <DisplayMessage
+          key={`display-${messageId}`}
+          showCursor={showRegularCursor}
+          text={regularContent}
+          {...props}
+        />
+      )}
       {unfinishedMessage}
     </>
   );

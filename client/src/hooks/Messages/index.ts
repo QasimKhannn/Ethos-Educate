@@ -7,4 +7,6 @@ export { default as useMessageHelpers } from './useMessageHelpers';
 export { default as useCopyToClipboard } from './useCopyToClipboard';
 export { default as useMessageScrolling } from './useMessageScrolling';
 export { default as useContentMetadata } from './useContentMetadata';
+export { default as useSmoothStreamingText } from './useSmoothStreamingText';
+export { getNextWordRevealIndex, hasInitialStreamingText } from './useSmoothStreamingText';
 export type { ContentMetadataResult } from './useContentMetadata';

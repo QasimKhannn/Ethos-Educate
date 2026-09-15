@@ -4,12 +4,13 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import type { ComponentType, LazyExoticComponent, PropsWithChildren } from 'react';
 import Login from '~/components/Auth/Login';
 import ApiErrorWatcher from '~/components/Auth/ApiErrorWatcher';
+import { loadEssayGraderRoute } from '~/components/EssayGrader/loadEssayGraderRoute';
 import { AuthContextProvider } from '~/hooks/AuthContext';
+import { loadChatRoute } from './loadChatRoute';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
-import { loadEssayGraderRoute } from '~/components/EssayGrader/loadEssayGraderRoute';
 const VerifyEmail = lazy(() => import('~/components/Auth/VerifyEmail'));
 const Registration = lazy(() => import('~/components/Auth/Registration'));
 const ResetPassword = lazy(() => import('~/components/Auth/ResetPassword'));
@@ -18,9 +19,7 @@ const RequestPasswordReset = lazy(() => import('~/components/Auth/RequestPasswor
 const OAuthSuccess = lazy(() => import('~/components/OAuth/OAuthSuccess'));
 const OAuthError = lazy(() => import('~/components/OAuth/OAuthError'));
 const ShareRoute = lazy(() => import('./ShareRoute'));
-const ChatRoute = lazy(() => import('./ChatRoute'));
 const Search = lazy(() => import('./Search'));
-const Root = lazy(() => import('./Root'));
 const ProjectRoute = lazy(() => import('~/components/Projects/ProjectRoute'));
 const MarketplaceProvider = lazy(() =>
   import('~/components/Agents/MarketplaceContext').then(({ MarketplaceProvider }) => ({
@@ -28,11 +27,13 @@ const MarketplaceProvider = lazy(() =>
   })),
 );
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
-const EssayGraderRoute = lazy(loadEssayGraderRoute);
 const AdminConsole = lazy(() => import('~/components/Admin/AdminConsole'));
 const CoworkLayout = lazy(() => import('~/components/Cowork/CoworkLayout'));
 const CoworkHome = lazy(() => import('~/components/Cowork/CoworkHome'));
 const CoworkProjectView = lazy(() => import('~/components/Cowork/CoworkProjectView'));
+const Root = lazy(() => import('./Root'));
+const ChatRoute = lazy(loadChatRoute);
+const EssayGraderRoute = lazy(loadEssayGraderRoute);
 
 type LazyRouteComponent = LazyExoticComponent<ComponentType>;
 

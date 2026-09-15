@@ -91,6 +91,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     () => conversation?.conversationId ?? Constants.NEW_CONVO,
     [conversation?.conversationId],
   );
+  const isDraftInitializing = conversationId === Constants.NEW_CONVO && !endpoint;
 
   const isRTL = useMemo(
     () => (chatDirection != null ? chatDirection?.toLowerCase() === 'rtl' : false),
@@ -104,8 +105,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     [conversation?.assistant_id, endpoint, assistantMap],
   );
   const disableInputs = useMemo(
-    () => requiresKey || invalidAssistant,
-    [requiresKey, invalidAssistant],
+    () => requiresKey || invalidAssistant || isDraftInitializing,
+    [requiresKey, invalidAssistant, isDraftInitializing],
   );
   const handleContainerClick = useCallback(() => {
     /** Check if the device is a touchscreen */
@@ -257,7 +258,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                 setBadges={setBadges}
               />
               <FileFormChat conversation={conversation} />
-              {endpoint && (
+              {(endpoint || isDraftInitializing) && (
                 <div className={cn('flex', isRTL ? 'flex-row-reverse' : 'flex-row')}>
                   <div
                     className="relative flex-1"
@@ -289,6 +290,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                       tabIndex={0}
                       {...mobileKeyboardHint}
                       data-testid="text-input"
+                      placeholder={isDraftInitializing ? localize('com_ui_loading') : undefined}
                       rows={1}
                       onFocus={() => {
                         handleFocusOrClick();

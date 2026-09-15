@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback, useRef } from 'react';
 import { ContentTypes, FileContext } from 'librechat-data-provider';
 import type {
   TMessageContentParts,
@@ -16,6 +16,7 @@ import Container from './Container';
 import { getGeneratedDocumentState } from './generatedArtifacts';
 import Part from './Part';
 import LessonPlanningUnitChoices from './LessonPlanningUnitChoices';
+import { hasInitialResponseContent } from './responsePresentation';
 
 type PartWithContextProps = {
   part: TMessageContentParts;
@@ -25,6 +26,7 @@ type PartWithContextProps = {
   conversationId?: string | null;
   nextType?: string;
   isSubmitting: boolean;
+  smoothStreaming: boolean;
   isLatestMessage?: boolean;
   isCreatedByUser: boolean;
   isLast: boolean;
@@ -63,6 +65,7 @@ const PartWithContext = memo(function PartWithContext({
   conversationId,
   nextType,
   isSubmitting,
+  smoothStreaming,
   isLatestMessage,
   isCreatedByUser,
   isLast,
@@ -80,6 +83,7 @@ const PartWithContext = memo(function PartWithContext({
       partIndex: idx,
       nextType,
       isSubmitting,
+      smoothStreaming,
       isLatestMessage,
       generatedArtifactExpiries: generatedDocumentState.expiries,
       generatedDocumentToolCallFileIds: generatedDocumentState.toolCallFileIds,
@@ -93,6 +97,7 @@ const PartWithContext = memo(function PartWithContext({
       idx,
       nextType,
       isSubmitting,
+      smoothStreaming,
       isLatestMessage,
       generatedDocumentState,
       part.type,
@@ -168,7 +173,10 @@ const ContentParts = memo(function ContentParts({
       ) ?? false,
     [content],
   );
-  const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
+  const smoothStreamingRef = useRef(false);
+  if (!isCreatedByUser && isSubmitting) {
+    smoothStreamingRef.current = true;
+  }
 
   const renderPart = useCallback(
     (part: TMessageContentParts, idx: number, isLastPart: boolean) => {
@@ -185,7 +193,8 @@ const ContentParts = memo(function ContentParts({
           isLatestMessage={isLatestMessage}
           isCreatedByUser={isCreatedByUser}
           nextType={content?.[idx + 1]?.type}
-          isSubmitting={effectiveIsSubmitting}
+          isSubmitting={isSubmitting}
+          smoothStreaming={smoothStreamingRef.current}
           partAttachments={attachmentMap[toolCallId]}
           generatedDocumentState={generatedDocumentState}
           hasImageGenerationResult={hasImageGenerationResult}
@@ -198,7 +207,6 @@ const ContentParts = memo(function ContentParts({
       attachmentMap,
       content,
       conversationId,
-      effectiveIsSubmitting,
       generatedDocumentState,
       hasImageGenerationResult,
       isCreatedByUser,
@@ -212,7 +220,11 @@ const ContentParts = memo(function ContentParts({
 
   // Early return: no content
   if (!content) {
-    return null;
+    return isSubmitting ? (
+      <Container>
+        <EmptyText />
+      </Container>
+    ) : null;
   }
 
   // Edit mode: render editable text parts
@@ -255,7 +267,7 @@ const ContentParts = memo(function ContentParts({
     );
   }
 
-  const showEmptyCursor = content.length === 0 && effectiveIsSubmitting;
+  const showEmptyCursor = isSubmitting && !hasInitialResponseContent(content);
   const lastContentIdx = content.length - 1;
 
   // Parallel content: use dedicated renderer with columns (TMessageContentParts includes ContentMetadata)
@@ -268,7 +280,7 @@ const ContentParts = memo(function ContentParts({
         conversationId={conversationId}
         attachments={attachments}
         searchResults={searchResults}
-        isSubmitting={effectiveIsSubmitting}
+        isSubmitting={isSubmitting}
         renderPart={renderPart}
       />
     );
@@ -291,10 +303,11 @@ const ContentParts = memo(function ContentParts({
           <EmptyText />
         </Container>
       )}
-      {sequentialParts.map(({ part, idx }) => renderPart(part, idx, idx === lastContentIdx))}
+      {!showEmptyCursor &&
+        sequentialParts.map(({ part, idx }) => renderPart(part, idx, idx === lastContentIdx))}
       {!isCreatedByUser && isLatestMessage && (
         <Container>
-          <LessonPlanningUnitChoices content={content} isSubmitting={effectiveIsSubmitting} />
+          <LessonPlanningUnitChoices content={content} isSubmitting={isSubmitting} />
         </Container>
       )}
     </SearchContext.Provider>

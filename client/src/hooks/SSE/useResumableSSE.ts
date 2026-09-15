@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { flushSync } from 'react-dom';
 import { v4 } from 'uuid';
 import { SSE } from 'sse.js';
 import { useSetRecoilState } from 'recoil';
@@ -30,7 +29,11 @@ import { fetchStreamStatus } from '~/data-provider/SSE/queries';
 import type { ActiveJobsResponse } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useEventHandlers from './useEventHandlers';
-import { getPendingConversationPath } from './resumableNavigation';
+import {
+  getPendingConversationPath,
+  getPendingConversationHandoffKey,
+} from './resumableNavigation';
+import { addConvoToAllQueries } from '~/utils';
 import store from '~/store';
 
 const clearDraft = (conversationId?: string | null) => {
@@ -142,7 +145,7 @@ export default function useResumableSSE(
   );
 
   const handleGenerationStarted = useCallback(
-    (response: GenerationStartedResponse) => {
+    (response: GenerationStartedResponse, currentSubmission: TSubmission) => {
       const path = getPendingConversationPath(response);
       if (!path) {
         return;
@@ -160,10 +163,14 @@ export default function useResumableSSE(
       const pendingMessages = getMessages();
 
       pendingConversationIdRef.current = response.conversationId;
+      queryClient.setQueryData(getPendingConversationHandoffKey(response.conversationId), true);
       queryClient.setQueryData<TConversation>(
         [QueryKeys.conversation, response.conversationId],
         nextConversation,
       );
+      if (!currentSubmission.isTemporary) {
+        addConvoToAllQueries(queryClient, nextConversation);
+      }
       if (pendingMessages) {
         queryClient.setQueryData<TMessage[]>(
           [QueryKeys.messages, response.conversationId],
@@ -171,14 +178,9 @@ export default function useResumableSSE(
         );
       }
 
-      flushSync(() => {
-        setConversation?.((previous) =>
-          previous?.conversationId === Constants.NEW_CONVO ? nextConversation : previous,
-        );
-      });
       navigate(path, { replace: true });
     },
-    [chatHelpers.conversation, getMessages, navigate, queryClient, setConversation],
+    [chatHelpers.conversation, getMessages, navigate, queryClient],
   );
 
   const {
@@ -745,7 +747,7 @@ export default function useResumableSSE(
         try {
           // Use request.post which handles auth token refresh via axios interceptors
           const data = (await request.post(url, payload)) as GenerationStartedResponse;
-          handleGenerationStarted(data);
+          handleGenerationStarted(data, currentSubmission);
           console.log('[ResumableSSE] Generation started:', { streamId: data.streamId });
           return data.streamId;
         } catch (error) {

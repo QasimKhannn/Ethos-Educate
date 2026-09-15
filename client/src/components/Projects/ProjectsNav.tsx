@@ -10,7 +10,7 @@ import {
 } from '~/components/Nav/mockNavigation';
 import type { MockProjectAccent } from '~/components/Nav/mockNavigation';
 import { useProjectsQuery } from '~/data-provider';
-import { useAuthContext, useLocalize, useLocalStorage } from '~/hooks';
+import { useAuthContext, useLocalize, useLocalStorage, useNewConvo } from '~/hooks';
 import { cn } from '~/utils';
 import store from '~/store';
 import type { ProjectConversation } from './ProjectChatsPanel';
@@ -119,6 +119,7 @@ function ProjectsNav({
   const localize = useLocalize();
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const { newConversation } = useNewConvo();
   const params = useParams();
   const [searchParams] = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -252,8 +253,17 @@ function ProjectsNav({
     if (isSmallScreen) {
       onDismissNavigation?.();
     }
-    const path = isDemoProject ? `/c/${createMockNavigationDraftConversationId()}` : '/c/new';
-    navigate(`${path}?projectId=${encodeURIComponent(projectId)}`, { state: { focusChat: true } });
+    if (isDemoProject) {
+      navigate(
+        `/c/${createMockNavigationDraftConversationId()}?projectId=${encodeURIComponent(projectId)}`,
+        {
+          state: { focusChat: true },
+        },
+      );
+      return;
+    }
+
+    newConversation({ template: { projectId } });
   };
 
   const handleConversationClick = (projectId: string, conversationId: string) => {

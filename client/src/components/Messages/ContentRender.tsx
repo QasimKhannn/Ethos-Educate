@@ -3,6 +3,7 @@ import { useAtomValue } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import type { TMessage, TMessageContentParts } from 'librechat-data-provider';
 import type { TMessageProps, TMessageIcon } from '~/common';
+import { isActiveResponseMessage } from '~/components/Chat/Messages/Content/responsePresentation';
 import { useAttachments, useLocalize, useMessageActions, useContentMetadata } from '~/hooks';
 import ContentParts from '~/components/Chat/Messages/Content/ContentParts';
 import PlaceholderRow from '~/components/Chat/Messages/ui/PlaceholderRow';
@@ -12,6 +13,7 @@ import MessageIcon from '~/components/Chat/Messages/MessageIcon';
 import SubRow from '~/components/Chat/Messages/SubRow';
 import { cn, getMessageAriaLabel } from '~/utils';
 import { fontSizeAtom } from '~/store/fontSize';
+import { useMessagesSubmission } from '~/Providers';
 import store from '~/store';
 
 type ContentRenderProps = {
@@ -58,6 +60,7 @@ const ContentRender = memo(function ContentRender({
   });
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
+  const { activeSubmissionMessageId } = useMessagesSubmission();
 
   const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
 
@@ -67,8 +70,14 @@ const ContentRender = memo(function ContentRender({
   );
   const hasNoChildren = !(msg?.children?.length ?? 0);
   const isLatestMessage = msg?.messageId === latestMessageId;
-  /** Only pass isSubmitting to the latest message to prevent unnecessary re-renders */
-  const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
+  const effectiveIsSubmitting = isActiveResponseMessage({
+    isSubmitting,
+    isCreatedByUser: msg?.isCreatedByUser,
+    parentMessageId: msg?.parentMessageId,
+    activeUserMessageId: activeSubmissionMessageId,
+    isLatestMessage,
+    isLast,
+  });
 
   const iconData: TMessageIcon = useMemo(
     () => ({
@@ -174,7 +183,7 @@ const ContentRender = memo(function ContentRender({
               <HoverButtons
                 index={index}
                 message={msg}
-                isSubmitting={isSubmitting}
+                isSubmitting={effectiveIsSubmitting}
                 conversation={conversation ?? null}
                 regenerate={handleRegenerateMessage}
                 copyToClipboard={copyToClipboard}

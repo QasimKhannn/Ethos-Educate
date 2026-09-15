@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { Outlet, useLocation } from 'react-router-dom';
 import type { ContextType } from '~/common';
 import {
@@ -17,6 +18,7 @@ import {
 } from '~/Providers';
 import {
   useUserTermsQuery,
+  useGetEndpointsQuery,
   useGetStartupConfig,
   useCompleteOnboardingTourMutation,
   useOnboardingTourStatusQuery,
@@ -27,6 +29,7 @@ import FirstLoginTour from '~/components/Onboarding/FirstLoginTour';
 import { TermsAndConditionsModal } from '~/components/ui';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
+import { loadChatRoute } from './loadChatRoute';
 
 export default function Root() {
   const [showTerms, setShowTerms] = useState(false);
@@ -35,6 +38,17 @@ export default function Root() {
 
   const { user, isAuthenticated, logout } = useAuthContext();
   const backendQueriesEnabled = isAuthenticated;
+
+  useGetEndpointsQuery({ enabled: backendQueriesEnabled });
+  useGetModelsQuery({ enabled: backendQueriesEnabled, refetchOnMount: 'always' });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    void loadChatRoute();
+  }, [isAuthenticated]);
   // cowork — the dedicated Cowork section renders its own rail, so hide the chat
   // sidebar ONLY for /cowork routes. All other routes are unaffected.
   const location = useLocation();

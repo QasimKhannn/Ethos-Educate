@@ -2,7 +2,6 @@ import { memo, useCallback } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
-import { Spinner } from '@librechat/client';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Constants, buildTree } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
@@ -25,15 +24,22 @@ import ChatForm from './Input/ChatForm';
 import Landing from './Landing';
 import Header from './Header';
 import Footer from './Footer';
-import { pageRevealVariants, sectionStaggerVariants, softRevealVariants } from '~/utils/motion';
+import { pageRevealVariants, sectionStaggerVariants } from '~/utils/motion';
 import { cn } from '~/utils';
 import store from '~/store';
 
-function LoadingSpinner() {
+function MessageLoadPlaceholder({ label }: { label: string }) {
   return (
-    <div className="relative flex-1 overflow-hidden overflow-y-auto">
-      <div className="relative flex h-full items-center justify-center">
-        <Spinner className="text-text-primary" />
+    <div
+      className="flex min-h-full items-center justify-center px-6"
+      aria-busy="true"
+      role="status"
+    >
+      <span className="sr-only">{label}</span>
+      <div className="w-full max-w-2xl space-y-4" aria-hidden="true">
+        <div className="h-4 w-2/5 animate-pulse rounded-full bg-surface-secondary" />
+        <div className="h-4 w-full animate-pulse rounded-full bg-surface-secondary" />
+        <div className="h-4 w-4/5 animate-pulse rounded-full bg-surface-secondary" />
       </div>
     </div>
   );
@@ -59,6 +65,7 @@ function MessageLoadError({ onRetry }: { onRetry: () => void }) {
 function ChatView({ index = 0 }: { index?: number }) {
   const { conversationId } = useParams();
   const navigate = useNavigate();
+  const localize = useLocalize();
   const [searchParams] = useSearchParams();
   const rootSubmission = useRecoilValue(store.submissionByIndex(index));
   const centerFormOnLanding = useRecoilValue(store.centerFormOnLanding);
@@ -114,7 +121,7 @@ function ChatView({ index = 0 }: { index?: number }) {
   }, [navigate]);
 
   if (isLoading && conversationId !== Constants.NEW_CONVO) {
-    content = <LoadingSpinner />;
+    content = <MessageLoadPlaceholder label={localize('com_ui_loading')} />;
   } else if (hasMessagesError) {
     content = <MessageLoadError onRetry={() => void refetchMessages()} />;
   } else if (!isLandingPage) {
@@ -129,7 +136,7 @@ function ChatView({ index = 0 }: { index?: number }) {
         <AddedChatContext.Provider value={addedChatHelpers}>
           <Presentation>
             <div className="chat-view-shell relative flex h-full w-full flex-col">
-              {!isLoading && <Header />}
+              <Header />
               <>
                 <div
                   className={cn(
@@ -152,25 +159,20 @@ function ChatView({ index = 0 }: { index?: number }) {
                       >
                         {content}
                       </motion.div>
-                      <motion.div
-                        variants={softRevealVariants}
-                        className={cn(
-                          'chat-landing-page-composer w-full',
-                          isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
-                        )}
-                      >
-                        <ChatForm index={index} />
-                      </motion.div>
                     </motion.div>
                   ) : (
-                    <>
-                      {content}
-                      <div className="w-full">
-                        <ChatForm index={index} />
-                        <Footer />
-                      </div>
-                    </>
+                    content
                   )}
+                  <div
+                    className={cn(
+                      'w-full',
+                      isLandingPage &&
+                        'chat-landing-page-composer max-w-3xl transition-all duration-200 xl:max-w-4xl',
+                    )}
+                  >
+                    <ChatForm index={index} />
+                    {!isLandingPage && <Footer />}
+                  </div>
                 </div>
                 {isLandingPage && <Footer />}
               </>

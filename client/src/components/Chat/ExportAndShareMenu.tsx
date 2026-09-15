@@ -25,13 +25,11 @@ export default function ExportAndShareMenu({
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const conversation = useRecoilValue(store.conversationByIndex(0));
 
+  const conversationId = conversation?.conversationId;
   const exportable =
-    conversation &&
-    conversation.conversationId != null &&
-    conversation.conversationId !== 'new' &&
-    conversation.conversationId !== 'search';
+    conversationId != null && conversationId !== 'new' && conversationId !== 'search';
 
-  if (exportable === false) {
+  if (!exportable || !conversation) {
     return null;
   }
 
@@ -104,7 +102,7 @@ export default function ExportAndShareMenu({
       />
       <ShareButton
         triggerRef={shareButtonRef}
-        conversationId={conversation.conversationId ?? ''}
+        conversationId={conversationId}
         open={showShareDialog}
         onOpenChange={setShowShareDialog}
       />

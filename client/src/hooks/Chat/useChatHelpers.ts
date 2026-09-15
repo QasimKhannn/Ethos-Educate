@@ -73,7 +73,7 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   //   [_setConversation, setActiveConvos],
   // );
 
-  const setSubmission = useSetRecoilState(store.submissionByIndex(index));
+  const [submission, setSubmission] = useRecoilState(store.submissionByIndex(index));
 
   const { ask: _ask, regenerate: _regenerate } = useChatFunctions({
     index,
@@ -203,6 +203,7 @@ export default function useChatHelpers(index = 0, paramId?: string) {
       newConversation,
       conversation,
       setConversation,
+      submission,
       isSubmitting,
       setIsSubmitting,
       getMessages,
@@ -236,6 +237,7 @@ export default function useChatHelpers(index = 0, paramId?: string) {
       newConversation,
       conversation,
       setConversation,
+      submission,
       isSubmitting,
       setIsSubmitting,
       getMessages,

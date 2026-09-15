@@ -2026,6 +2026,17 @@ html {
   will-change: transform;
 }
 
+.response-waiting-dot .result-thinking:empty:last-child:after {
+  background-color: var(--brand-primary-hover);
+  top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .response-waiting-dot .result-thinking:empty:last-child:after {
+    animation: none;
+  }
+}
+
 .shadow-stroke {
   position: relative;
 }

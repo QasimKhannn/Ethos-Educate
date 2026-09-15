@@ -88,7 +88,12 @@ const persistPendingUserMessage = async ({ req, endpointOption, conversationId, 
       endpoint: endpointOption.endpoint,
       endpointType: endpointOption.endpointType,
       iconURL: endpointOption.iconURL,
-      model: endpointOption.modelOptions?.model ?? endpointOption.model_parameters?.model,
+      model:
+        endpointOption.modelOptions?.model ??
+        endpointOption.model_parameters?.model ??
+        endpointOption.model,
+      modelLabel: endpointOption.modelLabel,
+      projectId: endpointOption.projectId,
       spec: endpointOption.spec,
     },
     { context: 'api/server/controllers/agents/request.js - pending resumable conversation' },
@@ -97,6 +102,51 @@ const persistPendingUserMessage = async ({ req, endpointOption, conversationId, 
   if (conversation?.message === 'Error saving conversation') {
     throw new Error('Unable to persist pending conversation');
   }
+};
+
+const persistFailedResponse = async ({
+  req,
+  streamId,
+  conversationId,
+  endpointOption,
+  userId,
+  sender,
+  error,
+}) => {
+  const resumeState = await GenerationJobManager.getResumeState(streamId);
+  const requestMessage = resumeState?.userMessage;
+
+  if (!requestMessage?.messageId) {
+    return;
+  }
+
+  const errorText = error?.message?.includes('"type"')
+    ? error.message
+    : 'An error occurred while processing your request. Please try again.';
+
+  await saveMessage(
+    req,
+    {
+      conversationId: resumeState.conversationId || conversationId,
+      endpoint: endpointOption.endpoint,
+      error: true,
+      iconURL: endpointOption.iconURL,
+      isCreatedByUser: false,
+      messageId: resumeState.responseMessageId || `${requestMessage.messageId}_`,
+      model:
+        endpointOption.modelOptions?.model ||
+        endpointOption.model_parameters?.model ||
+        endpointOption.model,
+      modelLabel: endpointOption.modelLabel,
+      parentMessageId: requestMessage.messageId,
+      sender: sender || 'System',
+      spec: endpointOption.spec,
+      text: errorText,
+      unfinished: false,
+      user: userId,
+    },
+    { context: 'api/server/controllers/agents/request.js - resumable failed response' },
+  );
 };
 
 function createCloseHandler(abortController) {
@@ -173,11 +223,6 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     const jobCreatedAt = job.createdAt; // Capture creation time to detect job replacement
     req._resumableStreamId = streamId;
 
-    // Send JSON response IMMEDIATELY so client can connect to SSE stream
-    // This is critical: tool loading (MCP OAuth) may emit events that the client needs to receive
-    res.json({ streamId, conversationId, status: 'started' });
-    timing.mark('startResponseSent');
-
     const pendingUserMessage = createPendingUserMessage({
       text,
       conversationId,
@@ -199,23 +244,23 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
         },
       });
 
-      try {
-        await persistPendingUserMessage({
-          req,
-          endpointOption,
-          conversationId,
-          message: pendingUserMessage,
-        });
-        timing.mark('pendingMessagePersisted');
-      } catch (error) {
-        logger.error('[ResumableAgentController] Unable to persist pending user message:', error);
-      }
+      await persistPendingUserMessage({
+        req,
+        endpointOption,
+        conversationId,
+        message: pendingUserMessage,
+      });
+      timing.mark('pendingMessagePersisted');
     }
 
     const userMessageIdOverride = pendingUserMessage?.messageId ?? overrideParentMessageId;
 
-    // Note: We no longer use res.on('close') to abort since we send JSON immediately.
-    // The response closes normally after res.json(), which is not an abort condition.
+    // Return a routeable conversation only after the first user message and its conversation exist.
+    // The resumable stream buffers early events, so tool initialization can safely start afterward.
+    res.json({ streamId, conversationId, status: 'started' });
+    timing.mark('startResponseSent');
+
+    // Note: We no longer use res.on('close') to abort since the JSON response closes normally.
     // Abort handling is done through GenerationJobManager via the SSE stream connection.
 
     // Track if partial response was already saved to avoid duplicates
@@ -515,6 +560,22 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
           timing.log('aborted', error);
         } else {
           logger.error(`[ResumableAgentController] Generation error for ${streamId}:`, error);
+          try {
+            await persistFailedResponse({
+              req,
+              streamId,
+              conversationId,
+              endpointOption,
+              userId,
+              sender: client?.sender,
+              error,
+            });
+          } catch (persistenceError) {
+            logger.error(
+              `[ResumableAgentController] Error saving failed response for ${streamId}:`,
+              persistenceError,
+            );
+          }
           await GenerationJobManager.emitError(streamId, error.message || 'Generation failed');
           await GenerationJobManager.completeJob(streamId, error.message);
           timing.log('failed', error);
@@ -545,7 +606,22 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     if (!res.headersSent) {
       res.status(500).json({ error: error.message || 'Failed to start generation' });
     } else {
-      // JSON already sent, emit error to stream so client can receive it
+      try {
+        await persistFailedResponse({
+          req,
+          streamId,
+          conversationId,
+          endpointOption,
+          userId,
+          sender: client?.sender,
+          error,
+        });
+      } catch (persistenceError) {
+        logger.error(
+          `[ResumableAgentController] Error saving initialization failure for ${streamId}:`,
+          persistenceError,
+        );
+      }
       await GenerationJobManager.emitError(streamId, error.message || 'Failed to start generation');
     }
     await GenerationJobManager.completeJob(streamId, error.message);

@@ -311,6 +311,31 @@ export function getModelSpecPreset(modelSpec?: t.TModelSpec) {
   };
 }
 
+export function reconcileConversationModelSpec(
+  conversation: t.TConversation,
+  startupConfig?: t.TStartupConfig,
+): t.TConversation {
+  const modelSpec = getModelSpec({
+    specName: conversation.spec,
+    startupConfig,
+  });
+  const preset = getModelSpecPreset(modelSpec);
+
+  if (!modelSpec || !preset) {
+    return conversation;
+  }
+
+  return {
+    ...conversation,
+    spec: modelSpec.name,
+    ...(preset.endpoint != null ? { endpoint: preset.endpoint as EModelEndpoint } : {}),
+    ...(preset.endpointType != null ? { endpointType: preset.endpointType } : {}),
+    ...(preset.model != null ? { model: preset.model } : {}),
+    modelLabel: preset.modelLabel ?? modelSpec.label ?? conversation.modelLabel,
+    iconURL: preset.iconURL ?? conversation.iconURL,
+  };
+}
+
 /** Gets the default spec iconURL by order or definition.
  *
  * First, the admin defined default, then last selected spec, followed by first spec
@@ -343,7 +368,9 @@ export function getEntityEndpoint({
   conversationEndpoint?: EModelEndpoint | string | null;
   displayEndpoint: EModelEndpoint | string;
 }): EModelEndpoint | string {
-  return isAgentsEndpoint(conversationEndpoint) ? conversationEndpoint : displayEndpoint;
+  return isAgentsEndpoint(conversationEndpoint) && conversationEndpoint
+    ? conversationEndpoint
+    : displayEndpoint;
 }
 
 /** Gets the key to use for the default endpoint iconURL, as defined by the custom config */

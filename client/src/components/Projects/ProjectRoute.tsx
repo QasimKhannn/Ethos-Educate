@@ -3,7 +3,7 @@ import { ArrowRight, Folder, MessageSquarePlus, MessageSquareText } from 'lucide
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Spinner } from '@librechat/client';
 import { useConversationsInfiniteQuery, useProjectQuery } from '~/data-provider';
-import { useAuthContext, useLocalize } from '~/hooks';
+import { useAuthContext, useLocalize, useNewConvo } from '~/hooks';
 import { cn } from '~/utils';
 import { flattenUniqueConversations } from './utils';
 import ProjectSources from './ProjectSources';
@@ -29,6 +29,7 @@ const getConversationDate = (conversation: ProjectConversation) => {
 export default function ProjectRoute() {
   const localize = useLocalize();
   const navigate = useNavigate();
+  const { newConversation } = useNewConvo();
   const { projectId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthContext();
@@ -50,7 +51,7 @@ export default function ProjectRoute() {
   };
 
   const startChat = () => {
-    navigate(`/c/new?projectId=${encodeURIComponent(projectId)}`, { state: { focusChat: true } });
+    newConversation({ template: { projectId } });
   };
 
   if (!isAuthenticated) {

@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, memo } from 'react';
+import React, { useCallback, useMemo, useRef, memo } from 'react';
 import { useAtomValue } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import { type TMessage } from 'librechat-data-provider';
 import type { TMessageProps, TMessageIcon } from '~/common';
 import MessageContent from '~/components/Chat/Messages/Content/MessageContent';
+import { isActiveResponseMessage } from '~/components/Chat/Messages/Content/responsePresentation';
 import { useLocalize, useMessageActions, useContentMetadata } from '~/hooks';
 import PlaceholderRow from '~/components/Chat/Messages/ui/PlaceholderRow';
 import SiblingSwitch from '~/components/Chat/Messages/SiblingSwitch';
@@ -12,7 +13,7 @@ import MessageIcon from '~/components/Chat/Messages/MessageIcon';
 import SubRow from '~/components/Chat/Messages/SubRow';
 import { cn, getMessageAriaLabel } from '~/utils';
 import { fontSizeAtom } from '~/store/fontSize';
-import { MessageContext } from '~/Providers';
+import { MessageContext, useMessagesSubmission } from '~/Providers';
 import store from '~/store';
 
 type MessageRenderProps = {
@@ -55,6 +56,7 @@ const MessageRender = memo(function MessageRender({
   });
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
+  const { activeSubmissionMessageId } = useMessagesSubmission();
 
   const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
   const hasNoChildren = !(msg?.children?.length ?? 0);
@@ -63,8 +65,18 @@ const MessageRender = memo(function MessageRender({
     [hasNoChildren, msg?.depth, latestMessageDepth],
   );
   const isLatestMessage = msg?.messageId === latestMessageId;
-  /** Only pass isSubmitting to the latest message to prevent unnecessary re-renders */
-  const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
+  const effectiveIsSubmitting = isActiveResponseMessage({
+    isSubmitting,
+    isCreatedByUser: msg?.isCreatedByUser,
+    parentMessageId: msg?.parentMessageId,
+    activeUserMessageId: activeSubmissionMessageId,
+    isLatestMessage,
+    isLast,
+  });
+  const smoothStreamingRef = useRef(false);
+  if (msg?.isCreatedByUser === false && effectiveIsSubmitting) {
+    smoothStreamingRef.current = true;
+  }
 
   const iconData: TMessageIcon = useMemo(
     () => ({
@@ -93,6 +105,7 @@ const MessageRender = memo(function MessageRender({
       isLatestMessage,
       isExpanded: false as const,
       isSubmitting: effectiveIsSubmitting,
+      smoothStreaming: smoothStreamingRef.current,
       conversationId: conversation?.conversationId,
       onRegenerate: msg?.isCreatedByUser === false ? handleRegenerateMessage : undefined,
       isRegenerating: isSubmitting,
@@ -192,7 +205,7 @@ const MessageRender = memo(function MessageRender({
               <HoverButtons
                 index={index}
                 message={msg}
-                isSubmitting={isSubmitting}
+                isSubmitting={effectiveIsSubmitting}
                 conversation={conversation ?? null}
                 regenerate={handleRegenerateMessage}
                 copyToClipboard={copyToClipboard}

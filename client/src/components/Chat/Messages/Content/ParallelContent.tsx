@@ -7,6 +7,7 @@ import { EmptyText } from './Parts';
 import SiblingHeader from './SiblingHeader';
 import Container from './Container';
 import { cn } from '~/utils';
+import { isInitialResponsePartVisible } from './responsePresentation';
 
 export type PartWithIndex = { part: TMessageContentParts; idx: number };
 
@@ -159,7 +160,8 @@ export const ParallelColumns = memo(function ParallelColumns({
     <div className={cn('flex w-full flex-col gap-3 md:flex-row', 'sibling-content-group')}>
       {columns.map(({ agentId, parts: columnParts }, colIdx) => {
         // Show loading cursor if column has no content parts yet (empty array from placeholder)
-        const showLoadingCursor = isSubmitting && columnParts.length === 0;
+        const showLoadingCursor =
+          isSubmitting && !columnParts.some(({ part }) => isInitialResponsePartVisible(part));
 
         return (
           <div

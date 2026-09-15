@@ -6,6 +6,9 @@ export type GenerationStartedResponse = {
   streamId: string;
 };
 
+export const getPendingConversationHandoffKey = (conversationId: string) =>
+  ['pending-conversation-handoff', conversationId] as const;
+
 export const getPendingConversationPath = (response: GenerationStartedResponse): string | null => {
   if (response.conversationId === '' || response.conversationId === Constants.NEW_CONVO) {
     return null;

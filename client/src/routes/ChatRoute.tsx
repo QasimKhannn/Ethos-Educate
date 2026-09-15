@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useRecoilCallback, useRecoilValue } from 'recoil';
 import { Spinner, useToastContext } from '@librechat/client';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Constants, EModelEndpoint, QueryKeys } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
-import type { TMessage, TPreset, TConversation } from 'librechat-data-provider';
+import type { TMessage, TModelsConfig, TPreset, TConversation } from 'librechat-data-provider';
 import {
   useNewConvo,
   useAppStartup,
@@ -23,6 +23,7 @@ import { useStreamStatus } from '~/data-provider/SSE/queries';
 import {
   getDefaultModelSpec,
   getModelSpecPreset,
+  reconcileConversationModelSpec,
   processValidSettings,
   logger,
   isNotFoundError,
@@ -34,10 +35,31 @@ import {
   getMockNavigationMessages,
   isMockNavigationConversation,
 } from '~/components/Nav/mockNavigation';
+import { getPendingConversationHandoffKey } from '~/hooks/SSE/resumableNavigation';
 import { NotificationSeverity } from '~/common';
 import useAuthRedirect from './useAuthRedirect';
 import temporaryStore from '~/store/temporary';
 import store from '~/store';
+
+const preserveConfiguredModel = (
+  modelsData: TModelsConfig,
+  endpoint?: string | null,
+  model?: string | null,
+): TModelsConfig => {
+  if (!endpoint || !model) {
+    return modelsData;
+  }
+
+  const availableModels = modelsData[endpoint] ?? [];
+  if (availableModels.includes(model)) {
+    return modelsData;
+  }
+
+  return {
+    ...modelsData,
+    [endpoint]: [model, ...availableModels],
+  };
+};
 
 export default function ChatRoute() {
   const bootstrappedProjectIdRef = useRef<string | undefined>(undefined);
@@ -62,7 +84,6 @@ export default function ChatRoute() {
   const queryClient = useQueryClient();
   const { hasSetConversation, conversation, setConversation } =
     store.useCreateConversationAtom(index);
-  const isSubmitting = useRecoilValue(store.isSubmittingFamily(index));
   const { newConversation } = useNewConvo();
   const { showToast } = useToastContext();
   const localize = useLocalize();
@@ -80,27 +101,38 @@ export default function ChatRoute() {
 
   const modelsQuery = useGetModelsQuery({
     enabled: isAuthenticated,
-    refetchOnMount: 'always',
   });
   const isRouteNewConvo = conversationId === Constants.NEW_CONVO;
+  const stagedConversation = queryClient.getQueryData<TConversation>([
+    QueryKeys.conversation,
+    conversationId,
+  ]);
+  const isPendingConversationHandoff =
+    queryClient.getQueryData<boolean>(getPendingConversationHandoffKey(conversationId)) === true;
+  const isPendingOutgoingHandoff =
+    isRouteNewConvo &&
+    conversation?.conversationId != null &&
+    conversation.conversationId !== Constants.NEW_CONVO &&
+    queryClient.getQueryData<boolean>(
+      getPendingConversationHandoffKey(conversation.conversationId),
+    ) === true;
+  const hasPendingRouteConversation =
+    isPendingConversationHandoff &&
+    !isRouteNewConvo &&
+    stagedConversation?.conversationId === conversationId;
   const routeNeedsExistingConversation =
-    !isRouteNewConvo && conversation?.conversationId !== conversationId;
+    !isRouteNewConvo &&
+    conversation?.conversationId !== conversationId &&
+    !hasPendingRouteConversation;
   const initialConvoQuery = useGetConvoIdQuery(conversationId, {
     enabled:
       isAuthenticated &&
       !isRouteNewConvo &&
       mockConversation == null &&
-      (!hasSetConversation.current || routeNeedsExistingConversation),
+      routeNeedsExistingConversation,
   });
-  const stagedConversation = queryClient.getQueryData<TConversation>([
-    QueryKeys.conversation,
-    conversationId,
-  ]);
   const isNewConversationHandoff =
-    isSubmitting &&
-    !isRouteNewConvo &&
-    conversation?.conversationId === Constants.NEW_CONVO &&
-    stagedConversation?.conversationId === conversationId;
+    hasPendingRouteConversation && conversation?.conversationId !== conversationId;
   const streamStatusQuery = useStreamStatus(
     conversationId,
     isAuthenticated &&
@@ -115,6 +147,64 @@ export default function ChatRoute() {
   const assistantListMap = useAssistantListMap();
 
   const isTemporaryChat = conversation && conversation.expiredAt ? true : false;
+
+  useLayoutEffect(() => {
+    if (!isPendingConversationHandoff || isRouteNewConvo) {
+      return;
+    }
+
+    if (
+      stagedConversation?.conversationId === conversationId &&
+      conversation?.conversationId !== conversationId
+    ) {
+      const nextConversation = reconcileConversationModelSpec(stagedConversation, startupConfig);
+      hasSetConversation.current = true;
+      setConversation(nextConversation);
+    }
+
+    queryClient.removeQueries(getPendingConversationHandoffKey(conversationId));
+  }, [
+    conversation?.conversationId,
+    conversationId,
+    hasSetConversation,
+    isPendingConversationHandoff,
+    isRouteNewConvo,
+    queryClient,
+    setConversation,
+    stagedConversation,
+    startupConfig,
+  ]);
+
+  useLayoutEffect(() => {
+    const draftProjectId = conversation?.projectId ?? undefined;
+    const routeProjectId = projectId ?? undefined;
+    const needsDraft =
+      !isPendingOutgoingHandoff &&
+      conversationId === Constants.NEW_CONVO &&
+      (conversation?.conversationId !== Constants.NEW_CONVO || draftProjectId !== routeProjectId);
+
+    if (!needsDraft) {
+      return;
+    }
+
+    hasSetConversation.current = false;
+    setConversation({
+      conversationId: Constants.NEW_CONVO as string,
+      title: 'New Chat',
+      endpoint: null,
+      ...(routeProjectId ? { projectId: routeProjectId } : {}),
+      createdAt: '',
+      updatedAt: '',
+    });
+  }, [
+    conversation?.conversationId,
+    conversation?.projectId,
+    conversationId,
+    hasSetConversation,
+    isPendingOutgoingHandoff,
+    projectId,
+    setConversation,
+  ]);
 
   useEffect(() => {
     if (!mockConversation) {
@@ -152,14 +242,19 @@ export default function ChatRoute() {
   /** This effect is mainly for the first conversation state change on first load of the page.
    *  Adjusting this may have unintended consequences on the conversation state.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Wait for roles to load so hasAgentAccess has a definitive value in useNewConvo
     const isNewConvo = conversationId === Constants.NEW_CONVO;
     const needsExistingConversation =
-      !isNewConvo && conversation?.conversationId !== conversationId;
+      !isNewConvo &&
+      conversation?.conversationId !== conversationId &&
+      !hasPendingRouteConversation;
     const rolesLoaded = roles?.USER != null;
     const routeDataReady =
-      isNewConvo || initialConvoQuery.data != null || initialConvoQuery.isError;
+      isNewConvo ||
+      hasPendingRouteConversation ||
+      initialConvoQuery.data != null ||
+      initialConvoQuery.isError;
     const projectReady =
       !isNewConvo || !projectId || projectQuery.data != null || projectQuery.isError;
     const projectFileIds = projectQuery.data?.fileIds ?? [];
@@ -179,8 +274,7 @@ export default function ChatRoute() {
         projectReady &&
         (!hasSetConversation.current ||
           newRouteNeedsFreshConversation ||
-          needsExistingConversation) &&
-        !modelsQuery.data?.initial) ??
+          needsExistingConversation)) ??
       false;
     /* Early exit if startupConfig is not loaded and conversation is already set and only initial models have loaded */
     if (!shouldSetConvo) {
@@ -226,23 +320,34 @@ export default function ChatRoute() {
 
     if (isNewConvo && endpointsQuery.data && modelsQuery.data) {
       const preset = getNewConvoPreset();
+      const modelsData = preserveConfiguredModel(modelsQuery.data, preset?.endpoint, preset?.model);
 
       logger.log('conversation', 'ChatRoute, new convo effect', conversation);
       bootstrappedProjectIdRef.current = projectId;
       newConversation({
-        modelsData: modelsQuery.data,
+        modelsData,
         template: getProjectTemplate(),
         ...(preset ? { preset } : {}),
       });
 
       hasSetConversation.current = true;
     } else if (initialConvoQuery.data && endpointsQuery.data && modelsQuery.data) {
-      logger.log('conversation', 'ChatRoute initialConvoQuery', initialConvoQuery.data);
+      const existingConversation = reconcileConversationModelSpec(
+        initialConvoQuery.data,
+        startupConfig,
+      );
+      const modelsData = preserveConfiguredModel(
+        modelsQuery.data,
+        existingConversation.endpoint,
+        existingConversation.model,
+      );
+
+      logger.log('conversation', 'ChatRoute initialConvoQuery', existingConversation);
       newConversation({
-        template: initialConvoQuery.data,
+        template: existingConversation,
         /* this is necessary to load all existing settings */
-        preset: initialConvoQuery.data as TPreset,
-        modelsData: modelsQuery.data,
+        preset: existingConversation as TPreset,
+        modelsData,
         keepLatestMessage: true,
       });
       hasSetConversation.current = true;
@@ -258,6 +363,8 @@ export default function ChatRoute() {
         conversationId,
         title: 'New Chat',
         endpoint: EModelEndpoint.agents,
+        createdAt: '',
+        updatedAt: '',
       };
 
       logger.log('conversation', 'ChatRoute resuming active stream', conversationId);
@@ -311,11 +418,23 @@ export default function ChatRoute() {
       assistantListMap[EModelEndpoint.assistants] &&
       assistantListMap[EModelEndpoint.azureAssistants]
     ) {
-      logger.log('conversation', 'ChatRoute convo, assistants effect', initialConvoQuery.data);
+      const existingConversation = reconcileConversationModelSpec(
+        initialConvoQuery.data,
+        startupConfig,
+      );
+      const modelsData = modelsQuery.data
+        ? preserveConfiguredModel(
+            modelsQuery.data,
+            existingConversation.endpoint,
+            existingConversation.model,
+          )
+        : modelsQuery.data;
+
+      logger.log('conversation', 'ChatRoute convo, assistants effect', existingConversation);
       newConversation({
-        template: initialConvoQuery.data,
-        preset: initialConvoQuery.data as TPreset,
-        modelsData: modelsQuery.data,
+        template: existingConversation,
+        preset: existingConversation as TPreset,
+        modelsData,
         keepLatestMessage: true,
       });
       hasSetConversation.current = true;
@@ -337,7 +456,7 @@ export default function ChatRoute() {
     projectQuery.isError,
   ]);
 
-  if (endpointsQuery.isLoading || modelsQuery.isLoading) {
+  if (!isRouteNewConvo && (endpointsQuery.isLoading || modelsQuery.isLoading)) {
     return (
       <div className="flex h-screen items-center justify-center" aria-live="polite" role="status">
         <Spinner className="text-text-primary" />
@@ -349,15 +468,11 @@ export default function ChatRoute() {
     return null;
   }
 
-  const isFreshNewConversation =
-    conversation?.conversationId === Constants.NEW_CONVO &&
-    (projectId == null || conversation.projectId === projectId);
-
-  if (isRouteNewConvo && !isFreshNewConversation) {
+  if (isRouteNewConvo) {
     return (
-      <div className="flex h-screen items-center justify-center" aria-live="polite" role="status">
-        <Spinner className="text-text-primary" />
-      </div>
+      <ToolCallsMapProvider conversationId={Constants.NEW_CONVO as string}>
+        <ChatView index={index} />
+      </ToolCallsMapProvider>
     );
   }
 

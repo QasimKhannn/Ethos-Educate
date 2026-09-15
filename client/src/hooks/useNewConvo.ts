@@ -30,6 +30,7 @@ import {
   getDefaultModelSpec,
   getDefaultEndpoint,
   getModelSpecPreset,
+  reconcileConversationModelSpec,
   buildDefaultConvo,
   logger,
 } from '~/utils';
@@ -201,6 +202,8 @@ const useNewConvo = (index = 0) => {
             defaultParamsEndpoint,
           });
         }
+
+        conversation = reconcileConversationModelSpec(conversation, startupConfig);
 
         if (disableParams === true) {
           conversation.disableParams = true;

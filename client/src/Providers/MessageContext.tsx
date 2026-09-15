@@ -15,6 +15,8 @@ type MessageContext = {
   isSubmitting?: boolean;
   /** Whether this is the latest message in the conversation */
   isLatestMessage?: boolean;
+  /** Whether incoming text should be progressively revealed for this live response */
+  smoothStreaming?: boolean;
   /** Retention times extracted from generated-document output in this message. */
   generatedArtifactExpiries?: GeneratedArtifactExpiries;
   /** Managed files supplied by a tool result, rendered once at that source. */

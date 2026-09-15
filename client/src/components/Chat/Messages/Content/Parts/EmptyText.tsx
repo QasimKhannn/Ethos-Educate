@@ -1,16 +1,20 @@
 import { memo } from 'react';
 
-/** Streaming cursor placeholder — no bottom margin to match Container's structure and prevent CLS */
+import { useLocalize } from '~/hooks';
+
 const EmptyTextPart = memo(() => {
+  const localize = useLocalize();
+
   return (
-    <div className="text-message flex min-h-[20px] flex-col items-start gap-3 overflow-visible">
-      <div className="markdown prose dark:prose-invert light w-full break-words dark:text-gray-100">
-        <div className="absolute">
-          <p className="submitting relative">
-            <span className="result-thinking" />
-          </p>
-        </div>
-      </div>
+    <div
+      className="text-message flex min-h-[20px] items-center overflow-visible"
+      aria-label={localize('com_ui_thinking_status')}
+      aria-live="polite"
+      role="status"
+    >
+      <span className="response-waiting-dot submitting relative h-3 w-3" aria-hidden="true">
+        <span className="result-thinking" />
+      </span>
     </div>
   );
 });

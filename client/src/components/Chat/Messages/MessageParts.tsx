@@ -4,7 +4,9 @@ import { useRecoilValue } from 'recoil';
 import type { TMessageContentParts } from 'librechat-data-provider';
 import type { TMessageProps, TMessageIcon } from '~/common';
 import { useMessageHelpers, useLocalize, useAttachments, useContentMetadata } from '~/hooks';
+import { isActiveResponseMessage } from './Content/responsePresentation';
 import MessageIcon from '~/components/Chat/Messages/MessageIcon';
+import { useMessagesSubmission } from '~/Providers';
 import ContentParts from './Content/ContentParts';
 import { fontSizeAtom } from '~/store/fontSize';
 import SiblingSwitch from './SiblingSwitch';
@@ -40,7 +42,16 @@ export default function Message(props: TMessageProps) {
 
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
-  const { children, messageId = null, isCreatedByUser } = message ?? {};
+  const { activeSubmissionMessageId } = useMessagesSubmission();
+  const { children, messageId = null, parentMessageId, isCreatedByUser } = message ?? {};
+  const effectiveIsSubmitting = isActiveResponseMessage({
+    isSubmitting,
+    isCreatedByUser,
+    parentMessageId,
+    activeUserMessageId: activeSubmissionMessageId,
+    isLatestMessage: messageId === latestMessageId,
+    isLast,
+  });
 
   const name = useMemo(() => {
     let result = '';
@@ -136,7 +147,7 @@ export default function Message(props: TMessageProps) {
                     enterEdit={enterEdit}
                     siblingIdx={siblingIdx}
                     attachments={attachments}
-                    isSubmitting={isSubmitting}
+                    isSubmitting={effectiveIsSubmitting}
                     searchResults={searchResults}
                     messageId={message.messageId}
                     setSiblingIdx={setSiblingIdx}
@@ -147,7 +158,7 @@ export default function Message(props: TMessageProps) {
                     content={message.content as Array<TMessageContentParts | undefined>}
                   />
                 </div>
-                {isLast && isSubmitting ? (
+                {isLast && effectiveIsSubmitting ? (
                   <div className="mt-1 h-[31px] bg-transparent" />
                 ) : (
                   <SubRow classes="text-xs">
@@ -159,7 +170,7 @@ export default function Message(props: TMessageProps) {
                     <HoverButtons
                       index={index}
                       message={message}
-                      isSubmitting={isSubmitting}
+                      isSubmitting={effectiveIsSubmitting}
                       conversation={conversation ?? null}
                       regenerate={() => regenerateMessage()}
                       copyToClipboard={copyToClipboard}

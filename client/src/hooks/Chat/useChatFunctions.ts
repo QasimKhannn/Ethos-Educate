@@ -3,7 +3,7 @@ import { v4 } from 'uuid';
 import { cloneDeep } from 'lodash';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRecoilCallback, useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil';
+import { useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil';
 import {
   Constants,
   QueryKeys,
@@ -22,20 +22,21 @@ import type {
   TSubmission,
   TConversation,
   TStartupConfig,
-  TEphemeralAgent,
   TEndpointOption,
   TEndpointsConfig,
-  MCPServersListResponse,
   EndpointSchemaKey,
 } from 'librechat-data-provider';
 import type { SetterOrUpdater } from 'recoil';
 import type { TAskFunction, ExtendedFile } from '~/common';
 import useSetFilesToDelete from '~/hooks/Files/useSetFilesToDelete';
 import useGetSender from '~/hooks/Conversations/useGetSender';
-import { getAutoSelectedMCPServerNames } from '~/hooks/MCP/autoSelect';
-import { logger, removeDraft, createDualMessageContent } from '~/utils';
-import store, { ephemeralAgentByConvoId, useGetEphemeralAgent } from '~/store';
-import { useMCPServersQuery } from '~/data-provider';
+import {
+  logger,
+  removeDraft,
+  createDualMessageContent,
+  reconcileConversationModelSpec,
+} from '~/utils';
+import store, { useGetEphemeralAgent } from '~/store';
 import useUserKey from '~/hooks/Input/useUserKey';
 import { useAuthContext } from '~/hooks';
 
@@ -75,47 +76,12 @@ export default function useChatFunctions({
   const queryClient = useQueryClient();
   const setFilesToDelete = useSetFilesToDelete();
   const getEphemeralAgent = useGetEphemeralAgent();
-  const { data: loadedMCPServers } = useMCPServersQuery();
   const isTemporary = useRecoilValue(store.isTemporary);
   const { getExpiry } = useUserKey(immutableConversation?.endpoint ?? '');
   const setIsSubmitting = useSetRecoilState(store.isSubmittingFamily(index));
   const setShowStopButton = useSetRecoilState(store.showStopButtonByIndex(index));
   const resetLatestMultiMessage = useResetRecoilState(store.latestMessageFamily(index + 1));
   const submissionLockRef = useRef(false);
-  const applyAutoMCPSelection = useRecoilCallback(
-    ({ snapshot, set }) =>
-      ({
-        prompt,
-        servers,
-        conversationKey,
-      }: {
-        prompt: string;
-        conversationKey: string;
-        servers?: MCPServersListResponse;
-      }): TEphemeralAgent | null => {
-        const loadable = snapshot.getLoadable(ephemeralAgentByConvoId(conversationKey));
-        const currentAgent = loadable.state === 'hasValue' ? loadable.contents : null;
-        const currentMCPValues = currentAgent?.mcp ?? [];
-        const autoSelectedServers = getAutoSelectedMCPServerNames({
-          prompt,
-          servers,
-          selectedServers: currentMCPValues,
-        });
-
-        if (autoSelectedServers.length === 0) {
-          return currentAgent;
-        }
-
-        const nextAgent = {
-          ...(currentAgent ?? {}),
-          mcp: [...currentMCPValues, ...autoSelectedServers],
-        };
-        set(ephemeralAgentByConvoId(conversationKey), nextAgent);
-        return nextAgent;
-      },
-    [],
-  );
-
   useEffect(() => {
     if (!isSubmitting) {
       submissionLockRef.current = false;
@@ -150,7 +116,10 @@ export default function useChatFunctions({
       return;
     }
 
-    const conversation = cloneDeep(immutableConversation);
+    const startupConfig = queryClient.getQueryData<TStartupConfig>([QueryKeys.startupConfig]);
+    const conversation = immutableConversation
+      ? reconcileConversationModelSpec(cloneDeep(immutableConversation), startupConfig)
+      : null;
 
     const endpoint = conversation?.endpoint;
     if (endpoint == null) {
@@ -175,17 +144,9 @@ export default function useChatFunctions({
     setIsSubmitting(true);
 
     const conversationKey = conversationId ?? Constants.NEW_CONVO;
-    const availableMCPServers =
-      loadedMCPServers ?? queryClient.getQueryData<MCPServersListResponse>([QueryKeys.mcpServers]);
     const isPersistentAgent =
       isAgentsEndpoint(endpoint) && !isEphemeralAgentId(conversation?.agent_id ?? '');
-    const ephemeralAgent = isPersistentAgent
-      ? null
-      : (applyAutoMCPSelection({
-          prompt: text,
-          conversationKey,
-          servers: availableMCPServers,
-        }) ?? getEphemeralAgent(conversationKey));
+    const ephemeralAgent = isPersistentAgent ? null : getEphemeralAgent(conversationKey);
     const isEditOrContinue = isEdited || isContinued;
 
     let currentMessages: TMessage[] | null = overrideMessages ?? getMessages() ?? [];
@@ -245,7 +206,6 @@ export default function useChatFunctions({
     }
 
     const endpointsConfig = queryClient.getQueryData<TEndpointsConfig>([QueryKeys.endpoints]);
-    const startupConfig = queryClient.getQueryData<TStartupConfig>([QueryKeys.startupConfig]);
     const endpointType = getEndpointField(endpointsConfig, endpoint, 'type');
     const iconURL = conversation?.iconURL;
     const defaultParamsEndpoint = getDefaultParamsEndpoint(endpointsConfig, endpoint);

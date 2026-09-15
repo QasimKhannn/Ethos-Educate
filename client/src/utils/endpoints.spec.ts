@@ -1,6 +1,16 @@
 import { EModelEndpoint, getEndpointField } from 'librechat-data-provider';
-import type { TEndpointsConfig, TConfig } from 'librechat-data-provider';
-import { getAvailableEndpoints, getEndpointsFilter, mapEndpoints } from './endpoints';
+import type {
+  TConfig,
+  TConversation,
+  TEndpointsConfig,
+  TStartupConfig,
+} from 'librechat-data-provider';
+import {
+  mapEndpoints,
+  getEndpointsFilter,
+  getAvailableEndpoints,
+  reconcileConversationModelSpec,
+} from './endpoints';
 
 const mockEndpointsConfig: TEndpointsConfig = {
   [EModelEndpoint.openAI]: { type: undefined, iconURL: 'openAI_icon.png', order: 0 },
@@ -81,5 +91,54 @@ describe('mapEndpoints', () => {
   it('returns sorted available endpoints', () => {
     const expectedOrder = [EModelEndpoint.openAI, EModelEndpoint.google, 'Mistral'];
     expect(mapEndpoints(mockEndpointsConfig)).toEqual(expectedOrder);
+  });
+});
+
+describe('reconcileConversationModelSpec', () => {
+  const startupConfig = {
+    modelSpecs: {
+      list: [
+        {
+          name: 'Ethos-Pro',
+          label: 'Ethos-Pro',
+          preset: {
+            endpoint: EModelEndpoint.azureOpenAI,
+            model: 'gpt-5.2-chat',
+            modelLabel: 'Ethos-Pro',
+          },
+        },
+      ],
+    },
+  } as TStartupConfig;
+
+  it('uses the configured model and label for a saved model spec', () => {
+    const conversation = {
+      conversationId: 'conversation-1',
+      endpoint: EModelEndpoint.azureOpenAI,
+      model: 'gpt-5.4',
+      spec: 'Ethos-Pro',
+      title: 'Existing chat',
+    } as TConversation;
+
+    expect(reconcileConversationModelSpec(conversation, startupConfig)).toEqual(
+      expect.objectContaining({
+        conversationId: 'conversation-1',
+        model: 'gpt-5.2-chat',
+        modelLabel: 'Ethos-Pro',
+        spec: 'Ethos-Pro',
+        title: 'Existing chat',
+      }),
+    );
+  });
+
+  it('leaves conversations without a matching model spec unchanged', () => {
+    const conversation = {
+      conversationId: 'conversation-2',
+      endpoint: EModelEndpoint.google,
+      model: 'gemini-2.5-flash',
+      title: 'Google chat',
+    } as TConversation;
+
+    expect(reconcileConversationModelSpec(conversation, startupConfig)).toBe(conversation);
   });
 });
