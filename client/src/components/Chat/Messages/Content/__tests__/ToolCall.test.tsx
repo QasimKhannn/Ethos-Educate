@@ -274,19 +274,58 @@ describe('ToolCall', () => {
       ).toBeInTheDocument();
     });
 
-    it('hides an interrupted activity card so the chat error is the only user-facing error', () => {
+    it('keeps an interrupted activity visible and collapsed', () => {
       renderWithRecoil(
         <ToolCall
           {...mockProps}
           initialProgress={0.5}
           isSubmitting={false}
           name={`generate_images${Constants.mcp_delimiter}Image_Generation`}
+          output={null}
         />,
       );
 
       expect(
         document.querySelector('[data-tool-activity-category="image"]'),
-      ).not.toBeInTheDocument();
+      ).toBeInTheDocument();
+      expect(document.querySelector('[data-tool-activity-status="interrupted"]')).toBeInTheDocument();
+    });
+
+    it('keeps a failed tool call collapsed until the user opens its technical details', () => {
+      renderWithRecoil(
+        <ToolCall
+          {...mockProps}
+          initialProgress={0.1}
+          isSubmitting={false}
+          name={`downloadable_document_builder${Constants.mcp_delimiter}Downloadable-Files-Creation`}
+          output="Error: This request took too long to finish."
+        />,
+      );
+
+      expect(document.querySelector('[data-tool-activity-status="failed"]')).toBeInTheDocument();
+      expect(screen.queryByTestId('tool-call-info')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('We could not complete this request'));
+      expect(screen.getByTestId('tool-call-info')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('We could not complete this request'));
+      expect(screen.queryByTestId('tool-call-info')).not.toBeInTheDocument();
+    });
+
+    it('marks a persisted tool result complete without opening its details after reload', () => {
+      renderWithRecoil(
+        <ToolCall
+          {...mockProps}
+          initialProgress={0.1}
+          isSubmitting={false}
+          name={`downloadable_document_builder${Constants.mcp_delimiter}Downloadable-Files-Creation`}
+          output="Your document was created."
+        />,
+      );
+
+      expect(document.querySelector('[data-tool-activity-status="completed"]')).toBeInTheDocument();
+      expect(screen.getByText('Your downloadable resource is ready')).toBeInTheDocument();
+      expect(screen.queryByTestId('tool-call-info')).not.toBeInTheDocument();
     });
 
     it('should toggle tool call info when clicking header', () => {
@@ -351,6 +390,7 @@ describe('ToolCall', () => {
           initialProgress={0.5} // Less than 1 so it's not complete
           auth="https://auth.example.com"
           isSubmitting={true} // Should be submitting for auth to show
+          output={null}
         />,
       );
 
@@ -374,6 +414,7 @@ describe('ToolCall', () => {
           auth="https://auth.example.com" // Need auth URL to extract domain
           initialProgress={0.5} // Less than 1
           isSubmitting={true} // Still submitting
+          output={null}
         />,
       );
 

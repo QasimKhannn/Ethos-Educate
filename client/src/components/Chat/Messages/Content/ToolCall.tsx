@@ -24,16 +24,25 @@ import {
 import { getToolActivityPresentation } from './toolPresentation';
 import { logger, cn } from '~/utils';
 
-function getToolActivityStatus(
-  error: boolean,
-  progress: number,
-  isSubmitting: boolean,
-  hasPendingAuth: boolean,
-): ToolActivityStatus {
+type ToolActivityState = {
+  error: boolean;
+  hasResult: boolean;
+  hasPendingAuth: boolean;
+  isSubmitting: boolean;
+  progress: number;
+};
+
+function getToolActivityStatus({
+  error,
+  hasResult,
+  hasPendingAuth,
+  isSubmitting,
+  progress,
+}: ToolActivityState): ToolActivityStatus {
   if (error) {
     return 'failed';
   }
-  if (progress >= 1) {
+  if (hasResult || progress >= 1) {
     return 'completed';
   }
   if (hasPendingAuth && isSubmitting) {
@@ -133,6 +142,7 @@ export default function ToolCall({
   );
   const normalizedOutput =
     typeof displayOutput === 'string' ? displayOutput.trim().toLowerCase() : '';
+  const hasResult = normalizedOutput.length > 0;
   const error =
     normalizedOutput.includes('error processing tool') || normalizedOutput.startsWith('error:');
 
@@ -193,11 +203,16 @@ export default function ToolCall({
     }
   }, [auth]);
 
-  const progress = useProgress(initialProgress);
-  const status = getToolActivityStatus(error, progress, isSubmitting, authDomain.length > 0);
+  const progress = useProgress(hasResult ? 1 : initialProgress);
+  const status = getToolActivityStatus({
+    error,
+    hasResult,
+    hasPendingAuth: authDomain.length > 0,
+    isSubmitting,
+    progress,
+  });
   const presentation = getToolActivityPresentation(function_name, mcpServerName);
-  const showActivityCard =
-    status === 'working' || status === 'needs_auth' || status === 'completed';
+  const showActivityCard = function_name.length > 0;
 
   useLayoutEffect(() => {
     if (showInfo !== prevShowInfoRef.current) {

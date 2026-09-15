@@ -181,9 +181,12 @@ const ContentParts = memo(function ContentParts({
   const renderPart = useCallback(
     (part: TMessageContentParts, idx: number, isLastPart: boolean) => {
       const toolCallId = (part?.[ContentTypes.TOOL_CALL] as Agents.ToolCall | undefined)?.id ?? '';
+      const partKey = toolCallId
+        ? `provider-${messageId}-tool-${toolCallId}`
+        : `provider-${messageId}-${idx}`;
       return (
         <PartWithContext
-          key={`provider-${messageId}-${idx}`}
+          key={partKey}
           idx={idx}
           part={part}
           isLast={isLast}
