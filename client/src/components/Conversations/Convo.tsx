@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRecoilValue } from 'recoil';
 import { useParams } from 'react-router-dom';
 import { Constants } from 'librechat-data-provider';
-import { useToastContext, useMediaQuery } from '@librechat/client';
+import { Spinner, useToastContext, useMediaQuery } from '@librechat/client';
 import type { TConversation } from 'librechat-data-provider';
 import { useUpdateConversationMutation } from '~/data-provider';
 import { isMockNavigationConversation } from '~/components/Nav/mockNavigation';
@@ -24,6 +24,7 @@ interface ConversationProps {
 export default function Conversation({
   conversation,
   retainView,
+  isGenerating = false,
   onMockSelect,
 }: ConversationProps) {
   const params = useParams();
@@ -236,6 +237,15 @@ export default function Conversation({
           isSmallScreen={isSmallScreen}
           localize={localize}
         />
+      )}
+      {isGenerating && (
+        <span
+          className="mr-1 flex size-4 shrink-0 items-center justify-center text-text-secondary"
+          role="status"
+          aria-label={localize('com_ui_generating')}
+        >
+          <Spinner className="size-3" />
+        </span>
       )}
       <div
         className={cn(

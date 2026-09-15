@@ -109,6 +109,7 @@ export default function useStartAgentChat() {
       newConversation({
         template: currentConvo,
         preset: template,
+        clearSearchParams: true,
       });
     },
     [conversation, getDefaultConversation, localize, navigate, newConversation, queryClient],

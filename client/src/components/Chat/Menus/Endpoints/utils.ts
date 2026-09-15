@@ -168,21 +168,29 @@ export const getDisplayValue = ({
   selectedValues,
   modelSpecs,
   agentsMap,
-  agentName,
+  conversationModel,
 }: {
   localize: ReturnType<typeof useLocalize>;
   selectedValues: SelectedValues;
   mappedEndpoints: Endpoint[];
   modelSpecs: TModelSpec[];
   agentsMap?: TAgentsMap;
-  agentName?: string;
+  conversationModel?: string | null;
 }) => {
-  if (agentName) {
-    return agentName;
-  }
-
   if (selectedValues.modelSpec) {
     const spec = modelSpecs.find((s) => s.name === selectedValues.modelSpec);
+
+    if (isAgentsEndpoint(spec?.preset.endpoint)) {
+      const agentId = spec?.preset.agent_id;
+      return (
+        agentsMap?.[agentId ?? '']?.model ??
+        conversationModel ??
+        spec?.preset.model ??
+        spec?.name ??
+        localize('com_ui_select_model')
+      );
+    }
+
     return spec?.label || spec?.name || localize('com_ui_select_model');
   }
 
@@ -192,15 +200,8 @@ export const getDisplayValue = ({
       return localize('com_ui_select_model');
     }
 
-    if (
-      isAgentsEndpoint(endpoint.value) &&
-      endpoint.agentNames &&
-      endpoint.agentNames[selectedValues.model]
-    ) {
-      return endpoint.agentNames[selectedValues.model];
-    } else if (isAgentsEndpoint(endpoint.value) && agentsMap) {
-      const agent = agentsMap[selectedValues.model];
-      return agent?.name || selectedValues.model;
+    if (isAgentsEndpoint(endpoint.value)) {
+      return agentsMap?.[selectedValues.model]?.model ?? conversationModel ?? selectedValues.model;
     }
 
     if (

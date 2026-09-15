@@ -31,6 +31,53 @@ import { getAgentAvatarImageUrl, getAgentDisplayName } from '~/utils';
 import useStartAgentChat from '../useStartAgentChat';
 
 describe('useStartAgentChat', () => {
+  it('starts a normal agent chat without carrying Toolkit search parameters into the chat URL', () => {
+    const newConversation = jest.fn();
+    const agent = {
+      id: 'poster-creator',
+      name: 'Poster Creator',
+      description: 'Creates school posters.',
+    } as Agent;
+
+    (useNavigate as jest.Mock).mockReturnValue(jest.fn());
+    (useQueryClient as jest.Mock).mockReturnValue({
+      getQueryData: jest.fn().mockReturnValue({ data: [] }),
+      invalidateQueries: jest.fn(),
+      setQueryData: jest.fn(),
+    });
+    (useDefaultConvo as jest.Mock).mockReturnValue(
+      jest.fn().mockReturnValue({
+        conversationId: 'new',
+        endpoint: 'agents',
+        agent_id: 'poster-creator',
+      }),
+    );
+    (useLocalize as jest.Mock).mockReturnValue(jest.fn().mockReturnValue('Chat with agent'));
+    (useChatContext as jest.Mock).mockReturnValue({
+      conversation: null,
+      newConversation,
+    });
+    (getAgentAvatarImageUrl as jest.Mock).mockReturnValue(null);
+    (getAgentDisplayName as jest.Mock).mockReturnValue('Poster Creator');
+
+    const { result } = renderHook(() => useStartAgentChat());
+
+    act(() => {
+      result.current(agent);
+    });
+
+    expect(newConversation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clearSearchParams: true,
+        template: expect.objectContaining({
+          conversationId: 'new',
+          endpoint: 'agents',
+          agent_id: 'poster-creator',
+        }),
+      }),
+    );
+  });
+
   it('prepares a fresh agent conversation before navigating an intake launch', () => {
     const navigate = jest.fn();
     const newConversation = jest.fn();

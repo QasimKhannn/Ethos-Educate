@@ -593,6 +593,7 @@ export type NewConversationParams = {
   keepLatestMessage?: boolean;
   keepAddedConvos?: boolean;
   disableParams?: boolean;
+  clearSearchParams?: boolean;
 };
 
 export type ConvoGenerator = (params: NewConversationParams) => void | t.TConversation;

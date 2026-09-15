@@ -87,6 +87,7 @@ const useNewConvo = (index = 0) => {
         keepAddedConvos?: boolean,
         disableFocus?: boolean,
         _disableParams?: boolean,
+        clearSearchParams?: boolean,
       ) => {
         const modelsConfig = modelsData ?? modelsQuery.data;
         const { endpoint = null } = conversation;
@@ -237,7 +238,9 @@ const useNewConvo = (index = 0) => {
         }
 
         const getParams = () => {
-          const params = new URLSearchParams(searchParams);
+          const params = clearSearchParams
+            ? new URLSearchParams()
+            : new URLSearchParams(searchParams);
           if (conversation.projectId) {
             params.set('projectId', conversation.projectId);
           } else {
@@ -293,6 +296,7 @@ const useNewConvo = (index = 0) => {
       keepLatestMessage = false,
       keepAddedConvos = false,
       disableParams,
+      clearSearchParams = false,
     }: {
       template?: Partial<TConversation>;
       preset?: Partial<TPreset>;
@@ -380,6 +384,7 @@ const useNewConvo = (index = 0) => {
         keepAddedConvos,
         disableFocus,
         disableParams,
+        clearSearchParams,
       );
     },
     [
