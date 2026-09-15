@@ -1,8 +1,5 @@
-import { useRef, useState, useEffect, type ReactElement } from 'react';
-import * as Ariakit from '@ariakit/react';
-import { DropdownPopup, Skeleton } from '@librechat/client';
-import type { MenuItemProps } from '~/common/menus';
-import { useLocalize } from '~/hooks';
+import { useState, useEffect } from 'react';
+import { Skeleton } from '@librechat/client';
 
 export function NoImage() {
   return (
@@ -55,85 +52,3 @@ export const AgentAvatarRender = ({ url }: { url?: string }) => {
     </div>
   );
 };
-
-export function AvatarMenu({
-  trigger,
-  handleFileChange,
-  onReset,
-  canReset,
-}: {
-  trigger: ReactElement;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onReset: () => void;
-  canReset: boolean;
-}) {
-  const localize = useLocalize();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
-
-  const onItemClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    fileInputRef.current?.click();
-  };
-
-  const uploadLabel = localize('com_ui_upload_image');
-
-  const items: MenuItemProps[] = [
-    {
-      id: 'upload-avatar',
-      label: uploadLabel,
-      onClick: () => onItemClick(),
-    },
-  ];
-
-  if (canReset) {
-    items.push(
-      { separate: true },
-      {
-        id: 'reset-avatar',
-        label: localize('com_ui_reset_var', { 0: 'Avatar' }),
-        onClick: () => {
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-          onReset();
-        },
-      },
-    );
-  }
-
-  return (
-    <>
-      <DropdownPopup
-        trigger={<Ariakit.MenuButton render={trigger} />}
-        items={items}
-        isOpen={isOpen}
-        setIsOpen={setIsOpen}
-        className="z-[160]"
-        menuId="agent-avatar-menu"
-        placement="bottom"
-        gutter={8}
-        portal
-        mountByState
-      />
-      <input
-        accept="image/png,.png,image/jpeg,.jpg,.jpeg,image/gif,.gif,image/webp,.webp"
-        multiple={false}
-        type="file"
-        style={{ display: 'none' }}
-        onChange={(event) => {
-          handleFileChange(event);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          } else {
-            event.currentTarget.value = '';
-          }
-        }}
-        ref={fileInputRef}
-        tabIndex={-1}
-      />
-    </>
-  );
-}

@@ -3,7 +3,7 @@
  */
 /* eslint-disable i18next/no-literal-string */
 import { describe, it, expect } from '@jest/globals';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, screen } from '@testing-library/react';
 import { FormProvider, useForm, type UseFormReturn } from 'react-hook-form';
 import type { AgentForm } from '~/common';
 import AgentAvatar from '../AgentAvatar';
@@ -27,11 +27,6 @@ jest.mock('~/hooks', () => ({
 jest.mock('../Images', () => ({
   AgentAvatarRender: () => <div data-testid="avatar-render" />,
   NoImage: () => <div data-testid="no-avatar" />,
-  AvatarMenu: ({ onReset }: { onReset: () => void }) => (
-    <button type="button" data-testid="reset-avatar" onClick={onReset}>
-      Reset
-    </button>
-  ),
 }));
 
 const defaultFormValues: AgentForm = {
@@ -85,11 +80,32 @@ describe('AgentAvatar reset menu', () => {
       );
     };
 
-    const { getByTestId } = render(<Wrapper />);
-    fireEvent.click(getByTestId('reset-avatar'));
+    render(<Wrapper />);
+    fireEvent.click(screen.getByRole('button', { name: 'com_ui_reset' }));
 
     expect(methodsRef.getValues('avatar_preview')).toBe('');
     expect(methodsRef.getValues('avatar_file')).toBeNull();
     expect(methodsRef.getValues('avatar_action')).toBe('reset');
+  });
+
+  it('opens the native file picker directly from the avatar', () => {
+    const Wrapper = () => {
+      const methods = useForm<AgentForm>({ defaultValues: defaultFormValues });
+
+      return (
+        <FormProvider {...methods}>
+          <AgentAvatar avatar={null} />
+        </FormProvider>
+      );
+    };
+
+    const { container } = render(<Wrapper />);
+    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(fileInput).not.toBeNull();
+
+    const clickSpy = jest.spyOn(fileInput as HTMLInputElement, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'com_ui_upload_agent_avatar_label' }));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 });

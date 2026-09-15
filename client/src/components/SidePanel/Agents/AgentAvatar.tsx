@@ -1,10 +1,10 @@
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { useToastContext } from '@librechat/client';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { mergeFileConfig, fileConfig as defaultFileConfig } from 'librechat-data-provider';
 import type { AgentAvatar } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
-import { AgentAvatarRender, NoImage, AvatarMenu } from './Images';
+import { AgentAvatarRender, NoImage } from './Images';
 import { useGetFileConfig } from '~/data-provider';
 import { useLocalize } from '~/hooks';
 
@@ -12,6 +12,7 @@ function Avatar({ avatar }: { avatar: AgentAvatar | null }) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const { control, setValue } = useFormContext<AgentForm>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarPreview = useWatch({ control, name: 'avatar_preview' }) ?? '';
   const avatarAction = useWatch({ control, name: 'avatar_action' });
   const { data: fileConfig = defaultFileConfig } = useGetFileConfig({
@@ -74,27 +75,48 @@ function Avatar({ avatar }: { avatar: AgentAvatar | null }) {
     setValue('avatar_action', remoteAvatarExists ? 'reset' : null, { shouldDirty: true });
   }, [avatar?.filepath, setValue]);
 
+  const handleUploadClick = useCallback(() => {
+    const input = fileInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.value = '';
+    input.click();
+  }, []);
+
   const hasIcon = Boolean(avatarPreview) || hasRemoteAvatar;
   const canReset = hasIcon;
 
   return (
     <>
-      <div className="agent-builder-avatar-control flex w-full items-center justify-center gap-4">
-        <AvatarMenu
-          trigger={
-            <button
-              type="button"
-              className="f h-20 w-20 outline-none ring-offset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={localize('com_ui_upload_agent_avatar_label')}
-            >
-              {avatarPreview ? <AgentAvatarRender url={avatarPreview} /> : <NoImage />}
-            </button>
-          }
-          handleFileChange={handleFileChange}
-          onReset={handleReset}
-          canReset={canReset}
-        />
+      <div className="agent-builder-avatar-control flex w-full flex-col items-center gap-1">
+        <button
+          type="button"
+          className="h-20 w-20 outline-none ring-offset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={localize('com_ui_upload_agent_avatar_label')}
+          onClick={handleUploadClick}
+        >
+          {avatarPreview ? <AgentAvatarRender url={avatarPreview} /> : <NoImage />}
+        </button>
+        {canReset && (
+          <button
+            type="button"
+            className="text-xs text-text-secondary underline-offset-2 hover:text-text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={handleReset}
+          >
+            {localize('com_ui_reset')}
+          </button>
+        )}
       </div>
+      <input
+        ref={fileInputRef}
+        accept="image/png,.png,image/jpeg,.jpg,.jpeg,image/gif,.gif,image/webp,.webp"
+        className="sr-only"
+        type="file"
+        onChange={handleFileChange}
+        tabIndex={-1}
+      />
     </>
   );
 }
