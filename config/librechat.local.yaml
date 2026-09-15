@@ -261,7 +261,8 @@ mcpServers:
       19. Do not invent lesson content from model knowledge. If tool data is unavailable, report that the lesson-planning MCP/backend is unavailable.
 
   Downloadable-Files-Creation:
-    description: 'Create Microsoft Office documents'
+    title: 'Document Workflow'
+    description: 'Create downloadable Word documents, PDFs, spreadsheets, and slide decks'
     type: streamable-http
     # Local Downloadable Files MCP. Start it on port 8080 before running Ethos locally.
     url: 'http://localhost:8080/mcp'

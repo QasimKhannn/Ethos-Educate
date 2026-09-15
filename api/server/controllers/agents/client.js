@@ -357,6 +357,7 @@ class AgentClient extends BaseClient {
      */
     const ephemeralAgent = this.options.req.body.ephemeralAgent;
     const mcpManager = getMCPManager();
+    const userId = this.options.req.user?.id?.toString();
     await Promise.all(
       allAgents.map(({ agent, agentId }) =>
         applyContextToAgent({
@@ -365,6 +366,7 @@ class AgentClient extends BaseClient {
           logger,
           mcpManager,
           sharedRunContext,
+          userId,
           ephemeralAgent: agentId === this.options.agent.id ? ephemeralAgent : undefined,
         }),
       ),

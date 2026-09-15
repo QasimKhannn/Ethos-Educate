@@ -18,11 +18,13 @@ jest.mock('~/hooks', () => ({
       com_ui_cancelled: 'Cancelled',
       com_ui_requires_auth: 'Requires authentication',
       com_ui_tool_activity_failed: 'We could not complete this request',
+      com_ui_tool_activity_document_completed: 'Your downloadable resource is ready',
       com_ui_tool_activity_generic_completed: 'Your request is complete',
       com_ui_tool_activity_generic_title: 'Working on your request',
       com_ui_tool_activity_generic_working: 'Putting the next steps together…',
       com_ui_tool_activity_in_progress: 'In progress',
       com_ui_tool_activity_interrupted: 'This request was interrupted',
+      com_ui_tool_activity_image_completed: 'Your image is ready',
       com_ui_tool_activity_needs_auth: 'Sign in to continue',
       com_ui_tool_activity_problem_guidance:
         'Please try again. If this continues, check the selected tool or contact your administrator.',
@@ -33,7 +35,8 @@ jest.mock('~/hooks', () => ({
       com_ui_generated_files_expired_description:
         'Those files are no longer available, but I can create fresh copies from the original request.',
       com_ui_generated_document_retention_notice: 'This document will be available for 24 hours.',
-      com_ui_generated_documents_retention_notice: 'These documents will be available for 24 hours.',
+      com_ui_generated_documents_retention_notice:
+        'These documents will be available for 24 hours.',
       com_ui_generated_file_expired_action: 'Create again',
       com_ui_regenerating: 'Regenerating...',
     };
@@ -58,7 +61,9 @@ jest.mock('../ToolCallInfo', () => ({
 
 jest.mock('../Markdown', () => ({
   __esModule: true,
-  default: ({ content }: { content: string }) => <div data-testid="generated-document-markdown">{content}</div>,
+  default: ({ content }: { content: string }) => (
+    <div data-testid="generated-document-markdown">{content}</div>
+  ),
 }));
 
 jest.mock('../ProgressText', () => ({
@@ -228,7 +233,7 @@ describe('ToolCall', () => {
   });
 
   describe('tool call info visibility', () => {
-    it('hides a completed image activity card once the image result is available', () => {
+    it('keeps a completed image activity visible above the image result', () => {
       renderWithRecoil(
         <ToolCall
           {...mockProps}
@@ -236,12 +241,11 @@ describe('ToolCall', () => {
         />,
       );
 
-      expect(
-        document.querySelector('[data-tool-activity-category="image"]'),
-      ).not.toBeInTheDocument();
+      expect(document.querySelector('[data-tool-activity-category="image"]')).toBeInTheDocument();
+      expect(screen.getByText('Your image is ready')).not.toHaveClass('shimmer');
     });
 
-    it('hides a completed document activity card once the downloadable file is available', () => {
+    it('keeps a completed document activity visible above the downloadable file', () => {
       renderWithRecoil(
         <ToolCall
           {...mockProps}
@@ -251,7 +255,8 @@ describe('ToolCall', () => {
 
       expect(
         document.querySelector('[data-tool-activity-category="document"]'),
-      ).not.toBeInTheDocument();
+      ).toBeInTheDocument();
+      expect(screen.getByText('Your downloadable resource is ready')).not.toHaveClass('shimmer');
     });
 
     it('shows a document activity card while the downloadable file is being created', () => {
@@ -372,7 +377,7 @@ describe('ToolCall', () => {
         />,
       );
 
-      fireEvent.click(screen.getByText('Working on your request'));
+      fireEvent.click(screen.getByRole('button', { name: 'Technical details' }));
 
       const toolCallInfo = screen.getByTestId('tool-call-info');
       const props = JSON.parse(toolCallInfo.textContent!);

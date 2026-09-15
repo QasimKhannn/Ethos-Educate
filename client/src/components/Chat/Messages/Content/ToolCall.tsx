@@ -197,11 +197,7 @@ export default function ToolCall({
   const status = getToolActivityStatus(error, progress, isSubmitting, authDomain.length > 0);
   const presentation = getToolActivityPresentation(function_name, mcpServerName);
   const showActivityCard =
-    status === 'working' ||
-    status === 'needs_auth' ||
-    (status === 'completed' &&
-      presentation.category !== 'image' &&
-      presentation.category !== 'document');
+    status === 'working' || status === 'needs_auth' || status === 'completed';
 
   useLayoutEffect(() => {
     if (showInfo !== prevShowInfoRef.current) {

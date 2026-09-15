@@ -144,6 +144,7 @@ export async function applyContextToAgent({
   mcpManager,
   ephemeralAgent,
   agentId,
+  userId,
   logger,
 }: {
   agent: AgentWithTools;
@@ -151,6 +152,7 @@ export async function applyContextToAgent({
   mcpManager: MCPManager;
   ephemeralAgent?: TEphemeralAgent;
   agentId?: string;
+  userId?: string;
   logger?: Logger;
 }): Promise<void> {
   const baseInstructions = agent.instructions || '';
@@ -158,11 +160,14 @@ export async function applyContextToAgent({
   try {
     const mcpServers = ephemeralAgent?.mcp?.length ? ephemeralAgent.mcp : extractMCPServers(agent);
     const mcpInstructions = await getMCPInstructionsForServers(mcpServers, mcpManager, logger);
+    const toolAvailability = userId
+      ? await mcpManager.formatToolAvailabilityForContext(mcpServers, userId)
+      : '';
 
     agent.instructions = buildAgentInstructions({
       sharedRunContext,
       baseInstructions,
-      mcpInstructions,
+      mcpInstructions: [mcpInstructions, toolAvailability].filter(Boolean).join('\n\n'),
     });
 
     if (agentId && logger) {

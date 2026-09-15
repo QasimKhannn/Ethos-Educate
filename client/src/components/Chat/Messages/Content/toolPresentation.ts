@@ -12,7 +12,6 @@ export type ToolActivityCategory =
 export type ToolActivityPresentation = {
   category: ToolActivityCategory;
   titleKey: string;
-  workingPhraseKeys: readonly string[];
   completedKey: string;
 };
 
@@ -20,67 +19,46 @@ const presentations: Record<ToolActivityCategory, ToolActivityPresentation> = {
   analysis: {
     category: 'analysis',
     titleKey: 'com_ui_tool_activity_analysis_title',
-    workingPhraseKeys: ['com_ui_tool_activity_analysis_working'],
     completedKey: 'com_ui_tool_activity_analysis_completed',
   },
   document: {
     category: 'document',
     titleKey: 'com_ui_tool_activity_document_title',
-    workingPhraseKeys: [
-      'com_ui_tool_activity_document_phrase_one',
-      'com_ui_tool_activity_document_phrase_two',
-      'com_ui_tool_activity_document_phrase_three',
-    ],
     completedKey: 'com_ui_tool_activity_document_completed',
   },
   generic: {
     category: 'generic',
     titleKey: 'com_ui_tool_activity_generic_title',
-    workingPhraseKeys: ['com_ui_tool_activity_generic_working'],
     completedKey: 'com_ui_tool_activity_generic_completed',
   },
   image: {
     category: 'image',
     titleKey: 'com_ui_tool_activity_image_title',
-    workingPhraseKeys: [
-      'com_ui_tool_activity_image_phrase_one',
-      'com_ui_tool_activity_image_phrase_two',
-      'com_ui_tool_activity_image_phrase_three',
-      'com_ui_tool_activity_image_phrase_four',
-    ],
     completedKey: 'com_ui_tool_activity_image_completed',
   },
   knowledge: {
     category: 'knowledge',
     titleKey: 'com_ui_tool_activity_knowledge_title',
-    workingPhraseKeys: ['com_ui_tool_activity_knowledge_working'],
     completedKey: 'com_ui_tool_activity_knowledge_completed',
   },
   lesson: {
     category: 'lesson',
     titleKey: 'com_ui_tool_activity_lesson_title',
-    workingPhraseKeys: ['com_ui_tool_activity_lesson_working'],
     completedKey: 'com_ui_tool_activity_lesson_completed',
   },
   school_files: {
     category: 'school_files',
     titleKey: 'com_ui_tool_activity_school_files_title',
-    workingPhraseKeys: ['com_ui_tool_activity_school_files_working'],
     completedKey: 'com_ui_tool_activity_school_files_completed',
   },
   web_search: {
     category: 'web_search',
     titleKey: 'com_ui_tool_activity_web_search_title',
-    workingPhraseKeys: [
-      'com_ui_tool_activity_web_search_phrase_one',
-      'com_ui_tool_activity_web_search_phrase_two',
-    ],
     completedKey: 'com_ui_tool_activity_web_search_completed',
   },
   workspace: {
     category: 'workspace',
     titleKey: 'com_ui_tool_activity_workspace_title',
-    workingPhraseKeys: ['com_ui_tool_activity_workspace_working'],
     completedKey: 'com_ui_tool_activity_workspace_completed',
   },
 };

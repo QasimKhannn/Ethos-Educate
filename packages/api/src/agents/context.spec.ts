@@ -128,6 +128,7 @@ describe('Agent Context Utilities', () => {
     beforeEach(() => {
       mockMCPManager = {
         formatInstructionsForContext: jest.fn(),
+        formatToolAvailabilityForContext: jest.fn(),
       } as unknown as jest.Mocked<MCPManager>;
 
       mockLogger = {
@@ -302,6 +303,7 @@ describe('Agent Context Utilities', () => {
     beforeEach(() => {
       mockMCPManager = {
         formatInstructionsForContext: jest.fn(),
+        formatToolAvailabilityForContext: jest.fn(),
       } as unknown as jest.Mocked<MCPManager>;
 
       mockLogger = {
@@ -363,6 +365,29 @@ describe('Agent Context Utilities', () => {
         'ephemeral-server',
       ]);
       expect(agent.instructions).toContain('Ephemeral MCP');
+    });
+
+    it('should add the user-visible AI tool availability when a user is present', async () => {
+      const agent = {
+        id: 'test-agent',
+        instructions: 'Base instructions',
+        tools: [],
+      };
+
+      mockMCPManager.formatInstructionsForContext.mockResolvedValue('');
+      mockMCPManager.formatToolAvailabilityForContext.mockResolvedValue(
+        'Available in AI Tools but not enabled:\n- Document Workflow: Create downloadable files',
+      );
+
+      await applyContextToAgent({
+        agent,
+        sharedRunContext: 'Context',
+        mcpManager: mockMCPManager,
+        userId: 'user-1',
+      });
+
+      expect(mockMCPManager.formatToolAvailabilityForContext).toHaveBeenCalledWith([], 'user-1');
+      expect(agent.instructions).toContain('Document Workflow');
     });
 
     it('should prefer agent tools over empty ephemeral MCP array', async () => {

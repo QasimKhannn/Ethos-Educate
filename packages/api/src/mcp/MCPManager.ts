@@ -242,6 +242,47 @@ ${formattedInstructions}
 Please follow these instructions when using tools from the respective MCP servers.`;
   }
 
+  public async formatToolAvailabilityForContext(
+    enabledServerNames: string[],
+    userId?: string,
+  ): Promise<string> {
+    const configs = await MCPServersRegistry.getInstance().getAllServerConfigs(userId);
+    const enabledServers = new Set(enabledServerNames);
+    const selectableServers = Object.entries(configs)
+      .filter(([, config]) => config.chatMenu !== false && config.consumeOnly !== true)
+      .sort(([firstName], [secondName]) => firstName.localeCompare(secondName));
+
+    if (selectableServers.length === 0) {
+      return '';
+    }
+
+    const formatServer = ([serverName, config]: [string, t.ParsedServerConfig]) => {
+      const title = config.title?.trim() || serverName.replace(/[_-]+/g, ' ').trim();
+      const description = config.description?.replace(/\s+/g, ' ').trim();
+      return description ? `- ${title}: ${description}` : `- ${title}`;
+    };
+    const enabled = selectableServers.filter(([serverName]) => enabledServers.has(serverName));
+    const available = selectableServers.filter(([serverName]) => !enabledServers.has(serverName));
+    const sections = ['# AI Tools'];
+
+    if (enabled.length > 0) {
+      sections.push(`Enabled in this chat:\n${enabled.map(formatServer).join('\n')}`);
+    }
+
+    if (available.length > 0) {
+      sections.push(
+        `Available in AI Tools but not enabled:\n${available.map(formatServer).join('\n')}`,
+      );
+    }
+
+    sections.push(`Tool-use policy:
+- When a request matches an enabled AI tool, use that tool before confirming its result.
+- When a request matches an available but disabled AI tool, do not give a manual workaround or claim the result was created. Briefly tell the user to enable the matching named tool in AI Tools, then retry the request.
+- When a tool fails after it has been enabled, explain that the action did not complete and offer a concise retry option.`);
+
+    return sections.join('\n\n');
+  }
+
   /**
    * Calls a tool on an MCP server, using either a user-specific connection
    * (if userId is provided) or an app-level connection. Updates the last activity timestamp
