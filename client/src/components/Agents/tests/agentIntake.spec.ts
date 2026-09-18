@@ -70,7 +70,7 @@ describe('agent intake prompt builders', () => {
 
     const prompt = buildPresentationIntakePrompt(values);
 
-    expect(presentationTemplates).toHaveLength(16);
+    expect(presentationTemplates).toHaveLength(28);
     expect(prompt).toContain('Selected template: 6-8 Prism');
     expect(prompt).toContain('template_id: 6-8:prism');
     expect(prompt).toContain('grade_band: 6-8');
@@ -82,7 +82,7 @@ describe('agent intake prompt builders', () => {
     const templateIds = presentationTemplates.map((template) => template.templateId);
     const previewImages = presentationTemplates.map((template) => template.previewImage);
 
-    expect(templateIds).toHaveLength(16);
+    expect(templateIds).toHaveLength(28);
     expect(new Set(templateIds).size).toBe(templateIds.length);
     expect(new Set(previewImages).size).toBe(previewImages.length);
 
