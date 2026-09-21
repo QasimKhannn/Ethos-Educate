@@ -218,6 +218,7 @@ export interface MCPServerInfo {
   tools: t.AgentToolType[];
   isConfigured: boolean;
   isConnected: boolean;
+  connectionState?: t.MCPServerStatus['connectionState'];
   consumeOnly?: boolean;
   metadata: t.TPlugin;
 }

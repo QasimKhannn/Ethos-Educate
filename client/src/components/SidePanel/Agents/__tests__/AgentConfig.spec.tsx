@@ -1,7 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { EModelEndpoint } from 'librechat-data-provider';
 import AgentConfig from '../AgentConfig';
 
 jest.mock('~/utils', () => ({
@@ -11,8 +10,8 @@ jest.mock('~/utils', () => ({
 }));
 
 jest.mock('~/components/Tools', () => ({
-  MCPToolSelectDialog: ({ endpoint, isOpen }: { endpoint: EModelEndpoint; isOpen: boolean }) =>
-    isOpen ? <output data-testid="mcp-dialog-endpoint">{endpoint}</output> : null,
+  MCPToolSelectDialog: ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <output data-testid="mcp-dialog">Open</output> : null,
 }));
 
 jest.mock('~/Providers', () => ({
@@ -64,12 +63,12 @@ function TestWrapper() {
 }
 
 describe('AgentConfig', () => {
-  it('opens the MCP tool dialog with the agents endpoint', () => {
+  it('opens the MCP tool dialog', () => {
     render(<TestWrapper />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Open MCP tools' }));
 
-    expect(screen.getByTestId('mcp-dialog-endpoint').textContent).toBe(EModelEndpoint.agents);
+    expect(screen.getByTestId('mcp-dialog')).toHaveTextContent('Open');
   });
 
   it('shows only image and MCP settings outside the core builder', () => {

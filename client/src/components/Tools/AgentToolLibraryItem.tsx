@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, Wrench } from 'lucide-react';
+import { Check, LoaderCircle, PlugZap, RefreshCw, Wrench } from 'lucide-react';
 import { Checkbox } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 
@@ -8,8 +8,11 @@ type AgentToolLibraryItemProps = {
   isPreparing: boolean;
   isSelected: boolean;
   name: string;
+  onConnect: () => void;
+  onReinitialize: () => void;
   onToggle: () => void;
   providerName: string;
+  providerStatus: 'connecting' | 'needs-connection' | 'ready';
   toolId: string;
 };
 
@@ -19,54 +22,65 @@ export default function AgentToolLibraryItem({
   isPreparing,
   isSelected,
   name,
+  onConnect,
+  onReinitialize,
   onToggle,
   providerName,
+  providerStatus,
   toolId,
 }: AgentToolLibraryItemProps) {
   const localize = useLocalize();
 
   return (
-    <label
+    <div
       className={`flex min-h-40 cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition-colors ${
         isSelected
           ? 'border-blue-500/60 bg-blue-500/5'
           : 'border-border-medium bg-surface-primary hover:border-border-heavy'
       } ${isPreparing ? 'cursor-wait opacity-75' : ''}`}
-      htmlFor={toolId}
     >
       <div className="flex items-start gap-3">
-        <Checkbox
-          id={toolId}
-          checked={isSelected}
-          disabled={isPreparing}
-          onCheckedChange={onToggle}
-          aria-label={localize('com_ui_agent_tool_picker_toggle_tool', { 0: name })}
-          className="mt-0.5 h-5 w-5 shrink-0 rounded border-border-medium"
-        />
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-medium bg-surface-tertiary text-text-secondary">
-          {icon ? (
-            <img src={icon} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <Wrench className="h-4 w-4" aria-hidden="true" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-semibold leading-5 text-text-primary">{name}</p>
-            {isSelected && !isPreparing ? (
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-blue-700 dark:text-blue-300">
-                <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                {localize('com_ui_agent_tool_picker_added')}
-              </span>
+        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3" htmlFor={toolId}>
+          <Checkbox
+            id={toolId}
+            checked={isSelected}
+            disabled={isPreparing}
+            onCheckedChange={onToggle}
+            aria-label={localize('com_ui_agent_tool_picker_toggle_tool', { 0: name })}
+            className="mt-0.5 h-5 w-5 shrink-0 rounded border-border-medium"
+          />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-medium bg-surface-tertiary text-text-secondary">
+            {icon ? (
+              <img src={icon} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold leading-5 text-text-primary">{name}</p>
+              {isSelected && !isPreparing ? (
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  {localize('com_ui_agent_tool_picker_added')}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs font-medium text-text-tertiary">
+              {localize('com_ui_agent_tool_picker_provider', { 0: providerName })}
+            </p>
+            {description ? (
+              <p className="mt-2 line-clamp-2 text-sm leading-5 text-text-secondary">{description}</p>
             ) : null}
           </div>
-          <p className="mt-1 text-xs font-medium text-text-tertiary">
-            {localize('com_ui_agent_tool_picker_provider', { 0: providerName })}
-          </p>
-          {description ? (
-            <p className="mt-2 line-clamp-2 text-sm leading-5 text-text-secondary">{description}</p>
-          ) : null}
-        </div>
+        </label>
+        <ProviderStatusButton
+          isPreparing={isPreparing}
+          providerName={providerName}
+          status={providerStatus}
+          onConnect={onConnect}
+          onReinitialize={onReinitialize}
+        />
       </div>
       {isPreparing ? (
         <div className="mt-auto flex items-center gap-2 pt-3 text-xs font-medium text-text-secondary">
@@ -74,7 +88,77 @@ export default function AgentToolLibraryItem({
           {localize('com_ui_agent_tool_picker_preparing')}
         </div>
       ) : null}
-    </label>
+    </div>
+  );
+}
+
+type ProviderStatusButtonProps = {
+  isPreparing: boolean;
+  providerName: string;
+  status: 'connecting' | 'needs-connection' | 'ready';
+  onConnect: () => void;
+  onReinitialize: () => void;
+};
+
+function ProviderStatusButton({
+  isPreparing,
+  providerName,
+  status,
+  onConnect,
+  onReinitialize,
+}: ProviderStatusButtonProps) {
+  const localize = useLocalize();
+
+  if (isPreparing || status === 'connecting') {
+    return (
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600"
+        title={localize('com_ui_agent_tool_picker_connecting_provider', { 0: providerName })}
+      >
+        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      </span>
+    );
+  }
+
+  if (status === 'needs-connection') {
+    const connectLabel = localize('com_ui_agent_tool_picker_connect_provider', {
+      0: providerName,
+    });
+    return (
+      <button
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700 transition-colors hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 dark:text-amber-300"
+        type="button"
+        onClick={onConnect}
+        aria-label={connectLabel}
+        title={connectLabel}
+      >
+        <PlugZap className="h-4 w-4" aria-hidden="true" />
+      </button>
+    );
+  }
+
+  const reinitializeLabel = localize('com_ui_agent_tool_picker_reinitialize_provider', {
+    0: providerName,
+  });
+  return (
+    <button
+      className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-700 transition-colors hover:bg-green-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 dark:text-green-300"
+      type="button"
+      onClick={onReinitialize}
+      aria-label={reinitializeLabel}
+      title={reinitializeLabel}
+    >
+      <span className="relative flex h-4 w-4 items-center justify-center">
+        <PlugZap
+          className="absolute h-4 w-4 transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
+          aria-hidden="true"
+        />
+        <RefreshCw
+          className="absolute h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          aria-hidden="true"
+        />
+      </span>
+    </button>
   );
 }
 

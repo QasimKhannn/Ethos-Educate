@@ -30,6 +30,8 @@ type ToolCatalogItem = {
   serverName: string;
 };
 
+type ToolProviderStatus = 'connecting' | 'needs-connection' | 'ready';
+
 const getProviderName = (serverInfo: MCPServerInfo): string =>
   formatToolDisplayName(String(serverInfo.metadata.name || serverInfo.serverName));
 
@@ -143,6 +145,11 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
       return;
     }
 
+    await prepareServer(serverName);
+  };
+
+  const handleReinitializeProvider = async (serverName: string) => {
+    setErrorMessage('');
     await prepareServer(serverName);
   };
 
@@ -269,6 +276,24 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
       toolCatalog.filter((tool) => isMCPToolSelected(selectedToolIds, tool.serverName, tool.id))
         .length,
     [selectedToolIds, toolCatalog],
+  );
+
+  const getProviderStatus = useCallback(
+    (serverInfo: MCPServerInfo): ToolProviderStatus => {
+      if (isPreparingServer === serverInfo.serverName || serverInfo.connectionState === 'connecting') {
+        return 'connecting';
+      }
+
+      if (
+        serverInfo.connectionState === 'disconnected' ||
+        serverInfo.connectionState === 'error'
+      ) {
+        return 'needs-connection';
+      }
+
+      return 'ready';
+    },
+    [isPreparingServer],
   );
 
   const configuringProviderName = useMemo(() => {
@@ -443,8 +468,11 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
                                 tool.id,
                               )}
                               name={tool.name}
+                              onConnect={() => handlePrepareProvider(tool.serverName)}
+                              onReinitialize={() => handleReinitializeProvider(tool.serverName)}
                               onToggle={() => handleToggleTool(serverInfo, tool.id)}
                               providerName={tool.providerName}
+                              providerStatus={getProviderStatus(serverInfo)}
                               toolId={tool.id}
                             />
                           );
