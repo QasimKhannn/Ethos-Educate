@@ -40,6 +40,7 @@ describe('canonical MCP server identification', () => {
   it('resolves Websearch aliases to the configured lowercase identifier', () => {
     expect(resolveKnownMCPServerName('Websearch')).toBe('websearch');
     expect(resolveKnownMCPServerName('Web Search')).toBe('websearch');
+    expect(resolveKnownMCPServerName('Image-generation')).toBe('Image_Generation');
     expect(resolveKnownMCPServerName('Downloadable-Files-Creation')).toBe(
       'Downloadable-Files-Creation',
     );
@@ -47,6 +48,9 @@ describe('canonical MCP server identification', () => {
 
   it('normalizes only the server suffix in MCP tool identifiers', () => {
     expect(normalizeKnownMCPToolId('search_mcp_Websearch')).toBe('search_mcp_websearch');
+    expect(normalizeKnownMCPToolId('generate_images_mcp_Image-generation')).toBe(
+      'generate_images_mcp_Image_Generation',
+    );
     expect(normalizeKnownMCPToolId('ordinary_tool')).toBe('ordinary_tool');
     expect(normalizeKnownMCPToolId('generate_images_mcp_Image_Generation')).toBe(
       'generate_images_mcp_Image_Generation',

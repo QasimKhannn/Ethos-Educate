@@ -17,6 +17,7 @@ RUN uv --version
 
 # Set configurable max-old-space-size with default
 ARG NODE_MAX_OLD_SPACE_SIZE=6144
+ARG VITE_ENABLE_ESSAY_GRADER=false
 
 RUN mkdir -p /app && chown node:node /app
 WORKDIR /app
@@ -45,7 +46,7 @@ COPY --chown=node:node . .
 
 RUN \
     # React client build with configurable memory
-    NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
+    NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" VITE_ENABLE_ESSAY_GRADER="${VITE_ENABLE_ESSAY_GRADER}" npm run frontend && \
     npm prune --omit=dev && \
     npm cache clean --force
 

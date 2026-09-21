@@ -6,6 +6,7 @@ import Login from '~/components/Auth/Login';
 import ApiErrorWatcher from '~/components/Auth/ApiErrorWatcher';
 import { loadEssayGraderRoute } from '~/components/EssayGrader/loadEssayGraderRoute';
 import { AuthContextProvider } from '~/hooks/AuthContext';
+import { isEssayGraderEnabled } from '~/utils/featureFlags';
 import { loadChatRoute } from './loadChatRoute';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
@@ -167,10 +168,14 @@ export const router = createBrowserRouter(
                 </RouteSuspense>
               ),
             },
-            {
-              path: 'tools/essay-grader',
-              element: lazyElement(EssayGraderRoute),
-            },
+            ...(isEssayGraderEnabled
+              ? [
+                  {
+                    path: 'tools/essay-grader',
+                    element: lazyElement(EssayGraderRoute),
+                  },
+                ]
+              : []),
             {
               path: 'admin',
               element: lazyElement(AdminConsole),

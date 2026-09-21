@@ -330,6 +330,49 @@ describe('MCPServersInitializer', () => {
       await MCPServersInitializer.initialize(testConfigs);
 
       expect(await registryStatusCache.isInitialized()).toBe(true);
+      expect(MCPServersInitializer.isReady()).toBe(true);
+    });
+
+    it('should preserve the complete catalog when a server inspection exceeds startup timeout', async () => {
+      await MCPServersInitializer.initialize(testConfigs);
+      const healthyConfig = await registry.getServerConfig('file_tools_server');
+      expect(healthyConfig?.tools).toBe('file_read, file_write');
+
+      MCPServersInitializer.resetProcessFlag();
+      let markInspectionStarted: () => void = () => undefined;
+      const inspectionStarted = new Promise<void>((resolve) => {
+        markInspectionStarted = resolve;
+      });
+      mockInspect.mockImplementation(async (serverName: string, rawConfig: t.MCPOptions) => {
+        if (serverName === 'file_tools_server') {
+          markInspectionStarted();
+          return await new Promise<t.ParsedServerConfig>(() => undefined);
+        }
+        const baseConfig = testParsedConfigs[serverName] || {};
+        return {
+          ...rawConfig,
+          ...baseConfig,
+          requiresOAuth: determineRequiresOAuth(rawConfig),
+          _processedByInspector: true,
+        } as unknown as t.ParsedServerConfig;
+      });
+
+      jest.useFakeTimers();
+      try {
+        const initialization = MCPServersInitializer.initialize(testConfigs);
+        expect(MCPServersInitializer.isReady()).toBe(false);
+
+        await inspectionStarted;
+        await jest.advanceTimersByTimeAsync(30_000);
+        await initialization;
+
+        const configs = await registry.getAllServerConfigs();
+        expect(Object.keys(configs)).toEqual(expect.arrayContaining(Object.keys(testConfigs)));
+        expect(configs.file_tools_server?.tools).toBe('file_read, file_write');
+        expect(MCPServersInitializer.isReady()).toBe(true);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should re-initialize on first call even if Redis cache says initialized (simulating app restart)', async () => {

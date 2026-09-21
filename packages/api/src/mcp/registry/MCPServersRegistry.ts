@@ -157,9 +157,47 @@ export class MCPServersRegistry {
     const configRepo = this.getConfigRepository(storageLocation);
     const stubConfig: t.ParsedServerConfig = { ...config, inspectionFailed: true };
     const result = await configRepo.add(serverName, stubConfig, userId);
-    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName, userId));
-    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName));
+    await this.invalidateReadThroughCaches(serverName, userId);
     return result;
+  }
+
+  /** Keeps a configured server discoverable before its network inspection completes. */
+  public async ensureServerStub(
+    serverName: string,
+    config: t.MCPOptions,
+    storageLocation: 'CACHE' | 'DB',
+    userId?: string,
+  ): Promise<t.AddServerResult> {
+    const configRepo = this.getConfigRepository(storageLocation);
+    const existingConfig = await configRepo.get(serverName, userId);
+    if (existingConfig) {
+      return { serverName, config: existingConfig };
+    }
+
+    return await this.addServerStub(serverName, config, storageLocation, userId);
+  }
+
+  /** Replaces an existing server with a recoverable stub without removing it from the catalog. */
+  public async upsertServerStub(
+    serverName: string,
+    config: t.MCPOptions,
+    storageLocation: 'CACHE' | 'DB',
+    userId?: string,
+  ): Promise<t.AddServerResult> {
+    const configRepo = this.getConfigRepository(storageLocation);
+    const existingConfig = await configRepo.get(serverName, userId);
+    if (!existingConfig) {
+      return await this.addServerStub(serverName, config, storageLocation, userId);
+    }
+
+    const stubConfig: t.ParsedServerConfig = {
+      ...config,
+      inspectionFailed: true,
+      updatedAt: Date.now(),
+    };
+    await configRepo.update(serverName, stubConfig, userId);
+    await this.invalidateReadThroughCaches(serverName, userId);
+    return { serverName, config: stubConfig };
   }
 
   public async addServer(
@@ -185,7 +223,26 @@ export class MCPServersRegistry {
       }
       throw new MCPInspectionFailedError(serverName, error as Error);
     }
-    return await configRepo.add(serverName, parsedConfig, userId);
+    const result = await configRepo.add(serverName, parsedConfig, userId);
+    await this.invalidateReadThroughCaches(serverName, userId);
+    return result;
+  }
+
+  /** Inspects and stores a server without creating a gap when the config already exists. */
+  public async upsertServer(
+    serverName: string,
+    config: t.MCPOptions,
+    storageLocation: 'CACHE' | 'DB',
+    userId?: string,
+  ): Promise<t.AddServerResult> {
+    const configRepo = this.getConfigRepository(storageLocation);
+    const existingConfig = await configRepo.get(serverName, userId);
+    if (!existingConfig) {
+      return await this.addServer(serverName, config, storageLocation, userId);
+    }
+
+    const updatedConfig = await this.updateServer(serverName, config, storageLocation, userId);
+    return { serverName, config: updatedConfig };
   }
 
   /**
@@ -227,10 +284,7 @@ export class MCPServersRegistry {
 
     const updatedConfig = { ...parsedConfig, updatedAt: Date.now() };
     await configRepo.update(serverName, updatedConfig, userId);
-    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName, userId));
-    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName));
-    // Full clear required: getAllServerConfigs is keyed by userId with no reverse index to enumerate cached keys
-    await this.readThroughCacheAll.clear();
+    await this.invalidateReadThroughCaches(serverName, userId);
     return { serverName, config: updatedConfig };
   }
 
@@ -275,10 +329,23 @@ export class MCPServersRegistry {
     }
     const updatedConfig = { ...parsedConfig, updatedAt: Date.now() };
     await configRepo.update(serverName, updatedConfig, userId);
-    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName, userId));
-    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName));
-    await this.readThroughCacheAll.clear();
+    await this.invalidateReadThroughCaches(serverName, userId);
     return updatedConfig;
+  }
+
+  /** Removes cached YAML servers that are no longer present in the active application config. */
+  public async removeStaleCacheServers(activeServerNames: ReadonlySet<string>): Promise<void> {
+    const existingConfigs = await this.cacheConfigsRepo.getAll();
+    const staleServerNames = Object.keys(existingConfigs).filter(
+      (serverName) => !activeServerNames.has(serverName),
+    );
+    if (staleServerNames.length === 0) return;
+
+    await Promise.all(
+      staleServerNames.map((serverName) => this.cacheConfigsRepo.remove(serverName)),
+    );
+    await this.readThroughCache.clear();
+    await this.readThroughCacheAll.clear();
   }
 
   // TODO: This is currently used to determine if a server requires OAuth. However, this info can
@@ -302,6 +369,7 @@ export class MCPServersRegistry {
   ): Promise<void> {
     const configRepo = this.getConfigRepository(storageLocation);
     await configRepo.remove(serverName, userId);
+    await this.invalidateReadThroughCaches(serverName, userId);
   }
 
   private getConfigRepository(storageLocation: 'CACHE' | 'DB'): IServerConfigsRepositoryInterface {
@@ -319,5 +387,11 @@ export class MCPServersRegistry {
 
   private getReadThroughCacheKey(serverName: string, userId?: string): string {
     return userId ? `${serverName}::${userId}` : serverName;
+  }
+
+  private async invalidateReadThroughCaches(serverName: string, userId?: string): Promise<void> {
+    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName, userId));
+    await this.readThroughCache.delete(this.getReadThroughCacheKey(serverName));
+    await this.readThroughCacheAll.clear();
   }
 }

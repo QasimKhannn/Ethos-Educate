@@ -83,6 +83,7 @@ jobs:
           cd packages/api
           npx jest \
             src/cdn/azure.spec.ts \
+            src/mcp/registry/__tests__/MCPServersInitializer.test.ts \
             src/tools/localCodeExecution.spec.ts \
             src/tools/localProgrammaticToolCalling.spec.ts \
             src/tools/classification.spec.ts \
@@ -324,6 +325,19 @@ jobs:
       - name: Smoke test deployment
         run: |
           url="${{ steps.deploy.outputs.deployed_url }}"
+          ready=false
+          for attempt in {1..24}; do
+            ready_response="$(curl --fail --show-error --silent --max-time 10 "$url/ready" || true)"
+            if [ "$ready_response" = "READY" ]; then
+              ready=true
+              break
+            fi
+            sleep 5
+          done
+          if [ "$ready" != "true" ]; then
+            echo "The deployed revision did not become ready within 2 minutes."
+            exit 1
+          fi
           curl --fail --show-error --silent --max-time 60 "$url/api/config" > /tmp/librechat-config.json
           curl --fail --show-error --silent --max-time 60 -o /tmp/librechat-index.html "$url/"
 

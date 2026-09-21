@@ -3,6 +3,7 @@ const express = require('express');
 const request = require('supertest');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
+const { ApplicationReadiness } = require('@librechat/api');
 
 jest.mock('~/server/services/Config', () => ({
   loadCustomConfig: jest.fn(() => Promise.resolve({})),
@@ -40,6 +41,7 @@ describe('Server Configuration', () => {
   let mongoServer;
   let app;
   let httpServer;
+  let readinessSpy;
 
   /** Mocked fs.readFileSync for index.html */
   const originalReadFileSync = fs.readFileSync;
@@ -47,6 +49,7 @@ describe('Server Configuration', () => {
   let listenSpy;
 
   beforeAll(() => {
+    readinessSpy = jest.spyOn(ApplicationReadiness, 'isReady').mockReturnValue(true);
     listenSpy = jest.spyOn(express.application, 'listen').mockImplementation(function (...args) {
       httpServer = originalListen.apply(this, args);
       return httpServer;
@@ -61,6 +64,7 @@ describe('Server Configuration', () => {
   });
 
   afterAll(() => {
+    readinessSpy.mockRestore();
     listenSpy.mockRestore();
     fs.readFileSync = originalReadFileSync;
   });
@@ -106,6 +110,19 @@ describe('Server Configuration', () => {
     const response = await request(app).get('/health');
     expect(response.status).toBe(200);
     expect(response.text).toBe('OK');
+  });
+
+  it('should return READY for /ready after MCP initialization', async () => {
+    const response = await readinessCheckPoll(app);
+    expect(response.status).toBe(200);
+    expect(response.text).toBe('READY');
+  });
+
+  it('should reject readiness checks while MCP initialization is incomplete', async () => {
+    readinessSpy.mockReturnValueOnce(false);
+    const response = await request(app).get('/ready');
+    expect(response.status).toBe(503);
+    expect(response.text).toBe('STARTING');
   });
 
   it('should not cache index page', async () => {
@@ -193,4 +210,19 @@ async function healthCheckPoll(app, retries = 0) {
   } else {
     throw new Error('App did not become healthy within 10 seconds.');
   }
+}
+
+async function readinessCheckPoll(app, retries = 0) {
+  const maxRetries = Math.floor(10000 / 30);
+  const response = await request(app).get('/ready');
+  if (response.status === 200) {
+    return response;
+  }
+
+  if (retries < maxRetries) {
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    return readinessCheckPoll(app, retries + 1);
+  }
+
+  throw new Error('App did not become ready within 10 seconds.');
 }

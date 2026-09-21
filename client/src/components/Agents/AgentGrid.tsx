@@ -14,6 +14,7 @@ import {
   softRevealVariants,
 } from '~/utils/motion';
 import { renderAgentAvatar, getAgentDisplayName, getAgentToolkitDescription } from '~/utils';
+import { isEssayGraderEnabled } from '~/utils/featureFlags';
 import { useHasData } from './SmartLoader';
 import AgentCard from './AgentCard';
 import AgentDetail from './AgentDetail';
@@ -238,6 +239,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     : spotlightAgents;
   const hasData = useHasData(data?.pages?.[0]);
   const shouldShowEssayGraderTool = useMemo(() => {
+    if (!isEssayGraderEnabled) {
+      return false;
+    }
+
     const matchesCategory = !category || category === 'all' || category === ESSAY_GRADER_CATEGORY;
 
     if (!matchesCategory) {

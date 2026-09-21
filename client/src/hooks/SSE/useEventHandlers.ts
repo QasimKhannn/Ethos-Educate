@@ -32,6 +32,7 @@ import {
   updateConvoInAllQueries,
   removeConvoFromAllQueries,
   findConversationInInfinite,
+  transferMCPSelection,
 } from '~/utils';
 import { queueTitleGeneration } from '~/data-provider/SSE/queries';
 import useAttachmentHandler from '~/hooks/SSE/useAttachmentHandler';
@@ -577,6 +578,7 @@ export default function useEventHandlers({
         }
 
         if (isNewConvo && submissionConvo.conversationId) {
+          transferMCPSelection(submissionConvo.conversationId, conversation.conversationId);
           removeConvoFromAllQueries(queryClient, submissionConvo.conversationId);
         }
 

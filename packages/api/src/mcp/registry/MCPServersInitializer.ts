@@ -8,6 +8,7 @@ import { isLeader } from '~/cluster';
 
 const MCP_INIT_TIMEOUT_MS =
   process.env.MCP_INIT_TIMEOUT_MS != null ? parseInt(process.env.MCP_INIT_TIMEOUT_MS) : 30_000;
+const MCP_INIT_TIMEOUT_BUFFER_MS = 5_000;
 
 /**
  * Handles initialization of MCP servers at application startup with distributed coordination.
@@ -30,10 +31,17 @@ export class MCPServersInitializer {
    *   performs the expensive initialization operations.
    */
   private static hasInitializedThisProcess = false;
+  private static ready = false;
 
   /** Reset the process-level initialization flag. Only used for testing. */
   public static resetProcessFlag(): void {
     MCPServersInitializer.hasInitializedThisProcess = false;
+    MCPServersInitializer.ready = false;
+  }
+
+  /** Returns whether this process has a complete, safe-to-serve MCP catalog. */
+  public static isReady(): boolean {
+    return MCPServersInitializer.ready;
   }
 
   public static async initialize(rawConfigs: t.MCPServers): Promise<void> {
@@ -43,24 +51,36 @@ export class MCPServersInitializer {
     // Set flag immediately so recursive calls (from followers) use Redis cache for coordination
     MCPServersInitializer.hasInitializedThisProcess = true;
 
-    if (!isFirstCallThisProcess && (await statusCache.isInitialized())) return;
+    if (!isFirstCallThisProcess && (await statusCache.isInitialized())) {
+      MCPServersInitializer.ready = true;
+      return;
+    }
 
     if (await isLeader()) {
-      // Leader performs initialization - always reset on first call
+      MCPServersInitializer.ready = false;
       await statusCache.reset();
-      await MCPServersRegistry.getInstance().reset();
-      const serverNames = Object.keys(rawConfigs);
+      const registry = MCPServersRegistry.getInstance();
+      const serverEntries = Object.entries(rawConfigs);
+      await Promise.all(
+        serverEntries.map(([serverName, rawConfig]) =>
+          registry.ensureServerStub(serverName, rawConfig, 'CACHE'),
+        ),
+      );
       await Promise.allSettled(
-        serverNames.map((serverName) =>
+        serverEntries.map(([serverName, rawConfig]) =>
           withTimeout(
-            MCPServersInitializer.initializeServer(serverName, rawConfigs[serverName]),
-            MCP_INIT_TIMEOUT_MS,
+            MCPServersInitializer.initializeServer(serverName, rawConfig),
+            MCPServersInitializer.getInitializationTimeout(rawConfig),
             `${MCPServersInitializer.prefix(serverName)} Server initialization timed out`,
             logger.error,
           ),
         ),
       );
+      await registry.removeStaleCacheServers(
+        new Set(serverEntries.map(([serverName]) => serverName)),
+      );
       await statusCache.setInitialized(true);
+      MCPServersInitializer.ready = true;
     } else {
       // Followers try again after a delay if not initialized
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -71,7 +91,7 @@ export class MCPServersInitializer {
   /** Initializes a single server with all its metadata and adds it to appropriate collections */
   public static async initializeServer(serverName: string, rawConfig: t.MCPOptions): Promise<void> {
     try {
-      const result = await MCPServersRegistry.getInstance().addServer(
+      const result = await MCPServersRegistry.getInstance().upsertServer(
         serverName,
         rawConfig,
         'CACHE',
@@ -80,7 +100,7 @@ export class MCPServersInitializer {
     } catch (error) {
       logger.error(`${MCPServersInitializer.prefix(serverName)} Failed to initialize:`, error);
       try {
-        await MCPServersRegistry.getInstance().addServerStub(serverName, rawConfig, 'CACHE');
+        await MCPServersRegistry.getInstance().upsertServerStub(serverName, rawConfig, 'CACHE');
         logger.info(
           `${MCPServersInitializer.prefix(serverName)} Stored stub config for recovery via reinitialize`,
         );
@@ -109,5 +129,10 @@ export class MCPServersInitializer {
   // Returns formatted log prefix for server messages
   private static prefix(serverName: string): string {
     return `[MCP][${serverName}]`;
+  }
+
+  private static getInitializationTimeout(rawConfig: t.MCPOptions): number {
+    const serverTimeout = rawConfig.initTimeout ?? 0;
+    return Math.max(MCP_INIT_TIMEOUT_MS, serverTimeout + MCP_INIT_TIMEOUT_BUFFER_MS);
   }
 }

@@ -1,4 +1,41 @@
 import { LocalStorageKeys, TConversation, isUUID } from 'librechat-data-provider';
+import { setTimestamp } from './timestamps';
+
+const isMCPServerList = (value: unknown): value is string[] => {
+  return Array.isArray(value) && value.every((serverName) => typeof serverName === 'string');
+};
+
+export function transferMCPSelection(
+  sourceConversationId: string | null | undefined,
+  targetConversationId: string | null | undefined,
+): void {
+  if (
+    !sourceConversationId ||
+    !targetConversationId ||
+    sourceConversationId === targetConversationId
+  ) {
+    return;
+  }
+
+  const sourceKey = `${LocalStorageKeys.LAST_MCP_}${sourceConversationId}`;
+  const storedSelection = localStorage.getItem(sourceKey);
+  if (storedSelection === null) {
+    return;
+  }
+
+  try {
+    const selection: unknown = JSON.parse(storedSelection);
+    if (!isMCPServerList(selection)) {
+      return;
+    }
+
+    const targetKey = `${LocalStorageKeys.LAST_MCP_}${targetConversationId}`;
+    localStorage.setItem(targetKey, JSON.stringify(selection));
+    setTimestamp(targetKey);
+  } catch {
+    return;
+  }
+}
 
 export function getLocalStorageItems() {
   const items = {

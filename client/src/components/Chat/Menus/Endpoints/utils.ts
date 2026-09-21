@@ -168,6 +168,8 @@ export const getDisplayValue = ({
   selectedValues,
   modelSpecs,
   agentsMap,
+  agentModel,
+  conversationEndpoint,
   conversationModel,
 }: {
   localize: ReturnType<typeof useLocalize>;
@@ -175,8 +177,14 @@ export const getDisplayValue = ({
   mappedEndpoints: Endpoint[];
   modelSpecs: TModelSpec[];
   agentsMap?: TAgentsMap;
+  agentModel?: string;
+  conversationEndpoint?: string | null;
   conversationModel?: string | null;
 }) => {
+  if (isAgentsEndpoint(conversationEndpoint) && agentModel) {
+    return agentModel;
+  }
+
   if (selectedValues.modelSpec) {
     const spec = modelSpecs.find((s) => s.name === selectedValues.modelSpec);
 
@@ -201,7 +209,12 @@ export const getDisplayValue = ({
     }
 
     if (isAgentsEndpoint(endpoint.value)) {
-      return agentsMap?.[selectedValues.model]?.model ?? conversationModel ?? selectedValues.model;
+      return (
+        agentModel ??
+        agentsMap?.[selectedValues.model]?.model ??
+        conversationModel ??
+        selectedValues.model
+      );
     }
 
     if (

@@ -2,7 +2,10 @@ import { Constants } from 'librechat-data-provider';
 
 export const mcpToolPattern = new RegExp(`^.+${Constants.mcp_delimiter}.+$`);
 
-const knownMCPServerNames = new Map<string, string>([['websearch', 'websearch']]);
+const knownMCPServerNames = new Map<string, string>([
+  ['websearch', 'websearch'],
+  ['imagegeneration', 'Image_Generation'],
+]);
 
 /** Creates a stable MCP server identifier that is independent of display-name punctuation. */
 export function canonicalizeMCPServerName(serverName: string): string {

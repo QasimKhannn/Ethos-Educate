@@ -14,6 +14,7 @@ const {
   isEnabled,
   apiNotFound,
   ErrorController,
+  ApplicationReadiness,
   memoryDiagnostics,
   performStartupChecks,
   handleJsonParseError,
@@ -54,6 +55,7 @@ const trusted_proxy = Number(TRUST_PROXY) || 1; /* trust first proxy by default 
 const app = express();
 
 const startServer = async () => {
+  ApplicationReadiness.markNotReady();
   logStartup('Starting application initialization.');
   if (typeof Bun !== 'undefined') {
     axios.defaults.headers.common['Accept-Encoding'] = 'gzip';
@@ -120,6 +122,13 @@ const startServer = async () => {
   }
 
   app.get('/health', (_req, res) => res.status(200).send('OK'));
+  app.get('/ready', (_req, res) => {
+    if (!ApplicationReadiness.isReady()) {
+      return res.status(503).send('STARTING');
+    }
+
+    return res.status(200).send('READY');
+  });
 
   /* Middleware */
   app.use(noIndex);
@@ -275,10 +284,11 @@ const startServer = async () => {
       memoryDiagnostics.start();
     }
 
-    logStartup('Backend startup complete.');
-
     startGeneratedFileRetentionCleanup(appConfig);
     logStartup('Generated-file retention cleanup started.');
+
+    ApplicationReadiness.markReady();
+    logStartup('Backend startup complete and ready to serve traffic.');
   });
 };
 
