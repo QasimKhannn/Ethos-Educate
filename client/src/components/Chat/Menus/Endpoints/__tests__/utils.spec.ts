@@ -21,7 +21,7 @@ describe('getDisplayValue', () => {
       agentModel: 'gpt-5-chat',
     });
 
-    expect(displayValue).toBe('gpt-5-chat');
+    expect(displayValue).toBe('Ethos-Pro');
   });
 
   it('uses the selected agent model when the active agent model has not loaded yet', () => {
@@ -48,6 +48,6 @@ describe('getDisplayValue', () => {
       },
     });
 
-    expect(displayValue).toBe('gpt-5-chat');
+    expect(displayValue).toBe('Ethos-Pro');
   });
 });

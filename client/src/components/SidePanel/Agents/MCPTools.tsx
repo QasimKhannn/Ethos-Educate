@@ -1,21 +1,32 @@
-import React from 'react';
-import UninitializedMCPTool from './UninitializedMCPTool';
-import UnconfiguredMCPTool from './UnconfiguredMCPTool';
+import React, { useMemo } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
+import type { AgentForm } from '~/common';
 import { useLocalize } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers';
-import MCPTool from './MCPTool';
+import { isMCPToolSelected } from '~/components/Tools/agentToolSelection';
 
 export default function MCPTools({
-  agentId,
-  mcpServerNames,
   setShowMCPToolDialog,
 }: {
-  agentId: string;
-  mcpServerNames?: string[];
   setShowMCPToolDialog: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const localize = useLocalize();
   const { mcpServersMap } = useAgentPanelContext();
+  const { control } = useFormContext<AgentForm>();
+  const selectedToolIds = useWatch({ control, name: 'tools' }) ?? [];
+
+  const selectedTools = useMemo(
+    () =>
+      Array.from(mcpServersMap.values()).flatMap((serverInfo) =>
+        serverInfo.tools
+          .filter((tool) => isMCPToolSelected(selectedToolIds, serverInfo.serverName, tool.tool_id))
+          .map((tool) => ({
+            id: tool.tool_id,
+            name: String(tool.metadata.name || tool.tool_id),
+          })),
+      ),
+    [mcpServersMap, selectedToolIds],
+  );
 
   return (
     <div className="agent-builder-mcp-tools">
@@ -26,29 +37,24 @@ export default function MCPTools({
         </span>
         <p>{localize('com_ui_agent_tools_description')}</p>
       </div>
-      <div className="agent-builder-mcp-tools-selected">
-        {mcpServerNames?.map((mcpServerName) => {
-          const serverInfo = mcpServersMap.get(mcpServerName);
-          if (!serverInfo?.isConfigured) {
-            return (
-              <UnconfiguredMCPTool key={`${mcpServerName}-${agentId}`} serverName={mcpServerName} />
-            );
-          }
-          if (!serverInfo) {
-            return null;
-          }
-
-          if (serverInfo?.tools?.length && serverInfo.tools.length > 0) {
-            return <MCPTool key={`${serverInfo.serverName}-${agentId}`} serverInfo={serverInfo} />;
-          }
-
-          return (
-            <UninitializedMCPTool
-              key={`${serverInfo.serverName}-${agentId}`}
-              serverInfo={serverInfo}
-            />
-          );
-        })}
+      <div
+        className="agent-builder-mcp-tools-selected flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border-light bg-surface-primary px-3 py-2"
+        aria-live="polite"
+      >
+        {selectedTools.length > 0 ? (
+          selectedTools.map((tool) => (
+            <span
+              className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-700 dark:text-blue-300"
+              key={tool.id}
+            >
+              {tool.name}
+            </span>
+          ))
+        ) : (
+          <span className="text-sm text-text-secondary">
+            {localize('com_ui_agent_tool_picker_none_selected')}
+          </span>
+        )}
       </div>
       <button
         type="button"

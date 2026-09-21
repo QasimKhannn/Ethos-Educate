@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
-import { EModelEndpoint } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
 import { removeFocusOutlines, defaultTextProps, cn } from '~/utils';
 import { MCPToolSelectDialog } from '~/components/Tools';
 import { useAgentPanelContext } from '~/Providers';
-import { useLocalize, useVisibleTools } from '~/hooks';
+import { useLocalize } from '~/hooks';
 import Instructions from './Instructions';
 import AgentAvatar from './AgentAvatar';
 import MCPTools from './MCPTools';
@@ -23,19 +22,14 @@ export default function AgentConfig() {
   const localize = useLocalize();
   const methods = useFormContext<AgentForm>();
   const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
-  const { regularTools, availableMCPServers, mcpServersMap } = useAgentPanelContext();
+  const { availableMCPServers } = useAgentPanelContext();
 
   const {
     control,
     formState: { errors },
   } = methods;
   const agent = useWatch({ control, name: 'agent' });
-  const tools = useWatch({ control, name: 'tools' });
-  const agent_id = useWatch({ control, name: 'id' });
-
   const showMCPControls = availableMCPServers != null && availableMCPServers.length > 0;
-
-  const { mcpServerNames } = useVisibleTools(tools, regularTools, mcpServersMap);
 
   return (
     <>
@@ -161,23 +155,13 @@ export default function AgentConfig() {
         {showMCPControls && (
           <section className="agent-builder-section" aria-label={localize('com_ui_tools')}>
             <div className="agent-builder-tool-card agent-builder-mcp-setting">
-              <MCPTools
-                agentId={agent_id}
-                mcpServerNames={mcpServerNames}
-                setShowMCPToolDialog={setShowMCPToolDialog}
-              />
+              <MCPTools setShowMCPToolDialog={setShowMCPToolDialog} />
             </div>
           </section>
         )}
       </div>
       {showMCPControls && (
-        <MCPToolSelectDialog
-          agentId={agent_id}
-          isOpen={showMCPToolDialog}
-          mcpServerNames={mcpServerNames}
-          setIsOpen={setShowMCPToolDialog}
-          endpoint={EModelEndpoint.agents}
-        />
+        <MCPToolSelectDialog isOpen={showMCPToolDialog} setIsOpen={setShowMCPToolDialog} />
       )}
     </>
   );

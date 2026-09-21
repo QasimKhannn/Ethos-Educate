@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bot } from 'lucide-react';
-import { isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider';
+import { alternateName, isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider';
 import type {
   TModelSpec,
   TAgentsMap,
@@ -182,7 +182,7 @@ export const getDisplayValue = ({
   conversationModel?: string | null;
 }) => {
   if (isAgentsEndpoint(conversationEndpoint) && agentModel) {
-    return agentModel;
+    return (alternateName[agentModel] as string | undefined) ?? agentModel;
   }
 
   if (selectedValues.modelSpec) {
@@ -190,8 +190,9 @@ export const getDisplayValue = ({
 
     if (isAgentsEndpoint(spec?.preset.endpoint)) {
       const agentId = spec?.preset.agent_id;
+      const agentModel = agentsMap?.[agentId ?? '']?.model;
       return (
-        agentsMap?.[agentId ?? '']?.model ??
+        (agentModel ? (alternateName[agentModel] as string | undefined) ?? agentModel : undefined) ??
         conversationModel ??
         spec?.preset.model ??
         spec?.name ??
@@ -209,9 +210,11 @@ export const getDisplayValue = ({
     }
 
     if (isAgentsEndpoint(endpoint.value)) {
+      const selectedAgentModel = agentModel ?? agentsMap?.[selectedValues.model]?.model;
       return (
-        agentModel ??
-        agentsMap?.[selectedValues.model]?.model ??
+        (selectedAgentModel
+          ? (alternateName[selectedAgentModel] as string | undefined) ?? selectedAgentModel
+          : undefined) ??
         conversationModel ??
         selectedValues.model
       );
