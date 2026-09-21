@@ -87,6 +87,7 @@ export function AgentPanelProvider({ children }: { children: React.ReactNode }) 
           tool_id: tool.pluginKey,
           metadata: {
             ...tool,
+            name: tool.title?.trim() || tool.name,
             icon: serverData.icon,
             authConfig: serverData.authConfig,
             authenticated: serverData.authenticated,

@@ -46,7 +46,7 @@ export interface MCPResource {
 
 export interface LCFunctionTool {
   type: 'function';
-  ['function']: LCTool;
+  ['function']: LCTool & { title?: string };
 }
 
 export type LCAvailableTools = Record<string, LCFunctionTool>;

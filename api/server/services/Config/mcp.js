@@ -32,10 +32,12 @@ async function updateMCPServerTools({ userId, serverName, tools }) {
 
     for (const tool of tools) {
       const name = `${tool.name}${mcpDelimiter}${serverName}`;
+      const title = typeof tool.title === 'string' ? tool.title.trim() : '';
       serverTools[name] = {
         type: 'function',
         ['function']: {
           name,
+          ...(title ? { title } : {}),
           description: tool.description,
           parameters: tool.inputSchema,
         },

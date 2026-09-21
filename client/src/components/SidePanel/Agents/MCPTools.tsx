@@ -4,6 +4,7 @@ import type { AgentForm } from '~/common';
 import { useLocalize } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers';
 import { isMCPToolSelected } from '~/components/Tools/agentToolSelection';
+import { formatToolDisplayName } from '~/components/Tools/agentToolPresentation';
 
 export default function MCPTools({
   setShowMCPToolDialog,
@@ -22,7 +23,7 @@ export default function MCPTools({
           .filter((tool) => isMCPToolSelected(selectedToolIds, serverInfo.serverName, tool.tool_id))
           .map((tool) => ({
             id: tool.tool_id,
-            name: String(tool.metadata.name || tool.tool_id),
+            name: formatToolDisplayName(String(tool.metadata.name || tool.tool_id)),
           })),
       ),
     [mcpServersMap, selectedToolIds],

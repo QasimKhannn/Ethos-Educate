@@ -14,6 +14,7 @@ import { useAgentPanelContext } from '~/Providers';
 import { useMCPToolsQuery } from '~/data-provider';
 import AgentToolLibraryItem, { ToolProviderSetupCard } from './AgentToolLibraryItem';
 import { addMCPToolToAgent, isMCPToolSelected, removeMCPToolFromAgent } from './agentToolSelection';
+import { formatToolDescription, formatToolDisplayName } from './agentToolPresentation';
 
 type PendingTool = {
   serverName: string;
@@ -30,7 +31,7 @@ type ToolCatalogItem = {
 };
 
 const getProviderName = (serverInfo: MCPServerInfo): string =>
-  String(serverInfo.metadata.name || serverInfo.serverName);
+  formatToolDisplayName(String(serverInfo.metadata.name || serverInfo.serverName));
 
 const matchesSearch = (searchValue: string, fields: Array<string | undefined>): boolean =>
   fields.some((field) => field?.toLowerCase().includes(searchValue));
@@ -51,6 +52,7 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
   const [searchValue, setSearchValue] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const toolListRef = useRef<HTMLDivElement>(null);
 
   const updateUserPlugins = useUpdateUserPluginsMutation();
 
@@ -159,9 +161,7 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
       return;
     }
 
-    if (await prepareServer(serverName)) {
-      selectTool(serverName, toolId);
-    }
+    selectTool(serverName, toolId);
   };
 
   const handleSaveCustomVars = async (serverName: string, authData: Record<string, string>) => {
@@ -230,8 +230,8 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
         return serverInfo.tools.map((tool) => ({
           id: tool.tool_id,
           icon: String(tool.metadata.icon || ''),
-          name: String(tool.metadata.name || tool.tool_id),
-          description: String(tool.metadata.description || ''),
+          name: formatToolDisplayName(String(tool.metadata.name || tool.tool_id)),
+          description: formatToolDescription(String(tool.metadata.description || '')),
           providerName,
           serverName: serverInfo.serverName,
         }));
@@ -283,6 +283,12 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
 
     const frameId = requestAnimationFrame(() => searchInputRef.current?.focus());
     return () => cancelAnimationFrame(frameId);
+  }, [configuringServer, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && !configuringServer) {
+      toolListRef.current?.scrollTo({ top: 0 });
+    }
   }, [configuringServer, isOpen]);
 
   useEffect(() => {
@@ -358,105 +364,124 @@ function MCPToolSelectDialog({ isOpen, setIsOpen }: ToolDialogProps) {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {errorMessage ? (
-            <div
-              className="m-4 rounded-lg border border-red-400 bg-red-100 px-4 py-3 text-sm text-red-700"
-              role="alert"
-            >
-              {errorMessage}
-            </div>
-          ) : null}
-
-          {configuringServer ? (
-            <div className="p-5 sm:px-7 sm:py-6">
-              <button
-                className="btn btn-neutral border-token-border-light mb-5 h-9 gap-2"
-                type="button"
-                onClick={() => {
-                  setConfiguringServer(null);
-                  setPendingTool(null);
-                }}
+        {configuringServer ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:px-7 sm:py-6">
+            {errorMessage ? (
+              <div
+                className="mb-5 rounded-lg border border-red-400 bg-red-100 px-4 py-3 text-sm text-red-700"
+                role="alert"
               >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                {localize('com_ui_agent_tool_picker_back')}
-              </button>
-              <CustomUserVarsSection
-                serverName={configuringServer}
-                isSubmitting={isSavingCustomVars}
-                fields={availableMCPServersMap?.[configuringServer]?.customUserVars || {}}
-                onSave={(authData) => handleSaveCustomVars(configuringServer, authData)}
-                onRevoke={() => handleRevokeCustomVars(configuringServer)}
-              />
-            </div>
-          ) : (
-            <div className="p-5 sm:px-7 sm:py-6">
-              <div className="flex flex-col gap-5">
-                <div className="relative mx-auto w-full max-w-2xl">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-tertiary" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchValue}
-                    onChange={handleSearch}
-                    placeholder={localize('com_ui_agent_tool_picker_search')}
-                    className="h-11 w-full rounded-lg border border-border-medium bg-surface-primary py-2 pl-10 pr-3 text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-                  />
-                </div>
-
-                {filteredToolCatalog.length > 0 ? (
-                  <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredToolCatalog.map((tool) => {
-                      const serverInfo = mcpServersMap.get(tool.serverName);
-                      if (!serverInfo) {
-                        return null;
-                      }
-
-                      return (
-                        <AgentToolLibraryItem
-                          key={tool.id}
-                          description={tool.description}
-                          icon={tool.icon}
-                          isPreparing={isPreparingServer === tool.serverName}
-                          isSelected={isMCPToolSelected(selectedToolIds, tool.serverName, tool.id)}
-                          name={tool.name}
-                          onToggle={() => handleToggleTool(serverInfo, tool.id)}
-                          providerName={tool.providerName}
-                          toolId={tool.id}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {providersToPrepare.length > 0 ? (
-                  <section aria-label={localize('com_ui_agent_tool_picker_prepare_section')}>
-                    <h3 className="mb-3 text-sm font-semibold text-text-primary">
-                      {localize('com_ui_agent_tool_picker_prepare_section')}
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {providersToPrepare.map((serverInfo) => (
-                        <ToolProviderSetupCard
-                          key={serverInfo.serverName}
-                          description={String(serverInfo.metadata.description || '')}
-                          isPreparing={isPreparingServer === serverInfo.serverName}
-                          name={getProviderName(serverInfo)}
-                          onPrepare={() => handlePrepareProvider(serverInfo.serverName)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {filteredToolCatalog.length === 0 && providersToPrepare.length === 0 ? (
-                  <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-dashed border-border-medium bg-surface-primary px-6 text-center text-sm text-text-secondary">
-                    {localize('com_ui_agent_tool_picker_empty')}
-                  </div>
-                ) : null}
+                {errorMessage}
+              </div>
+            ) : null}
+            <button
+              className="btn btn-neutral border-token-border-light mb-5 h-9 gap-2"
+              type="button"
+              onClick={() => {
+                setConfiguringServer(null);
+                setPendingTool(null);
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              {localize('com_ui_agent_tool_picker_back')}
+            </button>
+            <CustomUserVarsSection
+              serverName={configuringServer}
+              isSubmitting={isSavingCustomVars}
+              fields={availableMCPServersMap?.[configuringServer]?.customUserVars || {}}
+              onSave={(authData) => handleSaveCustomVars(configuringServer, authData)}
+              onRevoke={() => handleRevokeCustomVars(configuringServer)}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="border-b border-border-light bg-surface-secondary px-5 py-4 sm:px-7">
+              <div className="relative mx-auto w-full max-w-2xl">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-tertiary" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchValue}
+                  onChange={handleSearch}
+                  placeholder={localize('com_ui_agent_tool_picker_search')}
+                  className="h-11 w-full rounded-lg border border-border-medium bg-surface-primary py-2 pl-10 pr-3 text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                />
               </div>
             </div>
-          )}
-        </div>
+            <div ref={toolListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="p-5 sm:px-7 sm:py-6">
+                {errorMessage ? (
+                  <div
+                    className="mb-5 rounded-lg border border-red-400 bg-red-100 px-4 py-3 text-sm text-red-700"
+                    role="alert"
+                  >
+                    {errorMessage}
+                  </div>
+                ) : null}
+                <div className="flex flex-col gap-5">
+                  {filteredToolCatalog.length > 0 ? (
+                    <section aria-label={localize('com_ui_tools')}>
+                      <h3 className="mb-3 text-sm font-semibold text-text-primary">
+                        {localize('com_ui_tools')}
+                      </h3>
+                      <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2">
+                        {filteredToolCatalog.map((tool) => {
+                          const serverInfo = mcpServersMap.get(tool.serverName);
+                          if (!serverInfo) {
+                            return null;
+                          }
+
+                          return (
+                            <AgentToolLibraryItem
+                              key={tool.id}
+                              description={tool.description}
+                              icon={tool.icon}
+                              isPreparing={isPreparingServer === tool.serverName}
+                              isSelected={isMCPToolSelected(
+                                selectedToolIds,
+                                tool.serverName,
+                                tool.id,
+                              )}
+                              name={tool.name}
+                              onToggle={() => handleToggleTool(serverInfo, tool.id)}
+                              providerName={tool.providerName}
+                              toolId={tool.id}
+                            />
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {providersToPrepare.length > 0 ? (
+                    <section aria-label={localize('com_ui_agent_tool_picker_prepare_section')}>
+                      <h3 className="mb-3 text-sm font-semibold text-text-primary">
+                        {localize('com_ui_agent_tool_picker_prepare_section')}
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {providersToPrepare.map((serverInfo) => (
+                          <ToolProviderSetupCard
+                            key={serverInfo.serverName}
+                            description={String(serverInfo.metadata.description || '')}
+                            isPreparing={isPreparingServer === serverInfo.serverName}
+                            name={getProviderName(serverInfo)}
+                            onPrepare={() => handlePrepareProvider(serverInfo.serverName)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {filteredToolCatalog.length === 0 && providersToPrepare.length === 0 ? (
+                    <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-dashed border-border-medium bg-surface-primary px-6 text-center text-sm text-text-secondary">
+                      {localize('com_ui_agent_tool_picker_empty')}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </OGDialogContent>
     </OGDialog>
   );

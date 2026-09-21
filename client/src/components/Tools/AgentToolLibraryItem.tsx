@@ -27,7 +27,7 @@ export default function AgentToolLibraryItem({
 
   return (
     <label
-      className={`flex min-h-36 cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
+      className={`flex min-h-40 cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition-colors ${
         isSelected
           ? 'border-blue-500/60 bg-blue-500/5'
           : 'border-border-medium bg-surface-primary hover:border-border-heavy'
@@ -64,7 +64,7 @@ export default function AgentToolLibraryItem({
             {localize('com_ui_agent_tool_picker_provider', { 0: providerName })}
           </p>
           {description ? (
-            <p className="mt-2 line-clamp-3 text-sm leading-5 text-text-secondary">{description}</p>
+            <p className="mt-2 line-clamp-2 text-sm leading-5 text-text-secondary">{description}</p>
           ) : null}
         </div>
       </div>

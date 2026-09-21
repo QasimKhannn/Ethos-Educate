@@ -105,6 +105,7 @@ export type ConversationTagsResponse = s.TConversationTag[];
 /* MCP Types */
 export type MCPTool = {
   name: string;
+  title?: string;
   pluginKey: string;
   description: string;
 };

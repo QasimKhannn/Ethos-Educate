@@ -327,6 +327,7 @@ describe('MCPServerInspector', () => {
         tools: [
           {
             name: 'file_read',
+            title: 'Read a school file',
             description: 'Read a file',
             inputSchema: {
               type: 'object',
@@ -354,6 +355,7 @@ describe('MCPServerInspector', () => {
           type: 'function',
           function: {
             name: 'file_read_mcp_my_server',
+            title: 'Read a school file',
             description: 'Read a file',
             parameters: {
               type: 'object',

@@ -129,10 +129,12 @@ export class MCPServerInspector {
     const toolFunctions: t.LCAvailableTools = {};
     tools.forEach((tool) => {
       const name = `${tool.name}${Constants.mcp_delimiter}${serverName}`;
+      const title = tool.title?.trim();
       toolFunctions[name] = {
         type: 'function',
         ['function']: {
           name,
+          ...(title ? { title } : {}),
           description: tool.description,
           parameters: tool.inputSchema as JsonSchemaType,
         },

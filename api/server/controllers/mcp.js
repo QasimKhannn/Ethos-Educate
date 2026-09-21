@@ -63,6 +63,20 @@ function handleMCPError(error, res) {
   return null;
 }
 
+function getToolTitle(toolName, toolData) {
+  const functionTitle = toolData.function?.title;
+  if (typeof functionTitle === 'string' && functionTitle.trim()) {
+    return functionTitle.trim();
+  }
+
+  const toolTitle = toolData.title;
+  if (typeof toolTitle === 'string' && toolTitle.trim()) {
+    return toolTitle.trim();
+  }
+
+  return toolName;
+}
+
 /**
  * Get all MCP tools available to the user
  */
@@ -160,6 +174,7 @@ const getMCPTools = async (req, res) => {
             const toolName = toolKey.split(Constants.mcp_delimiter)[0];
             server.tools.push({
               name: toolName,
+              title: getToolTitle(toolName, toolData),
               pluginKey: toolKey,
               description: toolData.function.description || '',
             });
