@@ -70,7 +70,7 @@ mcpServers:
   websearch:
     description: "Search web results"
     type: streamable-http
-    url: ${WEBSEARCH_MCP_URL}
+    url: "https://web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp"
     timeout: 60000
     initTimeout: 15000
     chatMenu: true
@@ -80,7 +80,7 @@ mcpServers:
   Downloadable-Files-Creation:
     description: "Create Microsoft Office documents"
     type: streamable-http
-    url: ${DOWNLOADABLE_FILES_MCP_URL}
+    url: "https://csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io/mcp"
     timeout: 300000
     initTimeout: 60000
     startup: true
