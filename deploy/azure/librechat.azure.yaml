@@ -23,30 +23,11 @@ fileConfig:
 
 mcpSettings:
   allowedDomains:
-    - "ms365-mcp-1081644116068.us-central1.run.app"
-    - "localhost:8080"
-    - "localhost:8081"
-    - "localhost:8090"
-    - "localhost:8091"
-    - "sharepoint-mcp-1081644116068.us-central1.run.app"
-    - "onedrive-mcp-1081644116068.us-central1.run.app"
-    - "outlook-mcp-1081644116068.us-central1.run.app"
-    - "teams-chat-mcp-1081644116068.us-central1.run.app"
-    - "lesson-planning-mcp-3fixl7mkma-uc.a.run.app"
-    - "lesson-planning-mcp-167785844293.us-central1.run.app"
     - "csusafiledownloadmcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
-    - "classroom-docs-mcp.redglacier-e4c3b5e0.westus2.azurecontainerapps.io"
     - "podcast-mcp-bc7qwf6s7a-uc.a.run.app"
-    - "youtube-transcript-mcp-bc7qwf6s7a-uc.a.run.app"
     - "youtube-video-finder-mcp.redglacier-e4c3b5e0.westus2.azurecontainerapps.io"
     - "web-search-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
     - "image-gen-mcp.mangoocean-84242d32.eastus.azurecontainerapps.io"
-    - "*.mangoocean-84242d32.eastus.azurecontainerapps.io"
-    - "20ad-103-189-68-222.ngrok-free.app"
-    # cowork — SearXNG web-search MCP host (Cowork-only; see the `searxng` server below)
-    - "searxng-mcp-1081644116068.us-central1.run.app"
-    # cowork A3 — GitHub official remote MCP server host (Cowork-only GitHub connector)
-    - "api.githubcopilot.com"
 
 mcpServers:
   Image_Generation:
@@ -86,88 +67,6 @@ mcpServers:
       - If generation fails, do not show raw Azure errors, stack traces, model internals, or API details.
       - Give one clear next step such as retrying, simplifying the prompt, reducing the number of images, changing the prompt, or checking the Image Generation MCP configuration.
 
-  outlook:
-    description: "Read Outlook emails"
-    type: streamable-http
-    url: ${OUTLOOK_MCP_URL}
-    timeout: 120000
-    initTimeout: 30000
-    chatMenu: true
-    startup: false
-    requiresOAuth: true
-    oauth:
-      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
-      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
-      client_id: "${MICROSOFT_CLIENT_ID}"
-      client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: ${OUTLOOK_MCP_REDIRECT_URI}
-      scope: "openid profile User.Read"
-
-  teams:
-    description: "Read Teams messages"
-    type: streamable-http
-    url: ${TEAMS_MCP_URL}
-    timeout: 120000
-    initTimeout: 30000
-    chatMenu: true
-    startup: false
-    requiresOAuth: true
-    oauth:
-      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
-      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
-      client_id: "${MICROSOFT_CLIENT_ID}"
-      client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: ${TEAMS_MCP_REDIRECT_URI}
-      scope: "openid profile User.Read"
-
-  # cowork A3 — GitHub connector. GitHub's official remote MCP server (read-only endpoint). GitHub's
-  # auth server does NOT support dynamic client registration, so an explicit OAuth App is required
-  # (client_id/secret via env, like the Microsoft connectors). chatMenu:false → Cowork-only. Write
-  # scope arrives in Phase C behind the enforced write gate.
-  github:
-    description: "Read GitHub repositories, issues, and pull requests"
-    type: streamable-http
-    url: "https://api.githubcopilot.com/mcp/readonly"
-    timeout: 120000
-    initTimeout: 30000
-    chatMenu: false
-    startup: false
-    requiresOAuth: true
-    oauth:
-      authorization_url: "https://github.com/login/oauth/authorize"
-      token_url: "https://github.com/login/oauth/access_token"
-      client_id: "${GITHUB_MCP_CLIENT_ID}"
-      client_secret: "${GITHUB_MCP_CLIENT_SECRET}"
-      redirect_uri: ${GITHUB_MCP_REDIRECT_URI}
-      # 'repo' is needed to READ private repos (GitHub has no read-only-private scope); the
-      # /readonly MCP endpoint still blocks all writes. Use 'public_repo' for public-only.
-      scope: "repo read:org read:user"
-    serverInstructions: |
-      **GitHub (read-only)**
-
-      Use GitHub to search and read repositories, files, issues, and pull requests that the
-      signed-in user can access.
-
-      **Authentication:** Users connect their GitHub account with OAuth on first use. The connector
-      can only access what the signed-in GitHub user can access, and is read-only.
-
-  sharepoint:
-    description: "Access SharePoint files"
-    type: streamable-http
-    url: ${SHAREPOINT_MCP_URL}
-    timeout: 120000
-    initTimeout: 30000
-    chatMenu: true
-    startup: false
-    requiresOAuth: true
-    oauth:
-      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
-      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
-      client_id: "${MICROSOFT_CLIENT_ID}"
-      client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: ${SHAREPOINT_MCP_REDIRECT_URI}
-      scope: "openid profile User.Read"
-
   websearch:
     description: "Search web results"
     type: streamable-http
@@ -177,83 +76,6 @@ mcpServers:
     chatMenu: true
     startup: true
     serverInstructions: true
-
-  # cowork — SearXNG web search (Cowork-only). Gives the coworker real, current web results via the
-  # deployed SearXNG MCP. chatMenu:false → invisible to normal chat's tool menu (same convention as
-  # wordpress/airtable/youtube); startup:false → loaded on demand. Granted to the Cowork agent in ALL
-  # modes via the `sys__all__sys_mcp_searxng` token in config/seed-cowork-agent.js — granting the whole
-  # server (mcp_all) avoids coupling to an exact tool name. URL is hardcoded inline (fixed public Cloud
-  # Run endpoint) so it can't break on an unset env var; host is allow-listed
-  # in mcpSettings.allowedDomains above. No auth/creds — uses its own endpoint.
-  searxng:
-    description: "Search the web via SearXNG"
-    type: streamable-http
-    url: "https://searxng-mcp-1081644116068.us-central1.run.app/mcp"
-    chatMenu: false
-    startup: false
-    timeout: 60000
-    initTimeout: 15000
-    serverInstructions: |
-      Use this to look up current, real-world information on the web when the task needs facts you
-      cannot derive from the workspace alone. Returns web search results (title, link, snippet) to use
-      as context. Search before writing research-heavy content.
-
-  onedrive:
-    description: "Access OneDrive files"
-    type: streamable-http
-    url: ${ONEDRIVE_MCP_URL}
-    timeout: 120000
-    initTimeout: 30000
-    chatMenu: true
-    startup: false
-    requiresOAuth: true
-    oauth:
-      authorization_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
-      token_url: "https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
-      client_id: "${MICROSOFT_CLIENT_ID}"
-      client_secret: "${MICROSOFT_CLIENT_SECRET}"
-      redirect_uri: ${ONEDRIVE_MCP_REDIRECT_URI}
-      scope: "openid profile User.Read"
-
-  lesson-planning:
-    type: streamable-http
-    title: "Lesson Planning"
-    description: "Lesson planning workflow with DOCX generation."
-    url: ${LESSON_PLANNING_MCP_URL}
-    timeout: 120000
-    initTimeout: 15000
-    chatMenu: true
-    startup: true
-    global: false
-    serverInstructions: |
-      Use this MCP server for the complete lesson-planning workflow.
-      Keep the conversation context-efficient.
-      Ask for one decision step at a time.
-      Do not repeat full prior option lists after the user has already chosen.
-      Summarize the current selections briefly before moving to the next tool call.
-      Keep only the values needed for the next step: state, frameworks, subject, grade, unit_document_id, selected benchmark titles, selected engagement strategies, and teacher notes.
-      If the user selects AVID/WICOR as one combined option, pass both frameworks (AVID and WICOR) to lesson_generate.
-      For now, do not ask lesson scope options; always use lesson_scope = five_day.
-      Follow this exact order:
-      1. Call lesson_get_states and lesson_get_frameworks first.
-      2. Ask the user to choose a state and one or more frameworks.
-      3. Call lesson_get_subjects with the selected state.
-      4. Ask the user to choose a subject.
-      5. Call lesson_get_grades with the selected state and subject.
-      6. Ask the user to choose a grade.
-      7. Call lesson_get_units with state, subject, and grade_level.
-      8. If units are returned, ask the user to choose one and use its value as unit_document_id.
-      9. Never auto-select a unit, never assume the first unit, and never continue to suggestions until the user explicitly chooses a unit.
-      10. If no units are returned for Specials or Electives, skip unit selection and call lesson_generate_suggestions with state, subject, and grade_level.
-      11. Otherwise call lesson_generate_suggestions with unit_document_id.
-      12. Ask the user to select benchmarks and engagement strategies.
-      13. Pass selected_benchmarks as benchmark titles only.
-      14. Pass selected_engagement_strategies exactly as 'Title: Description' strings.
-      15. If the user selects AVID, treat it as both AVID and WICOR Overview in downstream payloads, but do not show WICOR Overview as a separate option.
-      16. Call lesson_generate only after collecting all required selections.
-      17. When generation succeeds, always show the direct download link using absolute_download_url.
-      18. Use ONLY lesson-planning MCP tools for this workflow; do not call tools from any other MCP server.
-      19. Do not invent lesson content from model knowledge. If tool data is unavailable, report that the lesson-planning MCP/backend is unavailable.
 
   Downloadable-Files-Creation:
     description: "Create Microsoft Office documents"
@@ -311,21 +133,6 @@ mcpServers:
       Ask for the exact text to speak if the user has not provided it.
       Keep the final response concise and include the generated download link when the tool returns one.
 
-  Youtube_Transcript:
-    description: "Read YouTube video transcripts"
-    type: streamable-http
-    url: "https://youtube-transcript-mcp-bc7qwf6s7a-uc.a.run.app/mcp"
-    timeout: 120000
-    initTimeout: 15000
-    chatMenu: true
-    startup: true
-    serverInstructions: |
-      Use this YouTube Transcript tool when the user asks to read, summarize, analyze, quote, or extract information from a YouTube video.
-      Ask for a YouTube URL or video ID if the user has not provided one.
-      Use get_youtube_transcript to fetch transcript content.
-      Use list_youtube_transcripts if the requested language is unavailable.
-      If captions are unavailable or YouTube blocks access, explain that clearly and suggest trying another video.
-
   YouTube_Video_Finder:
     description: "Find and verify YouTube videos"
     type: streamable-http
@@ -339,95 +146,6 @@ mcpServers:
       Return direct YouTube video links only, not search pages, playlists, channels, or Shorts.
       Prefer educational and trustworthy videos when the user asks for classroom or student-facing content.
       If the user provides a direct video URL, use get_youtube_video_metadata to verify it.
-
-  # cowork — WordPress connector (Phase 7, API-key model). Runs in-process via npx (no hosting), so
-  # it works wherever the backend runs. Per-teacher credentials: each teacher's Site URL / Username /
-  # Application Password are entered in the Connectors tab and stored as this server's per-user
-  # customUserVars (key `mcp_wordpress`), which LibreChat substitutes into the env below when it spawns
-  # that teacher's connection. chatMenu:false → Cowork-only. Publishing is a write action, so the
-  # Phase 8 approval card gates it. Pin a version (e.g. mcp-wordpress@2.12.0) before client delivery.
-  wordpress:
-    description: "Draft and publish WordPress posts and pages"
-    command: npx
-    args:
-      - "-y"
-      - "mcp-wordpress"
-    env:
-      WORDPRESS_SITE_URL: "{{WORDPRESS_SITE_URL}}"
-      WORDPRESS_USERNAME: "{{WORDPRESS_USERNAME}}"
-      WORDPRESS_APP_PASSWORD: "{{WORDPRESS_APP_PASSWORD}}"
-      WORDPRESS_AUTH_METHOD: "app-password"
-    customUserVars:
-      WORDPRESS_SITE_URL:
-        title: "Site URL"
-        description: "Your WordPress site address, e.g. https://yourschool.org"
-      WORDPRESS_USERNAME:
-        title: "Username"
-        description: "Your WordPress username"
-      WORDPRESS_APP_PASSWORD:
-        title: "Application Password"
-        description: "A WordPress Application Password (Users → Profile → Application Passwords)"
-    chatMenu: false
-    startup: false
-    timeout: 60000
-    initTimeout: 30000
-
-  # cowork — Airtable connector (Phase 7, API-key model). In-process via npx. Per-teacher Personal
-  # Access Token entered in the Connectors tab → stored as this server's per-user customUserVar
-  # (mcp_airtable) → injected into the env below. chatMenu:false → Cowork-only. Read+write; the
-  # Phase 8 approval card gates record creates/updates.
-  airtable:
-    description: "Read and update Airtable bases and records"
-    command: npx
-    args:
-      - "-y"
-      - "airtable-mcp-server"
-    env:
-      AIRTABLE_API_KEY: "{{AIRTABLE_API_KEY}}"
-    customUserVars:
-      AIRTABLE_API_KEY:
-        title: "Personal access token"
-        description: "Your Airtable personal access token (airtable.com/create/tokens)"
-    chatMenu: false
-    startup: false
-    timeout: 60000
-    initTimeout: 30000
-
-  # cowork — Mailchimp connector (Phase 7, API-key model). In-process via npx. Per-teacher API key
-  # (includes the data-center suffix) → per-user customUserVar (mcp_mailchimp) → injected below.
-  # This server is READ-ONLY (no campaign sends), so no write gate is required. chatMenu:false.
-  mailchimp:
-    description: "Read Mailchimp campaigns, audiences, and reports"
-    command: npx
-    args:
-      - "-y"
-      - "@agentx-ai/mailchimp-mcp-server"
-    env:
-      MAILCHIMP_API_KEY: "{{MAILCHIMP_API_KEY}}"
-    customUserVars:
-      MAILCHIMP_API_KEY:
-        title: "API key"
-        description: "Your Mailchimp API key (ends with a data-center suffix like -us21)"
-    chatMenu: false
-    startup: false
-    timeout: 60000
-    initTimeout: 30000
-
-  # cowork — YouTube connector (Phase 7, PLATFORM model). In-process via npx. Uses ONE shared
-  # YouTube Data API key from env (set YOUTUBE_API_KEY in .env and enable "YouTube Data API v3" in
-  # Google Cloud). Read-only search — no per-teacher credential, always on in Agent mode.
-  youtube:
-    description: "Search YouTube for teaching videos and resources"
-    command: npx
-    args:
-      - "-y"
-      - "youtube-data-mcp-server"
-    env:
-      YOUTUBE_API_KEY: "${YOUTUBE_API_KEY}"
-    chatMenu: false
-    startup: false
-    timeout: 60000
-    initTimeout: 30000
 
 modelSpecs:
   enforce: false
@@ -469,7 +187,7 @@ modelSpecs:
           Recommend tools and AI applications that save time, enhance learning, and meet CSUSA standards for rigor and equity.
 
           AI Tools
-          Ethos Educate offers optional AI Tools, including image generation, document creation, web search, and user-authorized Microsoft connectors such as Outlook, Teams, SharePoint, and OneDrive. These tools are only available for a chat after the user selects the relevant tool in AI Tools; a connector also requires the user's own authorization when prompted.
+          Ethos Educate offers optional AI Tools for image generation, document creation, web search, podcast audio creation, and YouTube video discovery. These tools are only available for a chat after the user selects the relevant tool in AI Tools.
           When users ask which tools are available, explain these capabilities and direct them to AI Tools to review or select the appropriate tool. When a request needs an inactive tool, explain which capability is relevant and ask the user to select it in AI Tools. Never auto-enable a tool, initiate OAuth, request connector credentials, or imply that an inactive connector is already connected.
 
           Tone & Behavior
