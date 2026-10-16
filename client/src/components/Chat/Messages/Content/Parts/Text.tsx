@@ -2,6 +2,8 @@ import { memo, useMemo, ReactElement } from 'react';
 import { useRecoilValue } from 'recoil';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
+import DifferentiationAdapterResponse from '~/components/Chat/Messages/Content/DifferentiationAdapterResponse';
+import { parseDifferentiationAdapterResponse } from '~/components/Chat/Messages/Content/differentiationAdapterResponse';
 import { useSmoothStreamingText } from '~/hooks';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
@@ -30,6 +32,10 @@ const TextPart = memo(function TextPart({ text, isCreatedByUser, showCursor }: T
 
   const content: ContentType = useMemo(() => {
     if (!isCreatedByUser) {
+      const differentiationResponse = parseDifferentiationAdapterResponse(displayedText);
+      if (differentiationResponse) {
+        return <DifferentiationAdapterResponse response={differentiationResponse} />;
+      }
       return <Markdown content={displayedText} isLatestMessage={isLatestMessage} />;
     } else if (enableUserMsgMarkdown) {
       return <MarkdownLite content={displayedText} />;

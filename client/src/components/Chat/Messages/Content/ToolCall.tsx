@@ -63,6 +63,7 @@ export default function ToolCall({
   output,
   attachments,
   auth,
+  hideGeneratedDocument = false,
 }: {
   initialProgress: number;
   isLast?: boolean;
@@ -73,6 +74,7 @@ export default function ToolCall({
   attachments?: TAttachment[];
   auth?: string;
   expires_at?: number;
+  hideGeneratedDocument?: boolean;
 }) {
   const localize = useLocalize();
   const { generatedArtifactExpiries } = useMessageContext();
@@ -212,7 +214,9 @@ export default function ToolCall({
     progress,
   });
   const presentation = getToolActivityPresentation(function_name, mcpServerName);
-  const showActivityCard = function_name.length > 0;
+  const hasGeneratedDocument = generatedDocuments.length > 0;
+  const showActivityCard =
+    function_name.length > 0 && !(hideGeneratedDocument && hasGeneratedDocument);
 
   useLayoutEffect(() => {
     if (showInfo !== prevShowInfoRef.current) {
@@ -314,7 +318,7 @@ export default function ToolCall({
           </div>
         </div>
       </div>
-      {generatedDocumentMarkdown && (
+      {!hideGeneratedDocument && generatedDocumentMarkdown && (
         <div className="my-2 rounded-lg border border-border-light bg-surface-secondary px-3 py-2 text-sm">
           <Markdown content={generatedDocumentMarkdown} isLatestMessage={isLast} />
           <p role="note" className="mt-2 text-xs leading-5 text-text-secondary">
@@ -322,7 +326,7 @@ export default function ToolCall({
           </p>
         </div>
       )}
-      {generatedDocumentGroups.expired.length > 0 && (
+      {!hideGeneratedDocument && generatedDocumentGroups.expired.length > 0 && (
         <ExpiredGeneratedArtifact
           artifactType="document"
           count={generatedDocumentGroups.expired.length}

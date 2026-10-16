@@ -30,6 +30,7 @@ type PartProps = {
   isCreatedByUser: boolean;
   attachments?: TAttachment[];
   hasImageGenerationResult?: boolean;
+  hideGeneratedDocument?: boolean;
 };
 
 const Part = memo(function Part({
@@ -40,6 +41,7 @@ const Part = memo(function Part({
   showCursor,
   isCreatedByUser,
   hasImageGenerationResult = false,
+  hideGeneratedDocument = false,
 }: PartProps) {
   if (!part) {
     return null;
@@ -191,6 +193,7 @@ const Part = memo(function Part({
           auth={toolCall.auth}
           expires_at={toolCall.expires_at}
           isLast={isLast}
+          hideGeneratedDocument={hideGeneratedDocument}
         />
       );
     } else if (toolCall.type === ToolCallTypes.CODE_INTERPRETER) {
@@ -240,6 +243,7 @@ const Part = memo(function Part({
           name={toolCall.function.name}
           output={toolCall.function.output}
           isLast={isLast}
+          hideGeneratedDocument={hideGeneratedDocument}
         />
       );
     }

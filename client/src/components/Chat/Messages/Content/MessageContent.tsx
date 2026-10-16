@@ -11,7 +11,9 @@ import Thinking from './Parts/Thinking';
 import EmptyText from './Parts/EmptyText';
 import { hasInitialStreamingText, useLocalize, useSmoothStreamingText } from '~/hooks';
 import Container from './Container';
+import DifferentiationAdapterResponse from './DifferentiationAdapterResponse';
 import Markdown from './Markdown';
+import { parseDifferentiationAdapterResponse } from './differentiationAdapterResponse';
 import { cn } from '~/utils';
 import store from '~/store';
 
@@ -108,6 +110,10 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
 
   const content = useMemo(() => {
     if (!isCreatedByUser) {
+      const differentiationResponse = parseDifferentiationAdapterResponse(displayedText);
+      if (differentiationResponse) {
+        return <DifferentiationAdapterResponse response={differentiationResponse} />;
+      }
       return <Markdown content={displayedText} isLatestMessage={isLatestMessage} />;
     }
     if (enableUserMsgMarkdown) {

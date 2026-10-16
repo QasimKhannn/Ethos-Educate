@@ -17,6 +17,7 @@ import { getGeneratedDocumentState } from './generatedArtifacts';
 import Part from './Part';
 import LessonPlanningUnitChoices from './LessonPlanningUnitChoices';
 import { hasInitialResponseContent } from './responsePresentation';
+import { parseDifferentiationAdapterResponse } from './differentiationAdapterResponse';
 
 type PartWithContextProps = {
   part: TMessageContentParts;
@@ -33,6 +34,7 @@ type PartWithContextProps = {
   partAttachments: TAttachment[] | undefined;
   generatedDocumentState: ReturnType<typeof getGeneratedDocumentState>;
   hasImageGenerationResult: boolean;
+  hideGeneratedDocument: boolean;
   onRegenerate?: () => void;
   isRegenerating?: boolean;
 };
@@ -57,6 +59,23 @@ function isGeneratedImagePart(part: TMessageContentParts): boolean {
   );
 }
 
+function hasDifferentiationDownload(
+  content: Array<TMessageContentParts | undefined> | undefined,
+): boolean {
+  return (
+    content?.some((part) => {
+      if (part?.type !== ContentTypes.TEXT) {
+        return false;
+      }
+
+      const text = typeof part.text === 'string' ? part.text : part.text?.value;
+      return (
+        typeof text === 'string' && parseDifferentiationAdapterResponse(text)?.download != null
+      );
+    }) ?? false
+  );
+}
+
 const PartWithContext = memo(function PartWithContext({
   part,
   idx,
@@ -72,6 +91,7 @@ const PartWithContext = memo(function PartWithContext({
   partAttachments,
   generatedDocumentState,
   hasImageGenerationResult,
+  hideGeneratedDocument,
   onRegenerate,
   isRegenerating,
 }: PartWithContextProps) {
@@ -117,6 +137,7 @@ const PartWithContext = memo(function PartWithContext({
         isLast={isLastPart}
         showCursor={isLastPart && isLast}
         hasImageGenerationResult={hasImageGenerationResult}
+        hideGeneratedDocument={hideGeneratedDocument}
       />
     </MessageContext.Provider>
   );
@@ -166,6 +187,7 @@ const ContentParts = memo(function ContentParts({
 }: ContentPartsProps) {
   const attachmentMap = useMemo(() => mapAttachments(attachments ?? []), [attachments]);
   const generatedDocumentState = useMemo(() => getGeneratedDocumentState(content), [content]);
+  const hideGeneratedDocument = useMemo(() => hasDifferentiationDownload(content), [content]);
   const hasImageGenerationResult = useMemo(
     () =>
       content?.some(
@@ -201,6 +223,7 @@ const ContentParts = memo(function ContentParts({
           partAttachments={attachmentMap[toolCallId]}
           generatedDocumentState={generatedDocumentState}
           hasImageGenerationResult={hasImageGenerationResult}
+          hideGeneratedDocument={hideGeneratedDocument}
           onRegenerate={onRegenerate}
           isRegenerating={isSubmitting}
         />
@@ -212,6 +235,7 @@ const ContentParts = memo(function ContentParts({
       conversationId,
       generatedDocumentState,
       hasImageGenerationResult,
+      hideGeneratedDocument,
       isCreatedByUser,
       isLast,
       isLatestMessage,
